@@ -552,6 +552,36 @@
       color: #125575;
     }
 
+    .sync-shell .sync-title.toggle {
+      display: block;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      font: inherit;
+      text-align: left;
+      color: #125575;
+      cursor: pointer;
+      background: transparent !important;
+    }
+
+    .sync-shell .sync-title.toggle::after {
+      content: '▼';
+      float: right;
+      font-size: 0.78rem;
+      color: #4f7488;
+      margin-top: 3px;
+    }
+
+    .sync-shell.collapsed .sync-title.toggle::after {
+      content: '▶';
+    }
+
+    .sync-shell.collapsed .sync-shell-body {
+      display: none;
+    }
+
     .sync-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -812,47 +842,49 @@
     }
   </style>
 </head>
-<body>
+  <body>
   <aside class="sync-shell" id="sync-shell">
-    <p class="sync-title">Live Lesson Control (Miro-style)</p>
-    <div class="sync-row">
-      <select id="role-select">
-        <option value="student">Student mode</option>
-        <option value="teacher">Teacher mode</option>
-      </select>
-      <input id="room-input" type="text" placeholder="Room code (e.g. class-a2)" />
-    </div>
-    <div class="sync-row">
-      <button id="connect-btn" type="button">Connect</button>
-      <button class="alt" id="copy-link-btn" type="button">Copy student link</button>
-    </div>
-    <div class="sync-meta" id="sync-status">
-      Status: offline. Choose role + room, then Connect.
-    </div>
-    <div class="sync-meta" id="student-link-meta">
-      Student link will appear here.
-    </div>
-
-    <div class="teacher-box" id="teacher-box">
-      <h4>Teacher Dashboard</h4>
-      <p class="tracker" id="student-tracker">Student activity: waiting...</p>
-      <div class="sync-row single">
-        <button id="bring-to-me-btn" type="button">Bring student to my current section</button>
-      </div>
-      <div class="teacher-grid">
-        <button class="goto-btn" type="button" data-target="warmup">Warm-Up</button>
-        <button class="goto-btn" type="button" data-target="lead-in">Lead-In</button>
-        <button class="goto-btn" type="button" data-target="vocabulary">Vocabulary</button>
-        <button class="goto-btn" type="button" data-target="target-grammar">Grammar</button>
-        <button class="goto-btn" type="button" data-target="practice">Practice</button>
-        <button class="goto-btn" type="button" data-target="speaking">Speaking</button>
-        <button class="goto-btn" type="button" data-target="wrap-up">Wrap-Up</button>
+    <button class="sync-title toggle" id="sync-shell-toggle" type="button" aria-expanded="true">Live Lesson Control (Miro-style)</button>
+    <div class="sync-shell-body" id="sync-shell-body">
+      <div class="sync-row">
+        <select id="role-select">
+          <option value="student">Student mode</option>
+          <option value="teacher">Teacher mode</option>
+        </select>
+        <input id="room-input" type="text" placeholder="Room code (e.g. class-a2)" />
       </div>
       <div class="sync-row">
-        <input id="highlight-selector-input" type="text" placeholder='Selector, e.g. #exercise-2' />
-        <button id="highlight-selector-btn" type="button">Highlight selector</button>
+        <button id="connect-btn" type="button">Connect</button>
+        <button class="alt" id="copy-link-btn" type="button">Copy student link</button>
       </div>
-      <div class="teacher-grid" id="word-spotlight-grid"></div>
+      <div class="sync-meta" id="sync-status">
+        Status: offline. Choose role + room, then Connect.
+      </div>
+      <div class="sync-meta" id="student-link-meta">
+        Student link will appear here.
+      </div>
+
+      <div class="teacher-box" id="teacher-box">
+        <h4>Teacher Dashboard</h4>
+        <p class="tracker" id="student-tracker">Student activity: waiting...</p>
+        <div class="sync-row single">
+          <button id="bring-to-me-btn" type="button">Bring student to my current section</button>
+        </div>
+        <div class="teacher-grid">
+          <button class="goto-btn" type="button" data-target="warmup">Warm-Up</button>
+          <button class="goto-btn" type="button" data-target="lead-in">Lead-In</button>
+          <button class="goto-btn" type="button" data-target="vocabulary">Vocabulary</button>
+          <button class="goto-btn" type="button" data-target="target-grammar">Grammar</button>
+          <button class="goto-btn" type="button" data-target="practice">Practice</button>
+          <button class="goto-btn" type="button" data-target="speaking">Speaking</button>
+          <button class="goto-btn" type="button" data-target="wrap-up">Wrap-Up</button>
+        </div>
+        <div class="sync-row">
+          <input id="highlight-selector-input" type="text" placeholder='Selector, e.g. #exercise-2' />
+          <button id="highlight-selector-btn" type="button">Highlight selector</button>
+        </div>
+        <div class="teacher-grid" id="word-spotlight-grid"></div>
+      </div>
     </div>
   </aside>
 
@@ -1106,6 +1138,8 @@
 
       const roleSelect = document.getElementById('role-select');
       const roomInput = document.getElementById('room-input');
+      const syncShell = document.getElementById('sync-shell');
+      const syncShellToggle = document.getElementById('sync-shell-toggle');
       const connectBtn = document.getElementById('connect-btn');
       const copyLinkBtn = document.getElementById('copy-link-btn');
       const syncStatus = document.getElementById('sync-status');
@@ -1139,6 +1173,7 @@
       let cursorLastSentAt = 0;
       let presenceTimer = null;
       let lastStudentPresenceAt = 0;
+      let syncShellCollapsed = false;
 
       function setSyncStatus(text) {
         syncStatus.textContent = text;
@@ -1189,6 +1224,12 @@
         remoteCursor.classList.toggle('visible', false);
       }
 
+      function setSyncShellCollapsed(nextValue) {
+        syncShellCollapsed = Boolean(nextValue);
+        syncShell.classList.toggle('collapsed', syncShellCollapsed);
+        syncShellToggle.setAttribute('aria-expanded', String(!syncShellCollapsed));
+      }
+
       function parseSectionIdFromElement(element) {
         if (!(element instanceof HTMLElement)) return '';
         const parentSection = element.closest('.section');
@@ -1235,6 +1276,21 @@
             payload,
           }),
         }).catch(() => {});
+      }
+
+      function sendCursor(clientX, clientY, label = 'Student cursor') {
+        if (!connected || role !== 'student') return;
+        if (typeof clientX !== 'number' || typeof clientY !== 'number') return;
+
+        const now = Date.now();
+        if (now - cursorLastSentAt < 90) return;
+        cursorLastSentAt = now;
+
+        const viewportWidth = Math.max(1, window.innerWidth);
+        const viewportHeight = Math.max(1, window.innerHeight);
+        const x = Math.max(0, Math.min(1, clientX / viewportWidth));
+        const y = Math.max(0, Math.min(1, clientY / viewportHeight));
+        sendEvent('student_cursor', { x, y, label });
       }
 
       function sendPresence(reason = 'activity') {
@@ -1446,6 +1502,10 @@
         }
       });
 
+      syncShellToggle.addEventListener('click', () => {
+        setSyncShellCollapsed(!syncShellCollapsed);
+      });
+
       gotoButtons.forEach(button => {
         button.addEventListener('click', () => {
           if (role !== 'teacher') return;
@@ -1498,16 +1558,34 @@
         queuePresence('scroll');
       }, { passive: true });
 
-      document.addEventListener('mousemove', event => {
-        if (!connected || role !== 'student') return;
-        const now = Date.now();
-        if (now - cursorLastSentAt < 90) return;
-        cursorLastSentAt = now;
+      const hasPointerEvents = typeof window.PointerEvent === 'function';
+      if (hasPointerEvents) {
+        document.addEventListener('pointerdown', event => {
+          if (event.isPrimary === false) return;
+          sendCursor(event.clientX, event.clientY, 'Student cursor');
+        }, { passive: true });
 
-        const x = Math.max(0, Math.min(1, event.clientX / window.innerWidth));
-        const y = Math.max(0, Math.min(1, event.clientY / window.innerHeight));
-        sendEvent('student_cursor', { x, y, label: 'Student cursor' });
-      });
+        document.addEventListener('pointermove', event => {
+          if (event.isPrimary === false) return;
+          sendCursor(event.clientX, event.clientY, 'Student cursor');
+        }, { passive: true });
+      } else {
+        document.addEventListener('mousemove', event => {
+          sendCursor(event.clientX, event.clientY, 'Student cursor');
+        });
+
+        document.addEventListener('touchstart', event => {
+          const touch = event.touches[0] || event.changedTouches[0];
+          if (!touch) return;
+          sendCursor(touch.clientX, touch.clientY, 'Student cursor');
+        }, { passive: true });
+
+        document.addEventListener('touchmove', event => {
+          const touch = event.touches[0] || event.changedTouches[0];
+          if (!touch) return;
+          sendCursor(touch.clientX, touch.clientY, 'Student cursor');
+        }, { passive: true });
+      }
 
       window.setInterval(() => {
         if (role !== 'teacher') return;
