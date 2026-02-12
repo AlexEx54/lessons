@@ -695,6 +695,22 @@
       width: max-content;
     }
 
+    .remote-cursor.role-teacher .remote-cursor-dot {
+      background: #2f72d8;
+    }
+
+    .remote-cursor.role-teacher .remote-cursor-label {
+      background: rgba(47, 114, 216, 0.95);
+    }
+
+    .remote-cursor.role-student .remote-cursor-dot {
+      background: #d84545;
+    }
+
+    .remote-cursor.role-student .remote-cursor-label {
+      background: rgba(216, 69, 69, 0.95);
+    }
+
     .teacher-highlight {
       outline: 3px solid #f08a38 !important;
       box-shadow: 0 0 0 4px rgba(240, 138, 56, 0.28);
@@ -1179,6 +1195,11 @@
         syncStatus.textContent = text;
       }
 
+      function hideRemoteCursor() {
+        remoteCursor.classList.remove('visible', 'role-student', 'role-teacher');
+        remoteCursor.style.transform = 'translate(-9999px, -9999px)';
+      }
+
       function getStudentLink() {
         const roomId = roomInput.value.trim();
         if (!roomId) return '';
@@ -1221,7 +1242,7 @@
       function applyRoleUi() {
         role = roleSelect.value;
         teacherBox.classList.toggle('active', role === 'teacher');
-        remoteCursor.classList.toggle('visible', false);
+        hideRemoteCursor();
       }
 
       function setSyncShellCollapsed(nextValue) {
@@ -1278,8 +1299,9 @@
         }).catch(() => {});
       }
 
-      function sendCursor(clientX, clientY, label = 'Student cursor') {
-        if (!connected || role !== 'student') return;
+      function sendCursor(clientX, clientY) {
+        if (!connected) return;
+        if (role !== 'student' && role !== 'teacher') return;
         if (typeof clientX !== 'number' || typeof clientY !== 'number') return;
 
         const now = Date.now();
@@ -1288,7 +1310,12 @@
 
         const pageX = clientX + window.scrollX;
         const pageY = clientY + window.scrollY;
-        sendEvent('student_cursor', { pageX, pageY, label });
+        const isTeacher = role === 'teacher';
+        sendEvent(isTeacher ? 'teacher_cursor' : 'student_cursor', {
+          pageX,
+          pageY,
+          label: isTeacher ? 'Teacher cursor' : 'Student cursor',
+        });
       }
 
       function sendPresence(reason = 'activity') {
@@ -1322,8 +1349,40 @@
         return element.tagName.toLowerCase();
       }
 
+      function renderRemoteCursor(payload, fallbackLabel, remoteRole) {
+        const pageX = typeof payload.pageX === 'number' ? payload.pageX : -1;
+        const pageY = typeof payload.pageY === 'number' ? payload.pageY : -1;
+        const label = payload.label || fallbackLabel;
+
+        const vx = pageX - window.scrollX;
+        const vy = pageY - window.scrollY;
+        const inView = vx >= -20 && vx <= window.innerWidth + 20
+                    && vy >= -20 && vy <= window.innerHeight + 20;
+
+        remoteCursor.classList.remove('role-student', 'role-teacher');
+        if (remoteRole === 'student' || remoteRole === 'teacher') {
+          remoteCursor.classList.add(`role-${remoteRole}`);
+        }
+
+        if (inView) {
+          remoteCursor.classList.add('visible');
+          remoteCursor.style.transform = `translate(${Math.round(vx)}px, ${Math.round(vy)}px)`;
+        } else {
+          remoteCursor.classList.remove('visible');
+        }
+
+        const labelNode = remoteCursor.querySelector('.remote-cursor-label');
+        if (labelNode) labelNode.textContent = label;
+      }
+
       function handleTeacherCommand(message) {
         if (role !== 'student') return;
+
+        if (message.type === 'teacher_cursor') {
+          const payload = message.payload || {};
+          renderRemoteCursor(payload, 'Teacher', 'teacher');
+          return;
+        }
 
         if (message.type === 'teacher_goto') {
           const targetId = message.payload && message.payload.targetId;
@@ -1385,24 +1444,7 @@
 
         if (message.type === 'student_cursor') {
           const payload = message.payload || {};
-          const pageX = typeof payload.pageX === 'number' ? payload.pageX : -1;
-          const pageY = typeof payload.pageY === 'number' ? payload.pageY : -1;
-          const label = payload.label || 'Student';
-
-          const vx = pageX - window.scrollX;
-          const vy = pageY - window.scrollY;
-          const inView = vx >= -20 && vx <= window.innerWidth + 20
-                      && vy >= -20 && vy <= window.innerHeight + 20;
-
-          if (inView) {
-            remoteCursor.classList.add('visible');
-            remoteCursor.style.transform = `translate(${Math.round(vx)}px, ${Math.round(vy)}px)`;
-          } else {
-            remoteCursor.classList.remove('visible');
-          }
-
-          const labelNode = remoteCursor.querySelector('.remote-cursor-label');
-          if (labelNode) labelNode.textContent = label;
+          renderRemoteCursor(payload, 'Student', 'student');
           return;
         }
 
@@ -1469,7 +1511,7 @@
           window.clearInterval(presenceTicker);
           presenceTicker = null;
         }
-        remoteCursor.classList.remove('visible');
+        hideRemoteCursor();
         setSyncStatus('Status: offline.');
       }
 
@@ -1570,28 +1612,28 @@
       if (hasPointerEvents) {
         document.addEventListener('pointerdown', event => {
           if (event.isPrimary === false) return;
-          sendCursor(event.clientX, event.clientY, 'Student cursor');
+          sendCursor(event.clientX, event.clientY);
         }, { passive: true });
 
         document.addEventListener('pointermove', event => {
           if (event.isPrimary === false) return;
-          sendCursor(event.clientX, event.clientY, 'Student cursor');
+          sendCursor(event.clientX, event.clientY);
         }, { passive: true });
       } else {
         document.addEventListener('mousemove', event => {
-          sendCursor(event.clientX, event.clientY, 'Student cursor');
+          sendCursor(event.clientX, event.clientY);
         });
 
         document.addEventListener('touchstart', event => {
           const touch = event.touches[0] || event.changedTouches[0];
           if (!touch) return;
-          sendCursor(touch.clientX, touch.clientY, 'Student cursor');
+          sendCursor(touch.clientX, touch.clientY);
         }, { passive: true });
 
         document.addEventListener('touchmove', event => {
           const touch = event.touches[0] || event.changedTouches[0];
           if (!touch) return;
-          sendCursor(touch.clientX, touch.clientY, 'Student cursor');
+          sendCursor(touch.clientX, touch.clientY);
         }, { passive: true });
       }
 

@@ -26,6 +26,8 @@ Room value can be any code (for example, `maria-friday`).
    - send student to section (`Warm-Up`, `Grammar`, etc.)
    - highlight by CSS selector (example: `#exercise-2`)
    - spotlight target vocabulary words.
+   - student sees teacher cursor in real time.
+   - teacher still sees student cursor in real time.
 
 ## 4) In Miro
 
