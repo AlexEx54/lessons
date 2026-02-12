@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>English Mood Lab - State Verbs (A2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-1: #f7fff2;
+      --bg-2: #e7f6ff;
+      --bg-3: #fff1df;
+      --card: rgba(255, 255, 255, 0.85);
+      --card-border: rgba(14, 72, 98, 0.15);
+      --ink: #16384b;
+      --soft-ink: #436578;
+      --brand: #f08a38;
+      --brand-2: #0da4a7;
+      --ok: #1f9a62;
+      --bad: #d54646;
+      --hint: #7b8691;
+      --shadow: 0 12px 30px rgba(0, 60, 95, 0.13);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Nunito", "Trebuchet MS", sans-serif;
+      color: var(--ink);
+      background: linear-gradient(155deg, var(--bg-1), var(--bg-2) 48%, var(--bg-3));
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      z-index: -1;
+      border-radius: 999px;
+      filter: blur(2px);
+    }
+
+    body::before {
+      width: 370px;
+      height: 370px;
+      left: -110px;
+      top: -90px;
+      background: radial-gradient(circle at 35% 35%, rgba(240, 138, 56, 0.34), rgba(240, 138, 56, 0));
+      animation: drift 7s ease-in-out infinite alternate;
+    }
+
+    body::after {
+      width: 420px;
+      height: 420px;
+      right: -120px;
+      bottom: -130px;
+      background: radial-gradient(circle at 70% 70%, rgba(13, 164, 167, 0.3), rgba(13, 164, 167, 0));
+      animation: drift 8s ease-in-out infinite alternate-reverse;
+    }
+
+    @keyframes drift {
+      from { transform: translate(0, 0); }
+      to { transform: translate(-10px, 12px); }
+    }
+
+    .page {
+      width: min(1020px, 92vw);
+      margin: 30px auto 40px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .section {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      backdrop-filter: blur(8px);
+      animation: rise 0.55s ease;
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-family: "Baloo 2", cursive;
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      color: #104867;
+      line-height: 1.05;
+    }
+
+    .hero p {
+      margin: 8px 0 0;
+      color: var(--soft-ink);
+      font-size: 1.04rem;
+    }
+
+    .pill-row {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #eaf8ff;
+      border: 1px solid #bbdbe8;
+      color: #1f5b77;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .section h2 {
+      margin: 0 0 8px;
+      font-family: "Baloo 2", cursive;
+      color: #14597b;
+      font-size: clamp(1.4rem, 2.5vw, 1.9rem);
+      line-height: 1.1;
+    }
+
+    .section p,
+    .section li {
+      color: var(--soft-ink);
+    }
+
+    .small-note {
+      margin-top: 6px;
+      color: #5d7b8b;
+      font-size: 0.95rem;
+    }
+
+    .meme-box {
+      border-radius: 14px;
+      border: 1px dashed rgba(17, 86, 117, 0.35);
+      background: linear-gradient(120deg, rgba(255, 248, 235, 0.9), rgba(232, 250, 250, 0.92));
+      padding: 14px;
+    }
+
+    .meme-title {
+      font-weight: 800;
+      color: #185372;
+      margin-bottom: 10px;
+      font-size: 1.08rem;
+    }
+
+    .mood-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+    }
+
+    .mood-btn {
+      border: 2px solid #bad8e3;
+      background: #fff;
+      border-radius: 11px;
+      padding: 10px;
+      cursor: pointer;
+      font-size: 1rem;
+      color: #1d4963;
+      transition: border-color 0.2s ease, transform 0.15s ease, background-color 0.2s ease;
+    }
+
+    .mood-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--brand);
+    }
+
+    .mood-btn.selected {
+      border-color: var(--brand-2);
+      background: #e8fbfb;
+      font-weight: 700;
+    }
+
+    .mood-result {
+      margin-top: 10px;
+      color: #145574;
+      font-weight: 700;
+      min-height: 20px;
+    }
+
+    .qa-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+      padding-left: 18px;
+    }
+
+    .vocab-texts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .mini-card {
+      border: 1px solid rgba(20, 89, 123, 0.22);
+      background: rgba(248, 254, 255, 0.87);
+      border-radius: 12px;
+      padding: 10px;
+      color: #204d67;
+      line-height: 1.55;
+    }
+
+    .mini-card strong {
+      color: #0f5d7b;
+      background: #fff1cd;
+      border-radius: 4px;
+      padding: 0 2px;
+    }
+
+    .match-wrap {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .col {
+      border: 1px solid rgba(21, 84, 119, 0.2);
+      border-radius: 12px;
+      background: rgba(252, 255, 255, 0.88);
+      padding: 10px;
+    }
+
+    .col h3 {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      color: #1b5d7f;
+      letter-spacing: 0.02em;
+    }
+
+    .cards {
+      display: grid;
+      gap: 7px;
+    }
+
+    .match-card {
+      width: 100%;
+      text-align: left;
+      border: 2px solid #b9d9e6;
+      border-radius: 10px;
+      background: #fff;
+      color: #1e4863;
+      padding: 9px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: transform 0.16s ease, border-color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .match-card:hover {
+      transform: translateY(-1px);
+      border-color: var(--brand);
+    }
+
+    .match-card.selected {
+      border-color: var(--brand-2);
+      background: #e7fbfb;
+    }
+
+    .match-card.done {
+      border-color: var(--ok);
+      background: #eafef2;
+      font-weight: 700;
+      cursor: default;
+    }
+
+    .match-card.wrong {
+      border-color: var(--bad);
+      background: #ffecec;
+      animation: shake 0.22s linear;
+    }
+
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(3px); }
+      50% { transform: translateX(-3px); }
+      75% { transform: translateX(2px); }
+      100% { transform: translateX(0); }
+    }
+
+    .status {
+      margin-top: 8px;
+      min-height: 22px;
+      font-weight: 700;
+      color: #145574;
+    }
+
+    .status.ok {
+      color: var(--ok);
+    }
+
+    .status.bad {
+      color: var(--bad);
+    }
+
+    .grammar-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .rule-card {
+      border: 1px solid rgba(17, 87, 118, 0.22);
+      border-radius: 12px;
+      padding: 10px;
+      background: rgba(250, 255, 255, 0.9);
+      color: #1c506b;
+    }
+
+    .rule-card h4 {
+      margin: 0 0 6px;
+      color: #125777;
+      font-size: 1.02rem;
+    }
+
+    .table-wrap {
+      margin-top: 10px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+      min-width: 560px;
+    }
+
+    th,
+    td {
+      border: 1px solid #c4deea;
+      padding: 8px;
+      text-align: left;
+      color: #214e68;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    th {
+      background: #eaf8ff;
+      color: #155777;
+    }
+
+    .exercise {
+      margin-top: 12px;
+      border: 1px dashed rgba(21, 86, 116, 0.3);
+      border-radius: 12px;
+      padding: 11px;
+      background: rgba(248, 253, 255, 0.84);
+    }
+
+    .exercise h4 {
+      margin: 0 0 8px;
+      color: #165877;
+    }
+
+    .story {
+      line-height: 1.95;
+      color: #1d4a64;
+    }
+
+    .verb-slot {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-inline: 2px;
+      position: relative;
+      top: 2px;
+    }
+
+    .verb-slot input,
+    .inline-input,
+    select {
+      border: 2px solid #9cc7d8;
+      border-radius: 9px;
+      padding: 5px 8px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      color: #114862;
+      background: #fff;
+    }
+
+    .verb-slot input {
+      width: 108px;
+      text-align: center;
+    }
+
+    .inline-input {
+      width: 108px;
+    }
+
+    select {
+      min-width: 140px;
+    }
+
+    .verb-slot input:focus,
+    .inline-input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--brand);
+    }
+
+    .inf {
+      color: var(--hint);
+      font-size: 0.84rem;
+      font-style: italic;
+      white-space: nowrap;
+    }
+
+    .check {
+      opacity: 0;
+      color: var(--ok);
+      font-weight: 800;
+      transform: scale(0.7);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .check.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .correct {
+      border-color: var(--ok) !important;
+      background: #eafff2 !important;
+    }
+
+    .wrong {
+      border-color: var(--bad) !important;
+      background: #fff0f0 !important;
+    }
+
+    .btn {
+      margin-top: 8px;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.94rem;
+      background: linear-gradient(120deg, #f39a50, #ef7f1f);
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 130px;
+      resize: vertical;
+      border: 2px solid #a6cddd;
+      border-radius: 10px;
+      padding: 9px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      color: #194966;
+      background: #fff;
+    }
+
+    .free-tips {
+      margin: 8px 0 0;
+      font-size: 0.93rem;
+      color: #5a7788;
+    }
+
+    .speak-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+
+    .scenario {
+      border: 1px solid rgba(19, 88, 119, 0.24);
+      border-radius: 12px;
+      padding: 10px;
+      background: rgba(251, 255, 255, 0.87);
+      color: #1f4e68;
+    }
+
+    .scenario h4 {
+      margin: 0 0 6px;
+      color: #135a7a;
+    }
+
+    .exit-grid {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .exit-grid input,
+    .exit-grid select {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .sync-shell {
+      position: fixed;
+      right: 14px;
+      top: 12px;
+      z-index: 30;
+      width: min(360px, calc(100vw - 20px));
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(17, 87, 118, 0.2);
+      border-radius: 14px;
+      box-shadow: 0 10px 24px rgba(0, 60, 95, 0.18);
+      backdrop-filter: blur(8px);
+      padding: 10px;
+      color: #164961;
+    }
+
+    .sync-title {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #125575;
+    }
+
+    .sync-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .sync-row.single {
+      grid-template-columns: 1fr;
+    }
+
+    .sync-shell input,
+    .sync-shell select,
+    .sync-shell button {
+      width: 100%;
+      border: 1px solid #b8d8e6;
+      border-radius: 9px;
+      padding: 7px 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: #154a66;
+      background: #fff;
+    }
+
+    .sync-shell button {
+      cursor: pointer;
+      font-weight: 700;
+      border: none;
+      color: #fff;
+      background: linear-gradient(120deg, #18a3a5, #0f888a);
+    }
+
+    .sync-shell button.alt {
+      background: linear-gradient(120deg, #f39a50, #ea7d1f);
+    }
+
+    .sync-meta {
+      font-size: 0.83rem;
+      color: #5c7989;
+      margin: 6px 0;
+      line-height: 1.4;
+    }
+
+    .teacher-box {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(21, 86, 116, 0.28);
+      display: none;
+    }
+
+    .teacher-box.active {
+      display: block;
+    }
+
+    .teacher-box h4 {
+      margin: 0 0 7px;
+      font-size: 0.9rem;
+      color: #145c7d;
+    }
+
+    .teacher-grid {
+      display: grid;
+      gap: 6px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-bottom: 8px;
+    }
+
+    .teacher-grid button {
+      font-size: 0.84rem;
+      padding: 6px;
+    }
+
+    .tracker {
+      margin: 0 0 7px;
+      font-size: 0.84rem;
+      line-height: 1.35;
+      color: #2d5f77;
+    }
+
+    .remote-cursor {
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-9999px, -9999px);
+      z-index: 25;
+      pointer-events: none;
+      display: none;
+    }
+
+    .remote-cursor.visible {
+      display: block;
+    }
+
+    .remote-cursor-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #d84545;
+      border: 2px solid #fff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .remote-cursor-label {
+      margin-top: 4px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      background: rgba(216, 69, 69, 0.95);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      width: max-content;
+    }
+
+    .teacher-highlight {
+      outline: 3px solid #f08a38 !important;
+      box-shadow: 0 0 0 4px rgba(240, 138, 56, 0.28);
+      transition: box-shadow 0.2s ease;
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        margin-top: 14px;
+        margin-bottom: 20px;
+      }
+
+      .hero,
+      .section {
+        padding: 15px;
+      }
+
+      .story {
+        line-height: 2.2;
+      }
+
+      .verb-slot {
+        flex-wrap: wrap;
+      }
+
+      .verb-slot input,
+      .inline-input {
+        width: 95px;
+      }
+
+      .match-wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .sync-shell {
+        position: sticky;
+        top: 8px;
+        right: auto;
+        width: 100%;
+        margin: 0 auto;
+      }
+
+      .teacher-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <aside class="sync-shell" id="sync-shell">
+    <p class="sync-title">Live Lesson Control (Miro-style)</p>
+    <div class="sync-row">
+      <select id="role-select">
+        <option value="student">Student mode</option>
+        <option value="teacher">Teacher mode</option>
+      </select>
+      <input id="room-input" type="text" placeholder="Room code (e.g. class-a2)" />
+    </div>
+    <div class="sync-row">
+      <button id="connect-btn" type="button">Connect</button>
+      <button class="alt" id="copy-link-btn" type="button">Copy student link</button>
+    </div>
+    <div class="sync-meta" id="sync-status">
+      Status: offline. Choose role + room, then Connect.
+    </div>
+    <div class="sync-meta" id="student-link-meta">
+      Student link will appear here.
+    </div>
+
+    <div class="teacher-box" id="teacher-box">
+      <h4>Teacher Dashboard</h4>
+      <p class="tracker" id="student-tracker">Student activity: waiting...</p>
+      <div class="sync-row single">
+        <button id="bring-to-me-btn" type="button">Bring student to my current section</button>
+      </div>
+      <div class="teacher-grid">
+        <button class="goto-btn" type="button" data-target="warmup">Warm-Up</button>
+        <button class="goto-btn" type="button" data-target="lead-in">Lead-In</button>
+        <button class="goto-btn" type="button" data-target="vocabulary">Vocabulary</button>
+        <button class="goto-btn" type="button" data-target="target-grammar">Grammar</button>
+        <button class="goto-btn" type="button" data-target="practice">Practice</button>
+        <button class="goto-btn" type="button" data-target="speaking">Speaking</button>
+        <button class="goto-btn" type="button" data-target="wrap-up">Wrap-Up</button>
+      </div>
+      <div class="sync-row">
+        <input id="highlight-selector-input" type="text" placeholder='Selector, e.g. #exercise-2' />
+        <button id="highlight-selector-btn" type="button">Highlight selector</button>
+      </div>
+      <div class="teacher-grid" id="word-spotlight-grid"></div>
+    </div>
+  </aside>
+
+  <div class="remote-cursor" id="remote-cursor">
+    <div class="remote-cursor-dot"></div>
+    <div class="remote-cursor-label">Student</div>
+  </div>
+
+  <main class="page">
+    <section class="hero">
+      <h1>English Mood Lab: State Verbs</h1>
+      <p>Урок для ученицы 14 лет (A2): настроение, друзья и школьная жизнь.</p>
+      <div class="pill-row">
+        <span class="pill">Warm-Up</span>
+        <span class="pill">Lead-In</span>
+        <span class="pill">Vocabulary</span>
+        <span class="pill">Grammar</span>
+        <span class="pill">Speaking</span>
+        <span class="pill">Wrap-Up</span>
+      </div>
+    </section>
+
+    <section class="section" id="warmup">
+      <h2>1) Warm-Up</h2>
+      <div class="meme-box">
+        <div class="meme-title">How's your mood today?</div>
+        <div class="mood-grid" id="mood-grid">
+          <button class="mood-btn" type="button" data-mood="happy">😄 Happy</button>
+          <button class="mood-btn" type="button" data-mood="tired">😴 Tired</button>
+          <button class="mood-btn" type="button" data-mood="stressed">😵 Stressed</button>
+          <button class="mood-btn" type="button" data-mood="excited">🤩 Excited</button>
+          <button class="mood-btn" type="button" data-mood="bored">🙄 Bored</button>
+          <button class="mood-btn" type="button" data-mood="calm">😌 Calm</button>
+        </div>
+        <div class="mood-result" id="mood-result">Choose 1-2 moods.</div>
+      </div>
+    </section>
+
+    <section class="section" id="lead-in">
+      <h2>2) Lead-In</h2>
+      <p>Ответь устно на вопросы:</p>
+      <ol class="qa-list">
+        <li>Do you usually share your mood with friends?</li>
+        <li>What makes you feel confident at school?</li>
+        <li>Are you enjoying this school week?</li>
+        <li>What are you doing after classes today?</li>
+        <li>Do you prefer studying alone or with friends?</li>
+      </ol>
+      <p class="small-note">Цель: перейти к теме эмоций и state verbs.</p>
+    </section>
+
+    <section class="section" id="vocabulary">
+      <h2>3) Vocabulary Input</h2>
+      <p>Прочитай мини-тексты. Выделенные слова - активная лексика урока.</p>
+
+      <div class="vocab-texts">
+        <div class="mini-card">Before tests I feel <strong class="target-word" data-word="worried">worried</strong>, but my best friend is always <strong class="target-word" data-word="supportive">supportive</strong>.</div>
+        <div class="mini-card">When my brother touches my things, I get <strong class="target-word" data-word="annoyed">annoyed</strong>. After dance class I feel <strong class="target-word" data-word="relaxed">relaxed</strong>.</div>
+        <div class="mini-card">I was <strong class="target-word" data-word="embarrassed">embarrassed</strong> in class, but later I felt <strong class="target-word" data-word="proud">proud</strong> of my answer.</div>
+        <div class="mini-card">Sometimes I feel <strong class="target-word" data-word="bored">bored</strong> on rainy weekends, but I become <strong class="target-word" data-word="confident">confident</strong> when I practice.</div>
+      </div>
+
+      <p class="small-note">Exercise: Match words and definitions.</p>
+      <div class="match-wrap">
+        <div class="col">
+          <h3>Words</h3>
+          <div class="cards" id="word-cards"></div>
+        </div>
+        <div class="col">
+          <h3>Definitions</h3>
+          <div class="cards" id="def-cards"></div>
+        </div>
+      </div>
+      <div class="status" id="match-status">Matched: 0 / 8</div>
+    </section>
+
+    <section class="section" id="target-grammar">
+      <h2>4) Target Grammar: State Verbs + Present Simple/Continuous</h2>
+
+      <div class="grammar-grid">
+        <div class="rule-card">
+          <h4>State verbs</h4>
+          <p>State verbs describe feelings, thoughts, opinions, possession, or relationships.</p>
+          <p><strong>Common verbs:</strong> like, love, hate, know, understand, want, need, believe, remember, prefer, belong, feel (emotion), be.</p>
+        </div>
+        <div class="rule-card">
+          <h4>Main rule</h4>
+          <p>We usually use state verbs in <strong>Present Simple</strong>, not in Present Continuous.</p>
+          <p>Example: <strong>I know</strong> her. / <strong>She likes</strong> this song.</p>
+        </div>
+        <div class="rule-card">
+          <h4>Present Continuous</h4>
+          <p>Use it for actions happening now or temporary situations.</p>
+          <p>Example: <strong>I am doing</strong> homework now.</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Meaning</th>
+              <th>Present Simple (state)</th>
+              <th>Present Continuous (action now)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>think</td>
+              <td>I think this idea is cool.</td>
+              <td>I am thinking about your idea.</td>
+            </tr>
+            <tr>
+              <td>have</td>
+              <td>I have a new backpack.</td>
+              <td>I am having lunch.</td>
+            </tr>
+            <tr>
+              <td>feel</td>
+              <td>I feel tired before tests.</td>
+              <td>I am feeling better now. (less common but possible)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="practice">
+      <h2>5) Grammar Practice</h2>
+
+      <div class="exercise" id="exercise-1">
+        <h4>Exercise 1 (Controlled): Fill in the correct form</h4>
+        <p class="small-note">Впиши правильную форму. Инфинитив дан серым. При верном ответе появится галочка.</p>
+        <div class="story" id="state-story"></div>
+        <div class="status" id="story-progress">Done: 0 / 6</div>
+      </div>
+
+      <div class="exercise" id="exercise-2">
+        <h4>Exercise 2 (Semi-controlled): Choose Present Simple or Continuous</h4>
+        <ol class="qa-list" id="choice-list">
+          <li>
+            My sister usually
+            <select data-answer="likes">
+              <option value="">-- choose --</option>
+              <option>likes</option>
+              <option>is liking</option>
+            </select>
+            K-pop.
+          </li>
+          <li>
+            Look! We
+            <select data-answer="are waiting">
+              <option value="">-- choose --</option>
+              <option>wait</option>
+              <option>are waiting</option>
+            </select>
+            for the bus now.
+          </li>
+          <li>
+            I
+            <select data-answer="don't understand">
+              <option value="">-- choose --</option>
+              <option>am not understanding</option>
+              <option>don't understand</option>
+            </select>
+            this homework task.
+          </li>
+          <li>
+            She
+            <select data-answer="is talking">
+              <option value="">-- choose --</option>
+              <option>talks</option>
+              <option>is talking</option>
+            </select>
+            to her coach right now.
+          </li>
+          <li>
+            This phone
+            <select data-answer="belongs">
+              <option value="">-- choose --</option>
+              <option>belongs</option>
+              <option>is belonging</option>
+            </select>
+            to my cousin.
+          </li>
+        </ol>
+        <button class="btn" id="check-choice" type="button">Check Exercise 2</button>
+        <div class="status" id="choice-status">Score: 0 / 5</div>
+      </div>
+
+      <div class="exercise" id="exercise-3">
+        <h4>Exercise 3 (Free practice): Mini post</h4>
+        <p>Write 6-8 sentences on <strong>"My mood this week"</strong>.</p>
+        <p class="small-note">Use: at least 4 state verbs + 2 Present Continuous forms + 4 vocabulary words from this lesson.</p>
+        <textarea id="free-writing" placeholder="Example start: This week I feel... I usually... Today I am..."></textarea>
+        <div class="free-tips" id="free-feedback">Tip: try words like supportive, worried, relaxed, proud.</div>
+      </div>
+    </section>
+
+    <section class="section" id="speaking">
+      <h2>6) Speaking Practice</h2>
+      <div class="speak-grid">
+        <div class="scenario">
+          <h4>Situation A: Before a school performance</h4>
+          <ol class="qa-list">
+            <li>How do you usually feel before performing?</li>
+            <li>What are you doing now to prepare?</li>
+            <li>How is your friend supportive?</li>
+          </ol>
+        </div>
+        <div class="scenario">
+          <h4>Situation B: Weekend group chat</h4>
+          <ol class="qa-list">
+            <li>What do you usually like doing on weekends?</li>
+            <li>What are you doing this weekend?</li>
+            <li>When do you feel bored or relaxed?</li>
+          </ol>
+        </div>
+        <div class="scenario">
+          <h4>Challenge question</h4>
+          <ol class="qa-list">
+            <li>Do you think mood affects school results?</li>
+            <li>What helps you feel confident quickly?</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="wrap-up">
+      <h2>7) Wrap-Up</h2>
+      <p>Exit ticket:</p>
+      <div class="exit-grid">
+        <input class="inline-input" type="text" placeholder="One state verb I remember: ..." />
+        <input class="inline-input" type="text" placeholder="Sentence in Present Simple: ..." />
+        <input class="inline-input" type="text" placeholder="Sentence in Present Continuous: ..." />
+        <select>
+          <option>Today I feel: more confident</option>
+          <option>Today I feel: a little more confident</option>
+          <option>Today I feel: I need more practice</option>
+        </select>
+      </div>
+      <p class="small-note">Great job! You practiced vocabulary + state verbs in real teen situations.</p>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const vocabWords = ['supportive', 'worried', 'annoyed', 'embarrassed', 'confident', 'relaxed', 'bored', 'proud'];
+      const stateVerbs = ['love', 'like', 'hate', 'know', 'understand', 'want', 'need', 'believe', 'remember', 'prefer', 'feel', 'think', 'have', 'belong'];
+      const sections = Array.from(document.querySelectorAll('main .section'));
+
+      const roleSelect = document.getElementById('role-select');
+      const roomInput = document.getElementById('room-input');
+      const connectBtn = document.getElementById('connect-btn');
+      const copyLinkBtn = document.getElementById('copy-link-btn');
+      const syncStatus = document.getElementById('sync-status');
+      const studentLinkMeta = document.getElementById('student-link-meta');
+      const teacherBox = document.getElementById('teacher-box');
+      const studentTracker = document.getElementById('student-tracker');
+      const bringToMeBtn = document.getElementById('bring-to-me-btn');
+      const selectorInput = document.getElementById('highlight-selector-input');
+      const selectorBtn = document.getElementById('highlight-selector-btn');
+      const gotoButtons = document.querySelectorAll('.goto-btn');
+      const wordSpotlightGrid = document.getElementById('word-spotlight-grid');
+      const remoteCursor = document.getElementById('remote-cursor');
+
+      const query = new URLSearchParams(window.location.search);
+      const initialRole = query.get('role') === 'teacher' ? 'teacher' : 'student';
+      const initialRoom = (query.get('room') || '').trim();
+      const autoConnect = query.get('autoconnect') === '1';
+
+      roleSelect.value = initialRole;
+      roomInput.value = initialRoom;
+
+      const clientId = (window.crypto && typeof window.crypto.randomUUID === 'function')
+        ? window.crypto.randomUUID()
+        : `client-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+      let role = roleSelect.value;
+      let connected = false;
+      let eventSource = null;
+      let focusLabel = 'none';
+      let presenceTicker = null;
+      let cursorLastSentAt = 0;
+      let presenceTimer = null;
+      let lastStudentPresenceAt = 0;
+
+      function setSyncStatus(text) {
+        syncStatus.textContent = text;
+      }
+
+      function getStudentLink() {
+        const roomId = roomInput.value.trim();
+        if (!roomId) return '';
+        const params = new URLSearchParams(window.location.search);
+        params.set('room', roomId);
+        params.set('role', 'student');
+        params.set('autoconnect', '1');
+        return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+      }
+
+      function updateUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        const roomId = roomInput.value.trim();
+
+        params.set('role', roleSelect.value);
+        if (roomId) {
+          params.set('room', roomId);
+        } else {
+          params.delete('room');
+        }
+        if (params.get('role') === 'student') {
+          params.set('autoconnect', '1');
+        } else {
+          params.delete('autoconnect');
+        }
+
+        const next = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState(null, '', next);
+      }
+
+      function refreshStudentLinkMeta() {
+        const link = getStudentLink();
+        if (!link) {
+          studentLinkMeta.textContent = 'Student link will appear here.';
+          return;
+        }
+        studentLinkMeta.textContent = `Student link: ${link}`;
+      }
+
+      function applyRoleUi() {
+        role = roleSelect.value;
+        teacherBox.classList.toggle('active', role === 'teacher');
+        remoteCursor.classList.toggle('visible', false);
+      }
+
+      function parseSectionIdFromElement(element) {
+        if (!(element instanceof HTMLElement)) return '';
+        const parentSection = element.closest('.section');
+        return parentSection ? parentSection.id : '';
+      }
+
+      function getMostVisibleSectionId() {
+        let best = '';
+        let bestVisible = -1;
+
+        sections.forEach(section => {
+          const rect = section.getBoundingClientRect();
+          const visible = Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0));
+          if (visible > bestVisible) {
+            bestVisible = visible;
+            best = section.id;
+          }
+        });
+
+        return best || 'warmup';
+      }
+
+      function flashElement(element) {
+        if (!(element instanceof HTMLElement)) return;
+        element.classList.add('teacher-highlight');
+        window.setTimeout(() => {
+          element.classList.remove('teacher-highlight');
+        }, 2400);
+      }
+
+      function sendEvent(type, payload) {
+        if (!connected) return;
+        const roomId = roomInput.value.trim();
+        if (!roomId) return;
+
+        fetch('/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomId,
+            senderId: clientId,
+            role,
+            type,
+            payload,
+          }),
+        }).catch(() => {});
+      }
+
+      function sendPresence(reason = 'activity') {
+        if (!connected || role !== 'student') return;
+        const activeSection = getMostVisibleSectionId();
+        const maxScroll = Math.max(1, document.body.scrollHeight - window.innerHeight);
+        const scrollProgress = Number((window.scrollY / maxScroll).toFixed(3));
+
+        sendEvent('student_presence', {
+          reason,
+          activeSection,
+          focusLabel,
+          scrollProgress,
+        });
+      }
+
+      function queuePresence(reason = 'activity') {
+        if (presenceTimer) return;
+        presenceTimer = window.setTimeout(() => {
+          presenceTimer = null;
+          sendPresence(reason);
+        }, 220);
+      }
+
+      function describeElement(element) {
+        if (!(element instanceof HTMLElement)) return 'none';
+        if (element.id) return `#${element.id}`;
+        if (element.placeholder) return `${element.tagName.toLowerCase()} (${element.placeholder.slice(0, 24)})`;
+        const text = (element.textContent || '').trim().slice(0, 28);
+        if (text) return `${element.tagName.toLowerCase()} "${text}"`;
+        return element.tagName.toLowerCase();
+      }
+
+      function handleTeacherCommand(message) {
+        if (role !== 'student') return;
+
+        if (message.type === 'teacher_goto') {
+          const targetId = message.payload && message.payload.targetId;
+          if (!targetId) return;
+          const target = document.getElementById(targetId);
+          if (!target) return;
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          flashElement(target);
+          return;
+        }
+
+        if (message.type === 'teacher_highlight_selector') {
+          const selector = message.payload && message.payload.selector;
+          if (!selector) return;
+          let nodes = [];
+          try {
+            nodes = Array.from(document.querySelectorAll(selector));
+          } catch (error) {
+            return;
+          }
+          if (nodes.length === 0) return;
+          nodes.slice(0, 6).forEach(node => flashElement(node));
+          const first = nodes[0];
+          if (first instanceof HTMLElement) {
+            first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          return;
+        }
+
+        if (message.type === 'teacher_spotlight_word') {
+          const word = message.payload && message.payload.word;
+          if (!word) return;
+          const nodes = Array.from(document.querySelectorAll(`[data-word="${word}"]`));
+          if (nodes.length === 0) return;
+          nodes.forEach(node => flashElement(node));
+          const first = nodes[0];
+          if (first instanceof HTMLElement) {
+            first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      }
+
+      function handleTeacherView(message) {
+        if (role !== 'teacher') return;
+
+        if (message.type === 'student_presence') {
+          const payload = message.payload || {};
+          const active = payload.activeSection || 'unknown';
+          const focus = payload.focusLabel || 'none';
+          const scroll = typeof payload.scrollProgress === 'number'
+            ? `${Math.round(payload.scrollProgress * 100)}%`
+            : '?';
+          const reason = payload.reason || 'activity';
+
+          lastStudentPresenceAt = Date.now();
+          studentTracker.textContent = `Student: section "${active}", focus "${focus}", scroll ${scroll}, event "${reason}".`;
+          return;
+        }
+
+        if (message.type === 'student_cursor') {
+          const payload = message.payload || {};
+          const x = typeof payload.x === 'number' ? payload.x : 0;
+          const y = typeof payload.y === 'number' ? payload.y : 0;
+          const label = payload.label || 'Student';
+
+          remoteCursor.classList.add('visible');
+          remoteCursor.style.transform = `translate(${Math.round(x * window.innerWidth)}px, ${Math.round(y * window.innerHeight)}px)`;
+          const labelNode = remoteCursor.querySelector('.remote-cursor-label');
+          if (labelNode) labelNode.textContent = label;
+          return;
+        }
+
+        if (message.type === 'student_click') {
+          const payload = message.payload || {};
+          const target = payload.target || 'unknown';
+          studentTracker.textContent = `Student clicked: ${target}`;
+        }
+      }
+
+      function connectSync() {
+        const roomId = roomInput.value.trim();
+        if (!roomId) {
+          setSyncStatus('Status: enter room code first.');
+          return;
+        }
+        if (connected) return;
+
+        const params = new URLSearchParams({
+          room: roomId,
+          role,
+          clientId,
+        });
+
+        eventSource = new EventSource(`/events?${params.toString()}`);
+        setSyncStatus(`Status: connecting to room "${roomId}" as ${role}...`);
+
+        eventSource.onopen = () => {
+          connected = true;
+          updateUrlParams();
+          setSyncStatus(`Status: online in room "${roomId}" as ${role}.`);
+          sendPresence('connected');
+          if (role === 'student') {
+            presenceTicker = window.setInterval(() => sendPresence('heartbeat'), 3500);
+          }
+        };
+
+        eventSource.addEventListener('lesson', event => {
+          let data;
+          try {
+            data = JSON.parse(event.data);
+          } catch (error) {
+            return;
+          }
+
+          if (!data || data.senderId === clientId) return;
+          handleTeacherCommand(data);
+          handleTeacherView(data);
+        });
+
+        eventSource.onerror = () => {
+          setSyncStatus('Status: connection issue, trying to reconnect...');
+          connected = false;
+        };
+      }
+
+      function disconnectSync() {
+        connected = false;
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+        if (presenceTicker) {
+          window.clearInterval(presenceTicker);
+          presenceTicker = null;
+        }
+        remoteCursor.classList.remove('visible');
+        setSyncStatus('Status: offline.');
+      }
+
+      connectBtn.addEventListener('click', () => {
+        if (connected) {
+          disconnectSync();
+          connectBtn.textContent = 'Connect';
+        } else {
+          connectSync();
+          connectBtn.textContent = 'Disconnect';
+        }
+      });
+
+      roleSelect.addEventListener('change', () => {
+        if (connected) disconnectSync();
+        connectBtn.textContent = 'Connect';
+        applyRoleUi();
+        updateUrlParams();
+        refreshStudentLinkMeta();
+      });
+
+      roomInput.addEventListener('input', () => {
+        updateUrlParams();
+        refreshStudentLinkMeta();
+      });
+
+      copyLinkBtn.addEventListener('click', async () => {
+        const link = getStudentLink();
+        if (!link) {
+          setSyncStatus('Status: enter room code first.');
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(link);
+          setSyncStatus('Status: student link copied.');
+        } catch (error) {
+          setSyncStatus(`Copy failed. Link: ${link}`);
+        }
+      });
+
+      gotoButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          if (role !== 'teacher') return;
+          const targetId = button.dataset.target;
+          if (!targetId) return;
+          sendEvent('teacher_goto', { targetId });
+        });
+      });
+
+      bringToMeBtn.addEventListener('click', () => {
+        if (role !== 'teacher') return;
+        const targetId = getMostVisibleSectionId();
+        sendEvent('teacher_goto', { targetId });
+      });
+
+      selectorBtn.addEventListener('click', () => {
+        if (role !== 'teacher') return;
+        const selector = selectorInput.value.trim();
+        if (!selector) return;
+        sendEvent('teacher_highlight_selector', { selector });
+      });
+
+      vocabWords.forEach(word => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'alt';
+        button.textContent = `Spotlight: ${word}`;
+        button.addEventListener('click', () => {
+          if (role !== 'teacher') return;
+          sendEvent('teacher_spotlight_word', { word });
+        });
+        wordSpotlightGrid.appendChild(button);
+      });
+
+      document.addEventListener('focusin', event => {
+        focusLabel = describeElement(event.target);
+        queuePresence('focus');
+      });
+
+      document.addEventListener('click', event => {
+        const sectionId = parseSectionIdFromElement(event.target);
+        const target = describeElement(event.target);
+        if (connected && role === 'student') {
+          sendEvent('student_click', { sectionId, target });
+        }
+        queuePresence('click');
+      });
+
+      window.addEventListener('scroll', () => {
+        queuePresence('scroll');
+      }, { passive: true });
+
+      document.addEventListener('mousemove', event => {
+        if (!connected || role !== 'student') return;
+        const now = Date.now();
+        if (now - cursorLastSentAt < 90) return;
+        cursorLastSentAt = now;
+
+        const x = Math.max(0, Math.min(1, event.clientX / window.innerWidth));
+        const y = Math.max(0, Math.min(1, event.clientY / window.innerHeight));
+        sendEvent('student_cursor', { x, y, label: 'Student cursor' });
+      });
+
+      window.setInterval(() => {
+        if (role !== 'teacher') return;
+        if (!lastStudentPresenceAt) return;
+        const diffSec = Math.floor((Date.now() - lastStudentPresenceAt) / 1000);
+        if (diffSec > 7) {
+          studentTracker.textContent = `Student activity: last update ${diffSec}s ago.`;
+        }
+      }, 2500);
+
+      applyRoleUi();
+      updateUrlParams();
+      refreshStudentLinkMeta();
+      if (autoConnect && roomInput.value.trim()) {
+        connectSync();
+        connectBtn.textContent = 'Disconnect';
+      }
+
+      const moodButtons = document.querySelectorAll('.mood-btn');
+      const moodResult = document.getElementById('mood-result');
+      const pickedMoods = new Set();
+
+      moodButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const mood = btn.dataset.mood;
+
+          if (pickedMoods.has(mood)) {
+            pickedMoods.delete(mood);
+            btn.classList.remove('selected');
+          } else {
+            if (pickedMoods.size >= 2) {
+              const firstMood = [...pickedMoods][0];
+              const firstBtn = [...moodButtons].find(item => item.dataset.mood === firstMood);
+              if (firstBtn) firstBtn.classList.remove('selected');
+              pickedMoods.delete(firstMood);
+            }
+            pickedMoods.add(mood);
+            btn.classList.add('selected');
+          }
+
+          if (pickedMoods.size === 0) {
+            moodResult.textContent = 'Choose 1-2 moods.';
+          } else {
+            moodResult.textContent = `Your mood today: ${[...pickedMoods].join(' + ')}.`;
+          }
+          queuePresence('mood');
+        });
+      });
+
+      const vocabPairs = [
+        { id: 1, word: 'supportive', def: 'ready to help and encourage' },
+        { id: 2, word: 'annoyed', def: 'slightly angry' },
+        { id: 3, word: 'embarrassed', def: 'feeling shy because something awkward happened' },
+        { id: 4, word: 'confident', def: 'sure about yourself and your abilities' },
+        { id: 5, word: 'relaxed', def: 'feeling calm and not stressed' },
+        { id: 6, word: 'worried', def: 'thinking something bad may happen' },
+        { id: 7, word: 'bored', def: 'not interested; nothing feels fun' },
+        { id: 8, word: 'proud', def: 'happy because you did something well' }
+      ];
+
+      const wordCards = document.getElementById('word-cards');
+      const defCards = document.getElementById('def-cards');
+      const matchStatus = document.getElementById('match-status');
+
+      const shuffledDefs = [...vocabPairs].sort(() => Math.random() - 0.5);
+      let selectedWordId = null;
+      let doneCount = 0;
+      const doneSet = new Set();
+
+      function setMatchStatus(text, tone = '') {
+        matchStatus.classList.remove('ok', 'bad');
+        if (tone) matchStatus.classList.add(tone);
+        matchStatus.textContent = text;
+      }
+
+      function renderMatchCards() {
+        vocabPairs.forEach(item => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'match-card';
+          btn.dataset.type = 'word';
+          btn.dataset.id = String(item.id);
+          btn.textContent = item.word;
+          wordCards.appendChild(btn);
+        });
+
+        shuffledDefs.forEach(item => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'match-card';
+          btn.dataset.type = 'def';
+          btn.dataset.id = String(item.id);
+          btn.textContent = item.def;
+          defCards.appendChild(btn);
+        });
+      }
+
+      function getWordBtn(id) {
+        return wordCards.querySelector(`[data-id="${id}"]`);
+      }
+
+      function clearWordPick() {
+        wordCards.querySelectorAll('.match-card').forEach(card => card.classList.remove('selected'));
+        selectedWordId = null;
+      }
+
+      wordCards.addEventListener('click', event => {
+        const target = event.target;
+        if (!(target instanceof HTMLButtonElement)) return;
+
+        const id = Number(target.dataset.id);
+        if (doneSet.has(id)) return;
+
+        clearWordPick();
+        selectedWordId = id;
+        target.classList.add('selected');
+        setMatchStatus(`Selected: ${target.textContent}. Now choose a definition.`);
+        queuePresence('vocab-word');
+      });
+
+      defCards.addEventListener('click', event => {
+        const target = event.target;
+        if (!(target instanceof HTMLButtonElement)) return;
+
+        const defId = Number(target.dataset.id);
+        if (doneSet.has(defId)) return;
+
+        if (!selectedWordId) {
+          setMatchStatus(`Choose a word first. Matched: ${doneCount} / ${vocabPairs.length}`);
+          return;
+        }
+
+        const wordBtn = getWordBtn(selectedWordId);
+        const defBtn = target;
+
+        if (selectedWordId === defId) {
+          wordBtn.classList.remove('selected');
+          wordBtn.classList.add('done');
+          defBtn.classList.add('done');
+          wordBtn.textContent += ' ✓';
+          defBtn.textContent += ' ✓';
+          doneSet.add(defId);
+          doneCount += 1;
+          selectedWordId = null;
+
+          if (doneCount === vocabPairs.length) {
+            setMatchStatus(`Matched: ${doneCount} / ${vocabPairs.length}. Perfect!`, 'ok');
+          } else {
+            setMatchStatus(`Correct! Matched: ${doneCount} / ${vocabPairs.length}`, 'ok');
+          }
+        } else {
+          wordBtn.classList.add('wrong');
+          defBtn.classList.add('wrong');
+          setMatchStatus(`Not a match. Try again. Matched: ${doneCount} / ${vocabPairs.length}`, 'bad');
+
+          window.setTimeout(() => {
+            wordBtn.classList.remove('wrong', 'selected');
+            defBtn.classList.remove('wrong');
+          }, 340);
+
+          selectedWordId = null;
+        }
+        queuePresence('vocab-match');
+      });
+
+      renderMatchCards();
+
+      const storyParts = [
+        { text: 'I usually' },
+        { slot: true, inf: 'to feel', answer: 'feel' },
+        { text: 'relaxed after dance class, but today I' },
+        { slot: true, inf: 'to prepare', answer: 'am preparing' },
+        { text: 'for a show. My best friend' },
+        { slot: true, inf: 'to be', answer: 'is' },
+        { text: 'very supportive and she' },
+        { slot: true, inf: 'to help', answer: 'is helping' },
+        { text: 'me now. I' },
+        { slot: true, inf: 'to know', answer: 'know' },
+        { text: 'the steps, but I still' },
+        { slot: true, inf: 'to feel', answer: 'feel' },
+        { text: 'a bit worried.' }
+      ];
+
+      const stateStory = document.getElementById('state-story');
+      const storyProgress = document.getElementById('story-progress');
+      let solvedStory = 0;
+      const totalStory = storyParts.filter(part => part.slot).length;
+
+      storyParts.forEach(part => {
+        if (!part.slot) {
+          stateStory.appendChild(document.createTextNode(` ${part.text} `));
+          return;
+        }
+
+        const slot = document.createElement('span');
+        slot.className = 'verb-slot';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.autocomplete = 'off';
+        input.spellcheck = false;
+
+        const inf = document.createElement('span');
+        inf.className = 'inf';
+        inf.textContent = `(${part.inf})`;
+
+        const check = document.createElement('span');
+        check.className = 'check';
+        check.textContent = '✓';
+
+        input.addEventListener('input', () => {
+          if (input.disabled) return;
+
+          const user = input.value.trim().toLowerCase().replace(/\s+/g, ' ');
+          const answer = part.answer.toLowerCase();
+
+          if (user === answer) {
+            input.classList.add('correct');
+            check.classList.add('visible');
+            input.disabled = true;
+            solvedStory += 1;
+            storyProgress.textContent = `Done: ${solvedStory} / ${totalStory}`;
+            if (solvedStory === totalStory) {
+              storyProgress.textContent += ' Great!';
+              storyProgress.classList.add('ok');
+            }
+          }
+          queuePresence('gap-fill');
+        });
+
+        slot.append(input, inf, check);
+        stateStory.appendChild(slot);
+      });
+
+      const checkChoiceBtn = document.getElementById('check-choice');
+      const choiceStatus = document.getElementById('choice-status');
+      const selects = document.querySelectorAll('#choice-list select');
+
+      checkChoiceBtn.addEventListener('click', () => {
+        let score = 0;
+
+        selects.forEach(select => {
+          const answer = select.dataset.answer;
+          const value = select.value;
+          select.classList.remove('correct', 'wrong');
+
+          if (value === answer) {
+            score += 1;
+            select.classList.add('correct');
+          } else {
+            select.classList.add('wrong');
+          }
+        });
+
+        choiceStatus.classList.remove('ok', 'bad');
+        choiceStatus.textContent = `Score: ${score} / ${selects.length}`;
+        choiceStatus.classList.add(score === selects.length ? 'ok' : 'bad');
+        queuePresence('check-ex2');
+      });
+
+      const freeWriting = document.getElementById('free-writing');
+      const freeFeedback = document.getElementById('free-feedback');
+
+      freeWriting.addEventListener('input', () => {
+        const text = freeWriting.value.toLowerCase();
+
+        const vocabCount = vocabWords.filter(word => text.includes(word)).length;
+        const stateCount = stateVerbs.filter(verb => new RegExp(`\\b${verb}\\b`).test(text)).length;
+        const continuousCount = (text.match(/\b(am|is|are)\s+\w+ing\b/g) || []).length;
+
+        freeFeedback.textContent = `Detected: vocab ${vocabCount}/4, state verbs ${stateCount}/4, continuous forms ${continuousCount}/2.`;
+        freeFeedback.style.color = vocabCount >= 4 && stateCount >= 4 && continuousCount >= 2 ? 'var(--ok)' : 'var(--soft-ink)';
+        queuePresence('free-writing');
+      });
+    })();
+  </script>
+</body>
+</html>
