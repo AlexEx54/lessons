@@ -1308,12 +1308,23 @@
         if (now - cursorLastSentAt < 90) return;
         cursorLastSentAt = now;
 
-        const pageX = clientX + window.scrollX;
-        const pageY = clientY + window.scrollY;
+        const el = document.elementFromPoint(clientX, clientY);
+        if (!el) return;
+
+        const anchor = el.closest('.section, .exercise');
+        if (!anchor || !anchor.id) return;
+
+        const rect = anchor.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        const ratioX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const ratioY = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+
         const isTeacher = role === 'teacher';
         sendEvent(isTeacher ? 'teacher_cursor' : 'student_cursor', {
-          pageX,
-          pageY,
+          anchorId: anchor.id,
+          ratioX: Math.round(ratioX * 10000) / 10000,
+          ratioY: Math.round(ratioY * 10000) / 10000,
           label: isTeacher ? 'Teacher cursor' : 'Student cursor',
         });
       }
@@ -1350,12 +1361,28 @@
       }
 
       function renderRemoteCursor(payload, fallbackLabel, remoteRole) {
-        const pageX = typeof payload.pageX === 'number' ? payload.pageX : -1;
-        const pageY = typeof payload.pageY === 'number' ? payload.pageY : -1;
         const label = payload.label || fallbackLabel;
+        let vx, vy;
 
-        const vx = pageX - window.scrollX;
-        const vy = pageY - window.scrollY;
+        if (payload.anchorId) {
+          const anchor = document.getElementById(payload.anchorId);
+          if (!anchor) { hideRemoteCursor(); return; }
+
+          const rect = anchor.getBoundingClientRect();
+          if (rect.width === 0 && rect.height === 0) { hideRemoteCursor(); return; }
+
+          const ratioX = typeof payload.ratioX === 'number' ? Math.max(0, Math.min(1, payload.ratioX)) : 0.5;
+          const ratioY = typeof payload.ratioY === 'number' ? Math.max(0, Math.min(1, payload.ratioY)) : 0.5;
+          vx = rect.left + ratioX * rect.width;
+          vy = rect.top  + ratioY * rect.height;
+        } else if (typeof payload.pageX === 'number' && typeof payload.pageY === 'number') {
+          vx = payload.pageX - window.scrollX;
+          vy = payload.pageY - window.scrollY;
+        } else {
+          hideRemoteCursor();
+          return;
+        }
+
         const inView = vx >= -20 && vx <= window.innerWidth + 20
                     && vy >= -20 && vy <= window.innerHeight + 20;
 
