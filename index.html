@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>English Mood Lab - State Verbs (A2)</title>
+  <title>English Mood Lab - State Verbs (A2) - версия 1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -28,12 +28,19 @@
       box-sizing: border-box;
     }
 
+    html {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
     body {
       margin: 0;
       font-family: "Nunito", "Trebuchet MS", sans-serif;
       color: var(--ink);
       background: linear-gradient(155deg, var(--bg-1), var(--bg-2) 48%, var(--bg-3));
       min-height: 100vh;
+      max-width: 100%;
       overflow-x: hidden;
       position: relative;
     }
@@ -71,7 +78,7 @@
     }
 
     .page {
-      width: min(1020px, 92vw);
+      width: min(1020px, calc(100% - 20px));
       margin: 30px auto 40px;
       display: grid;
       gap: 18px;
@@ -528,7 +535,7 @@
       right: 14px;
       top: 12px;
       z-index: 30;
-      width: min(360px, calc(100vw - 20px));
+      width: min(360px, calc(100% - 20px));
       background: rgba(255, 255, 255, 0.95);
       border: 1px solid rgba(17, 87, 118, 0.2);
       border-radius: 14px;
@@ -666,7 +673,7 @@
 
     @media (max-width: 760px) {
       .page {
-        width: min(1020px, 95vw);
+        width: min(1020px, calc(100% - 12px));
         margin-top: 14px;
         margin-bottom: 20px;
       }
@@ -724,7 +731,7 @@
       }
 
       .page {
-        width: calc(100vw - 12px);
+        width: calc(100% - 8px);
         margin-top: 8px;
         margin-bottom: 14px;
         gap: 12px;
@@ -752,8 +759,14 @@
       }
 
       table {
-        min-width: 460px;
+        min-width: 0;
+        table-layout: fixed;
         font-size: 0.88rem;
+      }
+
+      th,
+      td {
+        word-break: break-word;
       }
 
       .story {
@@ -850,7 +863,7 @@
 
   <main class="page">
     <section class="hero">
-      <h1>English Mood Lab: State Verbs</h1>
+      <h1>English Mood Lab: State Verbs (версия 1)</h1>
       <p>Урок для ученицы 14 лет (A2): настроение, друзья и школьная жизнь.</p>
       <div class="pill-row">
         <span class="pill">Warm-Up</span>
