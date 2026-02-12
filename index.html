@@ -842,7 +842,7 @@
     }
   </style>
 </head>
-  <body>
+<body>
   <aside class="sync-shell" id="sync-shell">
     <button class="sync-title toggle" id="sync-shell-toggle" type="button" aria-expanded="true">Live Lesson Control (Miro-style)</button>
     <div class="sync-shell-body" id="sync-shell-body">
@@ -1286,11 +1286,9 @@
         if (now - cursorLastSentAt < 90) return;
         cursorLastSentAt = now;
 
-        const viewportWidth = Math.max(1, window.innerWidth);
-        const viewportHeight = Math.max(1, window.innerHeight);
-        const x = Math.max(0, Math.min(1, clientX / viewportWidth));
-        const y = Math.max(0, Math.min(1, clientY / viewportHeight));
-        sendEvent('student_cursor', { x, y, label });
+        const pageX = clientX + window.scrollX;
+        const pageY = clientY + window.scrollY;
+        sendEvent('student_cursor', { pageX, pageY, label });
       }
 
       function sendPresence(reason = 'activity') {
@@ -1387,12 +1385,22 @@
 
         if (message.type === 'student_cursor') {
           const payload = message.payload || {};
-          const x = typeof payload.x === 'number' ? payload.x : 0;
-          const y = typeof payload.y === 'number' ? payload.y : 0;
+          const pageX = typeof payload.pageX === 'number' ? payload.pageX : -1;
+          const pageY = typeof payload.pageY === 'number' ? payload.pageY : -1;
           const label = payload.label || 'Student';
 
-          remoteCursor.classList.add('visible');
-          remoteCursor.style.transform = `translate(${Math.round(x * window.innerWidth)}px, ${Math.round(y * window.innerHeight)}px)`;
+          const vx = pageX - window.scrollX;
+          const vy = pageY - window.scrollY;
+          const inView = vx >= -20 && vx <= window.innerWidth + 20
+                      && vy >= -20 && vy <= window.innerHeight + 20;
+
+          if (inView) {
+            remoteCursor.classList.add('visible');
+            remoteCursor.style.transform = `translate(${Math.round(vx)}px, ${Math.round(vy)}px)`;
+          } else {
+            remoteCursor.classList.remove('visible');
+          }
+
           const labelNode = remoteCursor.querySelector('.remote-cursor-label');
           if (labelNode) labelNode.textContent = label;
           return;
