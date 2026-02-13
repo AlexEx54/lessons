@@ -1187,6 +1187,11 @@
       let focusLabel = 'none';
       let presenceTicker = null;
       let cursorLastSentAt = 0;
+      let lastClientX = -1;
+      let lastClientY = -1;
+      let lastRemoteCursorPayload = null;
+      let lastRemoteCursorLabel = '';
+      let lastRemoteCursorRole = '';
       let presenceTimer = null;
       let lastStudentPresenceAt = 0;
       let syncShellCollapsed = false;
@@ -1361,6 +1366,9 @@
       }
 
       function renderRemoteCursor(payload, fallbackLabel, remoteRole) {
+        lastRemoteCursorPayload = payload;
+        lastRemoteCursorLabel = fallbackLabel;
+        lastRemoteCursorRole = remoteRole;
         const label = payload.label || fallbackLabel;
         let vx, vy;
 
@@ -1633,33 +1641,45 @@
 
       window.addEventListener('scroll', () => {
         queuePresence('scroll');
+        if (lastClientX >= 0) {
+          cursorLastSentAt = 0;
+          sendCursor(lastClientX, lastClientY);
+        }
+        if (lastRemoteCursorPayload) {
+          renderRemoteCursor(lastRemoteCursorPayload, lastRemoteCursorLabel, lastRemoteCursorRole);
+        }
       }, { passive: true });
 
       const hasPointerEvents = typeof window.PointerEvent === 'function';
       if (hasPointerEvents) {
         document.addEventListener('pointerdown', event => {
           if (event.isPrimary === false) return;
+          lastClientX = event.clientX; lastClientY = event.clientY;
           sendCursor(event.clientX, event.clientY);
         }, { passive: true });
 
         document.addEventListener('pointermove', event => {
           if (event.isPrimary === false) return;
+          lastClientX = event.clientX; lastClientY = event.clientY;
           sendCursor(event.clientX, event.clientY);
         }, { passive: true });
       } else {
         document.addEventListener('mousemove', event => {
+          lastClientX = event.clientX; lastClientY = event.clientY;
           sendCursor(event.clientX, event.clientY);
         });
 
         document.addEventListener('touchstart', event => {
           const touch = event.touches[0] || event.changedTouches[0];
           if (!touch) return;
+          lastClientX = touch.clientX; lastClientY = touch.clientY;
           sendCursor(touch.clientX, touch.clientY);
         }, { passive: true });
 
         document.addEventListener('touchmove', event => {
           const touch = event.touches[0] || event.changedTouches[0];
           if (!touch) return;
+          lastClientX = touch.clientX; lastClientY = touch.clientY;
           sendCursor(touch.clientX, touch.clientY);
         }, { passive: true });
       }
