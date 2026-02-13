@@ -717,6 +717,18 @@
       transition: box-shadow 0.2s ease;
     }
 
+    .page.readonly-mirror {
+      outline: 2px dashed rgba(25, 99, 133, 0.45);
+      outline-offset: 6px;
+    }
+
+    .page.readonly-mirror button,
+    .page.readonly-mirror input,
+    .page.readonly-mirror textarea,
+    .page.readonly-mirror select {
+      cursor: not-allowed;
+    }
+
     @media (max-width: 760px) {
       .page {
         width: min(1020px, calc(100% - 12px));
@@ -1168,6 +1180,7 @@
       const gotoButtons = document.querySelectorAll('.goto-btn');
       const wordSpotlightGrid = document.getElementById('word-spotlight-grid');
       const remoteCursor = document.getElementById('remote-cursor');
+      const lessonPage = document.querySelector('main.page');
 
       const query = new URLSearchParams(window.location.search);
       const initialRole = query.get('role') === 'teacher' ? 'teacher' : 'student';
@@ -1195,6 +1208,15 @@
       let presenceTimer = null;
       let lastStudentPresenceAt = 0;
       let syncShellCollapsed = false;
+      let lastStudentDomActionId = 0;
+      const studentDomActionLog = [];
+      const STUDENT_DOM_ACTION_LOG_LIMIT = 1000;
+      const pendingStudentInputActions = new Map();
+      let pendingStudentInputTimer = null;
+      const STUDENT_INPUT_THROTTLE_MS = 90;
+      const teacherAppliedActionIds = new Set();
+      const TEACHER_APPLIED_ACTION_LIMIT = 3000;
+      let activeStudentSenderId = '';
       const REMOTE_CURSOR_CENTER_OFFSET = 8;
 
       function setSyncStatus(text) {
@@ -1249,6 +1271,7 @@
         role = roleSelect.value;
         teacherBox.classList.toggle('active', role === 'teacher');
         hideRemoteCursor();
+        updateTeacherReadonlyState();
       }
 
       function setSyncShellCollapsed(nextValue) {
@@ -1257,10 +1280,354 @@
         syncShellToggle.setAttribute('aria-expanded', String(!syncShellCollapsed));
       }
 
-      function parseSectionIdFromElement(element) {
-        if (!(element instanceof HTMLElement)) return '';
-        const parentSection = element.closest('.section');
-        return parentSection ? parentSection.id : '';
+      function updateTeacherReadonlyState() {
+        if (!(lessonPage instanceof HTMLElement)) return;
+        lessonPage.classList.toggle('readonly-mirror', connected && role === 'teacher');
+      }
+
+      function isLessonSyncTarget(element) {
+        return element instanceof HTMLElement
+          && lessonPage instanceof HTMLElement
+          && lessonPage.contains(element);
+      }
+
+      function cssEscape(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') {
+          return window.CSS.escape(value);
+        }
+        return String(value).replace(/[\\"]/g, '\\$&');
+      }
+
+      function pickLocatorDataset(element) {
+        if (!(element instanceof HTMLElement)) return {};
+        const data = {};
+        const keys = ['syncKey', 'mood', 'type', 'id', 'word', 'answer'];
+
+        keys.forEach(key => {
+          const value = element.dataset ? element.dataset[key] : '';
+          if (typeof value === 'string' && value) {
+            data[key] = value;
+          }
+        });
+
+        return data;
+      }
+
+      function buildDomLocator(element) {
+        if (!(element instanceof HTMLElement)) return null;
+        if (!isLessonSyncTarget(element)) return null;
+
+        const locator = { tag: element.tagName };
+        if (element.id) locator.id = element.id;
+        if (element.dataset && element.dataset.syncKey) locator.syncKey = element.dataset.syncKey;
+
+        const dataset = pickLocatorDataset(element);
+        if (Object.keys(dataset).length > 0) locator.dataset = dataset;
+
+        const anchor = element.closest('.exercise[id], .section[id], [id]');
+        if (anchor instanceof HTMLElement && anchor.id) {
+          locator.anchorId = anchor.id;
+          locator.targetPath = buildCursorTargetPath(anchor, element);
+        }
+
+        return locator;
+      }
+
+      function findBySyncKey(syncKey, root = document) {
+        if (!syncKey) return null;
+        try {
+          return root.querySelector(`[data-sync-key="${cssEscape(syncKey)}"]`);
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function findByDataset(dataset, tagName, root = document) {
+        if (!dataset || typeof dataset !== 'object') return null;
+
+        const fragments = [];
+        const keys = ['mood', 'type', 'id', 'word', 'answer', 'syncKey'];
+        keys.forEach(key => {
+          const value = dataset[key];
+          if (typeof value === 'string' && value) {
+            const attr = key === 'syncKey' ? 'sync-key' : key;
+            fragments.push(`[data-${attr}="${cssEscape(value)}"]`);
+          }
+        });
+
+        if (fragments.length === 0) return null;
+
+        const prefix = typeof tagName === 'string' && tagName ? tagName.toLowerCase() : '';
+        const selector = `${prefix}${fragments.join('')}`;
+        try {
+          return root.querySelector(selector);
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function resolveDomLocator(locator) {
+        if (!locator || typeof locator !== 'object') return null;
+        const tagName = typeof locator.tag === 'string' ? locator.tag : '';
+
+        if (typeof locator.id === 'string' && locator.id) {
+          const byId = document.getElementById(locator.id);
+          if (byId instanceof HTMLElement) return byId;
+        }
+
+        if (typeof locator.syncKey === 'string' && locator.syncKey) {
+          const bySync = findBySyncKey(locator.syncKey);
+          if (bySync instanceof HTMLElement) return bySync;
+        }
+
+        if (locator.dataset) {
+          const byDataset = findByDataset(locator.dataset, tagName);
+          if (byDataset instanceof HTMLElement) return byDataset;
+        }
+
+        if (typeof locator.anchorId === 'string' && locator.anchorId) {
+          const anchor = document.getElementById(locator.anchorId);
+          if (anchor instanceof HTMLElement) {
+            if (typeof locator.syncKey === 'string' && locator.syncKey) {
+              const bySyncInAnchor = findBySyncKey(locator.syncKey, anchor);
+              if (bySyncInAnchor instanceof HTMLElement) return bySyncInAnchor;
+            }
+
+            if (locator.dataset) {
+              const byDatasetInAnchor = findByDataset(locator.dataset, tagName, anchor);
+              if (byDatasetInAnchor instanceof HTMLElement) return byDatasetInAnchor;
+            }
+
+            if (Array.isArray(locator.targetPath)) {
+              const byPath = resolveCursorTargetPath(anchor, locator.targetPath);
+              if (byPath instanceof HTMLElement) return byPath;
+            }
+          }
+        }
+
+        return null;
+      }
+
+      function locatorKey(locator) {
+        if (!locator || typeof locator !== 'object') return '';
+        if (typeof locator.id === 'string' && locator.id) return `id:${locator.id}`;
+        if (typeof locator.syncKey === 'string' && locator.syncKey) return `sync:${locator.syncKey}`;
+        if (locator.dataset && typeof locator.dataset.type === 'string' && typeof locator.dataset.id === 'string') {
+          return `data:${locator.dataset.type}:${locator.dataset.id}`;
+        }
+        if (typeof locator.anchorId === 'string' && Array.isArray(locator.targetPath)) {
+          return `path:${locator.anchorId}:${locator.targetPath.join('.')}`;
+        }
+        return '';
+      }
+
+      function trimAppliedActions() {
+        while (teacherAppliedActionIds.size > TEACHER_APPLIED_ACTION_LIMIT) {
+          const oldest = teacherAppliedActionIds.values().next().value;
+          teacherAppliedActionIds.delete(oldest);
+        }
+      }
+
+      function updateTeacherSenderContext(senderId) {
+        if (role !== 'teacher') return;
+        if (typeof senderId !== 'string' || !senderId) return;
+
+        if (activeStudentSenderId && activeStudentSenderId !== senderId) {
+          teacherAppliedActionIds.clear();
+          studentTracker.textContent = 'Student session changed. Sync reset.';
+        }
+        activeStudentSenderId = senderId;
+      }
+
+      function pushStudentDomAction(rawPayload) {
+        if (!connected || role !== 'student') return;
+        if (!rawPayload || !rawPayload.locator) return;
+
+        const payload = { ...rawPayload, actionId: ++lastStudentDomActionId };
+        sendEvent('student_dom_action', payload);
+        studentDomActionLog.push(payload);
+        if (studentDomActionLog.length > STUDENT_DOM_ACTION_LOG_LIMIT) {
+          studentDomActionLog.shift();
+        }
+      }
+
+      function flushPendingStudentInputActions() {
+        if (pendingStudentInputTimer) {
+          window.clearTimeout(pendingStudentInputTimer);
+          pendingStudentInputTimer = null;
+        }
+        if (pendingStudentInputActions.size === 0) return;
+
+        const actions = Array.from(pendingStudentInputActions.values());
+        pendingStudentInputActions.clear();
+        actions.forEach(action => pushStudentDomAction(action));
+      }
+
+      function queueStudentDomAction(rawPayload, throttled = false) {
+        if (!rawPayload || !rawPayload.locator) return;
+
+        if (!throttled) {
+          pushStudentDomAction(rawPayload);
+          return;
+        }
+
+        const key = `${rawPayload.kind}:${locatorKey(rawPayload.locator)}`;
+        pendingStudentInputActions.set(key, rawPayload);
+
+        if (pendingStudentInputTimer) return;
+        pendingStudentInputTimer = window.setTimeout(() => {
+          pendingStudentInputTimer = null;
+          if (pendingStudentInputActions.size === 0) return;
+          const actions = Array.from(pendingStudentInputActions.values());
+          pendingStudentInputActions.clear();
+          actions.forEach(action => pushStudentDomAction(action));
+        }, STUDENT_INPUT_THROTTLE_MS);
+      }
+
+      function buildFormActionPayload(kind, element) {
+        if (!(element instanceof HTMLElement)) return null;
+        const locator = buildDomLocator(element);
+        if (!locator) return null;
+
+        const payload = { kind, locator };
+        if (element instanceof HTMLInputElement) {
+          payload.value = element.value;
+          if (element.type === 'checkbox' || element.type === 'radio') {
+            payload.checked = element.checked;
+          }
+        } else if (element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
+          payload.value = element.value;
+        }
+
+        return payload;
+      }
+
+      function sendStudentSnapshot(reason = 'request') {
+        if (!connected || role !== 'student') return;
+        flushPendingStudentInputActions();
+
+        sendEvent('student_state_snapshot', {
+          reason,
+          upToActionId: lastStudentDomActionId,
+          actions: studentDomActionLog.slice(),
+        });
+      }
+
+      function applyStudentDomAction(payload) {
+        if (role !== 'teacher') return false;
+        if (!payload || typeof payload !== 'object') return false;
+
+        const actionId = Number(payload.actionId);
+        if (!Number.isInteger(actionId) || actionId <= 0) return false;
+        if (teacherAppliedActionIds.has(actionId)) return false;
+
+        teacherAppliedActionIds.add(actionId);
+        trimAppliedActions();
+        lastStudentPresenceAt = Date.now();
+
+        const target = resolveDomLocator(payload.locator);
+        if (!(target instanceof HTMLElement)) {
+          studentTracker.textContent = `Student action #${actionId}: target not found.`;
+          return false;
+        }
+
+        if (payload.kind === 'click') {
+          if (typeof target.click === 'function') {
+            target.click();
+          }
+        } else if (payload.kind === 'input' || payload.kind === 'change') {
+          if (
+            target instanceof HTMLInputElement
+            || target instanceof HTMLTextAreaElement
+            || target instanceof HTMLSelectElement
+          ) {
+            if (typeof payload.value === 'string') {
+              target.value = payload.value;
+            } else if (typeof payload.value === 'number') {
+              target.value = String(payload.value);
+            }
+
+            if (
+              target instanceof HTMLInputElement
+              && (target.type === 'checkbox' || target.type === 'radio')
+              && typeof payload.checked === 'boolean'
+            ) {
+              target.checked = payload.checked;
+            }
+
+            const eventName = payload.kind === 'input' ? 'input' : 'change';
+            target.dispatchEvent(new Event(eventName, { bubbles: true }));
+          }
+        } else {
+          return false;
+        }
+
+        if (payload.kind !== 'input') {
+          flashElement(target);
+        }
+        studentTracker.textContent = `Student action: ${payload.kind} on ${describeElement(target)}.`;
+        return true;
+      }
+
+      function applyStudentSnapshot(payload) {
+        const actions = Array.isArray(payload && payload.actions) ? payload.actions : [];
+        if (actions.length === 0) {
+          studentTracker.textContent = 'Student snapshot received: no actions yet.';
+          return;
+        }
+
+        const sorted = [...actions].sort((a, b) => {
+          const aId = Number(a && a.actionId) || 0;
+          const bId = Number(b && b.actionId) || 0;
+          return aId - bId;
+        });
+
+        let applied = 0;
+        sorted.forEach(action => {
+          if (applyStudentDomAction(action)) {
+            applied += 1;
+          }
+        });
+
+        studentTracker.textContent = `Student snapshot applied: ${applied}/${sorted.length} actions.`;
+      }
+
+      function blockTeacherLessonInteraction(event) {
+        if (!(connected && role === 'teacher')) return;
+        if (!event.isTrusted) return;
+        if (!(event.target instanceof HTMLElement)) return;
+        if (!isLessonSyncTarget(event.target)) return;
+
+        const interactive = event.target.closest('button, input, textarea, select, [contenteditable="true"]');
+        if (!interactive) return;
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        studentTracker.textContent = 'Read-only mirror: student controls this lesson area.';
+      }
+
+      function assignStaticSyncKeys() {
+        document.querySelectorAll('#choice-list select').forEach((select, index) => {
+          if (!(select instanceof HTMLElement)) return;
+          if (!select.dataset.syncKey) {
+            select.dataset.syncKey = `choice-${index}`;
+          }
+        });
+
+        document.querySelectorAll('#wrap-up .inline-input, #wrap-up select').forEach((field, index) => {
+          if (!(field instanceof HTMLElement)) return;
+          if (!field.dataset.syncKey) {
+            field.dataset.syncKey = `wrapup-${index}`;
+          }
+        });
+
+        document.querySelectorAll('.mood-btn').forEach(btn => {
+          if (!(btn instanceof HTMLElement)) return;
+          const mood = btn.dataset.mood;
+          if (mood && !btn.dataset.syncKey) {
+            btn.dataset.syncKey = `mood-${mood}`;
+          }
+        });
       }
 
       function getMostVisibleSectionId() {
@@ -1484,6 +1851,11 @@
       function handleTeacherCommand(message) {
         if (role !== 'student') return;
 
+        if (message.type === 'teacher_state_request') {
+          sendStudentSnapshot('teacher-request');
+          return;
+        }
+
         if (message.type === 'teacher_cursor') {
           const payload = message.payload || {};
           renderRemoteCursor(payload, 'Teacher', 'teacher');
@@ -1533,6 +1905,17 @@
 
       function handleTeacherView(message) {
         if (role !== 'teacher') return;
+        updateTeacherSenderContext(message.senderId);
+
+        if (message.type === 'student_dom_action') {
+          applyStudentDomAction(message.payload || {});
+          return;
+        }
+
+        if (message.type === 'student_state_snapshot') {
+          applyStudentSnapshot(message.payload || {});
+          return;
+        }
 
         if (message.type === 'student_presence') {
           const payload = message.payload || {};
@@ -1553,12 +1936,6 @@
           renderRemoteCursor(payload, 'Student', 'student');
           return;
         }
-
-        if (message.type === 'student_click') {
-          const payload = message.payload || {};
-          const target = payload.target || 'unknown';
-          studentTracker.textContent = `Student clicked: ${target}`;
-        }
       }
 
       function connectSync() {
@@ -1568,6 +1945,10 @@
           return;
         }
         if (connected) return;
+        if (role === 'teacher') {
+          teacherAppliedActionIds.clear();
+          activeStudentSenderId = '';
+        }
 
         const params = new URLSearchParams({
           room: roomId,
@@ -1582,9 +1963,14 @@
           connected = true;
           updateUrlParams();
           setSyncStatus(`Status: online in room "${roomId}" as ${role}.`);
+          updateTeacherReadonlyState();
           sendPresence('connected');
           if (role === 'student') {
             presenceTicker = window.setInterval(() => sendPresence('heartbeat'), 3500);
+            sendStudentSnapshot('student-connected');
+          }
+          if (role === 'teacher') {
+            sendEvent('teacher_state_request', { reason: 'connected' });
           }
         };
 
@@ -1604,6 +1990,7 @@
         eventSource.onerror = () => {
           setSyncStatus('Status: connection issue, trying to reconnect...');
           connected = false;
+          updateTeacherReadonlyState();
         };
       }
 
@@ -1617,7 +2004,16 @@
           window.clearInterval(presenceTicker);
           presenceTicker = null;
         }
+        if (pendingStudentInputTimer) {
+          window.clearTimeout(pendingStudentInputTimer);
+          pendingStudentInputTimer = null;
+        }
+        pendingStudentInputActions.clear();
+        if (role === 'teacher') {
+          activeStudentSenderId = '';
+        }
         hideRemoteCursor();
+        updateTeacherReadonlyState();
         setSyncStatus('Status: offline.');
       }
 
@@ -1696,19 +2092,53 @@
         wordSpotlightGrid.appendChild(button);
       });
 
+      ['pointerdown', 'click', 'input', 'change', 'keydown', 'submit'].forEach(eventName => {
+        document.addEventListener(eventName, blockTeacherLessonInteraction, true);
+      });
+
       document.addEventListener('focusin', event => {
         focusLabel = describeElement(event.target);
         queuePresence('focus');
       });
 
       document.addEventListener('click', event => {
-        const sectionId = parseSectionIdFromElement(event.target);
-        const target = describeElement(event.target);
-        if (connected && role === 'student') {
-          sendEvent('student_click', { sectionId, target });
+        if (connected && role === 'student' && event.target instanceof HTMLElement) {
+          const clickTarget = event.target.closest('button, input[type="checkbox"], input[type="radio"]');
+          if (clickTarget instanceof HTMLElement && isLessonSyncTarget(clickTarget)) {
+            const payload = buildFormActionPayload('click', clickTarget);
+            if (payload) {
+              queueStudentDomAction(payload);
+            }
+          }
         }
         queuePresence('click');
       });
+
+      document.addEventListener('input', event => {
+        if (!(connected && role === 'student')) return;
+        if (!(event.target instanceof HTMLElement)) return;
+        if (!isLessonSyncTarget(event.target)) return;
+        if (!(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)) return;
+
+        const payload = buildFormActionPayload('input', event.target);
+        if (!payload) return;
+        queueStudentDomAction(payload, true);
+      }, true);
+
+      document.addEventListener('change', event => {
+        if (!(connected && role === 'student')) return;
+        if (!(event.target instanceof HTMLElement)) return;
+        if (!isLessonSyncTarget(event.target)) return;
+        if (
+          !(event.target instanceof HTMLInputElement)
+          && !(event.target instanceof HTMLTextAreaElement)
+          && !(event.target instanceof HTMLSelectElement)
+        ) return;
+
+        const payload = buildFormActionPayload('change', event.target);
+        if (!payload) return;
+        queueStudentDomAction(payload);
+      }, true);
 
       window.addEventListener('scroll', () => {
         queuePresence('scroll');
@@ -1779,6 +2209,7 @@
         }
       }, 2500);
 
+      assignStaticSyncKeys();
       applyRoleUi();
       updateUrlParams();
       refreshStudentLinkMeta();
@@ -1851,6 +2282,7 @@
           btn.className = 'match-card';
           btn.dataset.type = 'word';
           btn.dataset.id = String(item.id);
+          btn.dataset.syncKey = `match-word-${item.id}`;
           btn.textContent = item.word;
           wordCards.appendChild(btn);
         });
@@ -1861,6 +2293,7 @@
           btn.className = 'match-card';
           btn.dataset.type = 'def';
           btn.dataset.id = String(item.id);
+          btn.dataset.syncKey = `match-def-${item.id}`;
           btn.textContent = item.def;
           defCards.appendChild(btn);
         });
@@ -1956,6 +2389,7 @@
       const storyProgress = document.getElementById('story-progress');
       let solvedStory = 0;
       const totalStory = storyParts.filter(part => part.slot).length;
+      let storySlotIndex = 0;
 
       storyParts.forEach(part => {
         if (!part.slot) {
@@ -1970,6 +2404,8 @@
         input.type = 'text';
         input.autocomplete = 'off';
         input.spellcheck = false;
+        input.dataset.syncKey = `story-slot-${storySlotIndex}`;
+        storySlotIndex += 1;
 
         const inf = document.createElement('span');
         inf.className = 'inf';
