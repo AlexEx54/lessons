@@ -1195,6 +1195,7 @@
       let presenceTimer = null;
       let lastStudentPresenceAt = 0;
       let syncShellCollapsed = false;
+      const REMOTE_CURSOR_CENTER_OFFSET = 8;
 
       function setSyncStatus(text) {
         syncStatus.textContent = text;
@@ -1304,6 +1305,64 @@
         }).catch(() => {});
       }
 
+      function clamp01(value) {
+        return Math.max(0, Math.min(1, value));
+      }
+
+      function buildCursorTargetPath(anchor, target) {
+        if (!(anchor instanceof HTMLElement) || !(target instanceof HTMLElement)) return [];
+        if (anchor === target) return [];
+        if (!anchor.contains(target)) return [];
+
+        const path = [];
+        let node = target;
+
+        while (node && node !== anchor) {
+          const parent = node.parentElement;
+          if (!parent) return [];
+          const index = Array.prototype.indexOf.call(parent.children, node);
+          if (index < 0) return [];
+          path.push(index);
+          node = parent;
+        }
+
+        if (node !== anchor) return [];
+        return path.reverse();
+      }
+
+      function resolveCursorTargetPath(anchor, path) {
+        if (!(anchor instanceof HTMLElement)) return null;
+        if (!Array.isArray(path) || path.length === 0) return anchor;
+
+        let node = anchor;
+        for (const rawIndex of path) {
+          const index = Number(rawIndex);
+          if (!Number.isInteger(index) || index < 0 || index >= node.children.length) {
+            return anchor;
+          }
+          const nextNode = node.children[index];
+          if (!(nextNode instanceof HTMLElement)) return anchor;
+          node = nextNode;
+        }
+
+        return node;
+      }
+
+      function pickCursorTarget(anchor, initialElement) {
+        if (!(anchor instanceof HTMLElement)) return null;
+
+        let node = initialElement instanceof HTMLElement ? initialElement : null;
+        while (node && node !== anchor) {
+          const rect = node.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) return node;
+          node = node.parentElement;
+        }
+
+        const anchorRect = anchor.getBoundingClientRect();
+        if (anchorRect.width > 0 && anchorRect.height > 0) return anchor;
+        return null;
+      }
+
       function sendCursor(clientX, clientY) {
         if (!connected) return;
         if (role !== 'student' && role !== 'teacher') return;
@@ -1317,19 +1376,23 @@
         if (!el) return;
 
         const anchor = el.closest('.section, .exercise');
-        if (!anchor || !anchor.id) return;
+        if (!(anchor instanceof HTMLElement) || !anchor.id) return;
 
-        const rect = anchor.getBoundingClientRect();
+        const target = pickCursorTarget(anchor, el);
+        if (!target) return;
+
+        const rect = target.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return;
 
-        const ratioX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-        const ratioY = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+        const ratioX = clamp01((clientX - rect.left) / rect.width);
+        const ratioY = clamp01((clientY - rect.top) / rect.height);
 
         const isTeacher = role === 'teacher';
         sendEvent(isTeacher ? 'teacher_cursor' : 'student_cursor', {
           anchorId: anchor.id,
-          ratioX: Math.round(ratioX * 10000) / 10000,
-          ratioY: Math.round(ratioY * 10000) / 10000,
+          targetPath: buildCursorTargetPath(anchor, target),
+          targetRatioX: Math.round(ratioX * 10000) / 10000,
+          targetRatioY: Math.round(ratioY * 10000) / 10000,
           label: isTeacher ? 'Teacher cursor' : 'Student cursor',
         });
       }
@@ -1374,18 +1437,21 @@
 
         if (payload.anchorId) {
           const anchor = document.getElementById(payload.anchorId);
-          if (!anchor) { hideRemoteCursor(); return; }
+          if (!(anchor instanceof HTMLElement)) { hideRemoteCursor(); return; }
 
-          const rect = anchor.getBoundingClientRect();
-          if (rect.width === 0 && rect.height === 0) { hideRemoteCursor(); return; }
+          const target = resolveCursorTargetPath(anchor, payload.targetPath);
+          if (!(target instanceof HTMLElement)) { hideRemoteCursor(); return; }
 
-          const ratioX = typeof payload.ratioX === 'number' ? Math.max(0, Math.min(1, payload.ratioX)) : 0.5;
-          const ratioY = typeof payload.ratioY === 'number' ? Math.max(0, Math.min(1, payload.ratioY)) : 0.5;
+          let rect = target.getBoundingClientRect();
+          if ((rect.width === 0 || rect.height === 0) && target !== anchor) {
+            rect = anchor.getBoundingClientRect();
+          }
+          if (rect.width === 0 || rect.height === 0) { hideRemoteCursor(); return; }
+
+          const ratioX = typeof payload.targetRatioX === 'number' ? clamp01(payload.targetRatioX) : 0.5;
+          const ratioY = typeof payload.targetRatioY === 'number' ? clamp01(payload.targetRatioY) : 0.5;
           vx = rect.left + ratioX * rect.width;
           vy = rect.top  + ratioY * rect.height;
-        } else if (typeof payload.pageX === 'number' && typeof payload.pageY === 'number') {
-          vx = payload.pageX - window.scrollX;
-          vy = payload.pageY - window.scrollY;
         } else {
           hideRemoteCursor();
           return;
@@ -1401,13 +1467,18 @@
 
         if (inView) {
           remoteCursor.classList.add('visible');
-          remoteCursor.style.transform = `translate(${Math.round(vx)}px, ${Math.round(vy)}px)`;
+          remoteCursor.style.transform = `translate(${Math.round(vx) - REMOTE_CURSOR_CENTER_OFFSET}px, ${Math.round(vy) - REMOTE_CURSOR_CENTER_OFFSET}px)`;
         } else {
           remoteCursor.classList.remove('visible');
         }
 
         const labelNode = remoteCursor.querySelector('.remote-cursor-label');
         if (labelNode) labelNode.textContent = label;
+      }
+
+      function rerenderRemoteCursor() {
+        if (!lastRemoteCursorPayload) return;
+        renderRemoteCursor(lastRemoteCursorPayload, lastRemoteCursorLabel, lastRemoteCursorRole);
       }
 
       function handleTeacherCommand(message) {
@@ -1645,10 +1716,25 @@
           cursorLastSentAt = 0;
           sendCursor(lastClientX, lastClientY);
         }
-        if (lastRemoteCursorPayload) {
-          renderRemoteCursor(lastRemoteCursorPayload, lastRemoteCursorLabel, lastRemoteCursorRole);
-        }
+        rerenderRemoteCursor();
       }, { passive: true });
+
+      window.addEventListener('resize', () => {
+        rerenderRemoteCursor();
+      }, { passive: true });
+
+      if (window.visualViewport) {
+        const handleVisualViewportChange = () => {
+          if (lastClientX >= 0) {
+            cursorLastSentAt = 0;
+            sendCursor(lastClientX, lastClientY);
+          }
+          rerenderRemoteCursor();
+        };
+
+        window.visualViewport.addEventListener('resize', handleVisualViewportChange, { passive: true });
+        window.visualViewport.addEventListener('scroll', handleVisualViewportChange, { passive: true });
+      }
 
       const hasPointerEvents = typeof window.PointerEvent === 'function';
       if (hasPointerEvents) {
