@@ -308,6 +308,7 @@ Use two controls: one controlled transformation/fill task and one dropdown/choic
         {
           "id": "controlled-1",
           "prompt": "",
+          "baseVerb": "",
           "answer": "",
           "after": ""
         }
@@ -335,8 +336,11 @@ Rules:
 
 - Generate 6-8 items per practice exercise.
 - Include 1-3 examples for the controlled task when useful.
+- For `controlledInputPractice`, every item must include `baseVerb`: the verb in its first/base form. The UI must show this value as the default/placeholder text in the input cell.
 - The answer should match the exact expected user input.
 - If spelling variations are likely, add `acceptedAnswers`.
+- For `controlledInputPractice`, check input live as the learner types. If the current value is correct, show a green check mark immediately.
+- For `controlledInputPractice`, when the learner presses Enter with an incorrect value, show a red cross mark.
 
 ### 7. Speaking
 
@@ -458,4 +462,6 @@ Quality rules:
 - Quiz questions have exactly 3 options.
 - Grammar has rule cards plus complete-the-rule.
 - Grammar practice has two exercise controls.
+- Grammar practice controlled input items include `baseVerb` for the input placeholder/default text.
+- Grammar practice typed answers show a green check while typing when correct and a red cross on Enter when incorrect.
 - Speaking has questions and optional self-check translations.

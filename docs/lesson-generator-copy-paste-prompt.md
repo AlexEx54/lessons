@@ -353,6 +353,7 @@ Control A:
     {
       "id": "controlled-1",
       "prompt": "",
+      "baseVerb": "",
       "answer": "",
       "after": "",
       "acceptedAnswers": []
@@ -381,8 +382,11 @@ Rules:
 - Generate 6-8 items for Control B.
 - Include 1-3 examples for Control A.
 - For Control A, "prompt" is the visible cue or sentence beginning.
+- For Control A, every item must include "baseVerb": the verb in its first/base form. The UI must show this value as the default/placeholder text in the input cell.
 - For Control A, "answer" is the expected typed answer.
 - For Control A, use "acceptedAnswers" only if spelling/wording variations are likely.
+- For Control A, the UI checks input live as the learner types. If the current value is correct, it shows a green check mark immediately.
+- For Control A, when the learner presses Enter with an incorrect value, the UI shows a red cross mark.
 - For Control B, every answer must exactly match one of the options.
 
 SECTION 7: SPEAKING
@@ -458,6 +462,8 @@ FINAL CHECK BEFORE RESPONDING
 - Every quiz question has exactly 3 options.
 - Grammar includes grammarRuleCards, completeRule, and chooseCorrect.
 - Grammar Practice includes controlledInputPractice and dropdownChoicePractice.
+- Grammar Practice controlledInputPractice items include baseVerb for the input placeholder/default text.
+- Grammar Practice typed answers show a green check while typing when correct and a red cross on Enter when incorrect.
 - Speaking includes speakingQuestions and may include translationSelfCheck.
 - Resources includes resourceNotes.
 - Every checked item has an exact answer.
