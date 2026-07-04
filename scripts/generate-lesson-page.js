@@ -1,9 +1,111 @@
-<!DOCTYPE html>
+#!/usr/bin/env node
+
+const fs = require('fs');
+const path = require('path');
+
+const REQUIRED_SECTIONS = [
+  'warmup',
+  'lead-in',
+  'target-vocabulary',
+  'reading',
+  'grammar',
+  'grammar-practice',
+  'speaking',
+  'resources',
+];
+
+const SUPPORTED_CONTROLS = new Set([
+  'wordAssociationStrikeList',
+  'opinionSort',
+  'discussionQuestions',
+  'definitionMatch',
+  'gapFillBank',
+  'phrasalVerbPractice',
+  'taskList',
+  'readingText',
+  'readingQuizRadio',
+  'grammarRuleCards',
+  'completeRule',
+  'chooseCorrect',
+  'controlledInputPractice',
+  'dropdownChoicePractice',
+  'speakingQuestions',
+  'translationSelfCheck',
+  'resourceNotes',
+]);
+
+function fail(message) {
+  console.error(`Lesson page generation failed: ${message}`);
+  process.exit(1);
+}
+
+function readLessonSpec(filePath) {
+  let raw;
+  try {
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch (error) {
+    fail(`cannot read ${filePath}: ${error.message}`);
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    fail(`invalid JSON in ${filePath}: ${error.message}`);
+  }
+}
+
+function validateLessonSpec(spec) {
+  if (!spec || typeof spec !== 'object') fail('lesson spec must be an object');
+  if (spec.schemaVersion !== 'lesson-spec-v1') {
+    fail('schemaVersion must be "lesson-spec-v1"');
+  }
+  if (!Array.isArray(spec.sections)) fail('sections must be an array');
+  if (spec.sections.length !== REQUIRED_SECTIONS.length) {
+    fail(`sections must contain exactly ${REQUIRED_SECTIONS.length} sections`);
+  }
+
+  REQUIRED_SECTIONS.forEach((sectionId, index) => {
+    const section = spec.sections[index];
+    if (!section || typeof section !== 'object') {
+      fail(`section at index ${index} must be an object`);
+    }
+    if (section.id !== sectionId) {
+      fail(`section ${index + 1} must be "${sectionId}", got "${section.id || 'missing'}"`);
+    }
+    if (!Array.isArray(section.controls)) {
+      fail(`section "${sectionId}" must have a controls array`);
+    }
+    [...section.controls, ...(Array.isArray(section.alternativeControls) ? section.alternativeControls : [])].forEach(control => {
+      if (!control || typeof control !== 'object') fail(`section "${sectionId}" has an invalid control`);
+      if (!SUPPORTED_CONTROLS.has(control.type)) {
+        fail(`unsupported control type "${control.type}" in section "${sectionId}"`);
+      }
+      if (!control.id || typeof control.id !== 'string') {
+        fail(`control "${control.type}" in section "${sectionId}" must have an id`);
+      }
+    });
+  });
+}
+
+function escapeScriptJson(value) {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
+function generateHtml(spec) {
+  const title = spec.hero && spec.hero.title ? spec.hero.title : spec.meta && spec.meta.topic ? spec.meta.topic : 'English Lesson';
+  const lessonJson = escapeScriptJson(spec);
+
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Luca – A Summer Story</title>
+  <title>${escapeHtml(title)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
@@ -477,7 +579,7 @@
   <main class="page" id="lesson-page"></main>
 
   <script>
-    window.LESSON_SPEC = {"schemaVersion":"lesson-spec-v1","meta":{"topic":"Luca (Pixar cartoon)","level":"A2","lessonLanguage":"English","supportLanguage":"Russian","durationMinutes":60,"studentProfile":"one-to-one adult or teen English learner","communicativeGoal":"Talk about friendship, adventure, and summer using infinitive and gerund forms correctly","targetGrammar":"infinitive vs. gerund","targetVocabularyTheme":"ocean life, friendship, summer, adventure, Italian seaside"},"hero":{"title":"Luca – A Summer Story","subtitle":"Watch, read, and talk about the Pixar movie 'Luca' while practising infinitive and gerund forms","pills":["Warm Up","Lead-In","Vocabulary","Reading","Grammar","Practice","Speaking","Resources"]},"sections":[{"id":"warmup","title":"1) Warm Up","controls":[{"type":"wordAssociationStrikeList","id":"warmup-associations","instruction":"Say the first word that comes to mind for each word. Click a word after you discuss it.","items":["sea","summer","friend","secret","Italy","scooter","adventure","fish","brave"]}]},{"id":"lead-in","title":"2) Lead-In","controls":[{"type":"opinionSort","id":"lead-in-opinion-sort","instruction":"Move each statement to Agree, Not sure, or Disagree. Be ready to explain your choice.","columns":["Agree","Not sure / It depends","Disagree"],"items":[{"id":"statement-1","text":"It is OK to keep a secret from your family sometimes."},{"id":"statement-2","text":"True friends help you be brave."},{"id":"statement-3","text":"Summer is the best time for adventures."},{"id":"statement-4","text":"It is important to try new food."},{"id":"statement-5","text":"You should always tell the truth."},{"id":"statement-6","text":"Animals can be good friends too."}]}]},{"id":"target-vocabulary","title":"3) Target Vocabulary","controls":[{"type":"definitionMatch","id":"vocab-definition-match","instruction":"Match the words with the definitions.","items":[{"id":"vocab-1","term":"sea creature","definition":"an animal that lives in the ocean"},{"id":"vocab-2","term":"pretend","definition":"to act like something is real when it is not"},{"id":"vocab-3","term":"secret","definition":"something you do not tell other people"},{"id":"vocab-4","term":"adventure","definition":"an exciting and unusual experience"},{"id":"vocab-5","term":"discover","definition":"to find something for the first time"},{"id":"vocab-6","term":"dangerous","definition":"not safe; something that can hurt you"},{"id":"vocab-7","term":"brave","definition":"not afraid of difficult or scary things"},{"id":"vocab-8","term":"transform","definition":"to change from one thing into another"},{"id":"vocab-9","term":"surface","definition":"the top part of the water"},{"id":"vocab-10","term":"village","definition":"a very small town"}]},{"type":"gapFillBank","id":"vocab-gap-fill","instruction":"Complete the sentences with the correct words.","wordBank":["sea creature","pretend","secret","adventure","discover","dangerous","brave","transform","surface","village"],"items":[{"id":"gap-1","before":"Luca is a young","answer":"sea creature","after":"who lives under the water."},{"id":"gap-2","before":"He wants to","answer":"discover","after":"what is on the land."},{"id":"gap-3","before":"On land, Luca can","answer":"transform","after":"into a human boy."},{"id":"gap-4","before":"Luca and Alberto keep their true form a","answer":"secret","after":"from the people."},{"id":"gap-5","before":"The boys have an exciting","answer":"adventure","after":"in the Italian village."},{"id":"gap-6","before":"Swimming near humans is","answer":"dangerous","after":"for sea creatures."},{"id":"gap-7","before":"Luca is","answer":"brave","after":"enough to leave the ocean."},{"id":"gap-8","before":"They like to","answer":"pretend","after":"they are normal boys."},{"id":"gap-9","before":"The fish come to the","answer":"surface","after":"to breathe."},{"id":"gap-10","before":"The story takes place in a small Italian","answer":"village","after":"by the sea."}],"interaction":"drag-or-select"}]},{"id":"reading","title":"4) Reading","controls":[{"type":"taskList","id":"reading-tasks","items":["Read the text.","Answer the quiz.","Discuss one question."]},{"type":"readingText","id":"reading-text","title":"Time to Read!","paragraphs":["Luca is a Pixar cartoon from 2021. The story is about a young sea creature called Luca Paguro. He lives with his family under the beautiful blue sea near Italy. His parents want him to be careful and stay away from the dangerous surface.","One day, Luca meets Alberto, another sea creature. Alberto is brave and adventurous. He shows Luca how to transform into a human boy on land. Luca is excited to discover the world above the water. Together, they decide to explore a small village called Portorosso.","In the village, they pretend to be human boys. They meet a girl called Giulia. She wants to win a race, and the three friends start to train together. Luca enjoys spending time on land. He likes eating pasta and riding a scooter.","But keeping their secret is not easy. Luca must choose between his family under the sea and his new friends on land. The story is about friendship, being different, and finding the courage to be yourself.","The movie shows a beautiful Italian summer. There is sunshine, the sea, delicious food, and fun adventures. Many people enjoy watching Luca because it is a happy and heartwarming story."]},{"type":"readingQuizRadio","id":"reading-quiz","instruction":"Choose the correct answer.","items":[{"id":"quiz-1","question":"Where does Luca live at the beginning of the story?","options":["In a city in America","Under the sea near Italy","In a village in France"],"answer":"Under the sea near Italy"},{"id":"quiz-2","question":"What can Luca do on land?","options":["Fly like a bird","Transform into a human boy","Swim very fast"],"answer":"Transform into a human boy"},{"id":"quiz-3","question":"What is the name of the village?","options":["Portorosso","Portofino","Positano"],"answer":"Portorosso"},{"id":"quiz-4","question":"What does Giulia want to win?","options":["A cooking competition","A swimming race","A bike and pasta race"],"answer":"A bike and pasta race"},{"id":"quiz-5","question":"What must Luca choose at the end?","options":["Between pasta and pizza","Between his family and his friends","Between the sea and the mountains"],"answer":"Between his family and his friends"}]}]},{"id":"grammar","title":"5) Grammar","controls":[{"type":"grammarRuleCards","id":"grammar-rule","cards":[{"title":"Gerund (-ing form)","body":"Some verbs are followed by the gerund (verb + -ing). Common verbs: enjoy, like, love, finish, avoid, keep.","examples":["Luca enjoys exploring the village.","He avoids telling the truth.","They keep pretending to be human."]},{"title":"Infinitive (to + verb)","body":"Some verbs are followed by the infinitive (to + verb). Common verbs: want, decide, hope, plan, need, learn.","examples":["Luca wants to discover the land.","He decides to leave the sea.","They plan to win the race."]},{"title":"Verbs with both forms","body":"Some verbs can take both the gerund and the infinitive with little or no change in meaning: like, love, start, begin, continue, prefer.","examples":["Luca likes swimming. / Luca likes to swim.","He started eating pasta. / He started to eat pasta."]}]},{"type":"completeRule","id":"complete-the-rule","instruction":"Complete the rule below.","items":[{"id":"rule-gap-1","before":"After the verb 'enjoy', we use the","options":["gerund (-ing)","infinitive (to + verb)","past simple"],"answer":"gerund (-ing)","after":"."},{"id":"rule-gap-2","before":"After the verb 'want', we use the","options":["gerund (-ing)","infinitive (to + verb)","present continuous"],"answer":"infinitive (to + verb)","after":"."},{"id":"rule-gap-3","before":"After the verb 'decide', we use the","options":["gerund (-ing)","infinitive (to + verb)","base form"],"answer":"infinitive (to + verb)","after":"."},{"id":"rule-gap-4","before":"After the verb 'finish', we use the","options":["gerund (-ing)","infinitive (to + verb)","past participle"],"answer":"gerund (-ing)","after":"."}]},{"type":"chooseCorrect","id":"grammar-choose-correct","instruction":"Choose the correct option.","items":[{"id":"choice-1","before":"Luca enjoys","options":["exploring","to explore"],"answer":"exploring","after":"the village."},{"id":"choice-2","before":"He wants","options":["discovering","to discover"],"answer":"to discover","after":"the land."},{"id":"choice-3","before":"Alberto decided","options":["helping","to help"],"answer":"to help","after":"his new friend."},{"id":"choice-4","before":"They finished","options":["training","to train"],"answer":"training","after":"before the race."},{"id":"choice-5","before":"Giulia hopes","options":["winning","to win"],"answer":"to win","after":"the competition."},{"id":"choice-6","before":"Luca avoids","options":["telling","to tell"],"answer":"telling","after":"his secret."}]}]},{"id":"grammar-practice","title":"6) Grammar Practice","controls":[{"type":"controlledInputPractice","id":"grammar-controlled-practice","instruction":"Complete the sentences with the correct form.","examples":[{"prompt":"Luca enjoys (swim) in the sea.","answer":"swimming"},{"prompt":"He wants (learn) about humans.","answer":"to learn"}],"items":[{"id":"controlled-1","prompt":"Luca decided (leave) the ocean.","baseVerb":"leave","answer":"to leave","after":"the ocean.","acceptedAnswers":[]},{"id":"controlled-2","prompt":"Alberto enjoys (ride) his scooter.","baseVerb":"ride","answer":"riding","after":"his scooter.","acceptedAnswers":[]},{"id":"controlled-3","prompt":"They plan (win) the race.","baseVerb":"win","answer":"to win","after":"the race.","acceptedAnswers":[]},{"id":"controlled-4","prompt":"Giulia finished (eat) her pasta.","baseVerb":"eat","answer":"eating","after":"her pasta.","acceptedAnswers":[]},{"id":"controlled-5","prompt":"Luca hopes (make) new friends.","baseVerb":"make","answer":"to make","after":"new friends.","acceptedAnswers":[]},{"id":"controlled-6","prompt":"The boys avoid (show) their true form.","baseVerb":"show","answer":"showing","after":"their true form.","acceptedAnswers":[]},{"id":"controlled-7","prompt":"She needs (train) every day.","baseVerb":"train","answer":"to train","after":"every day.","acceptedAnswers":[]},{"id":"controlled-8","prompt":"Luca likes (explore) the village.","baseVerb":"explore","answer":"exploring","after":"the village.","acceptedAnswers":["to explore"]}]},{"type":"dropdownChoicePractice","id":"grammar-dropdown-practice","instruction":"Choose the correct options.","items":[{"id":"dropdown-1","before":"Luca wants","options":["to discover","discovering"],"answer":"to discover","after":"new places."},{"id":"dropdown-2","before":"Alberto enjoys","options":["to swim","swimming"],"answer":"swimming","after":"near the surface."},{"id":"dropdown-3","before":"They decided","options":["to enter","entering"],"answer":"to enter","after":"the competition."},{"id":"dropdown-4","before":"Giulia finished","options":["to build","building"],"answer":"building","after":"her racing cart."},{"id":"dropdown-5","before":"Luca hopes","options":["to visit","visiting"],"answer":"to visit","after":"the school."},{"id":"dropdown-6","before":"He keeps","options":["to practice","practicing"],"answer":"practicing","after":"every afternoon."},{"id":"dropdown-7","before":"She plans","options":["to learn","learning"],"answer":"to learn","after":"Italian."},{"id":"dropdown-8","before":"We avoided","options":["to go","going"],"answer":"going","after":"near the deep water."}]}]},{"id":"speaking","title":"7) Speaking","controls":[{"type":"speakingQuestions","id":"speaking-questions","instruction":"Answer the questions. Give reasons and examples.","items":["Would you like to live under the sea? Why or why not?","Do you enjoy watching cartoons? What is your favourite cartoon?","What do you plan to do this summer?","Is it important to keep secrets from your family? Why?","What would you like to discover about the world?"]}],"alternativeControls":[{"type":"translationSelfCheck","id":"translation-time","instruction":"Translate the sentences. Then open self-check.","items":[{"id":"translation-1","sourceRu":"Лука любит исследовать деревню.","answerEn":"Luca enjoys exploring the village."},{"id":"translation-2","sourceRu":"Он хочет открыть новый мир.","answerEn":"He wants to discover a new world."},{"id":"translation-3","sourceRu":"Они решили помочь своей подруге.","answerEn":"They decided to help their friend."},{"id":"translation-4","sourceRu":"Альберто избегает говорить правду.","answerEn":"Alberto avoids telling the truth."},{"id":"translation-5","sourceRu":"Джулия надеется выиграть гонку.","answerEn":"Giulia hopes to win the race."},{"id":"translation-6","sourceRu":"Мы закончили тренироваться.","answerEn":"We finished training."},{"id":"translation-7","sourceRu":"Лука планирует провести лето на суше.","answerEn":"Luca plans to spend the summer on land."}]}]},{"id":"resources","title":"8) Resources","controls":[{"type":"resourceNotes","id":"lesson-resources","instruction":"Add useful links or materials here.","placeholder":"Write links or notes here...","initialValue":""}]}],"teacherNotes":{"lessonFlow":["Warm Up: Ask the student to say words connected to each item. Discuss associations briefly.","Lead-In: Let the student move statements and explain their choices. Encourage short reasons.","Vocabulary: Pre-teach key words from the movie. Use definition match first, then gap fill.","Reading: Give time to read silently, then check comprehension with the quiz together.","Grammar: Present the rules with cards. Use Luca examples. Do completeRule and chooseCorrect together.","Grammar Practice: Let the student do controlledInputPractice independently, then check. Do dropdownChoicePractice together.","Speaking: Ask personal questions using the target grammar. Correct errors gently.","Translation Time: Optional activity for extra grammar support in Russian."],"adaptationNotes":["Easier: Reduce vocabulary to 8 items. Provide word bank for all gap fills. Read the text aloud together.","Harder: Remove word bank from gap fills. Ask student to make their own sentences with new vocabulary.","Slower student: Focus on 'want + infinitive' and 'enjoy + gerund' only. Skip completeRule items.","Faster student: Ask student to retell the story using at least 5 infinitive/gerund examples.","Teen student: Focus speaking questions on friendship and secrets. Adult student: focus on travel and discovery."],"answerKeySummary":["Vocabulary Definition Match: 1-sea creature, 2-pretend, 3-secret, 4-adventure, 5-discover, 6-dangerous, 7-brave, 8-transform, 9-surface, 10-village","Vocabulary Gap Fill: 1-sea creature, 2-discover, 3-transform, 4-secret, 5-adventure, 6-dangerous, 7-brave, 8-pretend, 9-surface, 10-village","Reading Quiz: 1-Under the sea near Italy, 2-Transform into a human boy, 3-Portorosso, 4-A bike and pasta race, 5-Between his family and his friends","Grammar completeRule: 1-gerund (-ing), 2-infinitive (to + verb), 3-infinitive (to + verb), 4-gerund (-ing)","Grammar chooseCorrect: 1-exploring, 2-to discover, 3-to help, 4-training, 5-to win, 6-telling","Grammar Practice controlledInput: 1-to leave, 2-riding, 3-to win, 4-eating, 5-to make, 6-showing, 7-to train, 8-exploring (to explore also accepted)","Grammar Practice dropdown: 1-to discover, 2-swimming, 3-to enter, 4-building, 5-to visit, 6-practicing, 7-to learn, 8-going"]}};
+    window.LESSON_SPEC = ${lessonJson};
   </script>
   <script>
     (() => {
@@ -493,7 +595,7 @@
       }
 
       function normalized(value) {
-        return text(value).trim().toLowerCase().replace(/\s+/g, ' ');
+        return text(value).trim().toLowerCase().replace(/\\s+/g, ' ');
       }
 
       function slug(value) {
@@ -1036,7 +1138,7 @@
 
       function cssEscape(value) {
         if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(value);
-        return String(value).replace(/[\\"]/g, '\\$&');
+        return String(value).replace(/[\\\\"]/g, '\\\\$&');
       }
 
       renderHero();
@@ -1813,3 +1915,30 @@
   </script>
 </body>
 </html>
+`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function main() {
+  const [, , inputArg, outputArg = 'index.html'] = process.argv;
+  if (!inputArg) {
+    fail('usage: node scripts/generate-lesson-page.js <lesson-json> [output-html]');
+  }
+
+  const inputPath = path.resolve(process.cwd(), inputArg);
+  const outputPath = path.resolve(process.cwd(), outputArg);
+  const spec = readLessonSpec(inputPath);
+  validateLessonSpec(spec);
+  fs.writeFileSync(outputPath, generateHtml(spec), 'utf8');
+  console.log(`Generated ${path.relative(process.cwd(), outputPath)} from ${path.relative(process.cwd(), inputPath)}`);
+}
+
+main();
