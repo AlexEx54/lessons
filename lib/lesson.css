@@ -399,6 +399,14 @@ select { min-width: 140px; }
 
 .check.visible { opacity: 1; transform: scale(1); }
 
+.cross {
+  opacity: 0; color: var(--bad); font-weight: 800;
+  transform: scale(0.7);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.cross.visible { opacity: 1; transform: scale(1); }
+
 .correct { border-color: var(--ok) !important; background: #eafff2 !important; }
 .wrong { border-color: var(--bad) !important; background: #fff0f0 !important; }
 
