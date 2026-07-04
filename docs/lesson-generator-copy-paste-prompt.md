@@ -381,12 +381,15 @@ Rules:
 - Generate 6-8 items for Control A.
 - Generate 6-8 items for Control B.
 - Include 1-3 examples for Control A.
-- For Control A, "prompt" is the visible cue or sentence beginning.
-- For Control A, every item must include "baseVerb": the verb in its first/base form. The UI must show this value as the default/placeholder text in the input cell.
-- For Control A, "answer" is the expected typed answer.
-- For Control A, use "acceptedAnswers" only if spelling/wording variations are likely.
-- For Control A, the UI checks input live as the learner types. If the current value is correct, it shows a green check mark immediately.
+- For Control A items, the input cell is rendered inline BETWEEN "prompt" and "after". Split each sentence at the gap: "prompt" = text before the gap, "after" = text after the gap. The UI inserts the input field between them. Do NOT put the whole sentence into "prompt".
+- For Control A items, NEVER write a literal "___" in "prompt" or "after" — the gap is implied by the split. NEVER write the base verb in parentheses (e.g. "(verb)") inside "prompt" or "after" — the cue comes ONLY from "baseVerb" as the input placeholder.
+- For Control A items, "prompt" may be empty when the gap starts the sentence; "after" may be empty when the gap ends it.
+- For Control A, every item must include "baseVerb": the verb in its first/base form, shown as the placeholder text in the input cell.
+- For Control A, "answer" is the expected typed answer (capitalize if it starts the sentence).
+- For Control A, use "acceptedAnswers" only for spelling/capitalization variants.
+- For Control A, the UI checks input live as the learner types. If correct, it shows a green check mark immediately.
 - For Control A, when the learner presses Enter with an incorrect value, the UI shows a red cross mark.
+- For Control A EXAMPLES (the "examples" array), the shape is different: each example has only "prompt" and "answer", and "prompt" is the FULL sentence with a literal "___" marking the gap. Do not split examples.
 - For Control B, every answer must exactly match one of the options.
 
 SECTION 7: SPEAKING
@@ -463,6 +466,7 @@ FINAL CHECK BEFORE RESPONDING
 - Grammar includes grammarRuleCards, completeRule, and chooseCorrect.
 - Grammar Practice includes controlledInputPractice and dropdownChoicePractice.
 - Grammar Practice controlledInputPractice items include baseVerb for the input placeholder/default text.
+- Grammar Practice controlledInputPractice items split each sentence into "prompt" (before gap) and "after" (after gap); no literal "___" and no "(verb)" cue inside these fields.
 - Grammar Practice typed answers show a green check while typing when correct and a red cross on Enter when incorrect.
 - Speaking includes speakingQuestions and may include translationSelfCheck.
 - Resources includes resourceNotes.

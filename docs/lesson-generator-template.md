@@ -336,11 +336,15 @@ Rules:
 
 - Generate 6-8 items per practice exercise.
 - Include 1-3 examples for the controlled task when useful.
-- For `controlledInputPractice`, every item must include `baseVerb`: the verb in its first/base form. The UI must show this value as the default/placeholder text in the input cell.
-- The answer should match the exact expected user input.
-- If spelling variations are likely, add `acceptedAnswers`.
-- For `controlledInputPractice`, check input live as the learner types. If the current value is correct, show a green check mark immediately.
+- For `controlledInputPractice` items, the input is rendered inline between `prompt` and `after`. Split each sentence at the gap: `prompt` = text before the gap, `after` = text after the gap. The UI inserts the input between them. Do NOT put the whole sentence into `prompt`.
+- For `controlledInputPractice` items, never write a literal `___` in `prompt` or `after` — the gap is implied by the split. Never write the base verb in parentheses (e.g. `(verb)`) inside `prompt` or `after` — the cue comes only from `baseVerb` as the input placeholder.
+- `prompt` may be empty if the gap starts the sentence; `after` may be empty if the gap ends it.
+- Every item must include `baseVerb`: the verb in its first/base form, shown as the placeholder text in the input cell.
+- The answer must match the exact expected user input (capitalize if it starts the sentence).
+- If spelling/capitalization variants are likely, add `acceptedAnswers`.
+- For `controlledInputPractice`, check input live as the learner types. If correct, show a green check mark immediately.
 - For `controlledInputPractice`, when the learner presses Enter with an incorrect value, show a red cross mark.
+- For `controlledInputPractice` examples (the `examples` array), the shape is `{prompt, answer}` only: `prompt` is the full sentence with a literal `___` at the gap. Do not split examples.
 
 ### 7. Speaking
 
@@ -463,5 +467,6 @@ Quality rules:
 - Grammar has rule cards plus complete-the-rule.
 - Grammar practice has two exercise controls.
 - Grammar practice controlled input items include `baseVerb` for the input placeholder/default text.
+- Grammar practice controlled input items split the sentence into `prompt` (before gap) and `after` (after gap); no literal `___` and no `(verb)` cue inside these fields.
 - Grammar practice typed answers show a green check while typing when correct and a red cross on Enter when incorrect.
 - Speaking has questions and optional self-check translations.
