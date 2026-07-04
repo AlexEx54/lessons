@@ -201,7 +201,7 @@ Use `readingText` and `readingQuizRadio`. A task list wrapper is allowed.
     {
       "type": "taskList",
       "id": "reading-tasks",
-      "items": ["Read the text.", "Answer the quiz.", "Discuss one question."]
+      "items": ["Read the text.", "Answer the quiz."]
     },
     {
       "type": "readingText",
