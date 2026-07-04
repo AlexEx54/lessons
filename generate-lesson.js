@@ -42,6 +42,27 @@ function encodeLessonJson(data) {
   return json.replace(/</g, '\\u003c');
 }
 
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function shuffleWordBanks(data) {
+  if (!data || !Array.isArray(data.sections)) return;
+  data.sections.forEach(section => {
+    if (!section || !Array.isArray(section.controls)) return;
+    section.controls.forEach(control => {
+      if (control && Array.isArray(control.wordBank) && control.wordBank.length) {
+        control.wordBank = shuffle(control.wordBank);
+      }
+    });
+  });
+}
+
 function readLib(name) {
   return fs.readFileSync(path.join(LIB_DIR, name), 'utf8');
 }
@@ -87,6 +108,8 @@ function main() {
     console.error('Fix validation errors before generating the page.');
     process.exit(1);
   }
+
+  shuffleWordBanks(data);
 
   const title = (data.hero && data.hero.title) || (data.meta && data.meta.topic) || 'English Lesson';
 
