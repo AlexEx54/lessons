@@ -104,6 +104,12 @@ body::after {
 
 .section p, .section li { color: var(--soft-ink); }
 
+.control-slot + .control-slot {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(20, 89, 123, 0.18);
+}
+
 .small-note { margin-top: 6px; color: #5d7b8b; font-size: 0.95rem; }
 
 .instruction {

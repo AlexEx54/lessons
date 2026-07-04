@@ -114,6 +114,12 @@ body::after {
 
 .section p, .section li { color: var(--soft-ink); }
 
+.control-slot + .control-slot {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(20, 89, 123, 0.18);
+}
+
 .small-note { margin-top: 6px; color: #5d7b8b; font-size: 0.95rem; }
 
 .instruction {
@@ -797,7 +803,7 @@ textarea {
     );
     section.controls.forEach(control => {
       const node = renderControl(control, section, ctx);
-      if (node) el.appendChild(node);
+      if (node) el.appendChild(h('div', { class: 'control-slot' }, node));
     });
     if (section.alternativeControls && section.alternativeControls.length) {
       renderAlternativeControls(section, el, ctx);
@@ -1354,7 +1360,7 @@ textarea {
     const toggle = h('button', { class: 'btn ghost alt-toggle', type: 'button', text: 'Show Translation Time', dataset: { syncKey: SYNC(section.id, 'alt-toggle') } });
     const altWrap = h('div', { style: { display: 'none' } });
     section.alternativeControls.forEach(control => {
-      altWrap.appendChild(renderControl(control, section, ctx));
+      altWrap.appendChild(h('div', { class: 'control-slot' }, renderControl(control, section, ctx)));
     });
     toggle.addEventListener('click', () => {
       const shown = altWrap.style.display !== 'none';
