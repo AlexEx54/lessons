@@ -3,6 +3,40 @@ const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
 
+function loadDotEnv(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  const raw = fs.readFileSync(filePath, 'utf8');
+  raw.split(/\r?\n/).forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) return;
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    if (!process.env[key]) process.env[key] = value;
+  });
+}
+
+loadDotEnv(path.join(__dirname, '.env'));
+
+const { buildLessonHtml, getLessonTitle } = require('./lib/lesson-build.js');
+const { validateLesson } = require('./lib/lesson-validate.js');
+const {
+  createLessonId,
+  deleteLesson,
+  listLessons,
+  readLessonHtml,
+  readLessonJson,
+  saveLesson,
+} = require('./lib/lesson-store.js');
+const {
+  generateLessonJson,
+  getGeneratorConfig,
+} = require('./lib/openrouter-lesson.js');
+
 const PORT = process.env.PORT || 8787;
 const HOST = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
 const ROOT = __dirname;
@@ -15,6 +49,10 @@ function json(res, status, payload) {
     'Cache-Control': 'no-store',
   });
   res.end(JSON.stringify(payload));
+}
+
+function ndjson(res, payload) {
+  res.write(`${JSON.stringify(payload)}\n`);
 }
 
 function getContentType(filePath) {
@@ -38,7 +76,7 @@ function serveStatic(reqPath, res) {
   const target = reqPath === '/' ? 'index.html' : safePathname(reqPath.slice(1));
   const absolute = path.join(ROOT, target);
 
-  if (!absolute.startsWith(ROOT)) {
+  if (!absolute.startsWith(ROOT) || target === 'data' || target.startsWith(`data${path.sep}`) || target.startsWith('data/')) {
     json(res, 403, { error: 'Forbidden' });
     return;
   }
@@ -107,12 +145,179 @@ function readJsonBody(req) {
   });
 }
 
+function getBearerToken(req) {
+  const header = req.headers.authorization || '';
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : '';
+}
+
+function requireTeacherAuth(req, res) {
+  const expected = process.env.TEACHER_ADMIN_TOKEN;
+  if (!expected) {
+    json(res, 503, { error: 'TEACHER_ADMIN_TOKEN is not configured.' });
+    return false;
+  }
+  if (getBearerToken(req) !== expected) {
+    json(res, 401, { error: 'Invalid teacher token.' });
+    return false;
+  }
+  return true;
+}
+
+function getLessonIdFromPath(pathname, prefix, suffix = '') {
+  if (!pathname.startsWith(prefix)) return '';
+  if (suffix && !pathname.endsWith(suffix)) return '';
+  const end = suffix ? pathname.length - suffix.length : pathname.length;
+  return decodeURIComponent(pathname.slice(prefix.length, end)).trim();
+}
+
+function publicError(error) {
+  const payload = { type: 'error', message: error.message || 'Unexpected error.' };
+  if (Array.isArray(error.details)) payload.details = error.details;
+  return payload;
+}
+
 const server = http.createServer(async (req, res) => {
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = requestUrl.pathname;
 
   if (req.method === 'GET' && pathname === '/health') {
     json(res, 200, { ok: true, rooms: clientsByRoom.size });
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/generator/config') {
+    json(res, 200, getGeneratorConfig());
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/lessons') {
+    try {
+      json(res, 200, { lessons: await listLessons() });
+    } catch (error) {
+      json(res, 500, { error: error.message || 'Cannot read lessons.' });
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && pathname.startsWith('/api/lessons/') && pathname.endsWith('/json')) {
+    const lessonId = getLessonIdFromPath(pathname, '/api/lessons/', '/json');
+    try {
+      json(res, 200, await readLessonJson(lessonId));
+    } catch (error) {
+      json(res, error.statusCode || 404, { error: error.message || 'Lesson not found.' });
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && pathname.startsWith('/lesson/')) {
+    const lessonId = getLessonIdFromPath(pathname, '/lesson/');
+    try {
+      const html = await readLessonHtml(lessonId);
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+      });
+      res.end(html);
+    } catch (error) {
+      json(res, error.statusCode || 404, { error: error.message || 'Lesson not found.' });
+    }
+    return;
+  }
+
+  if (req.method === 'DELETE' && pathname.startsWith('/api/lessons/')) {
+    if (!requireTeacherAuth(req, res)) return;
+    const lessonId = getLessonIdFromPath(pathname, '/api/lessons/');
+    try {
+      await deleteLesson(lessonId);
+      json(res, 200, { ok: true });
+    } catch (error) {
+      json(res, error.statusCode || 500, { error: error.message || 'Cannot delete lesson.' });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/lessons/generate') {
+    if (!requireTeacherAuth(req, res)) return;
+
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (error) {
+      json(res, 400, { error: error.message || 'Bad request' });
+      return;
+    }
+
+    const topic = typeof body.topic === 'string' ? body.topic.trim() : '';
+    const targetGrammar = typeof body.targetGrammar === 'string' ? body.targetGrammar.trim() : '';
+
+    if (!topic) {
+      json(res, 400, { error: 'topic is required.' });
+      return;
+    }
+    if (topic.length > 240 || targetGrammar.length > 800) {
+      json(res, 400, { error: 'topic or targetGrammar is too long.' });
+      return;
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'Cache-Control': 'no-store, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+
+    try {
+      ndjson(res, { type: 'status', message: 'Starting lesson generation...' });
+      const generated = await generateLessonJson({
+        topic,
+        targetGrammar,
+        onEvent: event => ndjson(res, event),
+      });
+
+      ndjson(res, { type: 'status', message: 'Validating generated lesson JSON...' });
+      const validation = validateLesson(generated.lesson);
+      if (validation.errors.length) {
+        const error = new Error('Generated lesson did not pass validation.');
+        error.details = validation.errors;
+        throw error;
+      }
+
+      ndjson(res, { type: 'status', message: 'Building standalone lesson page...' });
+      const html = buildLessonHtml(generated.lesson);
+      const id = createLessonId((generated.lesson.meta && generated.lesson.meta.topic) || topic);
+      const title = getLessonTitle(generated.lesson);
+      const cost = generated.cost || {};
+      const meta = await saveLesson({
+        lesson: generated.lesson,
+        html,
+        metadata: {
+          id,
+          title,
+          topic: (generated.lesson.meta && generated.lesson.meta.topic) || topic,
+          targetGrammar: (generated.lesson.meta && generated.lesson.meta.targetGrammar) || targetGrammar,
+          model: generated.model,
+          reasoningEffort: generated.reasoningEffort,
+          generationId: generated.generationId,
+          costUsd: cost.usd,
+          costRub: cost.rub,
+          costSource: cost.source,
+          usage: {
+            promptTokens: cost.promptTokens,
+            completionTokens: cost.completionTokens,
+            reasoningTokens: cost.reasoningTokens,
+            totalTokens: cost.totalTokens,
+          },
+          validationWarnings: validation.warnings,
+        },
+      });
+
+      ndjson(res, { type: 'complete', lesson: meta });
+      res.end();
+    } catch (error) {
+      ndjson(res, publicError(error));
+      res.end();
+    }
     return;
   }
 

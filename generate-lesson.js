@@ -4,8 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const { validateLesson } = require('./lib/lesson-validate.js');
-
-const LIB_DIR = path.join(__dirname, 'lib');
+const { buildLessonHtml, defaultOutputPath } = require('./lib/lesson-build.js');
 
 function parseArgs(argv) {
   const args = { input: null, output: null, help: false };
@@ -28,49 +27,6 @@ interactive HTML lesson page (with embedded CSS, renderer, sync, and JSON).
 Options:
   -o, --output <file>   Output HTML path. Default: input name with .html extension.
   -h, --help            Show this help.`);
-}
-
-function escapeHtmlTitle(text) {
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-function encodeLessonJson(data) {
-  const json = JSON.stringify(data);
-  return json.replace(/</g, '\\u003c');
-}
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function shuffleWordBanks(data) {
-  if (!data || !Array.isArray(data.sections)) return;
-  data.sections.forEach(section => {
-    if (!section || !Array.isArray(section.controls)) return;
-    section.controls.forEach(control => {
-      if (control && Array.isArray(control.wordBank) && control.wordBank.length) {
-        control.wordBank = shuffle(control.wordBank);
-      }
-    });
-  });
-}
-
-function readLib(name) {
-  return fs.readFileSync(path.join(LIB_DIR, name), 'utf8');
-}
-
-function defaultOutputPath(inputPath) {
-  const ext = path.extname(inputPath);
-  const base = ext ? inputPath.slice(0, -ext.length) : inputPath;
-  return `${base}.html`;
 }
 
 function reportValidation(result) {
@@ -109,23 +65,7 @@ function main() {
     process.exit(1);
   }
 
-  shuffleWordBanks(data);
-
-  const title = (data.hero && data.hero.title) || (data.meta && data.meta.topic) || 'English Lesson';
-
-  const shell = readLib('lesson-shell.html');
-  const css = readLib('lesson.css');
-  const renderer = readLib('lesson-renderer.js');
-  const sync = readLib('lesson-sync.js');
-  const jsonPayload = encodeLessonJson(data);
-
-  const html = shell
-    .replace('__LESSON_TITLE__', () => escapeHtmlTitle(title))
-    .replace('__LESSON_CSS__', () => css)
-    .replace('__LESSON_JSON__', () => jsonPayload)
-    .replace('__LESSON_RENDERER__', () => renderer)
-    .replace('__LESSON_SYNC__', () => sync);
-
+  const html = buildLessonHtml(data);
   const outputPath = path.resolve(args.output || defaultOutputPath(inputPath));
   try { fs.writeFileSync(outputPath, html, 'utf8'); }
   catch (e) { console.error(`Cannot write output: ${e.message}`); process.exit(1); }

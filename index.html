@@ -1,2176 +1,611 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>English Mood Lab - Modern Heroes (A2)</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
+  <title>Генератор уроков</title>
   <style>
     :root {
-      --bg-1: #f7fff2;
-      --bg-2: #e7f6ff;
-      --bg-3: #fff1df;
-      --card: rgba(255, 255, 255, 0.85);
-      --card-border: rgba(14, 72, 98, 0.15);
-      --ink: #16384b;
-      --soft-ink: #436578;
-      --brand: #f08a38;
-      --brand-2: #0da4a7;
-      --ok: #1f9a62;
-      --bad: #d54646;
-      --hint: #7b8691;
-      --shadow: 0 12px 30px rgba(0, 60, 95, 0.13);
+      --bg: #f6f7fb;
+      --surface: #ffffff;
+      --surface-2: #eef6f2;
+      --ink: #1f2933;
+      --muted: #697586;
+      --line: #d8dee8;
+      --accent: #126b5e;
+      --accent-2: #b9472a;
+      --ok: #168a54;
+      --bad: #bf3434;
+      --shadow: 0 12px 32px rgba(31, 41, 51, 0.08);
     }
 
     * { box-sizing: border-box; }
 
-    html { width: 100%; max-width: 100%; overflow-x: hidden; }
-
     body {
       margin: 0;
-      font-family: "Nunito", "Trebuchet MS", sans-serif;
-      color: var(--ink);
-      background: linear-gradient(155deg, var(--bg-1), var(--bg-2) 48%, var(--bg-3));
       min-height: 100vh;
-      max-width: 100%;
-      overflow-x: hidden;
-      position: relative;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
     }
 
-    body::before, body::after {
-      content: "";
-      position: fixed;
-      z-index: -1;
-      border-radius: 999px;
-      filter: blur(2px);
+    button, input, textarea {
+      font: inherit;
     }
 
-    body::before {
-      width: 370px; height: 370px; left: -110px; top: -90px;
-      background: radial-gradient(circle at 35% 35%, rgba(240, 138, 56, 0.34), rgba(240, 138, 56, 0));
-      animation: drift 7s ease-in-out infinite alternate;
+    button {
+      min-height: 40px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      padding: 9px 13px;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+      font-weight: 700;
     }
 
-    body::after {
-      width: 420px; height: 420px; right: -120px; bottom: -130px;
-      background: radial-gradient(circle at 70% 70%, rgba(13, 164, 167, 0.3), rgba(13, 164, 167, 0));
-      animation: drift 8s ease-in-out infinite alternate-reverse;
+    button:hover { filter: brightness(0.96); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    button.secondary { color: var(--accent); background: #e7f2ee; border-color: #bfd7cf; }
+    button.danger { background: var(--accent-2); }
+    button.ghost { color: var(--ink); background: #fff; border-color: var(--line); }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 10px 11px;
+      color: var(--ink);
+      background: #fff;
     }
 
-    @keyframes drift {
-      from { transform: translate(0, 0); }
-      to { transform: translate(-10px, 12px); }
+    textarea {
+      min-height: 92px;
+      resize: vertical;
     }
 
     .page {
-      width: min(1020px, calc(100% - 20px));
-      margin: 30px auto 40px;
+      width: min(1160px, calc(100% - 32px));
+      margin: 28px auto 42px;
       display: grid;
       gap: 18px;
     }
 
-    .hero, .section {
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      box-shadow: var(--shadow);
-      padding: 20px;
-      backdrop-filter: blur(8px);
-      animation: rise 0.55s ease;
+    .topbar {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 6px 0;
     }
 
-    @keyframes rise {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      margin-bottom: 4px;
+      font-size: 2rem;
+      letter-spacing: 0;
     }
 
-    .hero h1 {
+    h2 {
+      margin-bottom: 14px;
+      font-size: 1.18rem;
+      letter-spacing: 0;
+    }
+
+    .muted { color: var(--muted); }
+
+    .meta-line {
       margin: 0;
-      font-family: "Baloo 2", cursive;
-      font-size: clamp(2rem, 4vw, 2.8rem);
-      color: #104867;
-      line-height: 1.05;
+      color: var(--muted);
+      font-size: 0.94rem;
     }
 
-    .hero p { margin: 8px 0 0; color: var(--soft-ink); font-size: 1.04rem; }
-
-    .pill-row { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
-
-    .pill {
-      padding: 6px 10px; border-radius: 999px;
-      background: #eaf8ff; border: 1px solid #bbdbe8;
-      color: #1f5b77; font-size: 0.9rem; font-weight: 700;
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 18px;
     }
 
-    .section h2 {
-      margin: 0 0 8px;
-      font-family: "Baloo 2", cursive;
-      color: #14597b;
-      font-size: clamp(1.4rem, 2.5vw, 1.9rem);
-      line-height: 1.1;
-    }
-
-    .section p, .section li { color: var(--soft-ink); }
-
-    .small-note { margin-top: 6px; color: #5d7b8b; font-size: 0.95rem; }
-
-    .meme-box {
-      border-radius: 14px;
-      border: 1px dashed rgba(17, 86, 117, 0.35);
-      background: linear-gradient(120deg, rgba(255, 248, 235, 0.9), rgba(232, 250, 250, 0.92));
-      padding: 14px;
-    }
-
-    .meme-title { font-weight: 800; color: #185372; margin-bottom: 10px; font-size: 1.08rem; }
-
-    .mood-grid {
+    .generator-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 8px;
+      grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
     }
 
-    .mood-btn {
-      border: 2px solid #bad8e3; background: #fff; border-radius: 11px;
-      padding: 10px; cursor: pointer; font-size: 1rem; color: #1d4963;
-      transition: border-color 0.2s ease, transform 0.15s ease, background-color 0.2s ease;
-    }
-
-    .mood-btn:hover { transform: translateY(-1px); border-color: var(--brand); }
-
-    .mood-btn.selected { border-color: var(--brand-2); background: #e8fbfb; font-weight: 700; }
-
-    .mood-result { margin-top: 10px; color: #145574; font-weight: 700; min-height: 20px; }
-
-    .qa-list { display: grid; gap: 8px; margin-top: 8px; padding-left: 18px; }
-
-    .vocab-texts {
+    .field-stack {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 10px; margin-top: 8px;
+      gap: 13px;
     }
 
-    .mini-card {
-      border: 1px solid rgba(20, 89, 123, 0.22);
-      background: rgba(248, 254, 255, 0.87);
-      border-radius: 12px; padding: 10px; color: #204d67; line-height: 1.55;
-    }
-
-    .mini-card strong {
-      color: #0f5d7b; background: #fff1cd; border-radius: 4px; padding: 0 2px;
-    }
-
-    .match-wrap {
-      margin-top: 10px;
+    label {
       display: grid;
-      gap: 10px;
+      gap: 6px;
+      color: #334155;
+      font-weight: 700;
+      font-size: 0.92rem;
     }
 
-    .match-row {
-      display: grid;
-      grid-template-columns: 140px 1fr;
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
       gap: 10px;
       align-items: center;
     }
 
-    .match-word {
-      text-align: left;
-      border: 2px solid #b9d9e6; border-radius: 10px;
-      background: #fff; color: #1e4863; padding: 9px;
-      font-family: inherit; font-size: 0.95rem; font-weight: 700;
-      transition: border-color 0.2s ease, background-color 0.2s ease;
+    .status-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
     }
 
-    .match-word.done { border-color: var(--ok); background: #eafef2; }
-
-    .match-drop {
-      min-height: 42px;
-      border: 2px dashed #c4deea; border-radius: 10px;
-      background: rgba(248, 254, 255, 0.6);
-      padding: 6px 9px;
-      display: flex; align-items: center;
-      color: #8ba5b5; font-size: 0.9rem; font-style: italic;
-      transition: border-color 0.2s ease, background-color 0.2s ease;
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid #cfdae6;
+      background: #f8fafc;
+      color: #41516a;
+      font-size: 0.86rem;
+      font-weight: 700;
     }
 
-    .match-drop.highlight { border-color: var(--brand); background: #fff8ed; }
-    .match-drop.done { border-style: solid; border-color: var(--ok); background: #eafef2; color: #1e4863; font-style: normal; font-weight: 600; }
-
-    .def-pool {
-      margin-top: 10px;
-      display: flex; flex-wrap: wrap; gap: 8px;
+    .stream-box {
+      min-height: 276px;
+      max-height: 360px;
+      overflow: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #111827;
+      color: #e5e7eb;
+      padding: 12px;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.86rem;
     }
 
-    .def-chip {
-      border: 2px solid #b9d9e6; border-radius: 10px;
-      background: #fff; color: #1e4863; padding: 8px 12px;
-      font-family: inherit; font-size: 0.92rem; cursor: grab;
-      transition: transform 0.16s ease, border-color 0.2s ease, background-color 0.2s ease, opacity 0.3s ease;
-      user-select: none;
+    .stream-empty {
+      color: #9ca3af;
     }
 
-    .def-chip:hover { transform: translateY(-1px); border-color: var(--brand); }
-    .def-chip.selected { border-color: var(--brand-2); background: #e7fbfb; cursor: grabbing; }
-    .def-chip.placed { opacity: 0; pointer-events: none; position: absolute; }
-    .def-chip.wrong { border-color: var(--bad); background: #ffecec; animation: shake 0.22s linear; }
-
-    /* ===== Gap-fill exercise ===== */
-    .gapfill-text {
-      line-height: 2; color: #1d4a64; margin-top: 8px; font-size: 1rem;
-    }
-
-    .gap-slot {
-      display: inline-block; position: relative; margin-inline: 2px;
-    }
-
-    .gap-slot select {
-      min-width: 130px; font-size: 0.93rem;
-    }
-
-    .gap-slot select.correct { border-color: var(--ok); background: #eafff2; }
-    .gap-slot select.wrong { border-color: var(--bad); background: #fff0f0; }
-
-    @keyframes shake {
-      0% { transform: translateX(0); }
-      25% { transform: translateX(3px); }
-      50% { transform: translateX(-3px); }
-      75% { transform: translateX(2px); }
-      100% { transform: translateX(0); }
-    }
-
-    .status { margin-top: 8px; min-height: 22px; font-weight: 700; color: #145574; }
-    .status.ok { color: var(--ok); }
-    .status.bad { color: var(--bad); }
-
-    .grammar-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 10px; margin-top: 8px;
-    }
-
-    .rule-card {
-      border: 1px solid rgba(17, 87, 118, 0.22);
-      border-radius: 12px; padding: 10px;
-      background: rgba(250, 255, 255, 0.9); color: #1c506b;
-    }
-
-    .rule-card h4 { margin: 0 0 6px; color: #125777; font-size: 1.02rem; }
-
-    .table-wrap { margin-top: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-
-    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; min-width: 460px; }
-
-    th, td {
-      border: 1px solid #c4deea; padding: 8px; text-align: left;
-      color: #214e68; background: rgba(255, 255, 255, 0.9);
-    }
-
-    th { background: #eaf8ff; color: #155777; }
-
-    .exercise {
+    .cost-box {
       margin-top: 12px;
-      border: 1px dashed rgba(21, 86, 116, 0.3);
-      border-radius: 12px; padding: 11px;
-      background: rgba(248, 253, 255, 0.84);
-    }
-
-    .exercise h4 { margin: 0 0 8px; color: #165877; }
-
-    .story { line-height: 1.95; color: #1d4a64; overflow-wrap: anywhere; }
-
-    .verb-slot {
-      display: inline-flex; align-items: center; gap: 5px;
-      margin-inline: 2px; position: relative; top: 2px;
-    }
-
-    .verb-slot input, .inline-input, select {
-      border: 2px solid #9cc7d8; border-radius: 9px;
-      padding: 5px 8px; font-family: inherit; font-size: 0.95rem;
-      color: #114862; background: #fff;
-    }
-
-    .verb-slot input { width: 170px; text-align: center; }
-
-    .inline-input { width: 108px; }
-
-    select { min-width: 140px; }
-
-    .verb-slot input:focus, .inline-input:focus, select:focus, textarea:focus {
-      outline: none; border-color: var(--brand);
-    }
-
-    .inf { color: var(--hint); font-size: 0.84rem; font-style: italic; white-space: nowrap; }
-
-    .check {
-      opacity: 0; color: var(--ok); font-weight: 800;
-      transform: scale(0.7);
-      transition: opacity 0.2s ease, transform 0.2s ease;
-    }
-
-    .check.visible { opacity: 1; transform: scale(1); }
-
-    .correct { border-color: var(--ok) !important; background: #eafff2 !important; }
-    .wrong { border-color: var(--bad) !important; background: #fff0f0 !important; }
-
-    .btn {
-      margin-top: 8px; border: none; border-radius: 10px;
-      padding: 9px 12px; font-family: inherit; font-weight: 700;
-      font-size: 0.94rem;
-      background: linear-gradient(120deg, #f39a50, #ef7f1f);
-      color: #fff; cursor: pointer;
-      transition: transform 0.15s ease, filter 0.15s ease;
-    }
-
-    .btn:hover { transform: translateY(-1px); filter: brightness(1.03); }
-
-    textarea {
-      width: 100%; min-height: 130px; resize: vertical;
-      border: 2px solid #a6cddd; border-radius: 10px;
-      padding: 9px; font-family: inherit; font-size: 0.95rem;
-      color: #194966; background: #fff;
-    }
-
-    .free-tips { margin: 8px 0 0; font-size: 0.93rem; color: #5a7788; }
-
-    .speak-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 10px;
     }
 
-    .scenario {
-      border: 1px solid rgba(19, 88, 119, 0.24);
-      border-radius: 12px; padding: 10px;
-      background: rgba(251, 255, 255, 0.87); color: #1f4e68;
+    .metric {
+      min-height: 70px;
+      border: 1px solid #d8e2df;
+      border-radius: 8px;
+      background: var(--surface-2);
+      padding: 10px;
     }
 
-    .scenario h4 { margin: 0 0 6px; color: #135a7a; }
-
-    .exit-grid { display: grid; gap: 8px; margin-top: 8px; }
-
-    .exit-grid input, .exit-grid select { width: 100%; max-width: 100%; }
-
-    /* ===== Sort exercise ===== */
-    .sort-pool {
-      display: flex; flex-wrap: wrap; gap: 8px;
-      margin: 10px 0;
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 1.05rem;
     }
 
-    .sort-word {
-      border: 2px solid #bad8e3; background: #fff; border-radius: 10px;
-      padding: 8px 14px; cursor: pointer; font-family: inherit;
-      font-size: 0.95rem; color: #1d4963; font-weight: 600;
-      transition: transform 0.15s ease, border-color 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
-    }
-
-    .sort-word:hover { transform: translateY(-1px); border-color: var(--brand); }
-    .sort-word.selected { border-color: var(--brand-2); background: #e8fbfb; }
-    .sort-word.placed { opacity: 0.35; pointer-events: none; }
-
-    .sort-columns {
+    .lesson-list {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px; margin-top: 10px;
+      gap: 10px;
     }
 
-    .sort-col {
-      border: 2px dashed rgba(21, 84, 119, 0.25);
-      border-radius: 12px;
-      background: rgba(248, 254, 255, 0.87);
-      padding: 10px; min-height: 120px;
-      cursor: pointer;
-      transition: border-color 0.2s ease, background-color 0.2s ease;
-    }
-
-    .sort-col:hover { border-color: var(--brand); }
-    .sort-col.highlight { border-color: var(--brand-2); background: rgba(232, 251, 251, 0.6); }
-
-    .sort-col h3 {
-      margin: 0 0 8px; font-size: 0.92rem;
-      text-transform: uppercase; color: #1b5d7f;
-      letter-spacing: 0.02em; text-align: center;
-    }
-
-    .sort-col .placed-words { display: flex; flex-wrap: wrap; gap: 6px; }
-
-    .sort-placed {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 5px 10px; border-radius: 8px;
-      background: #eaf8ff; border: 1px solid #bbdbe8;
-      color: #1f5b77; font-size: 0.88rem; font-weight: 600;
-    }
-
-    .sort-placed.correct-place { background: #e0fbe9; border-color: var(--ok); color: #1a6b42; }
-    .sort-placed.wrong-place { background: #ffe8e8; border-color: var(--bad); color: #a63030; }
-
-    .sort-placed .remove-placed {
-      background: none; border: none; cursor: pointer;
-      font-size: 0.8rem; color: #7b8691; padding: 0 2px;
-      line-height: 1;
-    }
-
-    .sort-placed .remove-placed:hover { color: var(--bad); }
-
-    /* ===== Phrasal verb cards ===== */
-    .pv-grid {
+    .lesson-item {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 10px; margin-top: 8px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 14px;
     }
 
-    .pv-card {
-      border: 1px solid rgba(20, 89, 123, 0.22);
-      background: rgba(248, 254, 255, 0.87);
-      border-radius: 12px; padding: 10px; color: #204d67;
+    .lesson-item h3 {
+      margin: 0 0 6px;
+      font-size: 1.04rem;
+      letter-spacing: 0;
     }
 
-    .pv-card strong {
-      display: block; color: #0f5d7b; font-size: 1.05rem; margin-bottom: 4px;
+    .lesson-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
     }
 
-    .pv-card span { color: var(--soft-ink); font-size: 0.93rem; }
-
-    /* ===== Speaking notes ===== */
-    .speak-notes {
+    .message {
+      min-height: 22px;
       margin-top: 8px;
+      color: var(--muted);
+      font-weight: 700;
     }
 
-    .speak-notes textarea {
-      min-height: 90px;
-    }
+    .message.ok { color: var(--ok); }
+    .message.bad { color: var(--bad); }
 
-    /* ===== Fact box ===== */
-    .fact-box {
-      background: linear-gradient(120deg, rgba(232, 248, 255, 0.95), rgba(255, 248, 235, 0.92));
-      border: 1px solid rgba(17, 86, 117, 0.2);
-      border-radius: 12px; padding: 14px;
-      color: #1c506b; font-size: 1.02rem; line-height: 1.6;
-      margin-bottom: 12px;
-    }
-
-    .fact-box .fact-label {
-      display: inline-block;
-      background: var(--brand-2); color: #fff;
-      font-size: 0.78rem; font-weight: 700;
-      padding: 2px 8px; border-radius: 6px;
-      margin-bottom: 6px; text-transform: uppercase;
-    }
-
-    /* ===== Sync shell ===== */
-    .sync-shell {
-      position: fixed; right: 14px; top: 12px; z-index: 30;
-      width: min(360px, calc(100% - 20px));
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid rgba(17, 87, 118, 0.2);
-      border-radius: 14px;
-      box-shadow: 0 10px 24px rgba(0, 60, 95, 0.18);
-      backdrop-filter: blur(8px);
-      padding: 10px; color: #164961;
-    }
-
-    .sync-title { margin: 0 0 8px; font-size: 0.95rem; font-weight: 800; color: #125575; }
-
-    .sync-shell .sync-title.toggle {
-      display: block; width: 100%; margin: 0; padding: 0;
-      border: none; border-radius: 0; font: inherit;
-      text-align: left; color: #125575; cursor: pointer;
-      background: transparent !important;
-    }
-
-    .sync-shell .sync-title.toggle::after {
-      content: '\25BC'; float: right; font-size: 0.78rem;
-      color: #4f7488; margin-top: 3px;
-    }
-
-    .sync-shell.collapsed .sync-title.toggle::after { content: '\25B6'; }
-    .sync-shell.collapsed .sync-shell-body { display: none; }
-
-    .sync-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
-    .sync-row.single { grid-template-columns: 1fr; }
-
-    .sync-shell input, .sync-shell select, .sync-shell button {
-      width: 100%; border: 1px solid #b8d8e6; border-radius: 9px;
-      padding: 7px 8px; font-size: 0.9rem; font-family: inherit;
-      color: #154a66; background: #fff;
-    }
-
-    .sync-shell button {
-      cursor: pointer; font-weight: 700; border: none;
-      color: #fff; background: linear-gradient(120deg, #18a3a5, #0f888a);
-    }
-
-    .sync-shell button.alt { background: linear-gradient(120deg, #f39a50, #ea7d1f); }
-
-    .sync-meta { font-size: 0.83rem; color: #5c7989; margin: 6px 0; line-height: 1.4; }
-
-    .teacher-box {
-      margin-top: 8px; padding-top: 8px;
-      border-top: 1px dashed rgba(21, 86, 116, 0.28);
-      display: none;
-    }
-
-    .teacher-box.active { display: block; }
-    .teacher-box h4 { margin: 0 0 7px; font-size: 0.9rem; color: #145c7d; }
-
-    .teacher-grid {
-      display: grid; gap: 6px;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      margin-bottom: 8px;
-    }
-
-    .teacher-grid button { font-size: 0.84rem; padding: 6px; }
-
-    .tracker { margin: 0 0 7px; font-size: 0.84rem; line-height: 1.35; color: #2d5f77; }
-
-    .remote-cursor {
-      position: fixed; left: 0; top: 0;
-      transform: translate(-9999px, -9999px);
-      z-index: 25; pointer-events: none; display: none;
-    }
-
-    .remote-cursor.visible { display: block; }
-
-    .remote-cursor-dot {
-      width: 12px; height: 12px; border-radius: 50%;
-      background: #d84545; border: 2px solid #fff;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-    }
-
-    .remote-cursor-label {
-      margin-top: 4px; padding: 2px 6px; border-radius: 8px;
-      background: rgba(216, 69, 69, 0.95); color: #fff;
-      font-size: 0.72rem; font-weight: 700; width: max-content;
-    }
-
-    .remote-cursor.role-teacher .remote-cursor-dot { background: #2f72d8; }
-    .remote-cursor.role-teacher .remote-cursor-label { background: rgba(47, 114, 216, 0.95); }
-    .remote-cursor.role-student .remote-cursor-dot { background: #d84545; }
-    .remote-cursor.role-student .remote-cursor-label { background: rgba(216, 69, 69, 0.95); }
-
-    .teacher-highlight {
-      outline: 3px solid #f08a38 !important;
-      box-shadow: 0 0 0 4px rgba(240, 138, 56, 0.28);
-      transition: box-shadow 0.2s ease;
-    }
-
-    .page.readonly-mirror {
-      outline: 2px dashed rgba(25, 99, 133, 0.45);
-      outline-offset: 6px;
-    }
-
-    .page.readonly-mirror button,
-    .page.readonly-mirror input,
-    .page.readonly-mirror textarea,
-    .page.readonly-mirror select { cursor: not-allowed; }
-
-    @media (max-width: 760px) {
-      .page { width: min(1020px, calc(100% - 12px)); margin-top: 14px; margin-bottom: 20px; }
-      .hero, .section { padding: 15px; }
-      .story { line-height: 2.2; }
-      .verb-slot { flex-wrap: wrap; }
-      .verb-slot input, .inline-input { width: 95px; }
-      .match-row { grid-template-columns: 110px 1fr; }
-      .sort-columns { grid-template-columns: 1fr; }
-      .sync-shell {
-        position: sticky; top: 8px; right: auto;
-        width: 100%; margin: 0 auto;
-        max-height: 55vh; overflow: auto;
-      }
-      .sync-row { grid-template-columns: 1fr; }
-      .teacher-grid { grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 520px) {
-      body::before { width: 260px; height: 260px; }
-      body::after { width: 280px; height: 280px; }
-      .page { width: calc(100% - 8px); margin-top: 8px; margin-bottom: 14px; gap: 12px; }
-      .hero, .section { padding: 12px; border-radius: 14px; }
-      .pill-row { gap: 6px; }
-      .pill { font-size: 0.82rem; }
-      .mood-grid, .vocab-texts, .grammar-grid, .speak-grid, .pv-grid { grid-template-columns: 1fr; }
-      table { min-width: 0; table-layout: fixed; font-size: 0.88rem; }
-      th, td { word-break: break-word; }
-      .story { line-height: 1.8; }
-      .verb-slot { max-width: 100%; margin-inline: 0; }
-      .verb-slot input, .inline-input { width: min(150px, 40vw); }
-      select { min-width: 0; }
-      .inf { white-space: normal; }
-      .sort-columns { grid-template-columns: 1fr; }
-      .sort-pool { gap: 6px; }
-      .sort-word { padding: 6px 10px; font-size: 0.88rem; }
-      .match-row { grid-template-columns: 100px 1fr; }
-      .def-chip { font-size: 0.85rem; padding: 6px 9px; }
-      .sync-shell { border-radius: 12px; padding: 8px; }
-      .teacher-grid button { white-space: normal; }
+    @media (max-width: 820px) {
+      .topbar, .lesson-item { display: grid; align-items: stretch; }
+      .generator-grid { grid-template-columns: 1fr; }
+      .cost-box { grid-template-columns: 1fr; }
+      .lesson-actions { justify-content: stretch; }
+      .lesson-actions button { flex: 1 1 160px; }
     }
   </style>
 </head>
 <body>
-  <aside class="sync-shell" id="sync-shell">
-    <button class="sync-title toggle" id="sync-shell-toggle" type="button" aria-expanded="true">Live Lesson Control</button>
-    <div class="sync-shell-body" id="sync-shell-body">
-      <div class="sync-row">
-        <select id="role-select">
-          <option value="student">Student mode</option>
-          <option value="teacher">Teacher mode</option>
-        </select>
-        <input id="room-input" type="text" placeholder="Room code (e.g. heroes-a2)" />
-      </div>
-      <div class="sync-row">
-        <button id="connect-btn" type="button">Connect</button>
-        <button class="alt" id="copy-link-btn" type="button">Copy student link</button>
-      </div>
-      <div class="sync-meta" id="sync-status">Status: offline. Choose role + room, then Connect.</div>
-      <div class="sync-meta" id="student-link-meta">Student link will appear here.</div>
-
-      <div class="teacher-box" id="teacher-box">
-        <h4>Teacher Dashboard</h4>
-        <p class="tracker" id="student-tracker">Student activity: waiting...</p>
-        <div class="sync-row single">
-          <button id="bring-to-me-btn" type="button">Bring student to my current section</button>
-        </div>
-        <div class="teacher-grid">
-          <button class="goto-btn" type="button" data-target="warmup">Warm-Up</button>
-          <button class="goto-btn" type="button" data-target="lead-in">Lead-In</button>
-          <button class="goto-btn" type="button" data-target="vocabulary">Vocabulary</button>
-          <button class="goto-btn" type="button" data-target="phrasal-verbs">Phrasal Verbs</button>
-          <button class="goto-btn" type="button" data-target="target-grammar">Grammar</button>
-          <button class="goto-btn" type="button" data-target="practice">Practice</button>
-          <button class="goto-btn" type="button" data-target="speaking">Speaking</button>
-          <button class="goto-btn" type="button" data-target="wrap-up">Wrap-Up</button>
-        </div>
-        <div class="sync-row">
-          <input id="highlight-selector-input" type="text" placeholder='Selector, e.g. #exercise-2' />
-          <button id="highlight-selector-btn" type="button">Highlight selector</button>
-        </div>
-        <div class="teacher-grid" id="word-spotlight-grid"></div>
-      </div>
-    </div>
-  </aside>
-
-  <div class="remote-cursor" id="remote-cursor">
-    <div class="remote-cursor-dot"></div>
-    <div class="remote-cursor-label">Student</div>
-  </div>
-
   <main class="page">
-    <!-- ===== HERO ===== -->
-    <section class="hero">
-      <h1>Modern Heroes: What Are They Like?</h1>
-      <p>A2-level lesson: hero qualities, social actions, and comparing with <em>(not) as&hellip;as</em>.</p>
-      <div class="pill-row">
-        <span class="pill">Warm-Up</span>
-        <span class="pill">Lead-In</span>
-        <span class="pill">Vocabulary</span>
-        <span class="pill">Phrasal Verbs</span>
-        <span class="pill">Grammar</span>
-        <span class="pill">Practice</span>
-        <span class="pill">Speaking</span>
-        <span class="pill">Wrap-Up</span>
+    <header class="topbar">
+      <div>
+        <h1>Генератор уроков</h1>
+        <p class="meta-line" id="config-line">Загрузка конфигурации...</p>
+      </div>
+      <button class="ghost" id="refresh-lessons" type="button">Обновить список</button>
+    </header>
+
+    <section class="panel">
+      <h2>Генерация</h2>
+      <div class="generator-grid">
+        <form class="field-stack" id="lesson-form">
+          <label>
+            Токен учителя
+            <input id="teacher-token" type="password" autocomplete="current-password" placeholder="TEACHER_ADMIN_TOKEN" />
+          </label>
+          <label>
+            Тема
+            <input id="topic" type="text" maxlength="240" required placeholder="Например: Luca cartoon" />
+          </label>
+          <label>
+            Доп. грамматика
+            <textarea id="target-grammar" maxlength="800" placeholder="Например: gerund vs infinitive"></textarea>
+          </label>
+          <div class="button-row">
+            <button id="generate-btn" type="submit">Сгенерировать</button>
+            <button class="secondary" id="clear-log" type="button">Очистить окно</button>
+          </div>
+          <div class="message" id="form-message"></div>
+        </form>
+
+        <div>
+          <div class="status-strip">
+            <span class="pill" id="status-pill">idle</span>
+            <span class="pill" id="rub-pill">83 RUB/USD</span>
+            <span class="pill" id="model-pill">model</span>
+          </div>
+          <div class="stream-box stream-empty" id="reasoning-box">Ход генерации и статус появятся здесь.</div>
+          <div class="cost-box">
+            <div class="metric"><span class="muted">Стоимость</span><strong id="cost-rub">-</strong></div>
+            <div class="metric"><span class="muted">USD</span><strong id="cost-usd">-</strong></div>
+            <div class="metric"><span class="muted">Tokens</span><strong id="tokens-total">-</strong></div>
+          </div>
+        </div>
       </div>
     </section>
 
-    <!-- ===== 1. WARM-UP ===== -->
-    <section class="section" id="warmup">
-      <h2>1) Warm-Up</h2>
-      <div class="fact-box">
-        <span class="fact-label">Did you know?</span><br/>
-        A recent international survey found that about <strong>65% of people</strong> say their "modern heroes" are everyday helpers &mdash; nurses, teachers, volunteers or neighbours &mdash; <strong>not famous people</strong>.
-      </div>
-      <p>Read the fact above and choose your reaction:</p>
-      <div class="meme-box">
-        <div class="meme-title">What do you think?</div>
-        <div class="mood-grid" id="mood-grid">
-          <button class="mood-btn" type="button" data-mood="surprised">I'm surprised!</button>
-          <button class="mood-btn" type="button" data-mood="not-surprised">Not surprised at all</button>
-          <button class="mood-btn" type="button" data-mood="agree">I totally agree</button>
-          <button class="mood-btn" type="button" data-mood="disagree">I disagree</button>
-          <button class="mood-btn" type="button" data-mood="interesting">That's interesting</button>
-          <button class="mood-btn" type="button" data-mood="depends">It depends</button>
-        </div>
-        <div class="mood-result" id="mood-result">Choose your reaction.</div>
-      </div>
-      <p class="small-note">Be ready to explain your choice!</p>
-    </section>
-
-    <!-- ===== 2. LEAD-IN ===== -->
-    <section class="section" id="lead-in">
-      <h2>2) Lead-In: Sort the Words</h2>
-      <p>Sort these words into 3 columns: <strong>Qualities</strong>, <strong>Actions</strong>, and <strong>Jobs</strong>.</p>
-      <p class="small-note">Click a word, then click the column where it belongs.</p>
-
-      <div class="sort-pool" id="sort-pool"></div>
-
-      <div class="sort-columns" id="sort-columns">
-        <div class="sort-col" data-col="qualities">
-          <h3>Qualities</h3>
-          <div class="placed-words"></div>
-        </div>
-        <div class="sort-col" data-col="actions">
-          <h3>Actions</h3>
-          <div class="placed-words"></div>
-        </div>
-        <div class="sort-col" data-col="jobs">
-          <h3>Jobs</h3>
-          <div class="placed-words"></div>
-        </div>
-      </div>
-
-      <button class="btn" id="check-sort" type="button">Check sorting</button>
-      <div class="status" id="sort-status">Sorted: 0 / 12</div>
-    </section>
-
-    <!-- ===== 3. VOCABULARY ===== -->
-    <section class="section" id="vocabulary">
-      <h2>3) Vocabulary: Hero Qualities, Jobs &amp; Social Actions</h2>
-      <p>Read the mini-texts. The highlighted words are your target vocabulary.</p>
-
-      <div class="vocab-texts">
-        <div class="mini-card">My neighbour is a <strong class="target-word" data-word="volunteer">volunteer</strong> at the local hospital. She is very <strong class="target-word" data-word="compassionate">compassionate</strong> and always listens to patients.</div>
-        <div class="mini-card">The young <strong class="target-word" data-word="firefighter">firefighter</strong> was <strong class="target-word" data-word="brave">brave</strong> enough to enter the burning building and save two children.</div>
-        <div class="mini-card">Our teacher started a <strong class="target-word" data-word="campaign">campaign</strong> to collect food for families in need. She is <strong class="target-word" data-word="determined">determined</strong> to help everyone.</div>
-        <div class="mini-card">A good <strong class="target-word" data-word="paramedic">paramedic</strong> must be <strong class="target-word" data-word="reliable">reliable</strong> because people's lives depend on them.</div>
-      </div>
-
-      <p class="small-note">Exercise 1: Match words and definitions. Click a definition, then click the empty space next to the correct word.</p>
-      <div class="def-pool" id="def-pool"></div>
-      <div class="match-wrap" id="match-rows"></div>
-      <div class="status" id="match-status">Matched: 0 / 8</div>
-
-      <div class="exercise" id="exercise-gapfill" style="margin-top: 16px;">
-        <h4>Exercise 2: Complete the text with the correct word</h4>
-        <p class="small-note">Read the text and choose the correct vocabulary word for each gap.</p>
-        <div class="gapfill-text" id="gapfill-text"></div>
-        <div class="status" id="gapfill-status">Done: 0 / 8</div>
-      </div>
-    </section>
-
-    <!-- ===== 4. PHRASAL VERBS ===== -->
-    <section class="section" id="phrasal-verbs">
-      <h2>4) Phrasal Verbs</h2>
-      <p>Modern heroes often use these actions. Study the phrasal verbs:</p>
-
-      <div class="pv-grid">
-        <div class="pv-card"><strong>stand up for</strong><span>defend someone or something you believe in</span></div>
-        <div class="pv-card"><strong>look up to</strong><span>admire and respect someone</span></div>
-        <div class="pv-card"><strong>carry on</strong><span>continue doing something, especially when it is difficult</span></div>
-        <div class="pv-card"><strong>give back</strong><span>return help or support to your community</span></div>
-        <div class="pv-card"><strong>speak out</strong><span>say publicly what you think, especially about something wrong</span></div>
-        <div class="pv-card"><strong>take care of</strong><span>look after; be responsible for someone or something</span></div>
-      </div>
-
-      <div class="exercise" id="exercise-pv">
-        <h4>Practice: Complete with the correct phrasal verb</h4>
-        <p class="small-note">Type the phrasal verb that fits each sentence.</p>
-        <div class="story" id="pv-story"></div>
-        <div class="status" id="pv-progress">Done: 0 / 6</div>
-      </div>
-    </section>
-
-    <!-- ===== 5. GRAMMAR ===== -->
-    <section class="section" id="target-grammar">
-      <h2>5) Grammar: (not) as&hellip;as Comparisons</h2>
-
-      <div class="grammar-grid">
-        <div class="rule-card">
-          <h4>Equal comparison</h4>
-          <p>Use <strong>as + adjective + as</strong> to say two things are the same.</p>
-          <p>Example: <strong>A nurse is as brave as a firefighter.</strong></p>
-        </div>
-        <div class="rule-card">
-          <h4>Not equal</h4>
-          <p>Use <strong>not as + adjective + as</strong> to say one thing is less than another.</p>
-          <p>Example: <strong>Celebrities are not as helpful as volunteers.</strong></p>
-        </div>
-        <div class="rule-card">
-          <h4>Key points</h4>
-          <p>The adjective stays in its <strong>base form</strong> (no -er, no more).</p>
-          <p>Works with any adjective: short or long.</p>
-        </div>
-      </div>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Structure</th>
-              <th>Example</th>
-              <th>Meaning</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>as + adj + as</td>
-              <td>My teacher is <strong>as patient as</strong> my mum.</td>
-              <td>They are equally patient.</td>
-            </tr>
-            <tr>
-              <td>not as + adj + as</td>
-              <td>Movie stars are <strong>not as brave as</strong> firefighters.</td>
-              <td>Firefighters are braver.</td>
-            </tr>
-            <tr>
-              <td>as + adj + as (question)</td>
-              <td>Is a doctor <strong>as important as</strong> a teacher?</td>
-              <td>Asking if they are equal.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- ===== 6. PRACTICE ===== -->
-    <section class="section" id="practice">
-      <h2>6) Grammar Practice</h2>
-
-      <div class="exercise" id="exercise-1">
-        <h4>Exercise 1 (Controlled): Fill in with "as...as" or "not as...as"</h4>
-        <p class="small-note">Use the adjective in brackets. Type the full phrase, e.g. "as brave as".</p>
-        <div class="story" id="grammar-story"></div>
-        <div class="status" id="grammar-progress">Done: 0 / 6</div>
-      </div>
-
-      <div class="exercise" id="exercise-2">
-        <h4>Exercise 2 (Semi-controlled): Choose the correct sentence</h4>
-        <ol class="qa-list" id="choice-list">
-          <li>
-            A nurse works very hard. A doctor works very hard too.
-            <select data-answer="A nurse is as hardworking as a doctor." data-sync-key="choice-0">
-              <option value="">-- choose --</option>
-              <option>A nurse is as hardworking as a doctor.</option>
-              <option>A nurse is not as hardworking as a doctor.</option>
-            </select>
-          </li>
-          <li>
-            Volunteers help many people. Celebrities help fewer people.
-            <select data-answer="Celebrities are not as helpful as volunteers." data-sync-key="choice-1">
-              <option value="">-- choose --</option>
-              <option>Celebrities are as helpful as volunteers.</option>
-              <option>Celebrities are not as helpful as volunteers.</option>
-            </select>
-          </li>
-          <li>
-            My grandmother is very kind. My neighbour is very kind too.
-            <select data-answer="My neighbour is as kind as my grandmother." data-sync-key="choice-2">
-              <option value="">-- choose --</option>
-              <option>My neighbour is as kind as my grandmother.</option>
-              <option>My neighbour is not as kind as my grandmother.</option>
-            </select>
-          </li>
-          <li>
-            A paramedic's job is very dangerous. A teacher's job is not very dangerous.
-            <select data-answer="A teacher's job is not as dangerous as a paramedic's." data-sync-key="choice-3">
-              <option value="">-- choose --</option>
-              <option>A teacher's job is as dangerous as a paramedic's.</option>
-              <option>A teacher's job is not as dangerous as a paramedic's.</option>
-            </select>
-          </li>
-          <li>
-            Local heroes are very important. Famous heroes are very important too.
-            <select data-answer="Local heroes are as important as famous heroes." data-sync-key="choice-4">
-              <option value="">-- choose --</option>
-              <option>Local heroes are as important as famous heroes.</option>
-              <option>Local heroes are not as important as famous heroes.</option>
-            </select>
-          </li>
-        </ol>
-        <button class="btn" id="check-choice" type="button">Check Exercise 2</button>
-        <div class="status" id="choice-status">Score: 0 / 5</div>
-      </div>
-
-      <div class="exercise" id="exercise-3">
-        <h4>Exercise 3 (Free practice): Compare modern heroes</h4>
-        <p>Write 5&ndash;7 sentences comparing different types of heroes. Use <strong>(not) as&hellip;as</strong> and your target vocabulary.</p>
-        <p class="small-note">Try to use: at least 3 "(not) as...as" comparisons + 3 vocabulary words + 1 phrasal verb.</p>
-        <textarea id="free-writing" data-sync-key="free-writing" placeholder="Example: I think a volunteer is as brave as a firefighter because they both help people. Celebrities are not as..."></textarea>
-        <div class="free-tips" id="free-feedback">Tip: compare qualities like brave, patient, reliable, compassionate.</div>
-      </div>
-    </section>
-
-    <!-- ===== 7. SPEAKING ===== -->
-    <section class="section" id="speaking">
-      <h2>7) Guided Speaking: Modern Heroes Podcast</h2>
-      <p>Imagine you are a guest on a short podcast about modern heroes. Choose <strong>ONE</strong> option and take notes below (do not write full sentences).</p>
-
-      <div class="speak-grid">
-        <div class="scenario">
-          <h4>Option A: A real person</h4>
-          <p>Describe a real person who is a modern hero.</p>
-          <ol class="qa-list">
-            <li>What do they do?</li>
-            <li>What qualities do they have?</li>
-            <li>Why are they a hero?</li>
-          </ol>
-        </div>
-        <div class="scenario">
-          <h4>Option B: An imagined hero</h4>
-          <p>Create an imagined modern hero.</p>
-          <ol class="qa-list">
-            <li>What is their name / job?</li>
-            <li>What are their qualities and actions?</li>
-            <li>How do they help people?</li>
-          </ol>
-        </div>
-        <div class="scenario">
-          <h4>Option C: Argument</h4>
-          <p>Who is more important?</p>
-          <ol class="qa-list">
-            <li>Visible heroes (celebrities) or invisible heroes (volunteers)?</li>
-            <li>Give reasons using "as...as".</li>
-            <li>What is your conclusion?</li>
-          </ol>
-        </div>
-      </div>
-
-      <div class="speak-notes">
-        <p class="small-note">Your notes for the podcast (keywords only, no full sentences):</p>
-        <textarea id="speak-notes" data-sync-key="speak-notes" placeholder="Option chosen: &#10;Key points: &#10;Vocabulary to use: &#10;as...as sentence idea: "></textarea>
-      </div>
-    </section>
-
-    <!-- ===== 8. WRAP-UP ===== -->
-    <section class="section" id="wrap-up">
-      <h2>8) Wrap-Up</h2>
-      <p>Exit ticket:</p>
-      <div class="exit-grid">
-        <input class="inline-input" type="text" data-sync-key="wrapup-0" placeholder="One new word I learnt today: ..." />
-        <input class="inline-input" type="text" data-sync-key="wrapup-1" placeholder='Write a sentence with "as...as": ...' />
-        <input class="inline-input" type="text" data-sync-key="wrapup-2" placeholder="My modern hero is ... because ..." />
-        <select data-sync-key="wrapup-3">
-          <option>Today I feel: I understand "as...as" well</option>
-          <option>Today I feel: I need a bit more practice</option>
-          <option>Today I feel: I need to revise this topic</option>
-        </select>
-      </div>
-      <p class="small-note">Great job! You practised hero vocabulary, phrasal verbs, and (not) as...as comparisons.</p>
+    <section class="panel">
+      <h2>Сгенерированные уроки</h2>
+      <div class="lesson-list" id="lesson-list"></div>
+      <div class="message" id="list-message"></div>
     </section>
   </main>
 
   <script>
     (() => {
-      /* ===== CONFIG ===== */
-      const vocabWords = ['brave', 'compassionate', 'determined', 'reliable', 'volunteer', 'firefighter', 'campaign', 'paramedic'];
-      const phrasalVerbs = ['stand up for', 'look up to', 'carry on', 'give back', 'speak out', 'take care of'];
-      const sections = Array.from(document.querySelectorAll('main .section'));
+      const tokenInput = document.getElementById('teacher-token');
+      const topicInput = document.getElementById('topic');
+      const grammarInput = document.getElementById('target-grammar');
+      const form = document.getElementById('lesson-form');
+      const generateBtn = document.getElementById('generate-btn');
+      const clearLogBtn = document.getElementById('clear-log');
+      const refreshBtn = document.getElementById('refresh-lessons');
+      const reasoningBox = document.getElementById('reasoning-box');
+      const formMessage = document.getElementById('form-message');
+      const listMessage = document.getElementById('list-message');
+      const lessonList = document.getElementById('lesson-list');
+      const configLine = document.getElementById('config-line');
+      const modelPill = document.getElementById('model-pill');
+      const rubPill = document.getElementById('rub-pill');
+      const statusPill = document.getElementById('status-pill');
+      const costRub = document.getElementById('cost-rub');
+      const costUsd = document.getElementById('cost-usd');
+      const tokensTotal = document.getElementById('tokens-total');
 
-      /* ===== SYNC SHELL REFS ===== */
-      const roleSelect = document.getElementById('role-select');
-      const roomInput = document.getElementById('room-input');
-      const syncShell = document.getElementById('sync-shell');
-      const syncShellToggle = document.getElementById('sync-shell-toggle');
-      const connectBtn = document.getElementById('connect-btn');
-      const copyLinkBtn = document.getElementById('copy-link-btn');
-      const syncStatus = document.getElementById('sync-status');
-      const studentLinkMeta = document.getElementById('student-link-meta');
-      const teacherBox = document.getElementById('teacher-box');
-      const studentTracker = document.getElementById('student-tracker');
-      const bringToMeBtn = document.getElementById('bring-to-me-btn');
-      const selectorInput = document.getElementById('highlight-selector-input');
-      const selectorBtn = document.getElementById('highlight-selector-btn');
-      const gotoButtons = document.querySelectorAll('.goto-btn');
-      const wordSpotlightGrid = document.getElementById('word-spotlight-grid');
-      const remoteCursor = document.getElementById('remote-cursor');
-      const lessonPage = document.querySelector('main.page');
+      let config = null;
+      let streamText = '';
 
-      const query = new URLSearchParams(window.location.search);
-      const initialRole = query.get('role') === 'teacher' ? 'teacher' : 'student';
-      const initialRoom = (query.get('room') || '').trim();
-      const autoConnect = query.get('autoconnect') === '1';
-
-      roleSelect.value = initialRole;
-      roomInput.value = initialRoom;
-
-      const clientId = (window.crypto && typeof window.crypto.randomUUID === 'function')
-        ? window.crypto.randomUUID()
-        : `client-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-
-      let role = roleSelect.value;
-      let connected = false;
-      let eventSource = null;
-      let focusLabel = 'none';
-      let presenceTicker = null;
-      let cursorLastSentAt = 0;
-      let lastClientX = -1;
-      let lastClientY = -1;
-      let lastRemoteCursorPayload = null;
-      let lastRemoteCursorLabel = '';
-      let lastRemoteCursorRole = '';
-      let presenceTimer = null;
-      let lastStudentPresenceAt = 0;
-      let syncShellCollapsed = false;
-      let lastStudentDomActionId = 0;
-      const studentDomActionLog = [];
-      const STUDENT_DOM_ACTION_LOG_LIMIT = 1000;
-      const pendingStudentInputActions = new Map();
-      let pendingStudentInputTimer = null;
-      const STUDENT_INPUT_THROTTLE_MS = 90;
-      const teacherAppliedActionIds = new Set();
-      const TEACHER_APPLIED_ACTION_LIMIT = 3000;
-      let activeStudentSenderId = '';
-      const REMOTE_CURSOR_CENTER_OFFSET = 8;
-
-      /* ===== SYNC HELPERS ===== */
-      function setSyncStatus(text) { syncStatus.textContent = text; }
-
-      function hideRemoteCursor() {
-        remoteCursor.classList.remove('visible', 'role-student', 'role-teacher');
-        remoteCursor.style.transform = 'translate(-9999px, -9999px)';
+      function setMessage(el, text, kind) {
+        el.textContent = text || '';
+        el.classList.toggle('ok', kind === 'ok');
+        el.classList.toggle('bad', kind === 'bad');
       }
 
-      function getStudentLink() {
-        const roomId = roomInput.value.trim();
-        if (!roomId) return '';
-        const params = new URLSearchParams(window.location.search);
-        params.set('room', roomId);
-        params.set('role', 'student');
-        params.set('autoconnect', '1');
-        return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+      function teacherToken() {
+        return tokenInput.value.trim();
       }
 
-      function updateUrlParams() {
-        const params = new URLSearchParams(window.location.search);
-        const roomId = roomInput.value.trim();
-        params.set('role', roleSelect.value);
-        if (roomId) { params.set('room', roomId); } else { params.delete('room'); }
-        if (params.get('role') === 'student') { params.set('autoconnect', '1'); } else { params.delete('autoconnect'); }
-        window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+      function rememberToken() {
+        sessionStorage.setItem('teacherAdminToken', teacherToken());
       }
 
-      function refreshStudentLinkMeta() {
-        const link = getStudentLink();
-        studentLinkMeta.textContent = link ? `Student link: ${link}` : 'Student link will appear here.';
+      function clearStream() {
+        streamText = '';
+        reasoningBox.textContent = 'Ход генерации и статус появятся здесь.';
+        reasoningBox.classList.add('stream-empty');
       }
 
-      function applyRoleUi() {
-        role = roleSelect.value;
-        teacherBox.classList.toggle('active', role === 'teacher');
-        hideRemoteCursor();
-        updateTeacherReadonlyState();
+      function appendStream(text, options = {}) {
+        const raw = String(text || '');
+        if (!raw.trim()) return;
+        if (!streamText) reasoningBox.classList.remove('stream-empty');
+        const separator = options.inline ? '' : '\n';
+        const clean = options.inline ? raw : raw.trim();
+        streamText += `${clean}${separator}`;
+        if (streamText.length > 20000) streamText = streamText.slice(-20000);
+        reasoningBox.textContent = streamText;
+        reasoningBox.scrollTop = reasoningBox.scrollHeight;
       }
 
-      function setSyncShellCollapsed(nextValue) {
-        syncShellCollapsed = Boolean(nextValue);
-        syncShell.classList.toggle('collapsed', syncShellCollapsed);
-        syncShellToggle.setAttribute('aria-expanded', String(!syncShellCollapsed));
+      function formatDate(value) {
+        if (!value) return 'no date';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
       }
 
-      function updateTeacherReadonlyState() {
-        if (!(lessonPage instanceof HTMLElement)) return;
-        lessonPage.classList.toggle('readonly-mirror', connected && role === 'teacher');
+      function formatCost(lesson) {
+        if (typeof lesson.costRub !== 'number') return 'цена неизвестна';
+        return `${lesson.costRub.toFixed(2)} RUB`;
       }
 
-      function isLessonSyncTarget(element) {
-        return element instanceof HTMLElement && lessonPage instanceof HTMLElement && lessonPage.contains(element);
+      function lessonPath(lesson) {
+        return lesson.lessonUrl || `/lesson/${lesson.id}`;
       }
 
-      function cssEscape(value) {
-        if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(value);
-        return String(value).replace(/[\\"]/g, '\\$&');
+      function lessonUrl(lesson, role) {
+        const url = new URL(lessonPath(lesson), window.location.origin);
+        url.searchParams.set('role', role);
+        url.searchParams.set('room', lesson.id);
+        url.searchParams.set('autoconnect', '1');
+        return url.toString();
       }
 
-      function pickLocatorDataset(element) {
-        if (!(element instanceof HTMLElement)) return {};
-        const data = {};
-        const keys = ['syncKey', 'mood', 'type', 'id', 'word', 'answer', 'sortWord', 'col'];
-        keys.forEach(key => {
-          const value = element.dataset ? element.dataset[key] : '';
-          if (typeof value === 'string' && value) data[key] = value;
-        });
-        return data;
-      }
-
-      function buildDomLocator(element) {
-        if (!(element instanceof HTMLElement)) return null;
-        if (!isLessonSyncTarget(element)) return null;
-        const locator = { tag: element.tagName };
-        if (element.id) locator.id = element.id;
-        if (element.dataset && element.dataset.syncKey) locator.syncKey = element.dataset.syncKey;
-        const dataset = pickLocatorDataset(element);
-        if (Object.keys(dataset).length > 0) locator.dataset = dataset;
-        const anchor = element.closest('.exercise[id], .section[id], [id]');
-        if (anchor instanceof HTMLElement && anchor.id) {
-          locator.anchorId = anchor.id;
-          locator.targetPath = buildCursorTargetPath(anchor, element);
-        }
-        return locator;
-      }
-
-      function findBySyncKey(syncKey, root = document) {
-        if (!syncKey) return null;
-        try { return root.querySelector(`[data-sync-key="${cssEscape(syncKey)}"]`); } catch (e) { return null; }
-      }
-
-      function findByDataset(dataset, tagName, root = document) {
-        if (!dataset || typeof dataset !== 'object') return null;
-        const fragments = [];
-        const keys = ['mood', 'type', 'id', 'word', 'answer', 'syncKey', 'sortWord', 'col'];
-        keys.forEach(key => {
-          const value = dataset[key];
-          if (typeof value === 'string' && value) {
-            const attr = key === 'syncKey' ? 'sync-key' : key === 'sortWord' ? 'sort-word' : key;
-            fragments.push(`[data-${attr}="${cssEscape(value)}"]`);
-          }
-        });
-        if (fragments.length === 0) return null;
-        const prefix = typeof tagName === 'string' && tagName ? tagName.toLowerCase() : '';
-        try { return root.querySelector(`${prefix}${fragments.join('')}`); } catch (e) { return null; }
-      }
-
-      function resolveDomLocator(locator) {
-        if (!locator || typeof locator !== 'object') return null;
-        const tagName = typeof locator.tag === 'string' ? locator.tag : '';
-        if (typeof locator.id === 'string' && locator.id) {
-          const byId = document.getElementById(locator.id);
-          if (byId instanceof HTMLElement) return byId;
-        }
-        if (typeof locator.syncKey === 'string' && locator.syncKey) {
-          const bySync = findBySyncKey(locator.syncKey);
-          if (bySync instanceof HTMLElement) return bySync;
-        }
-        if (locator.dataset) {
-          const byDataset = findByDataset(locator.dataset, tagName);
-          if (byDataset instanceof HTMLElement) return byDataset;
-        }
-        if (typeof locator.anchorId === 'string' && locator.anchorId) {
-          const anchor = document.getElementById(locator.anchorId);
-          if (anchor instanceof HTMLElement) {
-            if (typeof locator.syncKey === 'string' && locator.syncKey) {
-              const bySyncInAnchor = findBySyncKey(locator.syncKey, anchor);
-              if (bySyncInAnchor instanceof HTMLElement) return bySyncInAnchor;
-            }
-            if (locator.dataset) {
-              const byDatasetInAnchor = findByDataset(locator.dataset, tagName, anchor);
-              if (byDatasetInAnchor instanceof HTMLElement) return byDatasetInAnchor;
-            }
-            if (Array.isArray(locator.targetPath)) {
-              const byPath = resolveCursorTargetPath(anchor, locator.targetPath);
-              if (byPath instanceof HTMLElement) return byPath;
-            }
-          }
-        }
-        return null;
-      }
-
-      function locatorKey(locator) {
-        if (!locator || typeof locator !== 'object') return '';
-        if (typeof locator.id === 'string' && locator.id) return `id:${locator.id}`;
-        if (typeof locator.syncKey === 'string' && locator.syncKey) return `sync:${locator.syncKey}`;
-        if (locator.dataset && typeof locator.dataset.type === 'string' && typeof locator.dataset.id === 'string') return `data:${locator.dataset.type}:${locator.dataset.id}`;
-        if (typeof locator.anchorId === 'string' && Array.isArray(locator.targetPath)) return `path:${locator.anchorId}:${locator.targetPath.join('.')}`;
-        return '';
-      }
-
-      function trimAppliedActions() {
-        while (teacherAppliedActionIds.size > TEACHER_APPLIED_ACTION_LIMIT) {
-          const oldest = teacherAppliedActionIds.values().next().value;
-          teacherAppliedActionIds.delete(oldest);
-        }
-      }
-
-      function updateTeacherSenderContext(senderId) {
-        if (role !== 'teacher') return;
-        if (typeof senderId !== 'string' || !senderId) return;
-        if (activeStudentSenderId && activeStudentSenderId !== senderId) {
-          teacherAppliedActionIds.clear();
-          studentTracker.textContent = 'Student session changed. Sync reset.';
-        }
-        activeStudentSenderId = senderId;
-      }
-
-      function pushStudentDomAction(rawPayload) {
-        if (!connected || role !== 'student') return;
-        if (!rawPayload || !rawPayload.locator) return;
-        const payload = { ...rawPayload, actionId: ++lastStudentDomActionId };
-        sendEvent('student_dom_action', payload);
-        studentDomActionLog.push(payload);
-        if (studentDomActionLog.length > STUDENT_DOM_ACTION_LOG_LIMIT) studentDomActionLog.shift();
-      }
-
-      function flushPendingStudentInputActions() {
-        if (pendingStudentInputTimer) { window.clearTimeout(pendingStudentInputTimer); pendingStudentInputTimer = null; }
-        if (pendingStudentInputActions.size === 0) return;
-        const actions = Array.from(pendingStudentInputActions.values());
-        pendingStudentInputActions.clear();
-        actions.forEach(action => pushStudentDomAction(action));
-      }
-
-      function queueStudentDomAction(rawPayload, throttled = false) {
-        if (!rawPayload || !rawPayload.locator) return;
-        if (!throttled) { pushStudentDomAction(rawPayload); return; }
-        const key = `${rawPayload.kind}:${locatorKey(rawPayload.locator)}`;
-        pendingStudentInputActions.set(key, rawPayload);
-        if (pendingStudentInputTimer) return;
-        pendingStudentInputTimer = window.setTimeout(() => {
-          pendingStudentInputTimer = null;
-          if (pendingStudentInputActions.size === 0) return;
-          const actions = Array.from(pendingStudentInputActions.values());
-          pendingStudentInputActions.clear();
-          actions.forEach(action => pushStudentDomAction(action));
-        }, STUDENT_INPUT_THROTTLE_MS);
-      }
-
-      function buildFormActionPayload(kind, element) {
-        if (!(element instanceof HTMLElement)) return null;
-        const locator = buildDomLocator(element);
-        if (!locator) return null;
-        const payload = { kind, locator };
-        if (element instanceof HTMLInputElement) {
-          payload.value = element.value;
-          if (element.type === 'checkbox' || element.type === 'radio') payload.checked = element.checked;
-        } else if (element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
-          payload.value = element.value;
-        }
-        return payload;
-      }
-
-      function sendStudentSnapshot(reason = 'request') {
-        if (!connected || role !== 'student') return;
-        flushPendingStudentInputActions();
-        sendEvent('student_state_snapshot', { reason, upToActionId: lastStudentDomActionId, actions: studentDomActionLog.slice() });
-      }
-
-      function applyStudentDomAction(payload) {
-        if (role !== 'teacher') return false;
-        if (!payload || typeof payload !== 'object') return false;
-        const actionId = Number(payload.actionId);
-        if (!Number.isInteger(actionId) || actionId <= 0) return false;
-        if (teacherAppliedActionIds.has(actionId)) return false;
-        teacherAppliedActionIds.add(actionId);
-        trimAppliedActions();
-        lastStudentPresenceAt = Date.now();
-        const target = resolveDomLocator(payload.locator);
-        if (!(target instanceof HTMLElement)) {
-          studentTracker.textContent = `Student action #${actionId}: target not found.`;
-          return false;
-        }
-        if (payload.kind === 'click') {
-          if (typeof target.click === 'function') target.click();
-        } else if (payload.kind === 'input' || payload.kind === 'change') {
-          if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
-            if (typeof payload.value === 'string') target.value = payload.value;
-            else if (typeof payload.value === 'number') target.value = String(payload.value);
-            if (target instanceof HTMLInputElement && (target.type === 'checkbox' || target.type === 'radio') && typeof payload.checked === 'boolean') target.checked = payload.checked;
-            target.dispatchEvent(new Event(payload.kind === 'input' ? 'input' : 'change', { bubbles: true }));
-          }
-        } else { return false; }
-        if (payload.kind !== 'input') flashElement(target);
-        studentTracker.textContent = `Student action: ${payload.kind} on ${describeElement(target)}.`;
-        return true;
-      }
-
-      function applyStudentSnapshot(payload) {
-        const actions = Array.isArray(payload && payload.actions) ? payload.actions : [];
-        if (actions.length === 0) { studentTracker.textContent = 'Student snapshot received: no actions yet.'; return; }
-        const sorted = [...actions].sort((a, b) => (Number(a && a.actionId) || 0) - (Number(b && b.actionId) || 0));
-        let applied = 0;
-        sorted.forEach(action => { if (applyStudentDomAction(action)) applied += 1; });
-        studentTracker.textContent = `Student snapshot applied: ${applied}/${sorted.length} actions.`;
-      }
-
-      function blockTeacherLessonInteraction(event) {
-        if (!(connected && role === 'teacher')) return;
-        if (!event.isTrusted) return;
-        if (!(event.target instanceof HTMLElement)) return;
-        if (!isLessonSyncTarget(event.target)) return;
-        const interactive = event.target.closest('button, input, textarea, select, [contenteditable="true"]');
-        if (!interactive) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        studentTracker.textContent = 'Read-only mirror: student controls this lesson area.';
-      }
-
-      function assignStaticSyncKeys() {
-        document.querySelectorAll('.mood-btn').forEach(btn => {
-          if (!(btn instanceof HTMLElement)) return;
-          const mood = btn.dataset.mood;
-          if (mood && !btn.dataset.syncKey) btn.dataset.syncKey = `mood-${mood}`;
-        });
-      }
-
-      function getMostVisibleSectionId() {
-        let best = ''; let bestVisible = -1;
-        sections.forEach(section => {
-          const rect = section.getBoundingClientRect();
-          const visible = Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0));
-          if (visible > bestVisible) { bestVisible = visible; best = section.id; }
-        });
-        return best || 'warmup';
-      }
-
-      function flashElement(element) {
-        if (!(element instanceof HTMLElement)) return;
-        element.classList.add('teacher-highlight');
-        window.setTimeout(() => { element.classList.remove('teacher-highlight'); }, 2400);
-      }
-
-      function sendEvent(type, payload) {
-        if (!connected) return;
-        const roomId = roomInput.value.trim();
-        if (!roomId) return;
-        fetch('/event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ roomId, senderId: clientId, role, type, payload }),
-        }).catch(() => {});
-      }
-
-      function clamp01(value) { return Math.max(0, Math.min(1, value)); }
-
-      function buildCursorTargetPath(anchor, target) {
-        if (!(anchor instanceof HTMLElement) || !(target instanceof HTMLElement)) return [];
-        if (anchor === target) return [];
-        if (!anchor.contains(target)) return [];
-        const path = []; let node = target;
-        while (node && node !== anchor) {
-          const parent = node.parentElement;
-          if (!parent) return [];
-          const index = Array.prototype.indexOf.call(parent.children, node);
-          if (index < 0) return [];
-          path.push(index); node = parent;
-        }
-        if (node !== anchor) return [];
-        return path.reverse();
-      }
-
-      function resolveCursorTargetPath(anchor, path) {
-        if (!(anchor instanceof HTMLElement)) return null;
-        if (!Array.isArray(path) || path.length === 0) return anchor;
-        let node = anchor;
-        for (const rawIndex of path) {
-          const index = Number(rawIndex);
-          if (!Number.isInteger(index) || index < 0 || index >= node.children.length) return anchor;
-          const nextNode = node.children[index];
-          if (!(nextNode instanceof HTMLElement)) return anchor;
-          node = nextNode;
-        }
-        return node;
-      }
-
-      function pickCursorTarget(anchor, initialElement) {
-        if (!(anchor instanceof HTMLElement)) return null;
-        let node = initialElement instanceof HTMLElement ? initialElement : null;
-        while (node && node !== anchor) {
-          const rect = node.getBoundingClientRect();
-          if (rect.width > 0 && rect.height > 0) return node;
-          node = node.parentElement;
-        }
-        const anchorRect = anchor.getBoundingClientRect();
-        if (anchorRect.width > 0 && anchorRect.height > 0) return anchor;
-        return null;
-      }
-
-      function sendCursor(clientX, clientY) {
-        if (!connected) return;
-        if (role !== 'student' && role !== 'teacher') return;
-        if (typeof clientX !== 'number' || typeof clientY !== 'number') return;
-        const now = Date.now();
-        if (now - cursorLastSentAt < 90) return;
-        cursorLastSentAt = now;
-        const el = document.elementFromPoint(clientX, clientY);
-        if (!el) return;
-        const anchor = el.closest('.section, .exercise');
-        if (!(anchor instanceof HTMLElement) || !anchor.id) return;
-        const target = pickCursorTarget(anchor, el);
-        if (!target) return;
-        const rect = target.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) return;
-        const ratioX = clamp01((clientX - rect.left) / rect.width);
-        const ratioY = clamp01((clientY - rect.top) / rect.height);
-        const isTeacher = role === 'teacher';
-        sendEvent(isTeacher ? 'teacher_cursor' : 'student_cursor', {
-          anchorId: anchor.id,
-          targetPath: buildCursorTargetPath(anchor, target),
-          targetRatioX: Math.round(ratioX * 10000) / 10000,
-          targetRatioY: Math.round(ratioY * 10000) / 10000,
-          label: isTeacher ? 'Teacher cursor' : 'Student cursor',
-        });
-      }
-
-      function sendPresence(reason = 'activity') {
-        if (!connected || role !== 'student') return;
-        const activeSection = getMostVisibleSectionId();
-        const maxScroll = Math.max(1, document.body.scrollHeight - window.innerHeight);
-        const scrollProgress = Number((window.scrollY / maxScroll).toFixed(3));
-        sendEvent('student_presence', { reason, activeSection, focusLabel, scrollProgress });
-      }
-
-      function queuePresence(reason = 'activity') {
-        if (presenceTimer) return;
-        presenceTimer = window.setTimeout(() => { presenceTimer = null; sendPresence(reason); }, 220);
-      }
-
-      function describeElement(element) {
-        if (!(element instanceof HTMLElement)) return 'none';
-        if (element.id) return `#${element.id}`;
-        if (element.placeholder) return `${element.tagName.toLowerCase()} (${element.placeholder.slice(0, 24)})`;
-        const text = (element.textContent || '').trim().slice(0, 28);
-        if (text) return `${element.tagName.toLowerCase()} "${text}"`;
-        return element.tagName.toLowerCase();
-      }
-
-      function renderRemoteCursor(payload, fallbackLabel, remoteRole) {
-        lastRemoteCursorPayload = payload;
-        lastRemoteCursorLabel = fallbackLabel;
-        lastRemoteCursorRole = remoteRole;
-        const label = payload.label || fallbackLabel;
-        let vx, vy;
-        if (payload.anchorId) {
-          const anchor = document.getElementById(payload.anchorId);
-          if (!(anchor instanceof HTMLElement)) { hideRemoteCursor(); return; }
-          const target = resolveCursorTargetPath(anchor, payload.targetPath);
-          if (!(target instanceof HTMLElement)) { hideRemoteCursor(); return; }
-          let rect = target.getBoundingClientRect();
-          if ((rect.width === 0 || rect.height === 0) && target !== anchor) rect = anchor.getBoundingClientRect();
-          if (rect.width === 0 || rect.height === 0) { hideRemoteCursor(); return; }
-          const ratioX = typeof payload.targetRatioX === 'number' ? clamp01(payload.targetRatioX) : 0.5;
-          const ratioY = typeof payload.targetRatioY === 'number' ? clamp01(payload.targetRatioY) : 0.5;
-          vx = rect.left + ratioX * rect.width;
-          vy = rect.top + ratioY * rect.height;
-        } else { hideRemoteCursor(); return; }
-        const inView = vx >= -20 && vx <= window.innerWidth + 20 && vy >= -20 && vy <= window.innerHeight + 20;
-        remoteCursor.classList.remove('role-student', 'role-teacher');
-        if (remoteRole === 'student' || remoteRole === 'teacher') remoteCursor.classList.add(`role-${remoteRole}`);
-        if (inView) {
-          remoteCursor.classList.add('visible');
-          remoteCursor.style.transform = `translate(${Math.round(vx) - REMOTE_CURSOR_CENTER_OFFSET}px, ${Math.round(vy) - REMOTE_CURSOR_CENTER_OFFSET}px)`;
-        } else { remoteCursor.classList.remove('visible'); }
-        const labelNode = remoteCursor.querySelector('.remote-cursor-label');
-        if (labelNode) labelNode.textContent = label;
-      }
-
-      function rerenderRemoteCursor() {
-        if (!lastRemoteCursorPayload) return;
-        renderRemoteCursor(lastRemoteCursorPayload, lastRemoteCursorLabel, lastRemoteCursorRole);
-      }
-
-      function handleTeacherCommand(message) {
-        if (role !== 'student') return;
-        if (message.type === 'teacher_state_request') { sendStudentSnapshot('teacher-request'); return; }
-        if (message.type === 'teacher_cursor') { renderRemoteCursor(message.payload || {}, 'Teacher', 'teacher'); return; }
-        if (message.type === 'teacher_goto') {
-          const targetId = message.payload && message.payload.targetId;
-          if (!targetId) return;
-          const target = document.getElementById(targetId);
-          if (!target) return;
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          flashElement(target);
+      async function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
           return;
         }
-        if (message.type === 'teacher_highlight_selector') {
-          const selector = message.payload && message.payload.selector;
-          if (!selector) return;
-          let nodes = [];
-          try { nodes = Array.from(document.querySelectorAll(selector)); } catch (e) { return; }
-          if (nodes.length === 0) return;
-          nodes.slice(0, 6).forEach(node => flashElement(node));
-          const first = nodes[0];
-          if (first instanceof HTMLElement) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        temp.style.position = 'fixed';
+        temp.style.left = '-9999px';
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        temp.remove();
+      }
+
+      async function loadConfig() {
+        const res = await fetch('/api/generator/config', { cache: 'no-store' });
+        config = await res.json();
+        modelPill.textContent = config.model || 'model';
+        rubPill.textContent = `${config.usdRubRate || 83} RUB/USD`;
+        configLine.textContent = config.apiKeyConfigured
+          ? `OpenRouter готов. Усилие: ${config.reasoningEffort || 'default'}.`
+          : 'OPENROUTER_API_KEY не настроен на сервере.';
+      }
+
+      async function loadLessons() {
+        setMessage(listMessage, 'Загрузка...', '');
+        const res = await fetch('/api/lessons', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Не удалось получить список уроков.');
+        const data = await res.json();
+        renderLessons(data.lessons || []);
+        setMessage(listMessage, '', '');
+      }
+
+      function renderLessons(lessons) {
+        lessonList.innerHTML = '';
+        if (!lessons.length) {
+          lessonList.innerHTML = '<p class="meta-line">Пока нет сгенерированных уроков.</p>';
           return;
         }
-        if (message.type === 'teacher_spotlight_word') {
-          const word = message.payload && message.payload.word;
-          if (!word) return;
-          const nodes = Array.from(document.querySelectorAll(`[data-word="${word}"]`));
-          if (nodes.length === 0) return;
-          nodes.forEach(node => flashElement(node));
-          const first = nodes[0];
-          if (first instanceof HTMLElement) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }
 
-      function handleTeacherView(message) {
-        if (role !== 'teacher') return;
-        updateTeacherSenderContext(message.senderId);
-        if (message.type === 'student_dom_action') { applyStudentDomAction(message.payload || {}); return; }
-        if (message.type === 'student_state_snapshot') { applyStudentSnapshot(message.payload || {}); return; }
-        if (message.type === 'student_presence') {
-          const payload = message.payload || {};
-          const active = payload.activeSection || 'unknown';
-          const focus = payload.focusLabel || 'none';
-          const scroll = typeof payload.scrollProgress === 'number' ? `${Math.round(payload.scrollProgress * 100)}%` : '?';
-          const reason = payload.reason || 'activity';
-          lastStudentPresenceAt = Date.now();
-          studentTracker.textContent = `Student: section "${active}", focus "${focus}", scroll ${scroll}, event "${reason}".`;
-          return;
-        }
-        if (message.type === 'student_cursor') { renderRemoteCursor(message.payload || {}, 'Student', 'student'); return; }
-      }
+        lessons.forEach(lesson => {
+          const item = document.createElement('article');
+          item.className = 'lesson-item';
 
-      function connectSync() {
-        const roomId = roomInput.value.trim();
-        if (!roomId) { setSyncStatus('Status: enter room code first.'); return; }
-        if (connected) return;
-        if (role === 'teacher') { teacherAppliedActionIds.clear(); activeStudentSenderId = ''; }
-        const params = new URLSearchParams({ room: roomId, role, clientId });
-        eventSource = new EventSource(`/events?${params.toString()}`);
-        setSyncStatus(`Status: connecting to room "${roomId}" as ${role}...`);
-        eventSource.onopen = () => {
-          connected = true;
-          updateUrlParams();
-          setSyncStatus(`Status: online in room "${roomId}" as ${role}.`);
-          updateTeacherReadonlyState();
-          sendPresence('connected');
-          if (role === 'student') {
-            presenceTicker = window.setInterval(() => sendPresence('heartbeat'), 3500);
-            sendStudentSnapshot('student-connected');
-          }
-          if (role === 'teacher') sendEvent('teacher_state_request', { reason: 'connected' });
-        };
-        eventSource.addEventListener('lesson', event => {
-          let data;
-          try { data = JSON.parse(event.data); } catch (e) { return; }
-          if (!data || data.senderId === clientId) return;
-          handleTeacherCommand(data);
-          handleTeacherView(data);
-        });
-        eventSource.onerror = () => {
-          setSyncStatus('Status: connection issue, trying to reconnect...');
-          connected = false;
-          updateTeacherReadonlyState();
-        };
-      }
+          const info = document.createElement('div');
+          const title = document.createElement('h3');
+          title.textContent = lesson.title || lesson.topic || lesson.id;
+          const meta = document.createElement('p');
+          meta.className = 'meta-line';
+          const grammar = lesson.targetGrammar ? ` · ${lesson.targetGrammar}` : '';
+          meta.textContent = `${lesson.topic || 'no topic'}${grammar} · ${formatDate(lesson.createdAt)} · ${formatCost(lesson)}`;
+          info.appendChild(title);
+          info.appendChild(meta);
 
-      function disconnectSync() {
-        connected = false;
-        if (eventSource) { eventSource.close(); eventSource = null; }
-        if (presenceTicker) { window.clearInterval(presenceTicker); presenceTicker = null; }
-        if (pendingStudentInputTimer) { window.clearTimeout(pendingStudentInputTimer); pendingStudentInputTimer = null; }
-        pendingStudentInputActions.clear();
-        if (role === 'teacher') activeStudentSenderId = '';
-        hideRemoteCursor();
-        updateTeacherReadonlyState();
-        setSyncStatus('Status: offline.');
-      }
+          const actions = document.createElement('div');
+          actions.className = 'lesson-actions';
 
-      /* ===== SYNC SHELL EVENT LISTENERS ===== */
-      connectBtn.addEventListener('click', () => {
-        if (connected) { disconnectSync(); connectBtn.textContent = 'Connect'; }
-        else { connectSync(); connectBtn.textContent = 'Disconnect'; }
-      });
+          const openTeacher = document.createElement('button');
+          openTeacher.type = 'button';
+          openTeacher.textContent = 'Открыть';
+          openTeacher.addEventListener('click', () => window.open(lessonUrl(lesson, 'teacher'), '_blank', 'noopener'));
 
-      roleSelect.addEventListener('change', () => {
-        if (connected) disconnectSync();
-        connectBtn.textContent = 'Connect';
-        applyRoleUi();
-        updateUrlParams();
-        refreshStudentLinkMeta();
-      });
-
-      roomInput.addEventListener('input', () => { updateUrlParams(); refreshStudentLinkMeta(); });
-
-      copyLinkBtn.addEventListener('click', async () => {
-        const link = getStudentLink();
-        if (!link) { setSyncStatus('Status: enter room code first.'); return; }
-        try { await navigator.clipboard.writeText(link); setSyncStatus('Status: student link copied.'); }
-        catch (e) { setSyncStatus(`Copy failed. Link: ${link}`); }
-      });
-
-      syncShellToggle.addEventListener('click', () => { setSyncShellCollapsed(!syncShellCollapsed); });
-
-      gotoButtons.forEach(button => {
-        button.addEventListener('click', () => {
-          if (role !== 'teacher') return;
-          const targetId = button.dataset.target;
-          if (!targetId) return;
-          sendEvent('teacher_goto', { targetId });
-        });
-      });
-
-      bringToMeBtn.addEventListener('click', () => {
-        if (role !== 'teacher') return;
-        sendEvent('teacher_goto', { targetId: getMostVisibleSectionId() });
-      });
-
-      selectorBtn.addEventListener('click', () => {
-        if (role !== 'teacher') return;
-        const selector = selectorInput.value.trim();
-        if (!selector) return;
-        sendEvent('teacher_highlight_selector', { selector });
-      });
-
-      vocabWords.forEach(word => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'alt';
-        button.textContent = `Spotlight: ${word}`;
-        button.addEventListener('click', () => {
-          if (role !== 'teacher') return;
-          sendEvent('teacher_spotlight_word', { word });
-        });
-        wordSpotlightGrid.appendChild(button);
-      });
-
-      ['pointerdown', 'click', 'input', 'change', 'keydown', 'submit'].forEach(eventName => {
-        document.addEventListener(eventName, blockTeacherLessonInteraction, true);
-      });
-
-      document.addEventListener('focusin', event => { focusLabel = describeElement(event.target); queuePresence('focus'); });
-
-      document.addEventListener('click', event => {
-        if (connected && role === 'student' && event.target instanceof HTMLElement) {
-          const clickTarget = event.target.closest('button, input[type="checkbox"], input[type="radio"]');
-          if (clickTarget instanceof HTMLElement && isLessonSyncTarget(clickTarget)) {
-            const payload = buildFormActionPayload('click', clickTarget);
-            if (payload) queueStudentDomAction(payload);
-          }
-        }
-        queuePresence('click');
-      });
-
-      document.addEventListener('input', event => {
-        if (!(connected && role === 'student')) return;
-        if (!(event.target instanceof HTMLElement)) return;
-        if (!isLessonSyncTarget(event.target)) return;
-        if (!(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)) return;
-        const payload = buildFormActionPayload('input', event.target);
-        if (!payload) return;
-        queueStudentDomAction(payload, true);
-      }, true);
-
-      document.addEventListener('change', event => {
-        if (!(connected && role === 'student')) return;
-        if (!(event.target instanceof HTMLElement)) return;
-        if (!isLessonSyncTarget(event.target)) return;
-        if (!(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement) && !(event.target instanceof HTMLSelectElement)) return;
-        const payload = buildFormActionPayload('change', event.target);
-        if (!payload) return;
-        queueStudentDomAction(payload);
-      }, true);
-
-      window.addEventListener('scroll', () => {
-        queuePresence('scroll');
-        if (lastClientX >= 0) { cursorLastSentAt = 0; sendCursor(lastClientX, lastClientY); }
-        rerenderRemoteCursor();
-      }, { passive: true });
-
-      window.addEventListener('resize', () => { rerenderRemoteCursor(); }, { passive: true });
-
-      if (window.visualViewport) {
-        const handleVisualViewportChange = () => {
-          if (lastClientX >= 0) { cursorLastSentAt = 0; sendCursor(lastClientX, lastClientY); }
-          rerenderRemoteCursor();
-        };
-        window.visualViewport.addEventListener('resize', handleVisualViewportChange, { passive: true });
-        window.visualViewport.addEventListener('scroll', handleVisualViewportChange, { passive: true });
-      }
-
-      const hasPointerEvents = typeof window.PointerEvent === 'function';
-      if (hasPointerEvents) {
-        document.addEventListener('pointerdown', event => {
-          if (event.isPrimary === false) return;
-          lastClientX = event.clientX; lastClientY = event.clientY;
-          sendCursor(event.clientX, event.clientY);
-        }, { passive: true });
-        document.addEventListener('pointermove', event => {
-          if (event.isPrimary === false) return;
-          lastClientX = event.clientX; lastClientY = event.clientY;
-          sendCursor(event.clientX, event.clientY);
-        }, { passive: true });
-      } else {
-        document.addEventListener('mousemove', event => {
-          lastClientX = event.clientX; lastClientY = event.clientY;
-          sendCursor(event.clientX, event.clientY);
-        });
-        document.addEventListener('touchstart', event => {
-          const touch = event.touches[0] || event.changedTouches[0];
-          if (!touch) return;
-          lastClientX = touch.clientX; lastClientY = touch.clientY;
-          sendCursor(touch.clientX, touch.clientY);
-        }, { passive: true });
-        document.addEventListener('touchmove', event => {
-          const touch = event.touches[0] || event.changedTouches[0];
-          if (!touch) return;
-          lastClientX = touch.clientX; lastClientY = touch.clientY;
-          sendCursor(touch.clientX, touch.clientY);
-        }, { passive: true });
-      }
-
-      window.setInterval(() => {
-        if (role !== 'teacher') return;
-        if (!lastStudentPresenceAt) return;
-        const diffSec = Math.floor((Date.now() - lastStudentPresenceAt) / 1000);
-        if (diffSec > 7) studentTracker.textContent = `Student activity: last update ${diffSec}s ago.`;
-      }, 2500);
-
-      assignStaticSyncKeys();
-      applyRoleUi();
-      updateUrlParams();
-      refreshStudentLinkMeta();
-      if (autoConnect && roomInput.value.trim()) { connectSync(); connectBtn.textContent = 'Disconnect'; }
-
-      /* ======================================================
-         LESSON-SPECIFIC LOGIC
-         ====================================================== */
-
-      /* ===== 1. WARM-UP: Reaction buttons ===== */
-      const moodButtons = document.querySelectorAll('.mood-btn');
-      const moodResult = document.getElementById('mood-result');
-      const pickedMoods = new Set();
-
-      moodButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-          const mood = btn.dataset.mood;
-          if (pickedMoods.has(mood)) {
-            pickedMoods.delete(mood);
-            btn.classList.remove('selected');
-          } else {
-            if (pickedMoods.size >= 2) {
-              const firstMood = [...pickedMoods][0];
-              const firstBtn = [...moodButtons].find(item => item.dataset.mood === firstMood);
-              if (firstBtn) firstBtn.classList.remove('selected');
-              pickedMoods.delete(firstMood);
+          const copyStudent = document.createElement('button');
+          copyStudent.type = 'button';
+          copyStudent.className = 'secondary';
+          copyStudent.textContent = 'Student link';
+          copyStudent.addEventListener('click', async () => {
+            try {
+              await copyText(lessonUrl(lesson, 'student'));
+              setMessage(listMessage, 'Student link скопирован.', 'ok');
+            } catch (error) {
+              setMessage(listMessage, 'Не удалось скопировать ссылку.', 'bad');
             }
-            pickedMoods.add(mood);
-            btn.classList.add('selected');
-          }
-          if (pickedMoods.size === 0) {
-            moodResult.textContent = 'Choose your reaction.';
-          } else {
-            const labels = { 'surprised': "I'm surprised!", 'not-surprised': 'Not surprised', 'agree': 'I agree', 'disagree': 'I disagree', 'interesting': "That's interesting", 'depends': 'It depends' };
-            moodResult.textContent = `Your reaction: ${[...pickedMoods].map(m => labels[m] || m).join(' + ')}.`;
-          }
-          queuePresence('reaction');
-        });
-      });
-
-      /* ===== 2. LEAD-IN: Sort words ===== */
-      const sortData = [
-        { word: 'brave', col: 'qualities' },
-        { word: 'patient', col: 'qualities' },
-        { word: 'generous', col: 'qualities' },
-        { word: 'kind', col: 'qualities' },
-        { word: 'donate', col: 'actions' },
-        { word: 'rescue', col: 'actions' },
-        { word: 'volunteer', col: 'actions' },
-        { word: 'inspire', col: 'actions' },
-        { word: 'nurse', col: 'jobs' },
-        { word: 'firefighter', col: 'jobs' },
-        { word: 'teacher', col: 'jobs' },
-        { word: 'paramedic', col: 'jobs' },
-      ];
-
-      const sortPool = document.getElementById('sort-pool');
-      const sortColumns = document.getElementById('sort-columns');
-      const checkSortBtn = document.getElementById('check-sort');
-      const sortStatus = document.getElementById('sort-status');
-
-      const shuffledSort = [...sortData].sort(() => Math.random() - 0.5);
-      let selectedSortWord = null;
-      const placements = {};
-
-      shuffledSort.forEach(item => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'sort-word';
-        btn.textContent = item.word;
-        btn.dataset.sortWord = item.word;
-        btn.dataset.syncKey = `sort-${item.word}`;
-        btn.addEventListener('click', () => {
-          if (btn.classList.contains('placed')) return;
-          document.querySelectorAll('.sort-word.selected').forEach(b => b.classList.remove('selected'));
-          selectedSortWord = item.word;
-          btn.classList.add('selected');
-        });
-        sortPool.appendChild(btn);
-      });
-
-      document.querySelectorAll('.sort-col').forEach(col => {
-        col.addEventListener('click', () => {
-          if (!selectedSortWord) return;
-          const colName = col.dataset.col;
-          placements[selectedSortWord] = colName;
-
-          const placedArea = col.querySelector('.placed-words');
-          const tag = document.createElement('span');
-          tag.className = 'sort-placed';
-          tag.dataset.sortWord = selectedSortWord;
-          tag.dataset.syncKey = `placed-${selectedSortWord}`;
-
-          const textNode = document.createTextNode(selectedSortWord);
-          const removeBtn = document.createElement('button');
-          removeBtn.type = 'button';
-          removeBtn.className = 'remove-placed';
-          removeBtn.textContent = '\u00D7';
-          removeBtn.dataset.syncKey = `remove-${selectedSortWord}`;
-          const wordToRemove = selectedSortWord;
-          removeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            delete placements[wordToRemove];
-            tag.remove();
-            const poolBtn = sortPool.querySelector(`[data-sort-word="${wordToRemove}"]`);
-            if (poolBtn) poolBtn.classList.remove('placed');
-            updateSortCount();
           });
 
-          tag.append(textNode, removeBtn);
-          placedArea.appendChild(tag);
-
-          const poolBtn = sortPool.querySelector(`[data-sort-word="${selectedSortWord}"]`);
-          if (poolBtn) { poolBtn.classList.remove('selected'); poolBtn.classList.add('placed'); }
-          selectedSortWord = null;
-          updateSortCount();
-          queuePresence('sort');
-        });
-      });
-
-      function updateSortCount() {
-        const placed = Object.keys(placements).length;
-        sortStatus.textContent = `Sorted: ${placed} / ${sortData.length}`;
-        sortStatus.classList.remove('ok', 'bad');
-      }
-
-      checkSortBtn.addEventListener('click', () => {
-        let correct = 0;
-        document.querySelectorAll('.sort-placed').forEach(tag => {
-          const word = tag.dataset.sortWord;
-          const col = tag.closest('.sort-col');
-          if (!col || !word) return;
-          const expected = sortData.find(d => d.word === word);
-          if (!expected) return;
-          tag.classList.remove('correct-place', 'wrong-place');
-          if (col.dataset.col === expected.col) {
-            tag.classList.add('correct-place');
-            correct++;
-          } else {
-            tag.classList.add('wrong-place');
-          }
-        });
-        const placed = Object.keys(placements).length;
-        sortStatus.classList.remove('ok', 'bad');
-        if (correct === sortData.length && placed === sortData.length) {
-          sortStatus.textContent = `All correct! ${correct} / ${sortData.length}`;
-          sortStatus.classList.add('ok');
-        } else {
-          sortStatus.textContent = `Correct: ${correct} / ${placed} sorted. Fix the red ones!`;
-          sortStatus.classList.add(correct === placed ? 'ok' : 'bad');
-        }
-        queuePresence('check-sort');
-      });
-
-      /* ===== 3. VOCABULARY: Matching exercise (wire definitions to words) ===== */
-      const vocabPairs = [
-        { id: 1, word: 'brave', def: 'not afraid of danger or difficulty' },
-        { id: 2, word: 'compassionate', def: 'feeling and showing care for others' },
-        { id: 3, word: 'determined', def: 'decided not to give up' },
-        { id: 4, word: 'reliable', def: 'can be trusted to do what is needed' },
-        { id: 5, word: 'volunteer', def: 'a person who works without payment to help others' },
-        { id: 6, word: 'firefighter', def: 'a person whose job is to stop fires and rescue people' },
-        { id: 7, word: 'campaign', def: 'organised actions to achieve a social goal' },
-        { id: 8, word: 'paramedic', def: 'a medical worker who gives emergency help' },
-      ];
-
-      const defPool = document.getElementById('def-pool');
-      const matchRows = document.getElementById('match-rows');
-      const matchStatus = document.getElementById('match-status');
-      const shuffledDefs = [...vocabPairs].sort(() => Math.random() - 0.5);
-      let selectedDefId = null;
-      let matchDoneCount = 0;
-      const matchDoneSet = new Set();
-
-      function setMatchStatus(text, tone = '') {
-        matchStatus.classList.remove('ok', 'bad');
-        if (tone) matchStatus.classList.add(tone);
-        matchStatus.textContent = text;
-      }
-
-      /* Build word rows */
-      vocabPairs.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'match-row';
-        row.dataset.id = String(item.id);
-
-        const wordEl = document.createElement('div');
-        wordEl.className = 'match-word';
-        wordEl.textContent = item.word;
-
-        const dropEl = document.createElement('div');
-        dropEl.className = 'match-drop';
-        dropEl.dataset.id = String(item.id);
-        dropEl.textContent = 'drop definition here';
-
-        row.appendChild(wordEl);
-        row.appendChild(dropEl);
-        matchRows.appendChild(row);
-      });
-
-      /* Build definition chips (shuffled) */
-      shuffledDefs.forEach(item => {
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'def-chip';
-        chip.dataset.id = String(item.id);
-        chip.dataset.syncKey = `match-def-${item.id}`;
-        chip.textContent = item.def;
-        defPool.appendChild(chip);
-      });
-
-      function clearDefPick() {
-        defPool.querySelectorAll('.def-chip').forEach(c => c.classList.remove('selected'));
-        matchRows.querySelectorAll('.match-drop').forEach(d => d.classList.remove('highlight'));
-        selectedDefId = null;
-      }
-
-      /* Click a definition chip to select it */
-      defPool.addEventListener('click', event => {
-        const chip = event.target.closest('.def-chip');
-        if (!chip || chip.classList.contains('placed')) return;
-        clearDefPick();
-        selectedDefId = Number(chip.dataset.id);
-        chip.classList.add('selected');
-        matchRows.querySelectorAll('.match-drop:not(.done)').forEach(d => d.classList.add('highlight'));
-        setMatchStatus(`Now click the correct word's row to place it.`);
-        queuePresence('vocab-word');
-      });
-
-      /* Click a drop zone to wire the definition */
-      matchRows.addEventListener('click', event => {
-        const drop = event.target.closest('.match-drop');
-        if (!drop || drop.classList.contains('done')) return;
-        if (selectedDefId === null) { setMatchStatus(`Pick a definition first. Matched: ${matchDoneCount} / ${vocabPairs.length}`); return; }
-
-        const wordId = Number(drop.dataset.id);
-        const chip = defPool.querySelector(`.def-chip[data-id="${selectedDefId}"]`);
-
-        if (selectedDefId === wordId) {
-          /* Correct match — animate definition into the drop zone */
-          drop.textContent = chip.textContent + ' \u2713';
-          drop.classList.remove('highlight');
-          drop.classList.add('done');
-          drop.closest('.match-row').querySelector('.match-word').classList.add('done');
-          chip.classList.remove('selected');
-          chip.classList.add('placed');
-          matchDoneSet.add(wordId);
-          matchDoneCount += 1;
-          selectedDefId = null;
-          matchRows.querySelectorAll('.match-drop').forEach(d => d.classList.remove('highlight'));
-          if (matchDoneCount === vocabPairs.length) setMatchStatus(`Matched: ${matchDoneCount} / ${vocabPairs.length}. Perfect!`, 'ok');
-          else setMatchStatus(`Correct! Matched: ${matchDoneCount} / ${vocabPairs.length}`, 'ok');
-        } else {
-          /* Wrong — shake chip */
-          chip.classList.add('wrong');
-          setMatchStatus(`Not a match. Try again. Matched: ${matchDoneCount} / ${vocabPairs.length}`, 'bad');
-          window.setTimeout(() => { chip.classList.remove('wrong', 'selected'); matchRows.querySelectorAll('.match-drop').forEach(d => d.classList.remove('highlight')); }, 340);
-          selectedDefId = null;
-        }
-        queuePresence('vocab-match');
-      });
-
-      /* ===== 3b. VOCABULARY: Gap-fill text exercise ===== */
-      const gapfillSentences = [
-        { before: 'The', gap: 'firefighter', after: 'rushed into the burning house to save the family.' },
-        { before: 'She is very', gap: 'compassionate', after: '— she always helps people who feel sad.' },
-        { before: 'You need to be', gap: 'brave', after: 'to speak in front of 500 people.' },
-        { before: 'He is a', gap: 'volunteer', after: 'at the animal shelter every weekend.' },
-        { before: 'Our school started a', gap: 'campaign', after: 'to plant trees in the neighbourhood.' },
-        { before: 'A good team member must be', gap: 'reliable', after: '— people need to trust you.' },
-        { before: 'She is very', gap: 'determined', after: 'to finish the marathon, even in the rain.' },
-        { before: 'The', gap: 'paramedic', after: 'arrived quickly and helped the injured man.' },
-      ];
-      const gapfillText = document.getElementById('gapfill-text');
-      const gapfillStatus = document.getElementById('gapfill-status');
-      let gapfillDone = 0;
-
-      const gapOptions = vocabPairs.map(p => p.word).sort();
-
-      gapfillSentences.forEach((s, i) => {
-        const span = document.createElement('span');
-        span.textContent = s.before + ' ';
-        gapfillText.appendChild(span);
-
-        const slot = document.createElement('span');
-        slot.className = 'gap-slot';
-        const sel = document.createElement('select');
-        sel.dataset.answer = s.gap;
-        sel.dataset.syncKey = `gapfill-${i}`;
-        const blank = document.createElement('option');
-        blank.value = '';
-        blank.textContent = '-- choose --';
-        sel.appendChild(blank);
-        gapOptions.forEach(w => {
-          const opt = document.createElement('option');
-          opt.value = w;
-          opt.textContent = w;
-          sel.appendChild(opt);
-        });
-        sel.addEventListener('change', () => {
-          sel.classList.remove('correct', 'wrong');
-          if (!sel.value) return;
-          if (sel.value === sel.dataset.answer) {
-            sel.classList.add('correct');
-            sel.disabled = true;
-            gapfillDone++;
-            if (gapfillDone === gapfillSentences.length) {
-              gapfillStatus.textContent = `Done: ${gapfillDone} / ${gapfillSentences.length}. Perfect!`;
-              gapfillStatus.classList.add('ok');
-            } else {
-              gapfillStatus.textContent = `Done: ${gapfillDone} / ${gapfillSentences.length}`;
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'danger';
+          remove.textContent = 'Удалить';
+          remove.addEventListener('click', async () => {
+            if (!confirm(`Удалить урок "${lesson.title || lesson.id}"?`)) return;
+            try {
+              rememberToken();
+              const res = await fetch(`/api/lessons/${encodeURIComponent(lesson.id)}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${teacherToken()}` },
+              });
+              if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                throw new Error(error.error || 'Не удалось удалить урок.');
+              }
+              await loadLessons();
+              setMessage(listMessage, 'Урок удален.', 'ok');
+            } catch (error) {
+              setMessage(listMessage, error.message || 'Не удалось удалить урок.', 'bad');
             }
-          } else {
-            sel.classList.add('wrong');
-            setTimeout(() => sel.classList.remove('wrong'), 600);
+          });
+
+          actions.appendChild(openTeacher);
+          actions.appendChild(copyStudent);
+          actions.appendChild(remove);
+          item.appendChild(info);
+          item.appendChild(actions);
+          lessonList.appendChild(item);
+        });
+      }
+
+      function applyUsage(cost) {
+        if (!cost) return;
+        costRub.textContent = typeof cost.rub === 'number' ? `${cost.rub.toFixed(2)} RUB` : 'неизвестно';
+        costUsd.textContent = typeof cost.usd === 'number' ? `$${cost.usd.toFixed(6)}` : 'неизвестно';
+        tokensTotal.textContent = cost.totalTokens ? String(cost.totalTokens) : '-';
+      }
+
+      function processStreamEvent(event) {
+        if (event.type === 'status') {
+          statusPill.textContent = event.message || 'working';
+          appendStream(event.message);
+          return;
+        }
+        if (event.type === 'reasoning') {
+          appendStream(event.text, { inline: true });
+          return;
+        }
+        if (event.type === 'usage') {
+          applyUsage(event.cost);
+          appendStream(`Tokens: ${event.cost && event.cost.totalTokens ? event.cost.totalTokens : '?'}`);
+          return;
+        }
+        if (event.type === 'complete') {
+          statusPill.textContent = 'complete';
+          setMessage(formMessage, `Готово: ${event.lesson.title || event.lesson.id}.`, 'ok');
+          if (typeof event.lesson.costRub === 'number') {
+            costRub.textContent = `${event.lesson.costRub.toFixed(2)} RUB`;
           }
-          queuePresence('gapfill');
-        });
-        slot.appendChild(sel);
-        gapfillText.appendChild(slot);
+          appendStream(`Готово: ${event.lesson.lessonUrl || event.lesson.id}`);
+          loadLessons().catch(error => setMessage(listMessage, error.message, 'bad'));
+          return;
+        }
+        if (event.type === 'error') {
+          statusPill.textContent = 'error';
+          setMessage(formMessage, event.message || 'Ошибка генерации.', 'bad');
+          appendStream(`Ошибка: ${event.message || 'неизвестная ошибка'}`);
+          if (event.details) appendStream(`Детали: ${JSON.stringify(event.details)}`);
+        }
+      }
 
-        const after = document.createElement('span');
-        after.textContent = ' ' + s.after + ' ';
-        gapfillText.appendChild(after);
+      async function generateLesson() {
+        const topic = topicInput.value.trim();
+        const targetGrammar = grammarInput.value.trim();
+        if (!topic) {
+          setMessage(formMessage, 'Введите тему.', 'bad');
+          return;
+        }
+        if (!teacherToken()) {
+          setMessage(formMessage, 'Введите токен учителя.', 'bad');
+          return;
+        }
 
-        if (i < gapfillSentences.length - 1) gapfillText.appendChild(document.createElement('br'));
-      });
+        rememberToken();
+        clearStream();
+        setMessage(formMessage, '', '');
+        statusPill.textContent = 'generating';
+        costRub.textContent = '-';
+        costUsd.textContent = '-';
+        tokensTotal.textContent = '-';
+        generateBtn.disabled = true;
 
-      /* ===== 4. PHRASAL VERBS: Fill-in exercise ===== */
-      const pvParts = [
-        { text: 'I really' },
-        { slot: true, inf: 'admire', answer: 'look up to', syncIdx: 0 },
-        { text: 'my older sister. She always' },
-        { slot: true, inf: 'defends', answer: 'stands up for', syncIdx: 1 },
-        { text: 'people who need help. Even when things are hard, she' },
-        { slot: true, inf: 'continues', answer: 'carries on', syncIdx: 2 },
-        { text: 'working. She wants to' },
-        { slot: true, inf: 'return help to', answer: 'give back', syncIdx: 3 },
-        { text: 'the community. She is not afraid to' },
-        { slot: true, inf: 'say publicly', answer: 'speak out', syncIdx: 4 },
-        { text: 'about problems. She also' },
-        { slot: true, inf: 'looks after', answer: 'takes care of', syncIdx: 5 },
-        { text: 'elderly neighbours every weekend.' },
-      ];
+        try {
+          const res = await fetch('/api/lessons/generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${teacherToken()}`,
+            },
+            body: JSON.stringify({ topic, targetGrammar }),
+          });
 
-      const pvStory = document.getElementById('pv-story');
-      const pvProgress = document.getElementById('pv-progress');
-      let pvSolved = 0;
-      const pvTotal = pvParts.filter(p => p.slot).length;
-
-      pvParts.forEach(part => {
-        if (!part.slot) { pvStory.appendChild(document.createTextNode(` ${part.text} `)); return; }
-        const slot = document.createElement('span');
-        slot.className = 'verb-slot';
-        const input = document.createElement('input');
-        input.type = 'text'; input.autocomplete = 'off'; input.spellcheck = false;
-        input.dataset.syncKey = `pv-slot-${part.syncIdx}`;
-        input.style.width = '150px';
-        const inf = document.createElement('span');
-        inf.className = 'inf';
-        inf.textContent = `(=${part.inf})`;
-        const check = document.createElement('span');
-        check.className = 'check';
-        check.textContent = '\u2713';
-
-        input.addEventListener('input', () => {
-          if (input.disabled) return;
-          const user = input.value.trim().toLowerCase().replace(/\s+/g, ' ');
-          const answer = part.answer.toLowerCase();
-          if (user === answer) {
-            input.classList.add('correct'); check.classList.add('visible');
-            input.disabled = true;
-            pvSolved += 1;
-            pvProgress.textContent = `Done: ${pvSolved} / ${pvTotal}`;
-            if (pvSolved === pvTotal) { pvProgress.textContent += ' Excellent!'; pvProgress.classList.add('ok'); }
+          if (!res.ok || !res.body) {
+            const error = await res.json().catch(() => ({}));
+            throw new Error(error.error || 'Не удалось начать генерацию.');
           }
-          queuePresence('pv-fill');
-        });
 
-        slot.append(input, inf, check);
-        pvStory.appendChild(slot);
-      });
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
 
-      /* ===== 5. GRAMMAR PRACTICE: Exercise 1 - Controlled fill-in ===== */
-      const grammarParts = [
-        { text: 'A volunteer is' },
-        { slot: true, adj: 'brave', answer: 'as brave as', syncIdx: 0 },
-        { text: 'a firefighter. (= equally brave) Celebrities are' },
-        { slot: true, adj: 'helpful', answer: 'not as helpful as', syncIdx: 1 },
-        { text: 'local heroes. (= less helpful) My neighbour is' },
-        { slot: true, adj: 'kind', answer: 'as kind as', syncIdx: 2 },
-        { text: 'my grandmother. (= equally kind) A teacher\'s job is' },
-        { slot: true, adj: 'dangerous', answer: 'not as dangerous as', syncIdx: 3 },
-        { text: 'a paramedic\'s job. (= less dangerous) Our school nurse is' },
-        { slot: true, adj: 'patient', answer: 'as patient as', syncIdx: 4 },
-        { text: 'a doctor. (= equally patient) Movie heroes are' },
-        { slot: true, adj: 'inspiring', answer: 'not as inspiring as', syncIdx: 5 },
-        { text: 'real heroes. (= less inspiring)' },
-      ];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
 
-      const grammarStory = document.getElementById('grammar-story');
-      const grammarProgress = document.getElementById('grammar-progress');
-      let grammarSolved = 0;
-      const grammarTotal = grammarParts.filter(p => p.slot).length;
-
-      grammarParts.forEach(part => {
-        if (!part.slot) { grammarStory.appendChild(document.createTextNode(` ${part.text} `)); return; }
-        const slot = document.createElement('span');
-        slot.className = 'verb-slot';
-        const input = document.createElement('input');
-        input.type = 'text'; input.autocomplete = 'off'; input.spellcheck = false;
-        input.dataset.syncKey = `grammar-slot-${part.syncIdx}`;
-        input.placeholder = part.adj;
-        const inf = document.createElement('span');
-        inf.className = 'inf';
-        inf.textContent = `(${part.adj})`;
-        const check = document.createElement('span');
-        check.className = 'check';
-        check.textContent = '\u2713';
-
-        input.addEventListener('input', () => {
-          if (input.disabled) return;
-          const user = input.value.trim().toLowerCase().replace(/\s+/g, ' ');
-          const answer = part.answer.toLowerCase();
-          if (user === answer) {
-            input.classList.add('correct'); check.classList.add('visible');
-            input.disabled = true;
-            grammarSolved += 1;
-            grammarProgress.textContent = `Done: ${grammarSolved} / ${grammarTotal}`;
-            if (grammarSolved === grammarTotal) { grammarProgress.textContent += ' Great!'; grammarProgress.classList.add('ok'); }
+            let newline = buffer.indexOf('\n');
+            while (newline >= 0) {
+              const line = buffer.slice(0, newline).trim();
+              buffer = buffer.slice(newline + 1);
+              newline = buffer.indexOf('\n');
+              if (!line) continue;
+              processStreamEvent(JSON.parse(line));
+            }
           }
-          queuePresence('grammar-fill');
-        });
 
-        slot.append(input, inf, check);
-        grammarStory.appendChild(slot);
+          if (buffer.trim()) processStreamEvent(JSON.parse(buffer.trim()));
+        } catch (error) {
+          statusPill.textContent = 'error';
+          setMessage(formMessage, error.message || 'Ошибка генерации.', 'bad');
+          appendStream(`Ошибка: ${error.message || 'неизвестная ошибка'}`);
+        } finally {
+          generateBtn.disabled = false;
+        }
+      }
+
+      form.addEventListener('submit', event => {
+        event.preventDefault();
+        generateLesson();
       });
+      clearLogBtn.addEventListener('click', clearStream);
+      refreshBtn.addEventListener('click', () => loadLessons().catch(error => setMessage(listMessage, error.message, 'bad')));
+      tokenInput.addEventListener('input', rememberToken);
 
-      /* ===== Exercise 2: Semi-controlled choose ===== */
-      const checkChoiceBtn = document.getElementById('check-choice');
-      const choiceStatus = document.getElementById('choice-status');
-      const selects = document.querySelectorAll('#choice-list select');
-
-      checkChoiceBtn.addEventListener('click', () => {
-        let score = 0;
-        selects.forEach(select => {
-          const answer = select.dataset.answer;
-          const value = select.value;
-          select.classList.remove('correct', 'wrong');
-          if (value === answer) { score += 1; select.classList.add('correct'); }
-          else { select.classList.add('wrong'); }
-        });
-        choiceStatus.classList.remove('ok', 'bad');
-        choiceStatus.textContent = `Score: ${score} / ${selects.length}`;
-        choiceStatus.classList.add(score === selects.length ? 'ok' : 'bad');
-        queuePresence('check-ex2');
+      tokenInput.value = sessionStorage.getItem('teacherAdminToken') || '';
+      loadConfig().catch(error => {
+        configLine.textContent = error.message || 'Ошибка конфигурации.';
       });
-
-      /* ===== Exercise 3: Free practice feedback ===== */
-      const freeWriting = document.getElementById('free-writing');
-      const freeFeedback = document.getElementById('free-feedback');
-
-      freeWriting.addEventListener('input', () => {
-        const text = freeWriting.value.toLowerCase();
-        const allVocab = ['brave', 'compassionate', 'determined', 'reliable', 'volunteer', 'firefighter', 'campaign', 'paramedic', 'generous', 'patient', 'kind', 'humble'];
-        const vocabCount = allVocab.filter(word => text.includes(word)).length;
-        const asAsCount = (text.match(/\bas\s+\w+\s+as\b/g) || []).length;
-        const notAsAsCount = (text.match(/\bnot\s+as\s+\w+\s+as\b/g) || []).length;
-        const totalComparisons = asAsCount;
-        const pvList = ['stand up for', 'look up to', 'carry on', 'give back', 'speak out', 'take care of'];
-        const pvCount = pvList.filter(pv => text.includes(pv)).length;
-
-        freeFeedback.textContent = `Detected: vocab ${vocabCount}/3, "as...as" forms ${totalComparisons}/3, phrasal verbs ${pvCount}/1.`;
-        freeFeedback.style.color = (vocabCount >= 3 && totalComparisons >= 3 && pvCount >= 1) ? 'var(--ok)' : 'var(--soft-ink)';
-        queuePresence('free-writing');
-      });
-
+      loadLessons().catch(error => setMessage(listMessage, error.message, 'bad'));
     })();
   </script>
 </body>
