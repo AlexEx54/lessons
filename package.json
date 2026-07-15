@@ -7,7 +7,7 @@
     "start": "node server.js",
     "dev": "HOST=127.0.0.1 PORT=8787 node server.js",
     "generate": "node generate-lesson.js",
-    "check": "node --check server.js && node --check generate-lesson.js && node --check lib/lesson-build.js && node --check lib/lesson-store.js && node --check lib/openrouter-lesson.js && node --check lib/lesson-validate.js"
+    "check": "node --check server.js && node --check assets/home.js && node --check generate-lesson.js && node --check lib/lesson-build.js && node --check lib/lesson-store.js && node --check lib/openrouter-lesson.js && node --check lib/lesson-validate.js"
   },
   "engines": {
     "node": ">=18"

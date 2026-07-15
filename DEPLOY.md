@@ -19,7 +19,8 @@ Set these environment variables in Render:
 - `OPENROUTER_MODEL`: optional. Defaults to `deepseek/deepseek-v4-flash`.
 - `OPENROUTER_REASONING_EFFORT`: optional. Defaults to `xhigh` (max reasoning for DeepSeek V4 Flash).
 
-Open `/` to generate lessons and manage the generated lesson list.
+Open `/` for the teacher dashboard. Open `/generator` to generate lessons and manage
+the generated lesson list.
 
 Important for Render: generated lessons are saved as files. Add a persistent disk and point
 `LESSONS_DIR` to it if lessons must survive redeploys, rebuilds, or instance replacement.

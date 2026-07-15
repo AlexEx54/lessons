@@ -73,7 +73,14 @@ function safePathname(inputPath) {
 }
 
 function serveStatic(reqPath, res) {
-  const target = reqPath === '/' ? 'index.html' : safePathname(reqPath.slice(1));
+  let target;
+  if (reqPath === '/') {
+    target = 'index.html';
+  } else if (reqPath === '/generator' || reqPath === '/generator/') {
+    target = 'generator.html';
+  } else {
+    target = safePathname(reqPath.slice(1));
+  }
   const absolute = path.join(ROOT, target);
 
   if (!absolute.startsWith(ROOT) || target === 'data' || target.startsWith(`data${path.sep}`) || target.startsWith('data/')) {
