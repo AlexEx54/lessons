@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f5f3ff" />
+  <title>Библиотека уроков — EasyClass</title>
+  <link rel="stylesheet" href="/assets/library.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <button class="nav-overlay" id="nav-overlay" type="button" aria-label="Закрыть меню"></button>
+
+    <aside class="sidebar" id="sidebar" aria-label="Основная навигация">
+      <a class="brand" href="/" aria-label="EasyClass — главная">
+        <img src="/assets/images/easyclass-mark-cropped.png" alt="" />
+        <span>Easy<span>Class</span></span>
+      </a>
+      <nav class="main-nav">
+        <a class="nav-item" href="/">
+          <img src="/assets/images/nav/home.png" alt="" /><span>Главная</span>
+        </a>
+        <a class="nav-item nav-item--active" href="/library.html" aria-current="page">
+          <img src="/assets/images/nav/library-open-book.png" alt="" /><span>Библиотека уроков</span>
+        </a>
+        <button class="nav-item" type="button" data-toast="Расписание скоро появится">
+          <img src="/assets/images/nav/schedule.png" alt="" /><span>Расписание</span>
+        </button>
+        <button class="nav-item" type="button" data-toast="Настройки скоро появятся">
+          <img src="/assets/images/nav/settings.png" alt="" /><span>Настройки</span>
+        </button>
+      </nav>
+      <button class="support-card" type="button" data-toast="Мы уже готовим центр поддержки">
+        <span class="support-icon">?</span>
+        <span><strong>Нужна помощь?</strong><small>Напишите нам в поддержку</small></span>
+      </button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="menu-button" id="menu-button" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Открыть меню"><span></span><span></span><span></span></button>
+        <div class="welcome">
+          <h1>Добро пожаловать, Анна! <span aria-hidden="true">👋</span></h1>
+          <p>Выберите готовый урок и начните занятие за пару минут.</p>
+        </div>
+        <div class="account">
+          <button class="bell" type="button" data-toast="У вас 2 новых уведомления" aria-label="2 новых уведомления">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg><b>2</b>
+          </button>
+          <button class="profile" type="button" data-toast="Профиль преподавателя">
+            <img src="/assets/images/guest-avatar.png" alt="" />
+            <span><strong>Анна Петрова</strong><small>Преподаватель</small></span>
+            <span aria-hidden="true">⌄</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <section class="library" aria-labelledby="library-title">
+          <div class="library-heading">
+            <div><h2 id="library-title">Библиотека уроков</h2><p>Готовые интерактивные уроки для детей и подростков</p></div>
+            <label class="search"><span aria-hidden="true">⌕</span><span class="visually-hidden">Поиск уроков</span><input id="lesson-search" type="search" placeholder="Найти урок" /></label>
+          </div>
+
+          <div class="filters" id="filters" aria-label="Фильтры уроков">
+            <div class="filter-group" data-filter="age">
+              <span class="filter-label">Возраст</span>
+              <button class="chip chip--active" type="button" data-value="all">Все</button>
+              <button class="chip" type="button" data-value="9-11">9–11 лет</button>
+              <button class="chip" type="button" data-value="12-14">12–14 лет</button>
+              <button class="chip" type="button" data-value="15-18">15–18 лет</button>
+            </div>
+            <div class="filter-group" data-filter="level">
+              <span class="filter-label">Уровень</span>
+              <button class="chip chip--active" type="button" data-value="all">Все</button>
+              <button class="chip" type="button" data-value="A1">A1</button>
+              <button class="chip" type="button" data-value="A2">A2</button>
+              <button class="chip" type="button" data-value="B1">B1</button>
+              <button class="chip" type="button" data-value="B2">B2</button>
+            </div>
+            <div class="filter-group" data-filter="category">
+              <span class="filter-label">Навык</span>
+              <button class="chip chip--active" type="button" data-value="all">Все</button>
+              <button class="chip" type="button" data-value="General English">General English</button>
+              <button class="chip" type="button" data-value="Speaking">Speaking</button>
+              <button class="chip" type="button" data-value="Grammar">Grammar</button>
+              <button class="chip" type="button" data-value="ОГЭ / ЕГЭ">ОГЭ / ЕГЭ</button>
+            </div>
+          </div>
+
+          <p class="result-count" id="result-count" aria-live="polite"></p>
+          <div class="lesson-grid" id="lesson-grid"></div>
+          <div class="empty-state" id="empty-state" hidden><span>🔎</span><h3>Уроки не найдены</h3><p>Попробуйте изменить фильтры или поисковый запрос.</p></div>
+          <button class="show-more" id="show-more" type="button">Показать ещё <span aria-hidden="true">↓</span></button>
+        </section>
+
+        <aside class="quick-panel" aria-labelledby="quick-title">
+          <div class="quick-title"><span aria-hidden="true">⚡</span><h2 id="quick-title">Быстрый выбор</h2></div>
+          <div class="quick-list" id="quick-list"></div>
+          <section class="exam-card">
+            <p class="eyebrow"><span aria-hidden="true">▱</span> Попробуйте урок ОГЭ / ЕГЭ</p>
+            <h3>ОГЭ: Speaking Practice</h3>
+            <p class="exam-meta">9–11 класс <span>•</span> B1</p>
+            <p>Тренируем монолог и диалог по актуальным темам.</p>
+            <div class="mini-meta"><span>◉ Speaking</span><span>▱ Grammar</span><span>◷ 45 мин</span></div>
+            <div class="exam-actions"><button type="button" data-toast="Открываем предпросмотр урока">Предпросмотр</button><button type="button" data-toast="Урок готов к запуску">Запустить</button></div>
+          </section>
+          <section class="tip-card">
+            <p class="eyebrow"><span aria-hidden="true">💡</span> Совет преподавателю</p>
+            <p>Фильтруйте уроки по возрасту и уровню, чтобы быстро найти идеальный материал.</p>
+            <button type="button" data-toast="Подсказки скоро появятся">Подробнее <span aria-hidden="true">→</span></button>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/assets/library.js" defer></script>
+</body>
+</html>
