@@ -86,6 +86,8 @@
   function openClassModal() {
     modalReturnFocus = document.activeElement;
     closeNavigation();
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.setProperty('--scrollbar-compensation', `${scrollbarWidth}px`);
     classModal.classList.add('class-modal--visible');
     classModal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
@@ -101,6 +103,7 @@
     classModal.classList.remove('class-modal--visible');
     classModal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('--scrollbar-compensation');
     if (modalReturnFocus instanceof HTMLElement) modalReturnFocus.focus();
   }
 
