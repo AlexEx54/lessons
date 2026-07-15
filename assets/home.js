@@ -49,7 +49,75 @@
   const menuButton = document.getElementById('menu-button');
   const navOverlay = document.getElementById('nav-overlay');
   const carouselNext = document.getElementById('carousel-next');
+  const createClassButton = document.getElementById('create-class-button');
+  const classModal = document.getElementById('class-modal');
+  const classDialog = classModal.querySelector('.class-dialog');
+  const classNameInput = document.getElementById('class-name-input');
+  const classLinkValue = document.getElementById('class-link-value');
+  const classNextButton = document.getElementById('class-next-button');
   let toastTimer = null;
+  let modalReturnFocus = null;
+
+  // Заглушка генератора: позже здесь появится запрос к API и проверка уникальности.
+  function generateClassInviteLinkMock(className) {
+    const transliterationMap = {
+      а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i',
+      й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't',
+      у: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y',
+      ь: '', э: 'e', ю: 'yu', я: 'ya',
+    };
+    const slug = className
+      .trim()
+      .toLocaleLowerCase('ru-RU')
+      .split('')
+      .map(character => transliterationMap[character] ?? character)
+      .join('')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48);
+
+    return `easyclass.ru/join/${slug || 'new-class'}`;
+  }
+
+  function updateClassLink() {
+    classLinkValue.textContent = generateClassInviteLinkMock(classNameInput.value);
+  }
+
+  function openClassModal() {
+    modalReturnFocus = document.activeElement;
+    closeNavigation();
+    classModal.classList.add('class-modal--visible');
+    classModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    updateClassLink();
+    window.requestAnimationFrame(() => {
+      classNameInput.focus();
+      classNameInput.select();
+    });
+  }
+
+  function closeClassModal() {
+    if (!classModal.classList.contains('class-modal--visible')) return;
+    classModal.classList.remove('class-modal--visible');
+    classModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+    if (modalReturnFocus instanceof HTMLElement) modalReturnFocus.focus();
+  }
+
+  function keepFocusInsideModal(event) {
+    if (event.key !== 'Tab' || !classModal.classList.contains('class-modal--visible')) return;
+    const focusable = [...classDialog.querySelectorAll('button:not([disabled]), input:not([disabled])')];
+    const first = focusable[0];
+    const last = focusable.at(-1);
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   function showComingSoon(label) {
     const prefix = label ? `${label}: ` : '';
@@ -143,8 +211,20 @@
   menuButton.addEventListener('click', toggleNavigation);
   navOverlay.addEventListener('click', closeNavigation);
   document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && classModal.classList.contains('class-modal--visible')) {
+      closeClassModal();
+      return;
+    }
     if (event.key === 'Escape') closeNavigation();
+    keepFocusInsideModal(event);
   });
+
+  createClassButton.addEventListener('click', openClassModal);
+  classModal.querySelectorAll('[data-close-class-modal]').forEach(button => {
+    button.addEventListener('click', closeClassModal);
+  });
+  classNameInput.addEventListener('input', updateClassLink);
+  classNextButton.addEventListener('click', () => showComingSoon('Выбор урока'));
 
   carouselNext.addEventListener('click', () => {
     const firstCard = lessonTrack.querySelector('.lesson-card');
