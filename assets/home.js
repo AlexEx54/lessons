@@ -77,9 +77,6 @@
   ];
 
   const lessonTrack = document.getElementById('lesson-track');
-  const toast = document.getElementById('toast');
-  const menuButton = document.getElementById('menu-button');
-  const navOverlay = document.getElementById('nav-overlay');
   const carouselNext = document.getElementById('carousel-next');
   const createClassButton = document.getElementById('create-class-button');
   const classModal = document.getElementById('class-modal');
@@ -96,7 +93,6 @@
   const completionLesson = document.getElementById('class-completion-lesson');
   const copyClassLinkButton = document.getElementById('copy-class-link-button');
   const completionHomeButton = document.getElementById('class-completion-home-button');
-  let toastTimer = null;
   let modalReturnFocus = null;
   let recommendationLessons = [];
   let selectedRecommendationId = null;
@@ -191,10 +187,7 @@
   }
 
   function showToast(message) {
-    toast.textContent = message;
-    toast.classList.add('toast--visible');
-    window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => toast.classList.remove('toast--visible'), 2800);
+    window.AppShell.showToast(message);
   }
 
   function showComingSoon(label) {
@@ -382,32 +375,14 @@
   }
 
   function closeNavigation() {
-    document.body.classList.remove('nav-open');
-    menuButton.setAttribute('aria-expanded', 'false');
-    menuButton.setAttribute('aria-label', 'Открыть меню');
+    window.AppShell.closeNavigation({ restoreFocus: false });
   }
 
-  function toggleNavigation() {
-    const isOpen = document.body.classList.toggle('nav-open');
-    menuButton.setAttribute('aria-expanded', String(isOpen));
-    menuButton.setAttribute('aria-label', isOpen ? 'Закрыть меню' : 'Открыть меню');
-  }
-
-  document.querySelectorAll('[data-coming-soon]').forEach(button => {
-    button.addEventListener('click', () => {
-      closeNavigation();
-      showComingSoon(button.dataset.comingSoon);
-    });
-  });
-
-  menuButton.addEventListener('click', toggleNavigation);
-  navOverlay.addEventListener('click', closeNavigation);
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && classModal.classList.contains('class-modal--visible')) {
       closeClassModal();
       return;
     }
-    if (event.key === 'Escape') closeNavigation();
     keepFocusInsideModal(event);
   });
 

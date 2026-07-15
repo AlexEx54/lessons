@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f4f2ff" />
+  <title>{{DOCUMENT_TITLE}}</title>
+  <link rel="stylesheet" href="{{PAGE_STYLESHEET}}" />
+  <link rel="stylesheet" href="/assets/app-shell.css" />
+</head>
+<body data-page="{{PAGE_ID}}">
+  <div class="app-shell">
+    <button class="nav-overlay" id="nav-overlay" type="button" aria-label="Закрыть меню" tabindex="-1" aria-hidden="true"></button>
+
+    <aside class="sidebar" id="sidebar" aria-label="Основная навигация">
+      <a class="brand" href="/" aria-label="EasyClass — главная">
+        <img class="brand__mark" src="/assets/images/easyclass-mark-cropped.png" alt="" width="44" height="36" />
+        <span>Easy<span>Class</span></span>
+      </a>
+
+      <nav class="main-nav">
+        <a class="nav-item{{HOME_ACTIVE_CLASS}}" href="/"{{HOME_ARIA_CURRENT}}>
+          <img class="nav-item__icon" src="/assets/images/nav/home.png" alt="" width="32" height="32" aria-hidden="true" />
+          <span>Главная</span>
+        </a>
+        <a class="nav-item{{LIBRARY_ACTIVE_CLASS}}" href="/library.html"{{LIBRARY_ARIA_CURRENT}}>
+          <img class="nav-item__icon" src="/assets/images/nav/library-open-book.png" alt="" width="32" height="32" aria-hidden="true" />
+          <span>Библиотека уроков</span>
+        </a>
+        <button class="nav-item" type="button" data-coming-soon="Расписание">
+          <img class="nav-item__icon" src="/assets/images/nav/schedule.png" alt="" width="32" height="32" aria-hidden="true" />
+          <span>Расписание</span>
+        </button>
+        <button class="nav-item" type="button" data-coming-soon="Настройки">
+          <img class="nav-item__icon" src="/assets/images/nav/settings.png" alt="" width="32" height="32" aria-hidden="true" />
+          <span>Настройки</span>
+        </button>
+      </nav>
+
+      <button class="support-card" type="button" data-coming-soon="Поддержка">
+        <span class="support-card__icon" aria-hidden="true">?</span>
+        <span><strong>Нужна помощь?</strong><small>Напишите нам в поддержку</small></span>
+      </button>
+    </aside>
+
+    <main class="content {{CONTENT_CLASS}}">
+      <header class="mobile-header">
+        <button class="menu-button" id="menu-button" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Открыть меню">
+          <span></span><span></span><span></span>
+        </button>
+        <a class="brand brand--mobile" href="/" aria-label="EasyClass — главная">
+          <img class="brand__mark" src="/assets/images/easyclass-mark-cropped.png" alt="" width="20" height="17" />
+          <span>Easy<span>Class</span></span>
+        </a>
+        <button class="mobile-avatar" type="button" data-coming-soon="Профиль" aria-label="Профиль гостя">
+          <img src="/assets/images/guest-avatar.png" alt="" />
+        </button>
+      </header>
+
+      <section class="welcome-row" aria-labelledby="welcome-title">
+        <div>
+          <h1 id="welcome-title">Добро пожаловать, преподаватель! <span aria-hidden="true">👋</span></h1>
+          <p>{{PAGE_SUBTITLE}}</p>
+        </div>
+        <div class="account-actions">
+          <button class="notification-button" type="button" data-coming-soon="Уведомления" aria-label="Уведомления: 2 новых">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4"/></svg>
+            <span>2</span>
+          </button>
+          <button class="profile-button" type="button" data-coming-soon="Профиль">
+            <img src="/assets/images/guest-avatar.png" alt="Гостевой профиль преподавателя" />
+            <span><strong>Гость</strong><small>Преподаватель</small></span>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5"/></svg>
+          </button>
+        </div>
+      </section>
+
+{{PAGE_CONTENT}}
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="/assets/app-shell.js" defer></script>
+  <script src="{{PAGE_SCRIPT}}" defer></script>
+</body>
+</html>

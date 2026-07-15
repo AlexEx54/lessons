@@ -26,14 +26,9 @@
   const empty = document.getElementById('empty-state');
   const showMore = document.getElementById('show-more');
   const resultCount = document.getElementById('result-count');
-  const toast = document.getElementById('toast');
-  let toastTimer;
 
   function showToast(message) {
-    toast.textContent = message;
-    toast.classList.add('toast--visible');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('toast--visible'), 2400);
+    window.AppShell.showToast(message);
   }
 
   function lessonCard(lesson) {
@@ -99,15 +94,5 @@
     quickList.append(card);
   });
 
-  document.querySelectorAll('[data-toast]').forEach(button => button.addEventListener('click', () => showToast(button.dataset.toast)));
-  const menuButton = document.getElementById('menu-button');
-  function toggleMenu(force) {
-    const open = typeof force === 'boolean' ? force : !document.body.classList.contains('nav-open');
-    document.body.classList.toggle('nav-open', open);
-    menuButton.setAttribute('aria-expanded', String(open));
-  }
-  menuButton.addEventListener('click', () => toggleMenu());
-  document.getElementById('nav-overlay').addEventListener('click', () => toggleMenu(false));
-  document.addEventListener('keydown', event => { if (event.key === 'Escape') toggleMenu(false); });
   render();
 })();

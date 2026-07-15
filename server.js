@@ -23,6 +23,7 @@ function loadDotEnv(filePath) {
 loadDotEnv(path.join(__dirname, '.env'));
 
 const { buildLessonHtml, getLessonTitle } = require('./lib/lesson-build.js');
+const { renderAppPage } = require('./lib/app-shell.js');
 const { validateLesson } = require('./lib/lesson-validate.js');
 const {
   createLessonId,
@@ -180,6 +181,20 @@ function serveStatic(reqPath, res) {
   });
 }
 
+async function serveAppPage(pageId, res) {
+  try {
+    const html = await renderAppPage(pageId);
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+    });
+    res.end(html);
+  } catch (error) {
+    console.error(`Cannot render app page "${pageId}":`, error);
+    json(res, 500, { error: 'Cannot render app page.' });
+  }
+}
+
 function addClient(roomId, client) {
   if (!clientsByRoom.has(roomId)) {
     clientsByRoom.set(roomId, new Set());
@@ -265,6 +280,16 @@ function publicError(error) {
 const server = http.createServer(async (req, res) => {
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = requestUrl.pathname;
+
+  if (req.method === 'GET' && (pathname === '/' || pathname === '/index.html')) {
+    await serveAppPage('home', res);
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/library.html') {
+    await serveAppPage('library', res);
+    return;
+  }
 
   if (req.method === 'GET' && pathname === '/health') {
     json(res, 200, { ok: true, rooms: clientsByRoom.size });
