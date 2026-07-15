@@ -203,6 +203,44 @@
           </button>
         </footer>
       </div>
+
+      <div class="class-step class-step--completion" data-class-step="3" hidden>
+        <img class="class-completion__decor" src="/assets/images/class-completion-decor.png" alt="" aria-hidden="true" />
+
+        <div class="class-completion__content">
+          <h2 id="class-completion-title"><span aria-hidden="true">🎉</span> Готово! Класс создан и урок ждёт.</h2>
+
+          <section class="class-completion__invite" aria-labelledby="class-completion-link-label">
+            <span class="visually-hidden" id="class-completion-link-label">Ссылка для входа в класс</span>
+            <strong id="class-completion-link">easyclass.ru/join/new-class</strong>
+            <button class="class-completion__copy" id="copy-class-link-button" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8h10v12H9zM5 16H4V4h10v1" /></svg>
+              <span>Скопировать ссылку</span>
+            </button>
+          </section>
+
+          <p class="class-completion__hint">
+            Отправьте эту ссылку ученику. Ему не нужно регистрироваться —<br />
+            урок откроется в браузере в один клик.<br />
+            Эта ссылка будет работать для всех ваших будущих занятий с учеником.
+          </p>
+
+          <div class="class-completion__lesson">
+            <span class="class-completion__lesson-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 5.5c2.7-.8 5.3-.2 8 1.7v12c-2.7-1.9-5.3-2.5-8-1.7zM20 5.5c-2.7-.8-5.3-.2-8 1.7v12c2.7-1.9 5.3-2.5 8-1.7z" /></svg>
+            </span>
+            <span><small>Выбранный урок:</small><strong id="class-completion-lesson">Placement Test</strong></span>
+          </div>
+        </div>
+
+        <footer class="class-completion__footer">
+          <button class="class-completion__launch" type="button" aria-disabled="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" /></svg>
+            Запустить урок прямо сейчас
+          </button>
+          <button class="class-completion__home" id="class-completion-home-button" type="button">Вернуться на главную</button>
+        </footer>
+      </div>
     </section>
   </div>
 

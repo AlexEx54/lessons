@@ -92,6 +92,10 @@
   const classProgress = document.getElementById('class-progress');
   const recommendationTrack = document.getElementById('recommendation-track');
   const recommendationStatus = document.getElementById('recommendation-status');
+  const completionLink = document.getElementById('class-completion-link');
+  const completionLesson = document.getElementById('class-completion-lesson');
+  const copyClassLinkButton = document.getElementById('copy-class-link-button');
+  const completionHomeButton = document.getElementById('class-completion-home-button');
   let toastTimer = null;
   let modalReturnFocus = null;
   let recommendationLessons = [];
@@ -152,7 +156,12 @@
       else step.removeAttribute('aria-current');
     });
     classProgress.setAttribute('aria-label', `Шаг ${stepNumber} из 3`);
-    classDialog.setAttribute('aria-labelledby', stepNumber === 1 ? 'class-dialog-title' : 'lesson-picker-title');
+    const stepTitles = {
+      1: 'class-dialog-title',
+      2: 'lesson-picker-title',
+      3: 'class-completion-title',
+    };
+    classDialog.setAttribute('aria-labelledby', stepTitles[stepNumber]);
     if (stepNumber === 1) classDialog.setAttribute('aria-describedby', 'class-dialog-description');
     else classDialog.removeAttribute('aria-describedby');
   }
@@ -191,6 +200,27 @@
   function showComingSoon(label) {
     const prefix = label ? `${label}: ` : '';
     showToast(`${prefix}этот раздел скоро появится.`);
+  }
+
+  async function copyClassInviteLink() {
+    const link = completionLink.textContent.trim();
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      const temporaryInput = document.createElement('textarea');
+      temporaryInput.value = link;
+      temporaryInput.style.position = 'fixed';
+      temporaryInput.style.opacity = '0';
+      document.body.append(temporaryInput);
+      temporaryInput.select();
+      document.execCommand('copy');
+      temporaryInput.remove();
+    }
+    copyClassLinkButton.querySelector('span').textContent = 'Ссылка скопирована';
+    showToast('Ссылка на класс скопирована.');
+    window.setTimeout(() => {
+      copyClassLinkButton.querySelector('span').textContent = 'Скопировать ссылку';
+    }, 2200);
   }
 
   function createBadge(text, className) {
@@ -403,8 +433,14 @@
   });
   attachLessonButton.addEventListener('click', () => {
     const lesson = recommendationLessons.find(item => item.id === selectedRecommendationId);
-    if (lesson) showToast(`Урок «${lesson.title}» прикреплён. Переход к шагу 3 скоро появится.`);
+    if (!lesson) return;
+    completionLink.textContent = generateClassInviteLinkMock(classNameInput.value);
+    completionLesson.textContent = lesson.subtitle || lesson.title;
+    setClassStep(3);
+    window.requestAnimationFrame(() => copyClassLinkButton.focus());
   });
+  copyClassLinkButton.addEventListener('click', copyClassInviteLink);
+  completionHomeButton.addEventListener('click', closeClassModal);
   recommendationTrack.addEventListener('keydown', event => {
     if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
     const cards = [...recommendationTrack.querySelectorAll('.recommendation-card')];
