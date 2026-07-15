@@ -7,24 +7,20 @@
           </div>
 
           <div class="filters" id="filters" aria-label="Фильтры уроков">
-            <div class="filter-group" data-filter="age">
-              <span class="filter-label">Возраст</span>
-              <button class="chip chip--active" type="button" data-value="all">Все</button>
-              <button class="chip" type="button" data-value="9-11">9–11 лет</button>
-              <button class="chip" type="button" data-value="12-14">12–14 лет</button>
-              <button class="chip" type="button" data-value="15-18">15–18 лет</button>
-            </div>
-            <div class="filter-group" data-filter="level">
-              <span class="filter-label">Уровень</span>
-              <button class="chip chip--active" type="button" data-value="all">Все</button>
-              <button class="chip" type="button" data-value="A1">A1</button>
-              <button class="chip" type="button" data-value="A2">A2</button>
-              <button class="chip" type="button" data-value="B1">B1</button>
-              <button class="chip" type="button" data-value="B2">B2</button>
+            <div class="filter-row">
+              <div class="filter-group" data-filter="age">
+                <button class="chip" type="button" data-value="9-11"><span class="chip-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 19.5c1.2-3.4 3.5-5 6.5-5s5.3 1.6 6.5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>9–11 лет</button>
+                <button class="chip" type="button" data-value="12-14"><span class="chip-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 19.5c1.2-3.4 3.5-5 6.5-5s5.3 1.6 6.5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>12–14 лет</button>
+                <button class="chip" type="button" data-value="15-18"><span class="chip-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 19.5c1.2-3.4 3.5-5 6.5-5s5.3 1.6 6.5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>15–18 лет</button>
+              </div>
+              <div class="filter-group" data-filter="level">
+                <button class="chip" type="button" data-value="A1">A1</button>
+                <button class="chip" type="button" data-value="A2">A2</button>
+                <button class="chip" type="button" data-value="B1">B1</button>
+                <button class="chip" type="button" data-value="B2">B2</button>
+              </div>
             </div>
             <div class="filter-group" data-filter="category">
-              <span class="filter-label">Навык</span>
-              <button class="chip chip--active" type="button" data-value="all">Все</button>
               <button class="chip" type="button" data-value="General English">General English</button>
               <button class="chip" type="button" data-value="Speaking">Speaking</button>
               <button class="chip" type="button" data-value="Grammar">Grammar</button>
@@ -32,7 +28,6 @@
             </div>
           </div>
 
-          <p class="result-count" id="result-count" aria-live="polite"></p>
           <div class="lesson-grid" id="lesson-grid"></div>
           <div class="empty-state" id="empty-state" hidden><span>🔎</span><h3>Уроки не найдены</h3><p>Попробуйте изменить фильтры или поисковый запрос.</p></div>
           <button class="show-more" id="show-more" type="button">Показать ещё <span aria-hidden="true">↓</span></button>
@@ -42,7 +37,7 @@
           <div class="quick-title"><span aria-hidden="true">⚡</span><h2 id="quick-title">Быстрый выбор</h2></div>
           <div class="quick-list" id="quick-list"></div>
           <section class="exam-card">
-            <p class="eyebrow"><span aria-hidden="true">▱</span> Попробуйте урок ОГЭ / ЕГЭ</p>
+            <p class="eyebrow"><span aria-hidden="true">🎓</span> Попробуйте урок ОГЭ / ЕГЭ</p>
             <h3>ОГЭ: Speaking Practice</h3>
             <p class="exam-meta">9–11 класс <span>•</span> B1</p>
             <p>Тренируем монолог и диалог по актуальным темам.</p>

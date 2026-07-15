@@ -21,14 +21,26 @@
     { title: 'Travel & Transport', text: 'Готовый урок на любимую тему', image: '/assets/images/recommendation-travel.png', popular: true },
   ];
 
+  const skillIcons = {
+    Vocabulary: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5V5.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5V5.5Z" stroke="currentColor" stroke-width="1.7"/></svg>',
+    Speaking: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7.5h8a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3H9l-3.5 3v-3H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M18 9.5c.9.6 1.5 1.6 1.5 2.7s-.6 2.1-1.5 2.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+    Listening: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 13v-1a8 8 0 1 1 16 0v1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 13v3.5A2.5 2.5 0 0 0 6.5 19H8v-6H6.5A2.5 2.5 0 0 0 4 15.5V13Zm16 0v2.5A2.5 2.5 0 0 1 17.5 18H16v-5h1.5A2.5 2.5 0 0 1 20 15.5V13Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
+    Writing: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16v4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m13 7 4 4" stroke="currentColor" stroke-width="1.7"/></svg>',
+    Grammar: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10M7 9h10M7 14h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M5 20h14a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" stroke="currentColor" stroke-width="1.7"/></svg>',
+  };
+
   const state = { age: 'all', level: 'all', category: 'all', query: '', expanded: false };
   const grid = document.getElementById('lesson-grid');
   const empty = document.getElementById('empty-state');
   const showMore = document.getElementById('show-more');
-  const resultCount = document.getElementById('result-count');
 
   function showToast(message) {
     window.AppShell.showToast(message);
+  }
+
+  function skillLabel(skill) {
+    const icon = skillIcons[skill] || skillIcons.Vocabulary;
+    return `<span class="skill-tag">${icon}${skill}</span>`;
   }
 
   function lessonCard(lesson) {
@@ -41,8 +53,8 @@
         <h3>${lesson.title}</h3>
         <p class="lesson-facts">${lesson.age.replace('-', '–')} лет <span>•</span> ${lesson.level}</p>
         <p class="lesson-description">${lesson.description}</p>
-        <div class="lesson-skills">${lesson.skills.map(skill => `<span>◉ ${skill}</span>`).join('')}</div>
-        <p class="lesson-duration">◷ ${lesson.duration}</p>
+        <div class="lesson-skills">${lesson.skills.map(skillLabel).join('')}</div>
+        <p class="lesson-duration"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4.5l2.5 1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>${lesson.duration}</p>
         <div class="lesson-actions"><button type="button" data-action="preview">Предпросмотр</button><button type="button" data-action="select">Выбрать урок</button></div>
       </div>`;
     article.querySelector('[data-action="preview"]').addEventListener('click', () => showToast(`Предпросмотр: ${lesson.title}`));
@@ -67,7 +79,6 @@
     grid.replaceChildren(...visible.map(lessonCard));
     empty.hidden = filtered.length > 0;
     grid.hidden = filtered.length === 0;
-    resultCount.textContent = `Найдено уроков: ${filtered.length}`;
     showMore.hidden = filtered.length <= 8;
     showMore.innerHTML = state.expanded ? 'Свернуть <span aria-hidden="true">↑</span>' : 'Показать ещё <span aria-hidden="true">↓</span>';
   }
@@ -76,14 +87,28 @@
     const button = event.target.closest('.chip');
     if (!button) return;
     const group = button.closest('[data-filter]');
+    const filter = group.dataset.filter;
+    const isActive = button.classList.contains('chip--active');
     group.querySelectorAll('.chip').forEach(chip => chip.classList.remove('chip--active'));
-    button.classList.add('chip--active');
-    state[group.dataset.filter] = button.dataset.value;
+    if (isActive) {
+      state[filter] = 'all';
+    } else {
+      button.classList.add('chip--active');
+      state[filter] = button.dataset.value;
+    }
     state.expanded = false;
     render();
   });
-  document.getElementById('lesson-search').addEventListener('input', event => { state.query = event.target.value.trim(); state.expanded = false; render(); });
-  showMore.addEventListener('click', () => { state.expanded = !state.expanded; render(); if (!state.expanded) document.getElementById('library-title').scrollIntoView({ behavior: 'smooth' }); });
+  document.getElementById('lesson-search').addEventListener('input', event => {
+    state.query = event.target.value.trim();
+    state.expanded = false;
+    render();
+  });
+  showMore.addEventListener('click', () => {
+    state.expanded = !state.expanded;
+    render();
+    if (!state.expanded) document.getElementById('library-title').scrollIntoView({ behavior: 'smooth' });
+  });
 
   const quickList = document.getElementById('quick-list');
   quickLessonsMock.forEach(item => {
