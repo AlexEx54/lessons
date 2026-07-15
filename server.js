@@ -43,6 +43,84 @@ const ROOT = __dirname;
 
 const clientsByRoom = new Map();
 
+// Временный серверный источник лент главной. Контракт можно сохранить при
+// подключении CMS/БД: клиент уже получает и главную ленту, и рекомендации шага 2 по API.
+const homeContentMock = {
+  libraryLessons: [
+    {
+      id: 'travel-and-transport',
+      level: 'A2',
+      title: 'Путешествия и транспорт',
+      description: 'Лексика и разговорные ситуации для поездок и перемещений.',
+      lessonCount: 12,
+      duration: '30–45 мин.',
+      coverSrc: '/assets/images/lesson-travel.png',
+      isNew: true,
+    },
+    {
+      id: 'work-and-technology',
+      level: 'B1',
+      title: 'Работа и технологии',
+      description: 'Профессиональная лексика и коммуникация в офисе.',
+      lessonCount: 10,
+      duration: '30–45 мин.',
+      coverSrc: '/assets/images/lesson-work-tech.png',
+      isNew: true,
+    },
+    {
+      id: 'everyday-communication',
+      level: 'B2',
+      title: 'Повседневное общение',
+      description: 'Фразы и диалоги на каждый день для уверенного общения.',
+      lessonCount: 15,
+      duration: '30–45 мин.',
+      coverSrc: '/assets/images/lesson-communication.png',
+      isNew: true,
+    },
+    {
+      id: 'discussion-and-argumentation',
+      level: 'C1',
+      title: 'Дискуссии и аргументация',
+      description: 'Развитие навыков обсуждения и выражения мнения.',
+      lessonCount: 8,
+      duration: '30–45 мин.',
+      coverSrc: '/assets/images/lesson-discussion.png',
+      isNew: true,
+    },
+  ],
+  onboardingRecommendations: [
+    {
+      id: 'placement-test',
+      level: 'A1–B2',
+      title: 'Тест на определение уровня',
+      subtitle: 'Placement Test',
+      description: 'Идеальный старт для нового ученика',
+      coverSrc: '/assets/images/recommendation-placement.png',
+    },
+    {
+      id: 'general-english-b1',
+      level: 'B1',
+      title: 'General English B1',
+      subtitle: 'Первый урок',
+      coverSrc: '/assets/images/recommendation-general-english.png',
+    },
+    {
+      id: 'travel-and-transport-b1',
+      level: 'B1–B2',
+      title: 'Travel & Transport',
+      popular: true,
+      coverSrc: '/assets/images/recommendation-travel.png',
+    },
+    {
+      id: 'english-for-it',
+      level: 'B2',
+      title: 'English for IT',
+      subtitle: 'Английский для IT-специалистов',
+      coverSrc: '/assets/images/recommendation-it.png',
+    },
+  ],
+};
+
 function json(res, status, payload) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -190,6 +268,11 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && pathname === '/health') {
     json(res, 200, { ok: true, rooms: clientsByRoom.size });
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/home-content') {
+    json(res, 200, homeContentMock);
     return;
   }
 

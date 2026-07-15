@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const mockLessons = [
+  const fallbackLibraryLessons = [
     {
       id: 'travel-and-transport',
       level: 'A2',
@@ -44,6 +44,38 @@
     },
   ];
 
+  const fallbackRecommendations = [
+    {
+      id: 'placement-test',
+      level: 'A1–B2',
+      title: 'Тест на определение уровня',
+      subtitle: 'Placement Test',
+      description: 'Идеальный старт для нового ученика',
+      coverSrc: '/assets/images/recommendation-placement.png',
+    },
+    {
+      id: 'general-english-b1',
+      level: 'B1',
+      title: 'General English B1',
+      subtitle: 'Первый урок',
+      coverSrc: '/assets/images/recommendation-general-english.png',
+    },
+    {
+      id: 'travel-and-transport-b1',
+      level: 'B1–B2',
+      title: 'Travel & Transport',
+      popular: true,
+      coverSrc: '/assets/images/recommendation-travel.png',
+    },
+    {
+      id: 'english-for-it',
+      level: 'B2',
+      title: 'English for IT',
+      subtitle: 'Английский для IT-специалистов',
+      coverSrc: '/assets/images/recommendation-it.png',
+    },
+  ];
+
   const lessonTrack = document.getElementById('lesson-track');
   const toast = document.getElementById('toast');
   const menuButton = document.getElementById('menu-button');
@@ -55,8 +87,16 @@
   const classNameInput = document.getElementById('class-name-input');
   const classLinkValue = document.getElementById('class-link-value');
   const classNextButton = document.getElementById('class-next-button');
+  const classBackButton = document.getElementById('class-back-button');
+  const attachLessonButton = document.getElementById('attach-lesson-button');
+  const classProgress = document.getElementById('class-progress');
+  const recommendationTrack = document.getElementById('recommendation-track');
+  const recommendationStatus = document.getElementById('recommendation-status');
   let toastTimer = null;
   let modalReturnFocus = null;
+  let recommendationLessons = [];
+  let selectedRecommendationId = null;
+  let homeContentPromise = null;
 
   // Заглушка генератора: позже здесь появится запрос к API и проверка уникальности.
   function generateClassInviteLinkMock(className) {
@@ -92,10 +132,29 @@
     classModal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
     updateClassLink();
+    setClassStep(1);
     window.requestAnimationFrame(() => {
       classNameInput.focus();
       classNameInput.select();
     });
+  }
+
+  function setClassStep(stepNumber) {
+    classDialog.querySelectorAll('[data-class-step]').forEach(step => {
+      const isActive = Number(step.dataset.classStep) === stepNumber;
+      step.hidden = !isActive;
+      step.classList.toggle('class-step--active', isActive);
+    });
+    classProgress.querySelectorAll('.class-progress__step').forEach((step, index) => {
+      const isActive = index + 1 === stepNumber;
+      step.classList.toggle('class-progress__step--active', isActive);
+      if (isActive) step.setAttribute('aria-current', 'step');
+      else step.removeAttribute('aria-current');
+    });
+    classProgress.setAttribute('aria-label', `Шаг ${stepNumber} из 3`);
+    classDialog.setAttribute('aria-labelledby', stepNumber === 1 ? 'class-dialog-title' : 'lesson-picker-title');
+    if (stepNumber === 1) classDialog.setAttribute('aria-describedby', 'class-dialog-description');
+    else classDialog.removeAttribute('aria-describedby');
   }
 
   function closeClassModal() {
@@ -122,12 +181,16 @@
     }
   }
 
-  function showComingSoon(label) {
-    const prefix = label ? `${label}: ` : '';
-    toast.textContent = `${prefix}этот раздел скоро появится.`;
+  function showToast(message) {
+    toast.textContent = message;
     toast.classList.add('toast--visible');
     window.clearTimeout(toastTimer);
     toastTimer = window.setTimeout(() => toast.classList.remove('toast--visible'), 2800);
+  }
+
+  function showComingSoon(label) {
+    const prefix = label ? `${label}: ` : '';
+    showToast(`${prefix}этот раздел скоро появится.`);
   }
 
   function createBadge(text, className) {
@@ -192,6 +255,102 @@
     lessonTrack.replaceChildren(fragment);
   }
 
+  function createRecommendationCard(lesson) {
+    const card = document.createElement('button');
+    card.className = 'recommendation-card';
+    card.type = 'button';
+    card.dataset.lessonId = lesson.id;
+    card.setAttribute('role', 'radio');
+    card.setAttribute('aria-checked', String(lesson.id === selectedRecommendationId));
+    card.setAttribute('aria-label', `${lesson.title}, уровень ${lesson.level}`);
+
+    const cover = document.createElement('span');
+    cover.className = 'recommendation-card__cover';
+    const image = document.createElement('img');
+    image.src = lesson.coverSrc;
+    image.alt = '';
+    image.width = 480;
+    image.height = 270;
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    const level = document.createElement('span');
+    level.className = 'recommendation-card__level';
+    level.textContent = lesson.level;
+    const check = document.createElement('span');
+    check.className = 'recommendation-card__check';
+    check.setAttribute('aria-hidden', 'true');
+    check.textContent = '✓';
+    cover.append(image, level, check);
+
+    const body = document.createElement('span');
+    body.className = 'recommendation-card__body';
+    const title = document.createElement('h3');
+    title.textContent = lesson.title;
+    body.append(title);
+    if (lesson.subtitle) {
+      const subtitle = document.createElement('span');
+      subtitle.className = 'recommendation-card__subtitle';
+      subtitle.textContent = lesson.subtitle;
+      body.append(subtitle);
+    }
+    if (lesson.description) {
+      const description = document.createElement('span');
+      description.className = 'recommendation-card__description';
+      description.textContent = lesson.description;
+      body.append(description);
+    }
+    if (lesson.popular) {
+      const popular = document.createElement('span');
+      popular.className = 'recommendation-card__popular';
+      popular.textContent = '☆ Популярное';
+      body.append(popular);
+    }
+    card.append(cover, body);
+    card.addEventListener('click', () => selectRecommendation(lesson.id));
+    return card;
+  }
+
+  function selectRecommendation(lessonId, shouldFocus = false) {
+    selectedRecommendationId = lessonId;
+    recommendationTrack.querySelectorAll('.recommendation-card').forEach(card => {
+      const isSelected = card.dataset.lessonId === lessonId;
+      card.setAttribute('aria-checked', String(isSelected));
+      if (isSelected && shouldFocus) card.focus();
+    });
+    attachLessonButton.disabled = !selectedRecommendationId;
+  }
+
+  function renderRecommendations(lessons) {
+    recommendationLessons = lessons;
+    selectedRecommendationId = lessons[0]?.id || null;
+    const fragment = document.createDocumentFragment();
+    lessons.forEach(lesson => fragment.append(createRecommendationCard(lesson)));
+    recommendationTrack.replaceChildren(fragment);
+    recommendationStatus.textContent = lessons.length ? '' : 'Пока нет готовых рекомендаций.';
+    attachLessonButton.disabled = !selectedRecommendationId;
+  }
+
+  function loadHomeContent() {
+    if (homeContentPromise) return homeContentPromise;
+    homeContentPromise = fetch('/api/home-content', { headers: { Accept: 'application/json' } })
+      .then(response => {
+        if (!response.ok) throw new Error('Cannot load home content');
+        return response.json();
+      })
+      .catch(() => ({
+        libraryLessons: fallbackLibraryLessons,
+        onboardingRecommendations: fallbackRecommendations,
+      }))
+      .then(content => {
+        renderLessons(Array.isArray(content.libraryLessons) ? content.libraryLessons : fallbackLibraryLessons);
+        renderRecommendations(Array.isArray(content.onboardingRecommendations)
+          ? content.onboardingRecommendations
+          : fallbackRecommendations);
+        return content;
+      });
+    return homeContentPromise;
+  }
+
   function closeNavigation() {
     document.body.classList.remove('nav-open');
     menuButton.setAttribute('aria-expanded', 'false');
@@ -227,7 +386,34 @@
     button.addEventListener('click', closeClassModal);
   });
   classNameInput.addEventListener('input', updateClassLink);
-  classNextButton.addEventListener('click', () => showComingSoon('Выбор урока'));
+  classNextButton.addEventListener('click', () => {
+    if (!classNameInput.value.trim()) {
+      classNameInput.focus();
+      showComingSoon('Введите название класса');
+      return;
+    }
+    setClassStep(2);
+    loadHomeContent().then(() => {
+      recommendationTrack.querySelector('[aria-checked="true"]')?.focus();
+    });
+  });
+  classBackButton.addEventListener('click', () => {
+    setClassStep(1);
+    classNameInput.focus();
+  });
+  attachLessonButton.addEventListener('click', () => {
+    const lesson = recommendationLessons.find(item => item.id === selectedRecommendationId);
+    if (lesson) showToast(`Урок «${lesson.title}» прикреплён. Переход к шагу 3 скоро появится.`);
+  });
+  recommendationTrack.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    const cards = [...recommendationTrack.querySelectorAll('.recommendation-card')];
+    const currentIndex = cards.findIndex(card => card.dataset.lessonId === selectedRecommendationId);
+    const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
+    const nextIndex = (currentIndex + direction + cards.length) % cards.length;
+    event.preventDefault();
+    selectRecommendation(cards[nextIndex].dataset.lessonId, true);
+  });
 
   carouselNext.addEventListener('click', () => {
     const firstCard = lessonTrack.querySelector('.lesson-card');
@@ -236,5 +422,6 @@
     lessonTrack.scrollBy({ left: atEnd ? -lessonTrack.scrollWidth : amount, behavior: 'smooth' });
   });
 
-  renderLessons(mockLessons);
+  renderLessons(fallbackLibraryLessons);
+  loadHomeContent();
 })();
