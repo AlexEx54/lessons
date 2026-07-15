@@ -113,8 +113,15 @@
   const quickList = document.getElementById('quick-list');
   quickLessonsMock.forEach(item => {
     const card = document.createElement('article');
-    card.className = 'quick-card';
-    card.innerHTML = `${item.popular ? '<span class="quick-popular">Популярное</span>' : ''}<img src="${item.image}" alt="" /><div><h3>${item.title}</h3><p>${item.text}</p><button type="button">Выбрать <span aria-hidden="true">›</span></button></div>`;
+    card.className = item.popular ? 'quick-card quick-card--popular' : 'quick-card';
+    card.innerHTML = `
+      ${item.popular ? '<span class="quick-popular">Популярное</span>' : ''}
+      <div class="quick-card__media"><img src="${item.image}" alt="" loading="lazy" decoding="async" /></div>
+      <div class="quick-card__body">
+        <h3>${item.title}</h3>
+        <p>${item.text}</p>
+        <button type="button">Выбрать <span aria-hidden="true">›</span></button>
+      </div>`;
     card.querySelector('button').addEventListener('click', () => showToast(`Выбрано: ${item.title}`));
     quickList.append(card);
   });
