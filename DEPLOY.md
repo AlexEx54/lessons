@@ -1,4 +1,39 @@
-# Global Deploy (Render) + Miro usage
+# Deploy
+
+## VPS
+
+The production VPS uses SSH key authentication. To deploy the current committed version:
+
+```bash
+npm run deploy
+```
+
+The script runs local and remote checks, tests a staging copy on port `8788`, creates
+application and lesson-data backups in `/root/deploy-backups`, restarts the systemd
+service, and rolls back automatically if the new version fails its health checks.
+The five most recent backup pairs are retained by default; older pairs are removed only
+after a successful deployment. Override this with `BACKUP_RETENTION`, for example:
+
+```bash
+BACKUP_RETENTION=10 npm run deploy
+```
+
+Deploying a dirty working tree is blocked by default. To deploy it intentionally:
+
+```bash
+ALLOW_DIRTY=1 npm run deploy
+```
+
+Connection and path settings can be overridden when needed:
+
+```bash
+SERVER_HOST=144.31.76.176 SERVER_PORT=4537 PUBLIC_URL=http://144.31.76.176:8787 npm run deploy
+```
+
+The script never uploads the local `.env` or `data/` directory. Production secrets and
+generated lessons remain on the server.
+
+## Global Deploy (Render) + Miro usage
 
 ## 1) Publish globally
 
