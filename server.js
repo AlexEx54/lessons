@@ -282,7 +282,7 @@ const server = http.createServer(async (req, res) => {
   const pathname = requestUrl.pathname;
 
   if (req.method === 'GET' && (pathname === '/' || pathname === '/index.html')) {
-    await serveAppPage('home', res);
+    serveStatic('/index.html', res);
     return;
   }
 
