@@ -58,12 +58,12 @@ img { display: block; max-width: 100%; }
   top: 70px;
   right: -2%;
   width: 54%;
-  height: 74%;
-  opacity: 0.34;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px);
-  background-size: 90px 90px;
+  height: 59%;
+  opacity: 0.12;
+  background-image: url("/assets/images/landing/notebook-grid.png");
+  background-position: right calc(2vw + 22px) top 34px;
+  background-size: 86px 86px;
+  background-repeat: repeat;
   mask-image: linear-gradient(90deg, transparent, #000 23%, #000);
 }
 
