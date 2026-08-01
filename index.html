@@ -26,7 +26,7 @@
         <nav class="landing-nav" id="landing-nav" aria-label="Основная навигация">
           <button type="button" data-soon="О платформе">О платформе</button>
           <a href="/library.html">Витрина уроков</a>
-          <button type="button" data-soon="Тарифы">Тарифы</button>
+          <a href="#pricing">Тарифы</a>
         </nav>
 
         <div class="landing-actions">
@@ -271,6 +271,67 @@
               loading="lazy"
               decoding="async"
             />
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="pricing" id="pricing" aria-labelledby="pricing-title">
+      <div class="pricing__inner">
+        <h2 id="pricing-title">Тарифы</h2>
+
+        <div class="pricing__cards">
+          <article class="pricing-card">
+            <div class="pricing-card__body">
+              <p class="pricing-card__name">Базовый</p>
+              <p class="pricing-card__price">Бесплатно</p>
+              <p class="pricing-card__description">Попробуйте платформу и создайте первые уроки бесплатно.</p>
+              <ul class="pricing-card__features">
+                <li>Доступ к 3 демо-урокам</li>
+                <li>До 2 классов</li>
+                <li>Все интерактивные функции</li>
+              </ul>
+            </div>
+            <div class="pricing-card__footer">
+              <p class="pricing-card__total"><strong>0 ₽</strong><span>/ мес.</span></p>
+              <a class="pricing-card__button" href="/library.html">Начать бесплатно</a>
+            </div>
+          </article>
+
+          <article class="pricing-card pricing-card--featured">
+            <span class="pricing-card__badge">Популярно</span>
+            <div class="pricing-card__body">
+              <p class="pricing-card__name">Премиум</p>
+              <p class="pricing-card__price"><strong>990 ₽</strong><span>/ мес.</span></p>
+              <p class="pricing-card__description">Всё необходимое для эффективной и увлекательной работы.</p>
+              <ul class="pricing-card__features">
+                <li>Полный доступ ко всем урокам</li>
+                <li>Безлимитное количество классов</li>
+                <li>Интерактивные задания и автопроверка</li>
+                <li>Приоритетная поддержка</li>
+              </ul>
+            </div>
+            <div class="pricing-card__footer">
+              <button class="pricing-card__button pricing-card__button--primary" type="button" data-soon="Тариф Премиум">Выбрать Премиум</button>
+              <p class="pricing-card__note">7 дней бесплатно, затем 990 ₽/мес.</p>
+            </div>
+          </article>
+
+          <article class="pricing-card">
+            <div class="pricing-card__body">
+              <p class="pricing-card__name">Годовой</p>
+              <p class="pricing-card__price"><strong>8 990 ₽</strong><span>/ год</span></p>
+              <p class="pricing-card__description">Максимальная выгода при годовой подписке.</p>
+              <ul class="pricing-card__features">
+                <li>Все возможности тарифа Премиум</li>
+                <li>3 месяца в подарок</li>
+                <li>Выгоднее на 24%</li>
+              </ul>
+            </div>
+            <div class="pricing-card__footer">
+              <button class="pricing-card__button" type="button" data-soon="Годовой тариф">Выбрать годовой</button>
+              <p class="pricing-card__note">Экономия 2 890 ₽</p>
+            </div>
           </article>
         </div>
       </div>
