@@ -33,19 +33,9 @@ SERVER_HOST=144.31.76.176 SERVER_PORT=4537 PUBLIC_URL=http://144.31.76.176:8787 
 The script never uploads the local `.env` or `data/` directory. Production secrets and
 generated lessons remain on the server.
 
-## Global Deploy (Render) + Miro usage
+## Environment
 
-## 1) Publish globally
-
-1. Upload this folder to GitHub.
-2. Open [Render](https://render.com) and create a new **Web Service** from that repo.
-3. Render should pick `render.yaml` automatically.
-4. Wait until deploy is green and copy your public URL, for example:
-   - `https://english-mood-lab.onrender.com`
-
-## 2) Generator environment
-
-Set these environment variables in Render:
+Set these environment variables in the production `.env` on the VPS:
 
 - `OPENROUTER_API_KEY`: your OpenRouter API key.
 - `TEACHER_ADMIN_TOKEN`: password/token used by the teacher UI for generation and deletion.
@@ -57,13 +47,10 @@ Set these environment variables in Render:
 Open `/` for the teacher dashboard. Open `/generator` to generate lessons and manage
 the generated lesson list.
 
-Important for Render: generated lessons are saved as files. Add a persistent disk and point
-`LESSONS_DIR` to it if lessons must survive redeploys, rebuilds, or instance replacement.
-
 For local development, copy `.env.example` to `.env` and replace `OPENROUTER_API_KEY`
 with your OpenRouter key. The server loads `.env` automatically on start.
 
-## 3) Teacher and student links
+## Teacher and student links
 
 - Teacher link:
   - `https://YOUR-DOMAIN/lesson/LESSON_ID?role=teacher&room=a2-lesson`
@@ -74,7 +61,7 @@ Room value can be any code (for example, `maria-friday`).
 
 The generator dashboard creates teacher/student links automatically.
 
-## 4) How to run lesson
+## How to run lesson
 
 1. Open teacher link on your device.
 2. Open student link on student device.
@@ -86,7 +73,7 @@ The generator dashboard creates teacher/student links automatically.
    - student sees teacher cursor in real time.
    - teacher still sees student cursor in real time.
 
-## 5) In Miro
+## In Miro
 
 1. On Miro board choose embed website option.
 2. Paste teacher or student link.
@@ -95,5 +82,4 @@ The generator dashboard creates teacher/student links automatically.
 ## Notes
 
 - Realtime sync is in-memory (single app instance). Keep one running web instance for one class room namespace.
-- Free plan can sleep after inactivity; first open may take some seconds.
-- Generated lesson storage is file-based. Without a persistent disk on Render, generated files are not durable.
+- Generated lesson storage is file-based; production lessons remain on the VPS.
