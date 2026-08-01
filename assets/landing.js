@@ -8,19 +8,19 @@
 
   const showcasePages = [
     [
-      { title: 'Future Careers', age: '15–18 лет', level: 'B1', duration: '45 мин', description: 'Обсуждаем профессии будущего и навыки, которые важны завтра.', image: '/assets/images/lesson-careers.png', skills: ['Vocabulary', 'Speaking'] },
-      { title: 'My Superhero', age: '9–11 лет', level: 'A1', duration: '30–45 мин', description: 'Говорим о героях и развиваем словарный запас.', image: '/assets/images/lesson-superhero.png', skills: ['Vocabulary', 'Grammar', 'Speaking'] },
-      { title: 'Travel & Transport', age: '12–14 лет', level: 'A2', duration: '30–45 мин', description: 'Транспорт, путешествия и полезные фразы.', image: '/assets/images/lesson-travel.png', skills: ['Vocabulary', 'Speaking'] },
+      { title: 'Future Careers', age: '15–18 лет', level: 'B1', duration: '50–60 мин', description: 'Обсуждаем профессии будущего и навыки, которые важны завтра.', image: '/assets/images/lesson-careers.png', skills: ['Vocabulary', 'Speaking'] },
+      { title: 'My Superhero', age: '9–11 лет', level: 'A1', duration: '50–60 мин', description: 'Говорим о героях и развиваем словарный запас.', image: '/assets/images/lesson-superhero.png', skills: ['Vocabulary', 'Grammar', 'Speaking'] },
+      { title: 'Travel & Transport', age: '12–14 лет', level: 'A2', duration: '50–60 мин', description: 'Транспорт, путешествия и полезные фразы.', image: '/assets/images/lesson-travel.png', skills: ['Vocabulary', 'Speaking'] },
     ],
     [
-      { title: 'Animals and Their Superpowers', age: '9–11 лет', level: 'A1', duration: '30–45 мин', description: 'Изучаем животных и их удивительные способности.', image: '/assets/images/lesson-animals.png', skills: ['Vocabulary', 'Listening'] },
-      { title: 'My Perfect Weekend', age: '12–14 лет', level: 'A2', duration: '30–45 мин', description: 'Рассказываем о выходных и любимых занятиях.', image: '/assets/images/lesson-weekend.png', skills: ['Speaking', 'Writing'] },
-      { title: 'Music and Mood', age: '12–14 лет', level: 'A2', duration: '30–45 мин', description: 'Музыка, эмоции и выражение своего мнения.', image: '/assets/images/lesson-music.png', skills: ['Listening', 'Speaking'] },
+      { title: 'Animals and Their Superpowers', age: '9–11 лет', level: 'A1', duration: '50–60 мин', description: 'Изучаем животных и их удивительные способности.', image: '/assets/images/lesson-animals.png', skills: ['Vocabulary', 'Listening'] },
+      { title: 'My Perfect Weekend', age: '12–14 лет', level: 'A2', duration: '50–60 мин', description: 'Рассказываем о выходных и любимых занятиях.', image: '/assets/images/lesson-weekend.png', skills: ['Speaking', 'Writing'] },
+      { title: 'Music and Mood', age: '12–14 лет', level: 'A2', duration: '50–60 мин', description: 'Музыка, эмоции и выражение своего мнения.', image: '/assets/images/lesson-music.png', skills: ['Listening', 'Speaking'] },
     ],
     [
-      { title: 'Working in Tech', age: '15–18 лет', level: 'B1', duration: '45 мин', description: 'Работа в IT: навыки, команды и современные проекты.', image: '/assets/images/lesson-work-tech.png', skills: ['Listening', 'Speaking'] },
-      { title: 'Global Issues', age: '15–18 лет', level: 'B2', duration: '45 мин', description: 'Обсуждаем важные мировые проблемы на английском.', image: '/assets/images/lesson-global.png', skills: ['Listening', 'Speaking'] },
-      { title: 'Everyday Communication', age: '12–14 лет', level: 'B1', duration: '30–45 мин', description: 'Учимся уверенно общаться каждый день.', image: '/assets/images/lesson-communication.png', skills: ['Speaking', 'Grammar'] },
+      { title: 'Working in Tech', age: '15–18 лет', level: 'B1', duration: '50–60 мин', description: 'Работа в IT: навыки, команды и современные проекты.', image: '/assets/images/lesson-work-tech.png', skills: ['Listening', 'Speaking'] },
+      { title: 'Global Issues', age: '15–18 лет', level: 'B2', duration: '50–60 мин', description: 'Обсуждаем важные мировые проблемы на английском.', image: '/assets/images/lesson-global.png', skills: ['Listening', 'Speaking'] },
+      { title: 'Everyday Communication', age: '12–14 лет', level: 'B1', duration: '50–60 мин', description: 'Учимся уверенно общаться каждый день.', image: '/assets/images/lesson-communication.png', skills: ['Speaking', 'Grammar'] },
     ],
   ];
 
