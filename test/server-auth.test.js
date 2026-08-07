@@ -59,6 +59,9 @@ test('login protects teacher pages and exposes the current profile', async t => 
 
   const publicLanding = await fetch(`${baseUrl}/`);
   assert.equal(publicLanding.status, 200);
+  const landingHtml = await publicLanding.text();
+  assert.match(landingHtml, /data-auth-form="register"/);
+  assert.match(landingHtml, /data-auth-form="login"/);
   const publicLibrary = await fetch(`${baseUrl}/library.html`);
   assert.equal(publicLibrary.status, 200);
   const hiddenEnvironment = await fetch(`${baseUrl}/.env`);
@@ -69,6 +72,73 @@ test('login protects teacher pages and exposes the current profile', async t => 
   assert.equal(appWithoutSession.headers.get('location'), '/login?next=%2Fapp');
   const protectedGeneratorApi = await fetch(`${baseUrl}/api/generator/config`);
   assert.equal(protectedGeneratorApi.status, 401);
+
+  const invalidRegistrations = [
+    { displayName: '', email: 'new@example.com', password: 'valid-password', termsAccepted: true },
+    { displayName: 'x'.repeat(81), email: 'new@example.com', password: 'valid-password', termsAccepted: true },
+    { displayName: 'Новый преподаватель', email: 'invalid-email', password: 'valid-password', termsAccepted: true },
+    { displayName: 'Новый преподаватель', email: 'new@example.com', password: 'short', termsAccepted: true },
+    { displayName: 'Новый преподаватель', email: 'new@example.com', password: 'valid-password', termsAccepted: false },
+  ];
+  for (const registrationBody of invalidRegistrations) {
+    const response = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(registrationBody),
+    });
+    assert.equal(response.status, 400);
+  }
+
+  const registration = await fetch(`${baseUrl}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      displayName: '  Новый преподаватель  ',
+      email: '  New@Example.COM ',
+      password: 'valid-password',
+      termsAccepted: true,
+    }),
+  });
+  assert.equal(registration.status, 201);
+  const registeredUser = (await registration.json()).user;
+  assert.equal(registeredUser.displayName, 'Новый преподаватель');
+  assert.equal(registeredUser.email, 'new@example.com');
+  const registrationCookie = registration.headers.get('set-cookie').split(';')[0];
+  assert.match(registrationCookie, /^teach_session=/);
+
+  const registeredProfile = await fetch(`${baseUrl}/api/auth/me`, {
+    headers: { Cookie: registrationCookie },
+  });
+  assert.equal(registeredProfile.status, 200);
+  assert.equal((await registeredProfile.json()).user.id, registeredUser.id);
+
+  const registeredApp = await fetch(`${baseUrl}/app`, { headers: { Cookie: registrationCookie } });
+  assert.equal(registeredApp.status, 200);
+  assert.match(await registeredApp.text(), /Новый преподаватель/);
+
+  const duplicateRegistration = await fetch(`${baseUrl}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      displayName: 'Дубликат',
+      email: 'NEW@example.com',
+      password: 'another-password',
+      termsAccepted: true,
+    }),
+  });
+  assert.equal(duplicateRegistration.status, 409);
+  assert.equal(duplicateRegistration.headers.get('set-cookie'), null);
+
+  const registrationDatabase = openDatabase(databasePath);
+  assert.equal(
+    registrationDatabase.prepare('SELECT COUNT(*) AS count FROM users WHERE email = ?').get('new@example.com').count,
+    1,
+  );
+  assert.equal(
+    registrationDatabase.prepare('SELECT COUNT(*) AS count FROM sessions WHERE user_id = ?').get(registeredUser.id).count,
+    1,
+  );
+  registrationDatabase.close();
 
   const invalidLogin = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

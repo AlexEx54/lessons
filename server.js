@@ -16,9 +16,9 @@ const {
   sessionCookie,
 } = require('./lib/auth.js');
 const { getDatabase } = require('./lib/db.js');
-const { verifyPassword } = require('./lib/password.js');
+const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
-const { findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
+const { createUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
 const {
   createLessonId,
   deleteLesson,
@@ -38,6 +38,11 @@ const ROOT = __dirname;
 const database = getDatabase();
 
 const clientsByRoom = new Map();
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_DISPLAY_NAME_LENGTH = 80;
+const MAX_EMAIL_LENGTH = 254;
+const MIN_PASSWORD_LENGTH = 10;
+const MAX_PASSWORD_LENGTH = 256;
 
 // Временный серверный источник лент главной. Контракт можно сохранить при
 // подключении CMS/БД: клиент уже получает и главную ленту, и рекомендации шага 2 по API.
@@ -296,7 +301,7 @@ const server = http.createServer(async (req, res) => {
 
     const email = normalizeEmail(body.email);
     const password = typeof body.password === 'string' ? body.password : '';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !password) {
+    if (!EMAIL_PATTERN.test(email) || email.length > MAX_EMAIL_LENGTH || !password) {
       json(res, 400, { error: 'Укажите корректные email и пароль.' });
       return;
     }
@@ -312,6 +317,66 @@ const server = http.createServer(async (req, res) => {
 
     const session = createSession(storedUser.id, database);
     json(res, 200, { user: publicUser(storedUser) }, {
+      'Set-Cookie': sessionCookie(session.token, session.expiresAt),
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/auth/register') {
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (error) {
+      json(res, 400, { error: error.message || 'Некорректный запрос.' });
+      return;
+    }
+
+    const displayName = typeof body.displayName === 'string' ? body.displayName.trim() : '';
+    const email = normalizeEmail(body.email);
+    const password = typeof body.password === 'string' ? body.password : '';
+
+    if (!displayName || displayName.length > MAX_DISPLAY_NAME_LENGTH) {
+      json(res, 400, { error: `Имя должно содержать от 1 до ${MAX_DISPLAY_NAME_LENGTH} символов.` });
+      return;
+    }
+    if (!EMAIL_PATTERN.test(email) || email.length > MAX_EMAIL_LENGTH) {
+      json(res, 400, { error: 'Укажите корректный email.' });
+      return;
+    }
+    if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+      json(res, 400, {
+        error: `Пароль должен содержать от ${MIN_PASSWORD_LENGTH} до ${MAX_PASSWORD_LENGTH} символов.`,
+      });
+      return;
+    }
+    if (body.termsAccepted !== true) {
+      json(res, 400, { error: 'Необходимо принять условия регистрации.' });
+      return;
+    }
+    if (findUserByEmail(email, database)) {
+      json(res, 409, { error: 'Аккаунт с таким email уже существует.' });
+      return;
+    }
+
+    let user;
+    try {
+      user = createUser({
+        displayName,
+        email,
+        passwordHash: await hashPassword(password),
+      }, database);
+    } catch (error) {
+      if (error.code === 'ERR_SQLITE_CONSTRAINT_UNIQUE' || /UNIQUE constraint failed/i.test(error.message)) {
+        json(res, 409, { error: 'Аккаунт с таким email уже существует.' });
+        return;
+      }
+      console.error('Cannot register user:', error);
+      json(res, 500, { error: 'Не удалось создать аккаунт.' });
+      return;
+    }
+
+    const session = createSession(user.id, database);
+    json(res, 201, { user }, {
       'Set-Cookie': sessionCookie(session.token, session.expiresAt),
     });
     return;

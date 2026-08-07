@@ -1961,6 +1961,17 @@ body.auth-modal-open { overflow: hidden; }
 .auth-form__forgot:hover,
 .auth-form__consent button:hover { text-decoration: underline; }
 
+.auth-form__error {
+  margin: -5px 0;
+  color: #bc2341;
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+
+.auth-form__error:empty { display: none; }
+.auth-form__control:has(input[aria-invalid="true"]) { border-color: #cf3553; box-shadow: 0 0 0 3px rgba(207, 53, 83, 0.1); }
+
 .auth-form__submit {
   min-height: 73px;
   border-radius: 12px;
@@ -1973,6 +1984,7 @@ body.auth-modal-open { overflow: hidden; }
 }
 
 .auth-form__submit:hover { box-shadow: 0 13px 28px rgba(75, 31, 235, 0.25); transform: translateY(-1px); }
+.auth-form__submit:disabled { cursor: wait; opacity: 0.7; transform: none; box-shadow: none; }
 
 .auth-form__consent {
   display: grid;

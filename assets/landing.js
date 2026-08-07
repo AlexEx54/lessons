@@ -11,6 +11,7 @@
     login: document.getElementById('auth-login-panel'),
     register: document.getElementById('auth-register-panel'),
   };
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   let authReturnFocus = null;
   let toastTimer = null;
 
@@ -146,6 +147,111 @@
     authReturnFocus?.focus();
   }
 
+  function clearAuthError(form) {
+    const errorBox = form.querySelector('.auth-form__error');
+    if (errorBox) errorBox.textContent = '';
+    form.querySelectorAll('[aria-invalid="true"]').forEach(input => input.removeAttribute('aria-invalid'));
+  }
+
+  function showAuthError(form, message, input) {
+    const errorBox = form.querySelector('.auth-form__error');
+    if (errorBox) errorBox.textContent = message;
+    if (input) {
+      input.setAttribute('aria-invalid', 'true');
+      input.focus();
+    }
+  }
+
+  function loginRequest(form) {
+    const emailInput = form.elements['login-email'];
+    const passwordInput = form.elements['login-password'];
+    const email = emailInput.value.trim();
+
+    if (!EMAIL_PATTERN.test(email) || email.length > 254) {
+      return { error: 'Укажите корректный email.', input: emailInput };
+    }
+    if (!passwordInput.value) {
+      return { error: 'Введите пароль.', input: passwordInput };
+    }
+    return {
+      endpoint: '/api/auth/login',
+      body: { email, password: passwordInput.value },
+      pendingLabel: 'Входим…',
+    };
+  }
+
+  function registrationRequest(form) {
+    const nameInput = form.elements['register-name'];
+    const emailInput = form.elements['register-email'];
+    const passwordInput = form.elements['register-password'];
+    const termsInput = form.elements.terms;
+    const displayName = nameInput.value.trim();
+    const email = emailInput.value.trim();
+
+    if (!displayName || displayName.length > 80) {
+      return { error: 'Имя должно содержать от 1 до 80 символов.', input: nameInput };
+    }
+    if (!EMAIL_PATTERN.test(email) || email.length > 254) {
+      return { error: 'Укажите корректный email.', input: emailInput };
+    }
+    if (passwordInput.value.length < 10 || passwordInput.value.length > 256) {
+      return { error: 'Пароль должен содержать от 10 до 256 символов.', input: passwordInput };
+    }
+    if (!termsInput.checked) {
+      return { error: 'Необходимо принять условия регистрации.', input: termsInput };
+    }
+    return {
+      endpoint: '/api/auth/register',
+      body: { displayName, email, password: passwordInput.value, termsAccepted: true },
+      pendingLabel: 'Создаём аккаунт…',
+      emailInput,
+    };
+  }
+
+  async function submitAuthForm(form) {
+    if (form.dataset.submitting === 'true') return;
+    clearAuthError(form);
+
+    const request = form.dataset.authForm === 'register'
+      ? registrationRequest(form)
+      : loginRequest(form);
+    if (request.error) {
+      showAuthError(form, request.error, request.input);
+      return;
+    }
+
+    const submitButton = form.querySelector('.auth-form__submit');
+    const idleLabel = submitButton.textContent;
+    form.dataset.submitting = 'true';
+    submitButton.disabled = true;
+    submitButton.textContent = request.pendingLabel;
+    let completed = false;
+
+    try {
+      const response = await fetch(request.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(request.body),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(payload.error || 'Не удалось выполнить запрос.');
+        error.input = response.status === 409 ? request.emailInput : null;
+        throw error;
+      }
+      completed = true;
+      window.location.assign('/app');
+    } catch (error) {
+      showAuthError(form, error.message || 'Не удалось выполнить запрос.', error.input);
+    } finally {
+      if (!completed) {
+        delete form.dataset.submitting;
+        submitButton.disabled = false;
+        submitButton.textContent = idleLabel;
+      }
+    }
+  }
+
   menuToggle.addEventListener('click', () => setMenu(!body.classList.contains('nav-open')));
 
   document.querySelectorAll('[data-soon]').forEach(button => {
@@ -182,7 +288,15 @@
   });
 
   authModal?.querySelectorAll('[data-auth-form]').forEach(form => {
-    form.addEventListener('submit', event => event.preventDefault());
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      submitAuthForm(form);
+    });
+    form.addEventListener('input', event => {
+      event.target.removeAttribute('aria-invalid');
+      const errorBox = form.querySelector('.auth-form__error');
+      if (errorBox) errorBox.textContent = '';
+    });
   });
 
   authModal?.querySelectorAll('.auth-form__password-toggle').forEach(button => {

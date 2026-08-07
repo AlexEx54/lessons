@@ -1,7 +1,11 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const { renderAppPage } = require('../lib/app-shell.js');
+
+const ROOT = path.join(__dirname, '..');
 
 function activeNavigationItems(html) {
   return [...html.matchAll(/<a class="nav-item nav-item--active" href="([^"]+)" aria-current="page">/g)]
@@ -41,4 +45,10 @@ test('library renders inside the shared shell with one active navigation item', 
 
 test('renderer rejects unknown application pages', async () => {
   await assert.rejects(renderAppPage('unknown'), /Unknown app page/);
+});
+
+test('logout returns the teacher to the public landing page', () => {
+  const appShellScript = fs.readFileSync(path.join(ROOT, 'assets', 'app-shell.js'), 'utf8');
+  assert.match(appShellScript, /window\.location\.assign\('\/'\)/);
+  assert.doesNotMatch(appShellScript, /window\.location\.assign\('\/login'\)/);
 });
