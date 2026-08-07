@@ -18,6 +18,7 @@ test('home renders inside the shared shell with one active navigation item', asy
   assert.match(html, /<title>EasyClass — кабинет преподавателя<\/title>/);
   assert.match(html, /href="\/assets\/app-shell\.css"/);
   assert.match(html, /href="\/assets\/home\.css"/);
+  assert.match(html, /family=Inter:wght@400;500;600;700;800/);
   assert.match(html, /src="\/assets\/app-shell\.js"/);
   assert.match(html, /src="\/assets\/home\.js"/);
   assert.deepEqual(activeNavigationItems(html), ['/app']);
