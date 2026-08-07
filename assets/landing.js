@@ -4,6 +4,14 @@
   const body = document.body;
   const menuToggle = document.getElementById('menu-toggle');
   const toast = document.getElementById('landing-toast');
+  const authModal = document.getElementById('auth-modal');
+  const authDialog = authModal?.querySelector('.auth-modal__dialog');
+  const authTabs = [...(authModal?.querySelectorAll('[data-auth-tab]') || [])];
+  const authPanels = {
+    login: document.getElementById('auth-login-panel'),
+    register: document.getElementById('auth-register-panel'),
+  };
+  let authReturnFocus = null;
   let toastTimer = null;
 
   const showcasePages = [
@@ -105,6 +113,39 @@
     toastTimer = window.setTimeout(() => toast.classList.remove('landing-toast--visible'), 2400);
   }
 
+  function setAuthTab(name, moveFocus = false) {
+    const activeName = name === 'register' ? 'register' : 'login';
+    authTabs.forEach(tab => {
+      const active = tab.dataset.authTab === activeName;
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+      if (active && moveFocus) tab.focus();
+    });
+    Object.entries(authPanels).forEach(([panelName, panel]) => {
+      if (panel) panel.hidden = panelName !== activeName;
+    });
+  }
+
+  function openAuth(name) {
+    if (!authModal) return;
+    authReturnFocus = document.activeElement;
+    setAuthTab(name);
+    authModal.hidden = false;
+    body.classList.add('auth-modal-open');
+    window.requestAnimationFrame(() => {
+      authModal.classList.add('auth-modal--visible');
+      authPanels[name]?.querySelector('[data-auth-initial]')?.focus();
+    });
+  }
+
+  function closeAuth() {
+    if (!authModal || authModal.hidden) return;
+    authModal.classList.remove('auth-modal--visible');
+    body.classList.remove('auth-modal-open');
+    window.setTimeout(() => { authModal.hidden = true; }, 180);
+    authReturnFocus?.focus();
+  }
+
   menuToggle.addEventListener('click', () => setMenu(!body.classList.contains('nav-open')));
 
   document.querySelectorAll('[data-soon]').forEach(button => {
@@ -118,8 +159,61 @@
     link.addEventListener('click', () => setMenu(false));
   });
 
+  document.querySelectorAll('[data-auth-open]').forEach(button => {
+    button.addEventListener('click', () => {
+      setMenu(false);
+      openAuth(button.dataset.authOpen);
+    });
+  });
+
+  authTabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => setAuthTab(tab.dataset.authTab));
+    tab.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+      event.preventDefault();
+      const direction = event.key === 'ArrowRight' ? 1 : -1;
+      const nextTab = authTabs[(index + direction + authTabs.length) % authTabs.length];
+      setAuthTab(nextTab.dataset.authTab, true);
+    });
+  });
+
+  authModal?.querySelectorAll('[data-auth-close]').forEach(button => {
+    button.addEventListener('click', closeAuth);
+  });
+
+  authModal?.querySelectorAll('[data-auth-form]').forEach(form => {
+    form.addEventListener('submit', event => event.preventDefault());
+  });
+
+  authModal?.querySelectorAll('.auth-form__password-toggle').forEach(button => {
+    button.addEventListener('click', () => {
+      const input = button.closest('.auth-form__control').querySelector('input');
+      const reveal = input.type === 'password';
+      input.type = reveal ? 'text' : 'password';
+      button.setAttribute('aria-pressed', String(reveal));
+      button.setAttribute('aria-label', reveal ? 'Скрыть пароль' : 'Показать пароль');
+    });
+  });
+
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') setMenu(false);
+    if (event.key === 'Escape') {
+      if (!authModal?.hidden) closeAuth();
+      else setMenu(false);
+    }
+
+    if (event.key === 'Tab' && !authModal?.hidden) {
+      const focusable = [...authDialog.querySelectorAll('button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden])')]
+        .filter(element => element.offsetParent !== null);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
   });
 
   window.matchMedia('(min-width: 861px)').addEventListener('change', event => {

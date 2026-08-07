@@ -30,8 +30,8 @@
         </nav>
 
         <div class="landing-actions">
-          <a class="login-link" href="/login">Войти</a>
-          <a class="header-cta" href="/library.html">Начать бесплатно</a>
+          <button class="login-link" type="button" data-auth-open="login">Войти</button>
+          <button class="header-cta" type="button" data-auth-open="register">Начать бесплатно</button>
         </div>
       </header>
 
@@ -39,10 +39,10 @@
         <div class="hero__copy">
           <h1 id="hero-title">EasyClass —<br />уроки идут<br />как по маслу</h1>
           <p>Готовые интерактивные уроки<br />английского в один клик</p>
-          <a class="hero-cta" href="/library.html">
+          <button class="hero-cta" type="button" data-auth-open="register">
             <span>Попробовать бесплатно</span>
             <span aria-hidden="true">→</span>
-          </a>
+          </button>
         </div>
 
         <div class="hero__visual" aria-hidden="true">
@@ -404,12 +404,12 @@
           <p>Без долгой подготовки. Без скачивания PDF.<br />Без скучных учебников.</p>
 
           <div class="final-cta__actions">
-            <a class="final-cta__primary" href="/library.html">
+            <button class="final-cta__primary" type="button" data-auth-open="register">
               <svg class="final-cta__button-star" width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
                 <path d="M11 1.2L13.35 8.65L20.8 11L13.35 13.35L11 20.8L8.65 13.35L1.2 11L8.65 8.65L11 1.2Z" fill="currentColor"/>
               </svg>
               Создать первый урок бесплатно
-            </a>
+            </button>
             <a class="final-cta__secondary" href="/library.html">
               Посмотреть витрину уроков
               <span aria-hidden="true">→</span>
@@ -454,6 +454,91 @@
       </div>
     </div>
   </footer>
+
+  <div class="auth-modal" id="auth-modal" hidden>
+    <div class="auth-modal__backdrop" data-auth-close aria-hidden="true"></div>
+    <section class="auth-modal__dialog" role="dialog" aria-modal="true" aria-label="Вход или регистрация">
+      <header class="auth-modal__header">
+        <div class="auth-modal__tabs" role="tablist" aria-label="Выберите действие">
+          <button class="auth-modal__tab" id="auth-register-tab" type="button" role="tab" aria-selected="false" aria-controls="auth-register-panel" data-auth-tab="register">Регистрация</button>
+          <button class="auth-modal__tab" id="auth-login-tab" type="button" role="tab" aria-selected="true" aria-controls="auth-login-panel" data-auth-tab="login">Вход</button>
+        </div>
+        <button class="auth-modal__close" type="button" data-auth-close aria-label="Закрыть окно">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg>
+        </button>
+      </header>
+
+      <div class="auth-modal__panel" id="auth-login-panel" role="tabpanel" aria-labelledby="auth-login-tab">
+        <h2>С возвращением!</h2>
+        <p class="auth-modal__intro">Войдите в аккаунт, чтобы продолжить работу.</p>
+
+        <form class="auth-form" data-auth-form novalidate>
+          <label class="auth-form__field">
+            <span>Email</span>
+            <span class="auth-form__control">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h17v12h-17zM4 7l8 6 8-6" /></svg>
+              <input type="email" name="login-email" placeholder="Введите ваш email" autocomplete="username" data-auth-initial />
+            </span>
+          </label>
+
+          <label class="auth-form__field">
+            <span>Пароль</span>
+            <span class="auth-form__control">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 10h11v10h-11zM8.5 10V7.5a3.5 3.5 0 017 0V10" /></svg>
+              <input type="password" name="login-password" placeholder="Введите ваш пароль" autocomplete="current-password" />
+              <button class="auth-form__password-toggle" type="button" aria-label="Показать пароль" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5 9.5-5 9.5 5 9.5 5-3.5 5-9.5 5-9.5-5-9.5-5z" /><circle cx="12" cy="12" r="2.5" /></svg>
+              </button>
+            </span>
+          </label>
+
+          <button class="auth-form__forgot" type="button">Забыли пароль?</button>
+          <button class="auth-form__submit" type="submit">Войти</button>
+        </form>
+      </div>
+
+      <div class="auth-modal__panel" id="auth-register-panel" role="tabpanel" aria-labelledby="auth-register-tab" hidden>
+        <h2>Создать аккаунт</h2>
+        <p class="auth-modal__intro">Начните бесплатно и получите доступ<br />к готовым урокам уже сейчас.</p>
+
+        <form class="auth-form auth-form--register" data-auth-form novalidate>
+          <label class="auth-form__field">
+            <span>Имя</span>
+            <span class="auth-form__control">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5.5 20v-2.2c0-3 2.6-5.3 6.5-5.3s6.5 2.3 6.5 5.3V20z" /></svg>
+              <input type="text" name="register-name" placeholder="Введите ваше имя" autocomplete="name" data-auth-initial />
+            </span>
+          </label>
+
+          <label class="auth-form__field">
+            <span>Email</span>
+            <span class="auth-form__control">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h17v12h-17zM4 7l8 6 8-6" /></svg>
+              <input type="email" name="register-email" placeholder="Введите ваш email" autocomplete="email" />
+            </span>
+          </label>
+
+          <label class="auth-form__field">
+            <span>Пароль</span>
+            <span class="auth-form__control">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 10h11v10h-11zM8.5 10V7.5a3.5 3.5 0 017 0V10" /></svg>
+              <input type="password" name="register-password" placeholder="Придумайте пароль" autocomplete="new-password" />
+              <button class="auth-form__password-toggle" type="button" aria-label="Показать пароль" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5 9.5-5 9.5 5 9.5 5-3.5 5-9.5 5-9.5-5-9.5-5z" /><circle cx="12" cy="12" r="2.5" /></svg>
+              </button>
+            </span>
+          </label>
+
+          <button class="auth-form__submit" type="submit">Зарегистрироваться</button>
+
+          <label class="auth-form__consent">
+            <input type="checkbox" name="terms" />
+            <span>Нажимая кнопку «Зарегистрироваться»,<br />я принимаю условия <button type="button">Пользовательского соглашения</button><br />и даю согласие на обработку персональных данных<br />в соответствии с <button type="button">Политикой конфиденциальности.</button></span>
+          </label>
+        </form>
+      </div>
+    </section>
+  </div>
 
   <div class="landing-toast" id="landing-toast" role="status" aria-live="polite"></div>
   <script src="/assets/landing.js" defer></script>
