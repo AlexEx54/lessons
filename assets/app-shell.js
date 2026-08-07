@@ -8,6 +8,12 @@
   const navOverlay = document.getElementById('nav-overlay');
   const toast = document.getElementById('toast');
   const mobileMedia = window.matchMedia(MOBILE_QUERY);
+  const profileButton = document.getElementById('profile-button');
+  const mobileProfileButton = document.getElementById('mobile-profile-button');
+  const profileMenu = document.getElementById('profile-menu');
+  const mobileProfileMenu = document.getElementById('mobile-profile-menu');
+  const logoutButton = document.getElementById('logout-button');
+  const mobileLogoutButton = document.getElementById('mobile-logout-button');
   let toastTimer = null;
 
   function showToast(message) {
@@ -75,6 +81,34 @@
     setMobileAccessibility(false);
   }
 
+  function closeProfileMenu() {
+    if (profileMenu && profileButton) {
+      profileMenu.hidden = true;
+      profileButton.setAttribute('aria-expanded', 'false');
+    }
+    if (mobileProfileMenu && mobileProfileButton) {
+      mobileProfileMenu.hidden = true;
+      mobileProfileButton.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  function toggleProfileMenu() {
+    if (!profileMenu || !profileButton) return;
+    const willOpen = profileMenu.hidden;
+    profileMenu.hidden = !willOpen;
+    profileButton.setAttribute('aria-expanded', String(willOpen));
+  }
+
+  async function logout() {
+    if (logoutButton) logoutButton.disabled = true;
+    if (mobileLogoutButton) mobileLogoutButton.disabled = true;
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+      window.location.assign('/login');
+    }
+  }
+
   menuButton.addEventListener('click', toggleNavigation);
   navOverlay.addEventListener('click', () => closeNavigation());
   sidebar.querySelectorAll('a[href]').forEach(link => {
@@ -103,6 +137,23 @@
   });
 
   mobileMedia.addEventListener('change', syncViewportState);
+  profileButton?.addEventListener('click', event => {
+    event.stopPropagation();
+    toggleProfileMenu();
+  });
+  mobileProfileButton?.addEventListener('click', event => {
+    event.stopPropagation();
+    if (!mobileProfileMenu) return;
+    const willOpen = mobileProfileMenu.hidden;
+    closeProfileMenu();
+    mobileProfileMenu.hidden = !willOpen;
+    mobileProfileButton.setAttribute('aria-expanded', String(willOpen));
+  });
+  logoutButton?.addEventListener('click', logout);
+  mobileLogoutButton?.addEventListener('click', logout);
+  document.addEventListener('click', event => {
+    if (!event.target.closest('.profile-menu-wrap') && !event.target.closest('.mobile-profile-wrap')) closeProfileMenu();
+  });
   window.AppShell = Object.freeze({ closeNavigation, showToast });
   syncViewportState();
 })();

@@ -2,29 +2,23 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
-
-function loadDotEnv(filePath) {
-  if (!fs.existsSync(filePath)) return;
-  const raw = fs.readFileSync(filePath, 'utf8');
-  raw.split(/\r?\n/).forEach(line => {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) return;
-    const eq = trimmed.indexOf('=');
-    if (eq <= 0) return;
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    if (!process.env[key]) process.env[key] = value;
-  });
-}
+const { loadDotEnv } = require('./lib/env.js');
 
 loadDotEnv(path.join(__dirname, '.env'));
 
 const { buildLessonHtml, getLessonTitle } = require('./lib/lesson-build.js');
 const { renderAppPage } = require('./lib/app-shell.js');
 const { validateLesson } = require('./lib/lesson-validate.js');
+const {
+  clearSessionCookie,
+  getAuthenticatedUser,
+  getSessionToken,
+  sessionCookie,
+} = require('./lib/auth.js');
+const { getDatabase } = require('./lib/db.js');
+const { verifyPassword } = require('./lib/password.js');
+const { createSession, deleteSession } = require('./lib/session-store.js');
+const { findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
 const {
   createLessonId,
   deleteLesson,
@@ -41,6 +35,7 @@ const {
 const PORT = process.env.PORT || 8787;
 const HOST = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
 const ROOT = __dirname;
+const database = getDatabase();
 
 const clientsByRoom = new Map();
 
@@ -122,10 +117,11 @@ const homeContentMock = {
   ],
 };
 
-function json(res, status, payload) {
+function json(res, status, payload, extraHeaders = {}) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    ...extraHeaders,
   });
   res.end(JSON.stringify(payload));
 }
@@ -181,9 +177,9 @@ function serveStatic(reqPath, res) {
   });
 }
 
-async function serveAppPage(pageId, res) {
+async function serveAppPage(pageId, res, context = {}) {
   try {
-    const html = await renderAppPage(pageId);
+    const html = await renderAppPage(pageId, context);
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
@@ -245,23 +241,22 @@ function readJsonBody(req) {
   });
 }
 
-function getBearerToken(req) {
-  const header = req.headers.authorization || '';
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  return match ? match[1].trim() : '';
+function requireTeacherAuth(req, res) {
+  const user = getAuthenticatedUser(req, database);
+  if (!user) {
+    json(res, 401, { error: 'Требуется вход в кабинет преподавателя.' });
+    return null;
+  }
+  return user;
 }
 
-function requireTeacherAuth(req, res) {
-  const expected = process.env.TEACHER_ADMIN_TOKEN;
-  if (!expected) {
-    json(res, 503, { error: 'TEACHER_ADMIN_TOKEN is not configured.' });
-    return false;
-  }
-  if (getBearerToken(req) !== expected) {
-    json(res, 401, { error: 'Invalid teacher token.' });
-    return false;
-  }
-  return true;
+function redirect(res, location) {
+  res.writeHead(302, { Location: location, 'Cache-Control': 'no-store' });
+  res.end();
+}
+
+function loginRedirect(pathname) {
+  return `/login?next=${encodeURIComponent(pathname)}`;
 }
 
 function getLessonIdFromPath(pathname, prefix, suffix = '') {
@@ -281,13 +276,95 @@ const server = http.createServer(async (req, res) => {
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = requestUrl.pathname;
 
+  if (req.method === 'GET' && (pathname === '/login' || pathname === '/login.html')) {
+    if (getAuthenticatedUser(req, database)) {
+      redirect(res, '/app');
+      return;
+    }
+    serveStatic('/login.html', res);
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/auth/login') {
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (error) {
+      json(res, 400, { error: error.message || 'Некорректный запрос.' });
+      return;
+    }
+
+    const email = normalizeEmail(body.email);
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !password) {
+      json(res, 400, { error: 'Укажите корректные email и пароль.' });
+      return;
+    }
+
+    const storedUser = findUserByEmail(email, database);
+    const valid = storedUser && storedUser.status === 'active'
+      ? await verifyPassword(password, storedUser.password_hash)
+      : false;
+    if (!valid) {
+      json(res, 401, { error: 'Неверный email или пароль.' });
+      return;
+    }
+
+    const session = createSession(storedUser.id, database);
+    json(res, 200, { user: publicUser(storedUser) }, {
+      'Set-Cookie': sessionCookie(session.token, session.expiresAt),
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/auth/me') {
+    const user = getAuthenticatedUser(req, database);
+    if (!user) {
+      json(res, 401, { error: 'Требуется вход в кабинет преподавателя.' });
+      return;
+    }
+    json(res, 200, { user });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/auth/logout') {
+    deleteSession(getSessionToken(req), database);
+    res.writeHead(204, {
+      'Cache-Control': 'no-store',
+      'Set-Cookie': clearSessionCookie(),
+    });
+    res.end();
+    return;
+  }
+
+  if (req.method === 'GET' && (pathname === '/app' || pathname === '/dashboard.html')) {
+    const user = getAuthenticatedUser(req, database);
+    if (!user) {
+      redirect(res, loginRedirect('/app'));
+      return;
+    }
+    await serveAppPage('home', res, { user });
+    return;
+  }
+
+  if (req.method === 'GET' && (
+    pathname === '/generator' || pathname === '/generator/' || pathname === '/generator.html'
+  )) {
+    if (!getAuthenticatedUser(req, database)) {
+      redirect(res, loginRedirect('/generator'));
+      return;
+    }
+    serveStatic('/generator.html', res);
+    return;
+  }
+
   if (req.method === 'GET' && (pathname === '/' || pathname === '/index.html')) {
     serveStatic('/index.html', res);
     return;
   }
 
   if (req.method === 'GET' && pathname === '/library.html') {
-    await serveAppPage('library', res);
+    await serveAppPage('library', res, { user: getAuthenticatedUser(req, database) });
     return;
   }
 
@@ -297,11 +374,13 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && pathname === '/api/home-content') {
+    if (!requireTeacherAuth(req, res)) return;
     json(res, 200, homeContentMock);
     return;
   }
 
   if (req.method === 'GET' && pathname === '/api/generator/config') {
+    if (!requireTeacherAuth(req, res)) return;
     json(res, 200, getGeneratorConfig());
     return;
   }
@@ -500,8 +579,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'GET') {
+  if (req.method === 'GET' && pathname.startsWith('/assets/')) {
     serveStatic(pathname, res);
+    return;
+  }
+
+  if (req.method === 'GET') {
+    json(res, 404, { error: 'Not found' });
     return;
   }
 

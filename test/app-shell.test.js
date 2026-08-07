@@ -16,7 +16,17 @@ test('home renders inside the shared shell with one active navigation item', asy
   assert.match(html, /href="\/assets\/home\.css"/);
   assert.match(html, /src="\/assets\/app-shell\.js"/);
   assert.match(html, /src="\/assets\/home\.js"/);
-  assert.deepEqual(activeNavigationItems(html), ['/']);
+  assert.deepEqual(activeNavigationItems(html), ['/app']);
+});
+
+test('home renders authenticated teacher profile data', async () => {
+  const html = await renderAppPage('home', {
+    user: { displayName: 'Анна & Ко', email: 'anna@example.com' },
+  });
+
+  assert.match(html, /data-auth-state="authenticated"/);
+  assert.match(html, /Анна &amp; Ко/);
+  assert.match(html, /anna@example\.com/);
 });
 
 test('library renders inside the shared shell with one active navigation item', async () => {

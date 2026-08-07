@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f4f2ff" />
+  <title>Вход — EasyClass</title>
+  <link rel="stylesheet" href="/assets/login.css" />
+  <script src="/assets/login.js" defer></script>
+</head>
+<body>
+  <main class="login-page">
+    <a class="login-brand" href="/" aria-label="EasyClass — главная">
+      <img src="/assets/images/easyclass-mark-cropped.png" alt="" width="44" height="36" />
+      <span>Easy<strong>Class</strong></span>
+    </a>
+
+    <section class="login-card" aria-labelledby="login-title">
+      <p class="login-card__eyebrow">Кабинет преподавателя</p>
+      <h1 id="login-title">С возвращением!</h1>
+      <p class="login-card__intro">Войдите, чтобы продолжить работу с уроками.</p>
+
+      <form id="login-form">
+        <label>
+          Email
+          <input id="email" name="email" type="email" autocomplete="username" required autofocus />
+        </label>
+        <label>
+          Пароль
+          <input id="password" name="password" type="password" autocomplete="current-password" minlength="10" required />
+        </label>
+        <p class="login-error" id="login-error" role="alert" aria-live="polite"></p>
+        <button id="login-button" type="submit">Войти</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

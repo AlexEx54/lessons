@@ -12,7 +12,7 @@ APP_DIR=${APP_DIR:-/opt/teach_platform}
 STAGING_DIR=${STAGING_DIR:-/opt/teach_platform.next}
 LESSONS_DIR=${LESSONS_DIR:-/var/lib/teach_platform/lessons}
 SERVICE_NAME=${SERVICE_NAME:-teach-platform.service}
-PUBLIC_URL=${PUBLIC_URL:-http://${SERVER_HOST}:8787}
+PUBLIC_URL=${PUBLIC_URL:-https://grekko.duckdns.org:8444}
 ALLOW_DIRTY=${ALLOW_DIRTY:-0}
 BACKUP_RETENTION=${BACKUP_RETENTION:-5}
 
@@ -71,15 +71,29 @@ if [[ ! -x "$NODE" ]]; then
   exit 1
 fi
 
+node_major=$($NODE -p 'Number(process.versions.node.split(".")[0])')
+node_minor=$($NODE -p 'Number(process.versions.node.split(".")[1])')
+if (( node_major < 24 || (node_major == 24 && node_minor < 15) )); then
+  echo "Требуется Node.js 24.15 или новее, установлена: $($NODE --version)" >&2
+  exit 1
+fi
+
 chown -R teachplatform:teachplatform "$STAGING_DIR"
 cd "$STAGING_DIR"
 
 check_files=(
   server.js
+  assets/login.js
   assets/app-shell.js
   assets/home.js
   assets/library.js
   lib/app-shell.js
+  lib/auth.js
+  lib/db.js
+  lib/password.js
+  lib/session-store.js
+  lib/user-store.js
+  scripts/create-user.js
   generate-lesson.js
   lib/lesson-build.js
   lib/lesson-store.js
@@ -119,7 +133,7 @@ fi
 
 curl -fsS --max-time 5 http://127.0.0.1:8788/health >/dev/null
 curl -fsS --max-time 5 http://127.0.0.1:8788/library.html >/dev/null
-curl -fsS --max-time 5 http://127.0.0.1:8788/api/home-content >/dev/null
+curl -fsS --max-time 5 http://127.0.0.1:8788/api/lessons >/dev/null
 stop_stage
 trap - EXIT
 
@@ -163,7 +177,7 @@ fi
 
 if ! curl -fsS --max-time 5 http://127.0.0.1:8787/ >/dev/null \
   || ! curl -fsS --max-time 5 http://127.0.0.1:8787/library.html >/dev/null \
-  || ! curl -fsS --max-time 5 http://127.0.0.1:8787/api/home-content >/dev/null; then
+  || ! curl -fsS --max-time 5 http://127.0.0.1:8787/api/lessons >/dev/null; then
   rollback
   exit 1
 fi

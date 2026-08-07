@@ -27,7 +27,7 @@ ALLOW_DIRTY=1 npm run deploy
 Connection and path settings can be overridden when needed:
 
 ```bash
-SERVER_HOST=144.31.76.176 SERVER_PORT=4537 PUBLIC_URL=http://144.31.76.176:8787 npm run deploy
+SERVER_HOST=144.31.76.176 SERVER_PORT=4537 PUBLIC_URL=https://grekko.duckdns.org:8444 npm run deploy
 ```
 
 The script never uploads the local `.env` or `data/` directory. Production secrets and
@@ -38,14 +38,27 @@ generated lessons remain on the server.
 Set these environment variables in the production `.env` on the VPS:
 
 - `OPENROUTER_API_KEY`: your OpenRouter API key.
-- `TEACHER_ADMIN_TOKEN`: password/token used by the teacher UI for generation and deletion.
+- `APP_DB_PATH`: SQLite database path. Use `/var/lib/teach_platform/app.sqlite` in production.
 - `LESSONS_DIR`: optional. Defaults to `./data/lessons`.
 - `USD_RUB_RATE`: optional. Defaults to `83`.
 - `OPENROUTER_MODEL`: optional. Defaults to `deepseek/deepseek-v4-flash`.
 - `OPENROUTER_REASONING_EFFORT`: optional. Defaults to `xhigh` (max reasoning for DeepSeek V4 Flash).
 
-Open `/` for the teacher dashboard. Open `/generator` to generate lessons and manage
-the generated lesson list.
+Open `/` for the public landing. Authenticated teachers use `/app` for the dashboard
+and `/generator` to generate and manage lessons.
+
+The server requires Node.js 24.15 or newer. After the first deploy, create a teacher:
+
+```bash
+cd /opt/teach_platform
+npm run user:create -- --email teacher@example.com --name "Teacher name"
+```
+
+Open `/login` to sign in. The public landing remains at `/`, and the authenticated
+teacher dashboard is available at `/app`.
+
+Authentication cookies require HTTPS in production. Put the Node.js service behind
+an HTTPS reverse proxy before creating real teacher accounts.
 
 For local development, copy `.env.example` to `.env` and replace `OPENROUTER_API_KEY`
 with your OpenRouter key. The server loads `.env` automatically on start.

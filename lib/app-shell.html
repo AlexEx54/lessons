@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{{PAGE_STYLESHEET}}" />
   <link rel="stylesheet" href="/assets/app-shell.css" />
 </head>
-<body data-page="{{PAGE_ID}}">
+<body data-page="{{PAGE_ID}}" data-auth-state="{{AUTH_STATE}}">
   <div class="app-shell">
     <button class="nav-overlay" id="nav-overlay" type="button" aria-label="Закрыть меню" tabindex="-1" aria-hidden="true"></button>
 
@@ -19,7 +19,7 @@
       </a>
 
       <nav class="main-nav">
-        <a class="nav-item{{HOME_ACTIVE_CLASS}}" href="/"{{HOME_ARIA_CURRENT}}>
+        <a class="nav-item{{HOME_ACTIVE_CLASS}}" href="/app"{{HOME_ARIA_CURRENT}}>
           <img class="nav-item__icon" src="/assets/images/nav/home.png" alt="" width="32" height="32" aria-hidden="true" />
           <span>Главная</span>
         </a>
@@ -52,9 +52,19 @@
           <img class="brand__mark" src="/assets/images/easyclass-mark-cropped.png" alt="" width="20" height="17" />
           <span>Easy<span>Class</span></span>
         </a>
-        <button class="mobile-avatar" type="button" data-coming-soon="Профиль" aria-label="Профиль гостя">
-          <img src="/assets/images/guest-avatar.png" alt="" />
-        </button>
+        <div class="mobile-profile-wrap">
+          <button class="mobile-avatar" id="mobile-profile-button" type="button" aria-label="Открыть профиль" aria-haspopup="menu" aria-expanded="false">
+            <img src="/assets/images/guest-avatar.png" alt="" />
+          </button>
+          <div class="mobile-profile-menu" id="mobile-profile-menu" role="menu" hidden>
+            <div class="mobile-profile-menu__identity">
+              <strong>{{USER_DISPLAY_NAME}}</strong>
+              <small>{{USER_EMAIL}}</small>
+            </div>
+            <a class="profile-menu__login" href="/login" role="menuitem">Войти</a>
+            <button class="profile-menu__logout" id="mobile-logout-button" type="button" role="menuitem">Выйти</button>
+          </div>
+        </div>
       </header>
 
       <section class="welcome-row" aria-labelledby="welcome-title">
@@ -67,11 +77,17 @@
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4"/></svg>
             <span>2</span>
           </button>
-          <button class="profile-button" type="button" data-coming-soon="Профиль">
-            <img src="/assets/images/guest-avatar.png" alt="Гостевой профиль преподавателя" />
-            <span><strong>Гость</strong><small>Преподаватель</small></span>
+          <div class="profile-menu-wrap">
+          <button class="profile-button" id="profile-button" type="button" aria-haspopup="menu" aria-expanded="false">
+            <img src="/assets/images/guest-avatar.png" alt="" />
+            <span><strong>{{USER_DISPLAY_NAME}}</strong><small>{{USER_EMAIL}}</small></span>
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5"/></svg>
           </button>
+          <div class="profile-menu" id="profile-menu" role="menu" hidden>
+            <a class="profile-menu__login" href="/login" role="menuitem">Войти</a>
+            <button class="profile-menu__logout" id="logout-button" type="button" role="menuitem">Выйти</button>
+          </div>
+          </div>
         </div>
       </section>
 

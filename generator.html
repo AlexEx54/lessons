@@ -259,10 +259,6 @@
       <div class="generator-grid">
         <form class="field-stack" id="lesson-form">
           <label>
-            Токен учителя
-            <input id="teacher-token" type="password" autocomplete="current-password" placeholder="TEACHER_ADMIN_TOKEN" />
-          </label>
-          <label>
             Тема
             <input id="topic" type="text" maxlength="240" required placeholder="Например: Luca cartoon" />
           </label>
@@ -302,7 +298,6 @@
 
   <script>
     (() => {
-      const tokenInput = document.getElementById('teacher-token');
       const topicInput = document.getElementById('topic');
       const grammarInput = document.getElementById('target-grammar');
       const form = document.getElementById('lesson-form');
@@ -328,14 +323,6 @@
         el.textContent = text || '';
         el.classList.toggle('ok', kind === 'ok');
         el.classList.toggle('bad', kind === 'bad');
-      }
-
-      function teacherToken() {
-        return tokenInput.value.trim();
-      }
-
-      function rememberToken() {
-        sessionStorage.setItem('teacherAdminToken', teacherToken());
       }
 
       function clearStream() {
@@ -463,10 +450,8 @@
           remove.addEventListener('click', async () => {
             if (!confirm(`Удалить урок "${lesson.title || lesson.id}"?`)) return;
             try {
-              rememberToken();
               const res = await fetch(`/api/lessons/${encodeURIComponent(lesson.id)}`, {
                 method: 'DELETE',
-                headers: { Authorization: `Bearer ${teacherToken()}` },
               });
               if (!res.ok) {
                 const error = await res.json().catch(() => ({}));
@@ -535,12 +520,6 @@
           setMessage(formMessage, 'Введите тему.', 'bad');
           return;
         }
-        if (!teacherToken()) {
-          setMessage(formMessage, 'Введите токен учителя.', 'bad');
-          return;
-        }
-
-        rememberToken();
         clearStream();
         setMessage(formMessage, '', '');
         statusPill.textContent = 'generating';
@@ -554,7 +533,6 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${teacherToken()}`,
             },
             body: JSON.stringify({ topic, targetGrammar }),
           });
@@ -599,9 +577,6 @@
       });
       clearLogBtn.addEventListener('click', clearStream);
       refreshBtn.addEventListener('click', () => loadLessons().catch(error => setMessage(listMessage, error.message, 'bad')));
-      tokenInput.addEventListener('input', rememberToken);
-
-      tokenInput.value = sessionStorage.getItem('teacherAdminToken') || '';
       loadConfig().catch(error => {
         configLine.textContent = error.message || 'Ошибка конфигурации.';
       });
