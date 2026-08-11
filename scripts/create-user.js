@@ -10,7 +10,7 @@ loadDotEnv(path.join(__dirname, '..', '.env'));
 
 const { closeDatabase, getDatabase } = require('../lib/db.js');
 const { hashPassword } = require('../lib/password.js');
-const { createUser, findUserByEmail, normalizeEmail } = require('../lib/user-store.js');
+const { createUser, findUserByEmail, normalizeEmail, normalizeRole } = require('../lib/user-store.js');
 
 function parseArgs(argv) {
   const result = {};
@@ -18,6 +18,12 @@ function parseArgs(argv) {
     const value = argv[index];
     if (value === '--email') result.email = argv[++index];
     else if (value === '--name') result.name = argv[++index];
+    else if (value === '--role') {
+      result.role = argv[++index];
+      if (!result.role || result.role.startsWith('--')) {
+        throw new Error('После --role укажите teacher или admin.');
+      }
+    }
     else if (value === '--help' || value === '-h') result.help = true;
     else throw new Error(`Неизвестный аргумент: ${value}`);
   }
@@ -25,7 +31,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  stdout.write('Использование: npm run user:create -- --email teacher@example.com --name "Имя"\n');
+  stdout.write('Использование: npm run user:create -- --email teacher@example.com --name "Имя" [--role teacher|admin]\n');
 }
 
 function readHiddenPassword(prompt) {
@@ -81,6 +87,7 @@ async function main() {
 
   const email = normalizeEmail(args.email);
   const name = String(args.name || '').trim();
+  const role = normalizeRole(args.role || 'teacher');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Укажите корректный --email.');
   if (!name || name.length > 100) throw new Error('Укажите --name длиной от 1 до 100 символов.');
 
@@ -96,8 +103,9 @@ async function main() {
     email,
     displayName: name,
     passwordHash: await hashPassword(password),
+    role,
   }, database);
-  stdout.write(`Создан преподаватель: ${user.displayName} <${user.email}>\n`);
+  stdout.write(`Создан пользователь (${user.role}): ${user.displayName} <${user.email}>\n`);
 }
 
 main()

@@ -103,6 +103,7 @@ test('login protects teacher pages and exposes the current profile', async t => 
   const registeredUser = (await registration.json()).user;
   assert.equal(registeredUser.displayName, 'Новый преподаватель');
   assert.equal(registeredUser.email, 'new@example.com');
+  assert.equal(registeredUser.role, 'teacher');
   const registrationCookie = registration.headers.get('set-cookie').split(';')[0];
   assert.match(registrationCookie, /^teach_session=/);
 
@@ -158,7 +159,9 @@ test('login protects teacher pages and exposes the current profile', async t => 
 
   const me = await fetch(`${baseUrl}/api/auth/me`, { headers: { Cookie: cookie } });
   assert.equal(me.status, 200);
-  assert.equal((await me.json()).user.displayName, 'Тестовый преподаватель');
+  const currentUser = (await me.json()).user;
+  assert.equal(currentUser.displayName, 'Тестовый преподаватель');
+  assert.equal(currentUser.role, 'teacher');
 
   const app = await fetch(`${baseUrl}/app`, { headers: { Cookie: cookie } });
   assert.equal(app.status, 200);

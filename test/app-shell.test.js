@@ -26,13 +26,30 @@ test('home renders inside the shared shell with one active navigation item', asy
 
 test('home renders authenticated teacher profile data', async () => {
   const html = await renderAppPage('home', {
-    user: { displayName: 'Анна & Ко', email: 'anna@example.com' },
+    user: { displayName: 'Анна & Ко', email: 'anna@example.com', role: 'teacher' },
   });
 
   assert.match(html, /data-auth-state="authenticated"/);
   assert.equal((html.match(/class="brand(?: brand--mobile)?" href="\/app"/g) || []).length, 2);
   assert.match(html, /Анна &amp; Ко/);
   assert.match(html, /anna@example\.com/);
+  assert.doesNotMatch(html, /data-coming-soon="Создать урок"/);
+});
+
+test('admin sees create lesson in both profile menus without a generator link', async () => {
+  const html = await renderAppPage('home', {
+    user: { displayName: 'Администратор', email: 'admin@example.com', role: 'admin' },
+  });
+
+  assert.equal((html.match(/data-coming-soon="Создать урок"/g) || []).length, 2);
+  assert.equal((html.match(/>Создать урок<\/button>/g) || []).length, 2);
+  assert.equal((html.match(/>Создать урок<\/button>\s*<button class="profile-menu__logout"/g) || []).length, 2);
+  assert.doesNotMatch(html, /href="\/generator[^\"]*"[^>]*>Создать урок/);
+});
+
+test('guest does not see create lesson', async () => {
+  const html = await renderAppPage('library');
+  assert.doesNotMatch(html, /data-coming-soon="Создать урок"/);
 });
 
 test('library renders inside the shared shell with one active navigation item', async () => {
