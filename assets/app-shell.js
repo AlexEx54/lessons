@@ -14,7 +14,11 @@
   const mobileProfileMenu = document.getElementById('mobile-profile-menu');
   const logoutButton = document.getElementById('logout-button');
   const mobileLogoutButton = document.getElementById('mobile-logout-button');
+  const newLessonModal = document.getElementById('new-lesson-modal');
+  const newLessonDialog = newLessonModal?.querySelector('.new-lesson-dialog');
+  const newLessonTopic = document.getElementById('new-lesson-topic');
   let toastTimer = null;
+  let newLessonReturnFocus = null;
 
   function showToast(message) {
     if (!message) return;
@@ -92,6 +96,41 @@
     }
   }
 
+  function openNewLessonModal(event) {
+    if (!newLessonModal || !newLessonDialog) return;
+    newLessonReturnFocus = event.currentTarget;
+    closeProfileMenu();
+    closeNavigation({ restoreFocus: false });
+    newLessonModal.classList.add('new-lesson-modal--visible');
+    newLessonModal.setAttribute('aria-hidden', 'false');
+    body.classList.add('new-lesson-modal-open');
+    window.requestAnimationFrame(() => newLessonTopic?.focus());
+  }
+
+  function closeNewLessonModal() {
+    if (!newLessonModal?.classList.contains('new-lesson-modal--visible')) return;
+    newLessonModal.classList.remove('new-lesson-modal--visible');
+    newLessonModal.setAttribute('aria-hidden', 'true');
+    body.classList.remove('new-lesson-modal-open');
+    newLessonReturnFocus?.focus();
+    newLessonReturnFocus = null;
+  }
+
+  function keepFocusInsideNewLessonModal(event) {
+    if (event.key !== 'Tab' || !newLessonModal?.classList.contains('new-lesson-modal--visible')) return;
+    const focusable = [...newLessonDialog.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled])')];
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   function toggleProfileMenu() {
     if (!profileMenu || !profileButton) return;
     const willOpen = profileMenu.hidden;
@@ -128,11 +167,17 @@
   });
 
   document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && newLessonModal?.classList.contains('new-lesson-modal--visible')) {
+      event.preventDefault();
+      closeNewLessonModal();
+      return;
+    }
     if (event.key === 'Escape' && body.classList.contains('nav-open')) {
       event.preventDefault();
       closeNavigation();
       return;
     }
+    keepFocusInsideNewLessonModal(event);
     keepFocusInsideSidebar(event);
   });
 
@@ -151,6 +196,12 @@
   });
   logoutButton?.addEventListener('click', logout);
   mobileLogoutButton?.addEventListener('click', logout);
+  document.querySelectorAll('[data-open-new-lesson-modal]').forEach(button => {
+    button.addEventListener('click', openNewLessonModal);
+  });
+  newLessonModal?.querySelectorAll('[data-close-new-lesson-modal]').forEach(button => {
+    button.addEventListener('click', closeNewLessonModal);
+  });
   document.addEventListener('click', event => {
     if (!event.target.closest('.profile-menu-wrap') && !event.target.closest('.mobile-profile-wrap')) closeProfileMenu();
   });

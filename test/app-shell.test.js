@@ -33,23 +33,29 @@ test('home renders authenticated teacher profile data', async () => {
   assert.equal((html.match(/class="brand(?: brand--mobile)?" href="\/app"/g) || []).length, 2);
   assert.match(html, /Анна &amp; Ко/);
   assert.match(html, /anna@example\.com/);
-  assert.doesNotMatch(html, /data-coming-soon="Создать урок"/);
+  assert.doesNotMatch(html, /data-open-new-lesson-modal/);
+  assert.doesNotMatch(html, /id="new-lesson-modal"/);
 });
 
-test('admin sees create lesson in both profile menus without a generator link', async () => {
+test('admin sees create lesson modal trigger in both profile menus without a generator link', async () => {
   const html = await renderAppPage('home', {
     user: { displayName: 'Администратор', email: 'admin@example.com', role: 'admin' },
   });
 
-  assert.equal((html.match(/data-coming-soon="Создать урок"/g) || []).length, 2);
+  assert.equal((html.match(/data-open-new-lesson-modal/g) || []).length, 2);
   assert.equal((html.match(/>Создать урок<\/button>/g) || []).length, 2);
   assert.equal((html.match(/>Создать урок<\/button>\s*<button class="profile-menu__logout"/g) || []).length, 2);
   assert.doesNotMatch(html, /href="\/generator[^\"]*"[^>]*>Создать урок/);
+  assert.equal((html.match(/id="new-lesson-modal"/g) || []).length, 1);
+  assert.match(html, /placeholder="Напр\. Luca Cartoon"/);
+  assert.equal((html.match(/<option value="template-1">Шаблон 1<\/option>/g) || []).length, 1);
+  assert.match(html, /class="new-lesson-dialog__create" type="button"/);
 });
 
 test('guest does not see create lesson', async () => {
   const html = await renderAppPage('library');
-  assert.doesNotMatch(html, /data-coming-soon="Создать урок"/);
+  assert.doesNotMatch(html, /data-open-new-lesson-modal/);
+  assert.doesNotMatch(html, /id="new-lesson-modal"/);
 });
 
 test('library renders inside the shared shell with one active navigation item', async () => {

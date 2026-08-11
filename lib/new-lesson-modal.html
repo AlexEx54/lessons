@@ -1,0 +1,39 @@
+<div class="new-lesson-modal" id="new-lesson-modal" aria-hidden="true">
+  <button class="new-lesson-modal__backdrop" type="button" data-close-new-lesson-modal aria-label="Закрыть окно"></button>
+
+  <section class="new-lesson-dialog" role="dialog" aria-modal="true" aria-labelledby="new-lesson-title">
+    <button class="new-lesson-dialog__close" type="button" data-close-new-lesson-modal aria-label="Закрыть">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+    </button>
+
+    <header class="new-lesson-dialog__header">
+      <h2 id="new-lesson-title">Новый урок</h2>
+      <img src="/assets/images/new-lesson-book.webp" alt="" width="256" height="256" aria-hidden="true" />
+    </header>
+
+    <div class="new-lesson-form">
+      <label class="new-lesson-field" for="new-lesson-topic">
+        <span>Тема урока</span>
+        <input id="new-lesson-topic" name="topic" type="text" placeholder="Напр. Luca Cartoon" autocomplete="off" maxlength="120" />
+      </label>
+
+      <label class="new-lesson-field" for="new-lesson-template">
+        <span>Выбор шаблона</span>
+        <span class="new-lesson-select">
+          <select id="new-lesson-template" name="template">
+            <option value="template-1">Шаблон 1</option>
+          </select>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+        </span>
+      </label>
+
+      <footer class="new-lesson-dialog__footer">
+        <button class="new-lesson-dialog__cancel" type="button" data-close-new-lesson-modal>Отмена</button>
+        <button class="new-lesson-dialog__create" type="button">
+          Создать урок
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5" /></svg>
+        </button>
+      </footer>
+    </div>
+  </section>
+</div>
