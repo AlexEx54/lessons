@@ -30,6 +30,7 @@ test('home renders authenticated teacher profile data', async () => {
   });
 
   assert.match(html, /data-auth-state="authenticated"/);
+  assert.equal((html.match(/class="brand(?: brand--mobile)?" href="\/app"/g) || []).length, 2);
   assert.match(html, /Анна &amp; Ко/);
   assert.match(html, /anna@example\.com/);
 });
@@ -38,6 +39,7 @@ test('library renders inside the shared shell with one active navigation item', 
   const html = await renderAppPage('library');
 
   assert.match(html, /<title>Библиотека уроков — EasyClass<\/title>/);
+  assert.equal((html.match(/class="brand(?: brand--mobile)?" href="\/"/g) || []).length, 2);
   assert.match(html, /href="\/assets\/library\.css"/);
   assert.match(html, /src="\/assets\/library\.js"/);
   assert.match(html, /class="content content--library"/);
