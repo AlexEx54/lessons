@@ -33,6 +33,7 @@ const {
   deleteLessonDraft,
   findLessonDraft,
   listLessonDrafts,
+  updateTeacherNote,
 } = require('./lib/lesson-draft-store.js');
 const { createSyntheticLesson } = require('./lib/synthetic-lesson.js');
 const {
@@ -289,6 +290,19 @@ function getLessonIdFromPath(pathname, prefix, suffix = '') {
   return decodeURIComponent(pathname.slice(prefix.length, end)).trim();
 }
 
+function getTeacherNoteRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/teacher-notes\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      noteId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
 function publicError(error) {
   const payload = { type: 'error', message: error.message || 'Unexpected error.' };
   if (Array.isArray(error.details)) payload.details = error.details;
@@ -536,6 +550,37 @@ const server = http.createServer(async (req, res) => {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     json(res, 200, { drafts: listLessonDrafts(user.id, database) });
+    return;
+  }
+
+  if (req.method === 'PATCH' && pathname.startsWith('/api/lesson-drafts/')) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    const route = getTeacherNoteRouteParams(pathname);
+    if (!route || !route.draftId || !route.noteId) {
+      json(res, 404, { error: 'Teacher’s Notes не найдена.' });
+      return;
+    }
+
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (error) {
+      json(res, 400, { error: error.message || 'Некорректный запрос.' });
+      return;
+    }
+
+    try {
+      const draft = updateTeacherNote({
+        id: route.draftId,
+        ownerAdminId: user.id,
+        noteId: route.noteId,
+        text: body.text,
+      }, database);
+      json(res, 200, { draft });
+    } catch (error) {
+      json(res, error.statusCode || 500, { error: error.message || 'Не удалось сохранить Teacher’s Notes.' });
+    }
     return;
   }
 

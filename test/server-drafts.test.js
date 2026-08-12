@@ -134,6 +134,40 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(editorPage.status, 200);
   assert.match(await editorPage.text(), /id="lesson-stages"/);
 
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/warm-up-teacher-note`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: 'Guest edit' }),
+  })).status, 401);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/warm-up-teacher-note`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: teacherCookie },
+    body: JSON.stringify({ text: 'Teacher edit' }),
+  })).status, 403);
+
+  const noteUpdateResponse = await fetch(
+    `${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/warm-up-teacher-note`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+      body: JSON.stringify({ text: '**Saved**\n\n- First\n- Second' }),
+    },
+  );
+  assert.equal(noteUpdateResponse.status, 200);
+  const noteUpdate = (await noteUpdateResponse.json()).draft;
+  assert.equal(noteUpdate.content.stages[0].content[0].text, '**Saved**\n\n- First\n- Second');
+  assert.equal(noteUpdate.content.meta.title, 'Travel English');
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/warm-up-teacher-note`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: '   ' }),
+  })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/missing-note`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: 'Missing' }),
+  })).status, 404);
+
   const ownList = await fetch(`${baseUrl}/api/lesson-drafts`, {
     headers: { Cookie: firstAdminCookie },
   });
@@ -150,6 +184,11 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}`, {
     headers: { Cookie: secondAdminCookie },
   })).status, 404);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/warm-up-teacher-note`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: secondAdminCookie },
+    body: JSON.stringify({ text: 'Foreign edit' }),
+  })).status, 404);
   assert.equal((await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: secondAdminCookie },
   })).status, 404);
@@ -159,6 +198,15 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { Cookie: secondAdminCookie },
   });
   assert.equal(foreignDelete.status, 404);
+
+  const statusDatabase = openDatabase(databasePath);
+  statusDatabase.prepare("UPDATE lesson_drafts SET status = 'published' WHERE id = ?").run(created.id);
+  statusDatabase.close();
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/warm-up-teacher-note`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: 'Published edit' }),
+  })).status, 409);
 
   const ownDelete = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}`, {
     method: 'DELETE',

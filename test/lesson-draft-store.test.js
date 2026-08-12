@@ -11,6 +11,7 @@ const {
   listLessonDrafts,
   publishLessonDraft,
   retryLessonDraft,
+  updateTeacherNote,
 } = require('../lib/lesson-draft-store.js');
 const { createUser } = require('../lib/user-store.js');
 
@@ -57,6 +58,68 @@ test('lesson draft lifecycle only allows the supported transitions', () => {
   assert.equal(failLessonDraft(failedDraft.id, owner.id, 'Provider error', database).status, 'failed');
   assert.equal(retryLessonDraft(failedDraft.id, owner.id, database).status, 'generating');
   assert.throws(() => retryLessonDraft(failedDraft.id, owner.id, database), /только для черновика с ошибкой/);
+  database.close();
+});
+
+test('teacher note content can be updated only in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'note-owner');
+  const outsider = admin(database, 'note-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Notes', template: 'template-1' }, database);
+  const lesson = {
+    stages: [{
+      id: 'warm-up',
+      content: [{ type: 'teacherNote', id: 'note-1', text: 'Original' }],
+    }],
+  };
+  const ready = completeLessonDraft(pending.id, owner.id, lesson, database);
+  database.prepare('UPDATE lesson_drafts SET updated_at = ? WHERE id = ?')
+    .run('2020-01-01T00:00:00.000Z', ready.id);
+
+  const updated = updateTeacherNote({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    noteId: 'note-1',
+    text: '  **Updated**\n\n- One\n- Two  ',
+  }, database);
+  assert.equal(updated.content.stages[0].content[0].text, '**Updated**\n\n- One\n- Two');
+  assert.notEqual(updated.updatedAt, '2020-01-01T00:00:00.000Z');
+  assert.throws(() => updateTeacherNote({
+    id: ready.id, ownerAdminId: outsider.id, noteId: 'note-1', text: 'Foreign',
+  }, database), /не найден/);
+  assert.throws(() => updateTeacherNote({
+    id: ready.id, ownerAdminId: owner.id, noteId: 'missing', text: 'Missing',
+  }, database), /не найдена/);
+  assert.throws(() => updateTeacherNote({
+    id: ready.id, ownerAdminId: owner.id, noteId: 'note-1', text: '   ',
+  }, database), /не может быть пустым/);
+
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateTeacherNote({
+    id: ready.id, ownerAdminId: owner.id, noteId: 'note-1', text: 'Too late',
+  }, database), /только черновик на проверке/);
+  database.close();
+});
+
+test('teacher note update rejects malformed content and duplicate component ids', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'invalid-notes');
+  const malformedDraft = createLessonDraft({ ownerAdminId: owner.id, topic: 'Malformed', template: 'template-1' }, database);
+  completeLessonDraft(malformedDraft.id, owner.id, { stages: [{ content: {} }] }, database);
+  assert.throws(() => updateTeacherNote({
+    id: malformedDraft.id, ownerAdminId: owner.id, noteId: 'note-1', text: 'Text',
+  }, database), /повреждена/);
+
+  const duplicateDraft = createLessonDraft({ ownerAdminId: owner.id, topic: 'Duplicate', template: 'template-1' }, database);
+  completeLessonDraft(duplicateDraft.id, owner.id, {
+    stages: [
+      { content: [{ type: 'teacherNote', id: 'same-note', text: 'One' }] },
+      { content: [{ type: 'teacherNote', id: 'same-note', text: 'Two' }] },
+    ],
+  }, database);
+  assert.throws(() => updateTeacherNote({
+    id: duplicateDraft.id, ownerAdminId: owner.id, noteId: 'same-note', text: 'Text',
+  }, database), /несколько/);
   database.close();
 });
 

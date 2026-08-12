@@ -1,7 +1,15 @@
 (() => {
   'use strict';
 
-  const state = { lesson: null, activeIndex: 0, elapsedSeconds: 0, timer: null };
+  const state = {
+    lesson: null,
+    draftId: '',
+    draftStatus: '',
+    activeIndex: 0,
+    elapsedSeconds: 0,
+    timer: null,
+    dirtyNotes: new Set(),
+  };
   const byId = id => document.getElementById(id);
   const plan = byId('lesson-plan');
   const stages = byId('lesson-stages');
@@ -12,7 +20,14 @@
   let toastTimer;
 
   const componentRenderers = {
-    teacherNote: component => window.TeacherNoteComponent.renderTeacherNote(component),
+    teacherNote: component => window.TeacherNoteComponent.renderTeacherNote(component, {
+      onSave: state.draftStatus === 'review' ? saveTeacherNote : undefined,
+      onDirtyChange: (dirty, noteId) => {
+        if (dirty) state.dirtyNotes.add(noteId);
+        else state.dirtyNotes.delete(noteId);
+      },
+      onError: showToast,
+    }),
   };
 
   const icons = {
@@ -58,6 +73,11 @@
   function selectStage(index) {
     const lesson = state.lesson;
     if (!lesson || index < 0 || index >= lesson.stages.length) return;
+    if (state.dirtyNotes.size > 0) {
+      const discard = window.confirm('Есть несохранённые изменения в Teacher’s Notes. Отменить их и перейти к другой стадии?');
+      if (!discard) return;
+      state.dirtyNotes.clear();
+    }
     state.activeIndex = index;
     const stage = lesson.stages[index];
     [...stages.children].forEach((button, buttonIndex) => {
@@ -139,6 +159,40 @@
     selectStage(0);
   }
 
+  function findTeacherNote(lesson, noteId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'teacherNote' && component.id === noteId) return component;
+      }
+    }
+    return null;
+  }
+
+  async function saveTeacherNote(text, noteId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/teacher-notes/${encodeURIComponent(noteId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить Teacher’s Notes.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const savedNote = findTeacherNote(state.lesson, noteId);
+      if (!savedNote) throw new Error('Сохранённая Teacher’s Notes не найдена в черновике.');
+      showToast('Teacher’s Notes сохранена.');
+      return savedNote;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить Teacher’s Notes.');
+      throw error;
+    }
+  }
+
   function showError(message) {
     loading.hidden = true;
     content.hidden = true;
@@ -154,6 +208,8 @@
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Черновик урока не найден.');
       if (!payload.draft?.content?.stages?.length) throw new Error('В черновике пока нет структуры урока.');
+      state.draftId = payload.draft.id;
+      state.draftStatus = payload.draft.status;
       render(payload.draft.content);
     } catch (error) {
       showError(error.message || 'Не удалось загрузить структуру урока.');
@@ -186,5 +242,10 @@
     }, 1000);
   });
   window.addEventListener('pagehide', () => window.clearInterval(state.timer));
+  window.addEventListener('beforeunload', (event) => {
+    if (state.dirtyNotes.size === 0) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
   loadLesson();
 })();

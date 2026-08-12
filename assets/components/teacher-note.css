@@ -16,6 +16,13 @@
   gap: 18px;
 }
 
+.teacher-note__actions {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
 .teacher-note--collapsed .teacher-note__header { margin-bottom: 0; }
 
 .teacher-note__title {
@@ -62,6 +69,26 @@
   font-weight: 700;
 }
 
+.teacher-note__edit {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #dcd5fa;
+  border-radius: 7px;
+  color: var(--purple);
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(46, 35, 103, .04);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.teacher-note__edit:hover,
+.teacher-note__format:hover { background: #efebff; }
+.teacher-note__edit:disabled,
+.teacher-note__format:disabled { opacity: .5; cursor: wait; }
+
 .teacher-note__toggle:hover { background: #fcfbff; }
 .teacher-note__chevron { font-size: 14px; line-height: 1; }
 
@@ -71,12 +98,56 @@
   line-height: 1.65;
 }
 
+.teacher-note__toolbar {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  margin: 0 4px 9px 34px;
+  padding: 4px;
+  gap: 3px;
+  border: 1px solid #ded8f7;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(46, 35, 103, .06);
+}
+
+.teacher-note__toolbar[hidden],
+.teacher-note__toggle[hidden] { display: none; }
+
+.teacher-note__format {
+  min-width: 31px;
+  height: 29px;
+  padding: 0 7px;
+  border-radius: 5px;
+  color: #3d4057;
+  background: transparent;
+  font-size: 13px;
+}
+
+.teacher-note__format--bold { font-weight: 800; }
+.teacher-note__format--italic { font-style: italic; }
+
+.teacher-note--editing .teacher-note__body {
+  min-height: 118px;
+  padding: 12px 14px;
+  border: 1px solid #8f7af5;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(101, 69, 245, .1);
+  outline: none;
+}
+
+.teacher-note--saving .teacher-note__body { opacity: .7; }
+
 .teacher-note__body p { margin: 13px 0 0; }
 .teacher-note__body p:first-child { margin-top: 0; }
 .teacher-note__body ul { margin: 0; padding-left: 18px; }
+.teacher-note__body p + ul { margin-top: 13px; }
+.teacher-note__spacer { height: 13px; }
 .teacher-note__body li { padding-left: 3px; }
 .teacher-note__body li + li { margin-top: 4px; }
-.teacher-note__body strong { color: #173b7a; font-weight: 750; }
+.teacher-note__body strong,
+.teacher-note__body b { color: #173b7a; font-weight: 750; }
 .teacher-note__body em { font-style: italic; }
 
 @media (max-width: 700px) {
@@ -84,4 +155,7 @@
   .teacher-note__header { align-items: flex-start; }
   .teacher-note__body { padding-left: 4px; }
   .teacher-note__toggle { min-height: 32px; padding: 0 9px; }
+  .teacher-note__edit { width: 32px; height: 32px; }
+  .teacher-note__toolbar { margin-left: 4px; }
+  .teacher-note--editing .teacher-note__body { padding: 11px; }
 }
