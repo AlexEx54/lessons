@@ -8,7 +8,7 @@
     activeIndex: 0,
     elapsedSeconds: 0,
     timer: null,
-    dirtyNotes: new Set(),
+    dirtyComponents: new Set(),
   };
   const byId = id => document.getElementById(id);
   const plan = byId('lesson-plan');
@@ -23,8 +23,16 @@
     teacherNote: component => window.TeacherNoteComponent.renderTeacherNote(component, {
       onSave: state.draftStatus === 'review' ? saveTeacherNote : undefined,
       onDirtyChange: (dirty, noteId) => {
-        if (dirty) state.dirtyNotes.add(noteId);
-        else state.dirtyNotes.delete(noteId);
+        if (dirty) state.dirtyComponents.add(noteId);
+        else state.dirtyComponents.delete(noteId);
+      },
+      onError: showToast,
+    }),
+    taskPrompt: component => window.TaskPromptComponent.renderTaskPrompt(component, {
+      onSave: state.draftStatus === 'review' ? saveTaskPrompt : undefined,
+      onDirtyChange: (dirty, promptId) => {
+        if (dirty) state.dirtyComponents.add(promptId);
+        else state.dirtyComponents.delete(promptId);
       },
       onError: showToast,
     }),
@@ -73,10 +81,10 @@
   function selectStage(index) {
     const lesson = state.lesson;
     if (!lesson || index < 0 || index >= lesson.stages.length) return;
-    if (state.dirtyNotes.size > 0) {
-      const discard = window.confirm('Есть несохранённые изменения в Teacher’s Notes. Отменить их и перейти к другой стадии?');
+    if (state.dirtyComponents.size > 0) {
+      const discard = window.confirm('Есть несохранённые изменения. Отменить их и перейти к другой стадии?');
       if (!discard) return;
-      state.dirtyNotes.clear();
+      state.dirtyComponents.clear();
     }
     state.activeIndex = index;
     const stage = lesson.stages[index];
@@ -168,6 +176,15 @@
     return null;
   }
 
+  function findTaskPrompt(lesson, promptId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'taskPrompt' && component.id === promptId) return component;
+      }
+    }
+    return null;
+  }
+
   async function saveTeacherNote(text, noteId) {
     try {
       const response = await fetch(
@@ -189,6 +206,31 @@
       return savedNote;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить Teacher’s Notes.');
+      throw error;
+    }
+  }
+
+  async function saveTaskPrompt(changes, promptId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/task-prompts/${encodeURIComponent(promptId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить блок задания.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const savedPrompt = findTaskPrompt(state.lesson, promptId);
+      if (!savedPrompt) throw new Error('Сохранённый блок задания не найден в черновике.');
+      showToast('Блок задания сохранён.');
+      return savedPrompt;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить блок задания.');
       throw error;
     }
   }
@@ -243,7 +285,7 @@
   });
   window.addEventListener('pagehide', () => window.clearInterval(state.timer));
   window.addEventListener('beforeunload', (event) => {
-    if (state.dirtyNotes.size === 0) return;
+    if (state.dirtyComponents.size === 0) return;
     event.preventDefault();
     event.returnValue = '';
   });

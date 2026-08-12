@@ -124,8 +124,13 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.content.meta.topic, 'Travel English');
   assert.equal(created.content.stages.length, 7);
   assert.deepEqual(created.content.stages.map(stage => stage.number), [1, 2, 3, 4, 5, 6, 7]);
-  assert.deepEqual(created.content.stages[0].content.map(component => component.type), ['teacherNote']);
+  assert.deepEqual(created.content.stages[0].content.map(component => component.type), [
+    'teacherNote', 'taskPrompt', 'taskPrompt',
+  ]);
   assert.equal(created.content.stages[0].content[0].id, 'warm-up-teacher-note');
+  assert.deepEqual(created.content.stages[0].content.slice(1).map(component => component.variant), [
+    'yourTurn', 'followUp',
+  ]);
   assert.ok(created.content.stages.slice(1).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
@@ -168,6 +173,38 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     body: JSON.stringify({ text: 'Missing' }),
   })).status, 404);
 
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/task-prompts/warm-up-your-turn-prompt`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Guest', text: 'Edit', support: null }),
+  })).status, 401);
+  const promptUpdateResponse = await fetch(
+    `${baseUrl}/api/lesson-drafts/${created.id}/task-prompts/warm-up-follow-up-prompt`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+      body: JSON.stringify({
+        title: 'Next questions:',
+        text: '**Why?**',
+        support: { title: 'Useful language:', text: 'I think…' },
+        variant: 'yourTurn',
+        id: 'attempted-id-change',
+      }),
+    },
+  );
+  assert.equal(promptUpdateResponse.status, 200);
+  const promptUpdate = (await promptUpdateResponse.json()).draft;
+  const savedPrompt = promptUpdate.content.stages[0].content[2];
+  assert.equal(savedPrompt.id, 'warm-up-follow-up-prompt');
+  assert.equal(savedPrompt.variant, 'followUp');
+  assert.equal(savedPrompt.title, 'Next questions:');
+  assert.deepEqual(savedPrompt.support, { title: 'Useful language:', text: 'I think…' });
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/task-prompts/warm-up-follow-up-prompt`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Next questions:', text: 'Question', support: { title: '', text: '' } }),
+  })).status, 400);
+
   const ownList = await fetch(`${baseUrl}/api/lesson-drafts`, {
     headers: { Cookie: firstAdminCookie },
   });
@@ -206,6 +243,11 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ text: 'Published edit' }),
+  })).status, 409);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/task-prompts/warm-up-your-turn-prompt`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Published', text: 'Edit', support: null }),
   })).status, 409);
 
   const ownDelete = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}`, {

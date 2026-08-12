@@ -11,6 +11,7 @@ const {
   listLessonDrafts,
   publishLessonDraft,
   retryLessonDraft,
+  updateTaskPrompt,
   updateTeacherNote,
 } = require('../lib/lesson-draft-store.js');
 const { createUser } = require('../lib/user-store.js');
@@ -120,6 +121,80 @@ test('teacher note update rejects malformed content and duplicate component ids'
   assert.throws(() => updateTeacherNote({
     id: duplicateDraft.id, ownerAdminId: owner.id, noteId: 'same-note', text: 'Text',
   }, database), /несколько/);
+  database.close();
+});
+
+test('task prompt fields and optional support can be updated in a review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'prompt-owner');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Prompts', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'taskPrompt', id: 'prompt-1', variant: 'followUp', title: 'Old', text: 'Original',
+    }] }],
+  }, database);
+
+  const withSupport = updateTaskPrompt({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    promptId: 'prompt-1',
+    title: ' Follow-up questions: ',
+    text: ' **Why?** ',
+    support: { title: ' Possible language: ', text: ' I think… ' },
+  }, database);
+  const updated = withSupport.content.stages[0].content[0];
+  assert.deepEqual(updated, {
+    type: 'taskPrompt',
+    id: 'prompt-1',
+    variant: 'followUp',
+    title: 'Follow-up questions:',
+    text: '**Why?**',
+    support: { title: 'Possible language:', text: 'I think…' },
+  });
+
+  const withoutSupport = updateTaskPrompt({
+    id: ready.id, ownerAdminId: owner.id, promptId: 'prompt-1', title: 'Next', text: 'Question', support: null,
+  }, database);
+  assert.equal(withoutSupport.content.stages[0].content[0].support, undefined);
+  assert.throws(() => updateTaskPrompt({
+    id: ready.id, ownerAdminId: owner.id, promptId: 'prompt-1', title: '', text: 'Question', support: null,
+  }, database), /не могут быть пустыми/);
+  assert.throws(() => updateTaskPrompt({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    promptId: 'prompt-1',
+    title: 'Title',
+    text: 'Question',
+    support: { title: 'Support', text: '' },
+  }, database), /дополнительной секции/);
+  database.close();
+});
+
+test('task prompt update rejects missing, duplicate, and immutable draft targets', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'prompt-invalid');
+  const outsider = admin(database, 'prompt-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Prompts', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [
+      { content: [{ type: 'taskPrompt', id: 'same-prompt', variant: 'yourTurn', title: 'One', text: 'One' }] },
+      { content: [{ type: 'taskPrompt', id: 'same-prompt', variant: 'followUp', title: 'Two', text: 'Two' }] },
+    ],
+  }, database);
+  const changes = { title: 'Title', text: 'Text', support: null };
+  assert.throws(() => updateTaskPrompt({
+    id: ready.id, ownerAdminId: owner.id, promptId: 'missing', ...changes,
+  }, database), /не найден/);
+  assert.throws(() => updateTaskPrompt({
+    id: ready.id, ownerAdminId: owner.id, promptId: 'same-prompt', ...changes,
+  }, database), /несколько/);
+  assert.throws(() => updateTaskPrompt({
+    id: ready.id, ownerAdminId: outsider.id, promptId: 'same-prompt', ...changes,
+  }, database), /не найден/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateTaskPrompt({
+    id: ready.id, ownerAdminId: owner.id, promptId: 'same-prompt', ...changes,
+  }, database), /только черновик на проверке/);
   database.close();
 });
 

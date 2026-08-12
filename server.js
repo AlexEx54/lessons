@@ -33,6 +33,7 @@ const {
   deleteLessonDraft,
   findLessonDraft,
   listLessonDrafts,
+  updateTaskPrompt,
   updateTeacherNote,
 } = require('./lib/lesson-draft-store.js');
 const { createSyntheticLesson } = require('./lib/synthetic-lesson.js');
@@ -303,6 +304,19 @@ function getTeacherNoteRouteParams(pathname) {
   }
 }
 
+function getTaskPromptRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/task-prompts\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      promptId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
 function publicError(error) {
   const payload = { type: 'error', message: error.message || 'Unexpected error.' };
   if (Array.isArray(error.details)) payload.details = error.details;
@@ -556,9 +570,11 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'PATCH' && pathname.startsWith('/api/lesson-drafts/')) {
     const user = requireAdminAuth(req, res);
     if (!user) return;
-    const route = getTeacherNoteRouteParams(pathname);
-    if (!route || !route.draftId || !route.noteId) {
-      json(res, 404, { error: 'Teacher’s Notes не найдена.' });
+    const teacherNoteRoute = getTeacherNoteRouteParams(pathname);
+    const taskPromptRoute = getTaskPromptRouteParams(pathname);
+    if ((!teacherNoteRoute || !teacherNoteRoute.draftId || !teacherNoteRoute.noteId)
+      && (!taskPromptRoute || !taskPromptRoute.draftId || !taskPromptRoute.promptId)) {
+      json(res, 404, { error: 'Редактируемый компонент не найден.' });
       return;
     }
 
@@ -571,15 +587,24 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const draft = updateTeacherNote({
-        id: route.draftId,
-        ownerAdminId: user.id,
-        noteId: route.noteId,
-        text: body.text,
-      }, database);
+      const draft = teacherNoteRoute
+        ? updateTeacherNote({
+          id: teacherNoteRoute.draftId,
+          ownerAdminId: user.id,
+          noteId: teacherNoteRoute.noteId,
+          text: body.text,
+        }, database)
+        : updateTaskPrompt({
+          id: taskPromptRoute.draftId,
+          ownerAdminId: user.id,
+          promptId: taskPromptRoute.promptId,
+          title: body.title,
+          text: body.text,
+          support: body.support,
+        }, database);
       json(res, 200, { draft });
     } catch (error) {
-      json(res, error.statusCode || 500, { error: error.message || 'Не удалось сохранить Teacher’s Notes.' });
+      json(res, error.statusCode || 500, { error: error.message || 'Не удалось сохранить компонент.' });
     }
     return;
   }

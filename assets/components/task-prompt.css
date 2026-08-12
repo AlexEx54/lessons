@@ -1,0 +1,72 @@
+.task-prompt {
+  --task-prompt-accent: #6847f5;
+  --task-prompt-border: #cfc5ff;
+  --task-prompt-background: #f8f6ff;
+  width: 100%;
+  padding: 18px 21px;
+  border: 1px solid var(--task-prompt-border);
+  border-radius: 11px;
+  color: #242842;
+  background: var(--task-prompt-background);
+  box-shadow: 0 3px 12px rgba(46, 35, 103, .035);
+}
+.task-prompt--your-turn {
+  --task-prompt-accent: #1ead58;
+  --task-prompt-border: #7bd89a;
+  --task-prompt-background: #fbfffc;
+}
+.task-prompt__header,
+.task-prompt__heading,
+.task-prompt__support-header { display: flex; align-items: center; }
+.task-prompt__header { justify-content: space-between; gap: 16px; }
+.task-prompt__heading { gap: 12px; color: var(--task-prompt-accent); }
+.task-prompt__icon { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 auto; }
+.task-prompt__icon svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.task-prompt__icon circle { fill: currentColor; stroke: none; }
+.task-prompt__title,
+.task-prompt__support-title { font-size: 14px; font-weight: 750; }
+.task-prompt__body { padding: 8px 4px 0 36px; font-size: 13px; line-height: 1.65; }
+.task-prompt__text p,
+.task-prompt__support-text p { margin: 10px 0 0; }
+.task-prompt__text p:first-child,
+.task-prompt__support-text p:first-child { margin-top: 0; }
+.task-prompt__text ul,
+.task-prompt__support-text ul { margin: 8px 0 0; padding-left: 18px; }
+.task-prompt__spacer { height: 10px; }
+.task-prompt__support { margin-top: 15px; padding-top: 13px; border-top: 1px solid color-mix(in srgb, var(--task-prompt-accent) 20%, #dfe1e8); }
+.task-prompt__support-header { justify-content: space-between; margin-bottom: 5px; gap: 12px; color: var(--task-prompt-accent); }
+.task-prompt__edit,
+.task-prompt__format,
+.task-prompt__add-support,
+.task-prompt__remove-support { border-radius: 7px; color: var(--task-prompt-accent); background: #fff; font-weight: 700; }
+.task-prompt__edit { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--task-prompt-border); font-size: 17px; }
+.task-prompt__toolbar { display: flex; width: fit-content; margin: 11px 4px 0 36px; padding: 4px; gap: 3px; border: 1px solid var(--task-prompt-border); border-radius: 8px; background: #fff; }
+.task-prompt__toolbar[hidden] { display: none; }
+.task-prompt__format { min-width: 31px; height: 29px; padding: 0 7px; }
+.task-prompt__format:nth-child(1) { font-weight: 800; }
+.task-prompt__format:nth-child(2) { font-style: italic; }
+.task-prompt__add-support,
+.task-prompt__remove-support { padding: 5px 8px; font-size: 11px; }
+.task-prompt__add-support { margin-top: 12px; border: 1px dashed var(--task-prompt-border); }
+.task-prompt__remove-support { font-weight: 600; }
+.task-prompt--editing [contenteditable="true"] { min-width: 30px; border-radius: 5px; background: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--task-prompt-accent) 10%, transparent); outline: 1px solid var(--task-prompt-accent); }
+.task-prompt--editing .task-prompt__title,
+.task-prompt--editing .task-prompt__support-title { padding: 4px 7px; }
+.task-prompt--editing .task-prompt__text,
+.task-prompt--editing .task-prompt__support-text { padding: 8px 10px; }
+.task-prompt--editing [contenteditable="true"]:empty::before {
+  color: #9296a8;
+  content: attr(data-placeholder);
+  font-weight: 500;
+  pointer-events: none;
+}
+.task-prompt--saving { opacity: .7; }
+.task-prompt__edit:hover,
+.task-prompt__format:hover,
+.task-prompt__add-support:hover,
+.task-prompt__remove-support:hover { background: var(--task-prompt-background); }
+@media (max-width: 700px) {
+  .task-prompt { padding: 16px; }
+  .task-prompt__body { padding-left: 4px; }
+  .task-prompt__toolbar { margin-left: 4px; }
+}
