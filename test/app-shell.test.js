@@ -95,6 +95,12 @@ test('logout returns the teacher to the public landing page', () => {
   assert.doesNotMatch(appShellScript, /window\.location\.assign\('\/login'\)/);
 });
 
+test('lesson creation opens the drafts page while generation continues', () => {
+  const appShellScript = fs.readFileSync(path.join(ROOT, 'assets', 'app-shell.js'), 'utf8');
+  assert.match(appShellScript, /window\.location\.assign\('\/lesson-drafts'\)/);
+  assert.doesNotMatch(appShellScript, /window\.location\.assign\(payload\.lessonUrl\)/);
+});
+
 test('lesson draft review action links to its editor', () => {
   const draftScript = fs.readFileSync(path.join(ROOT, 'assets', 'lesson-drafts.js'), 'utf8');
   assert.match(draftScript, /lesson-drafts\/\$\{encodeURIComponent\(draft\.id\)\}\/edit/);

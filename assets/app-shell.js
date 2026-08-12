@@ -195,8 +195,7 @@
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Не удалось создать черновик.');
-      if (!payload.lessonUrl) throw new Error('Сервер не вернул ссылку на урок.');
-      window.location.assign(payload.lessonUrl);
+      window.location.assign('/lesson-drafts');
     } catch (error) {
       showToast(error.message || 'Не удалось создать черновик.');
       createLessonDraftButton.disabled = false;
