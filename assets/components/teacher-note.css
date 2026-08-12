@@ -1,0 +1,87 @@
+.teacher-note {
+  width: 100%;
+  padding: 20px 22px 18px;
+  border: 1px solid #cfc5ff;
+  border-radius: 11px;
+  color: #242842;
+  background: #f7f5ff;
+  box-shadow: 0 3px 12px rgba(78, 53, 184, .04);
+}
+
+.teacher-note__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 18px;
+}
+
+.teacher-note--collapsed .teacher-note__header { margin-bottom: 0; }
+
+.teacher-note__title {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  gap: 12px;
+  color: var(--purple);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+
+.teacher-note__icon {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 auto;
+}
+
+.teacher-note__icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.teacher-note__toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  gap: 8px;
+  border: 1px solid #ebe8f8;
+  border-radius: 7px;
+  color: var(--purple);
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(46, 35, 103, .04);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.teacher-note__toggle:hover { background: #fcfbff; }
+.teacher-note__chevron { font-size: 14px; line-height: 1; }
+
+.teacher-note__body {
+  padding: 0 4px 0 34px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.teacher-note__body p { margin: 13px 0 0; }
+.teacher-note__body p:first-child { margin-top: 0; }
+.teacher-note__body ul { margin: 0; padding-left: 18px; }
+.teacher-note__body li { padding-left: 3px; }
+.teacher-note__body li + li { margin-top: 4px; }
+.teacher-note__body strong { color: #173b7a; font-weight: 750; }
+.teacher-note__body em { font-style: italic; }
+
+@media (max-width: 700px) {
+  .teacher-note { padding: 16px; }
+  .teacher-note__header { align-items: flex-start; }
+  .teacher-note__body { padding-left: 4px; }
+  .teacher-note__toggle { min-height: 32px; padding: 0 9px; }
+}

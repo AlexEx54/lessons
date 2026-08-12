@@ -124,7 +124,9 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.content.meta.topic, 'Travel English');
   assert.equal(created.content.stages.length, 7);
   assert.deepEqual(created.content.stages.map(stage => stage.number), [1, 2, 3, 4, 5, 6, 7]);
-  assert.ok(created.content.stages.every(stage => stage.content === null));
+  assert.deepEqual(created.content.stages[0].content.map(component => component.type), ['teacherNote']);
+  assert.equal(created.content.stages[0].content[0].id, 'warm-up-teacher-note');
+  assert.ok(created.content.stages.slice(1).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: firstAdminCookie },

@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/assets/lesson-editor.css" />
+  <link rel="stylesheet" href="/assets/components/teacher-note.css" />
 </head>
 <body>
   <div class="lesson-app" id="lesson-app">
@@ -58,12 +59,7 @@
           </div>
           <p class="stage-kicker" id="stage-kicker">Lesson stage</p>
 
-          <section class="empty-stage" aria-labelledby="empty-stage-title">
-            <span class="empty-stage__icon" aria-hidden="true">✦</span>
-            <h2 id="empty-stage-title">Стадия готова к наполнению</h2>
-            <p>Структура урока уже создана из JSON. Контент для этой стадии будет сгенерирован на следующем этапе.</p>
-            <div class="empty-stage__meta"><span id="empty-stage-duration">5 min</span><span>Контент пока не добавлен</span></div>
-          </section>
+          <div class="stage-components" id="stage-components"></div>
 
           <div class="stage-pagination">
             <button id="previous-stage" type="button">← Предыдущая стадия</button>
@@ -82,6 +78,7 @@
     </div>
   </div>
   <div class="lesson-toast" id="lesson-toast" role="status" aria-live="polite"></div>
+  <script src="/assets/components/teacher-note.js" defer></script>
   <script src="/assets/lesson-editor.js" defer></script>
 </body>
 </html>

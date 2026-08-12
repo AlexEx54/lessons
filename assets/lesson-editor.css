@@ -103,6 +103,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .stage-heading h1 { margin: 0; font-size: clamp(27px, 3vw, 38px); letter-spacing: -.045em; }
 .teacher-version { padding: 7px 10px; border-radius: 6px; color: var(--purple); background: var(--purple-soft); font-size: 11px; font-weight: 650; }
 .stage-kicker { margin: 12px 0 25px; color: var(--purple); font-size: 20px; font-weight: 650; }
+.stage-components { display: grid; gap: 18px; }
+
+.unsupported-component { padding: 18px; border: 1px dashed #d7d3e8; border-radius: 10px; color: var(--muted); background: #faf9fd; font-size: 13px; }
 
 .empty-stage { display: grid; justify-items: center; min-height: 380px; padding: 68px 30px 40px; border: 1px solid #ddd6ff; border-radius: 12px; background: radial-gradient(circle at 50% 0%, #f0ecff 0, #f9f8ff 34%, #fff 74%); text-align: center; }
 .empty-stage__icon { display: grid; place-items: center; width: 58px; height: 58px; margin-bottom: 25px; border-radius: 17px; color: #fff; background: linear-gradient(145deg, #8d76ff, #5c35ed); box-shadow: 0 12px 30px rgba(101, 69, 245, .22); font-size: 25px; }

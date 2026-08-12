@@ -11,6 +11,10 @@
   const toast = byId('lesson-toast');
   let toastTimer;
 
+  const componentRenderers = {
+    teacherNote: component => window.TeacherNoteComponent.renderTeacherNote(component),
+  };
+
   const icons = {
     sparkles: '✦', compass: '◴', cards: '▣', book: '▤', cap: '◇', chat: '◌', check: '✓',
   };
@@ -64,11 +68,62 @@
     byId('stage-number').textContent = `${stage.number}.`;
     byId('stage-title').textContent = stage.title;
     byId('stage-kicker').textContent = stage.id === 'warm-up' ? 'Let’s start!' : 'Lesson stage';
-    byId('empty-stage-duration').textContent = `${stage.durationMinutes} min`;
+    renderStageContent(stage);
     byId('stage-progress').textContent = `${index + 1} из ${lesson.stages.length}`;
     byId('previous-stage').disabled = index === 0;
     byId('next-stage').disabled = index === lesson.stages.length - 1;
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function emptyStage(stage) {
+    const section = document.createElement('section');
+    section.className = 'empty-stage';
+    const titleId = `empty-stage-title-${stage.id}`;
+    section.setAttribute('aria-labelledby', titleId);
+    const icon = document.createElement('span');
+    icon.className = 'empty-stage__icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '✦';
+    const title = document.createElement('h2');
+    title.id = titleId;
+    title.textContent = 'Стадия готова к наполнению';
+    const description = document.createElement('p');
+    description.textContent = 'Структура урока уже создана из JSON. Контент для этой стадии будет сгенерирован на следующем этапе.';
+    section.append(icon, title, description);
+    const meta = document.createElement('div');
+    meta.className = 'empty-stage__meta';
+    const duration = document.createElement('span');
+    duration.textContent = `${stage.durationMinutes} min`;
+    const status = document.createElement('span');
+    status.textContent = 'Контент пока не добавлен';
+    meta.append(duration, status);
+    section.append(meta);
+    return section;
+  }
+
+  function unsupportedComponent(component) {
+    const element = document.createElement('div');
+    element.className = 'unsupported-component';
+    element.textContent = `Компонент «${component?.type || 'unknown'}» пока не поддерживается.`;
+    return element;
+  }
+
+  function renderStageContent(stage) {
+    const container = byId('stage-components');
+    if (!Array.isArray(stage.content) || stage.content.length === 0) {
+      container.replaceChildren(emptyStage(stage));
+      return;
+    }
+    const rendered = stage.content.map((component) => {
+      const renderer = component && componentRenderers[component.type];
+      if (!renderer) return unsupportedComponent(component);
+      try {
+        return renderer(component);
+      } catch (_error) {
+        return unsupportedComponent(component);
+      }
+    });
+    container.replaceChildren(...rendered);
   }
 
   function render(lesson) {
