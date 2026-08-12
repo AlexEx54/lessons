@@ -17,15 +17,27 @@
         <input id="new-lesson-topic" name="topic" type="text" placeholder="Напр. Luca Cartoon" autocomplete="off" maxlength="120" />
       </label>
 
-      <label class="new-lesson-field" for="new-lesson-template">
-        <span>Выбор шаблона</span>
-        <span class="new-lesson-select">
-          <select id="new-lesson-template" name="template">
-            <option value="template-1">Шаблон 1</option>
-          </select>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-        </span>
-      </label>
+      <div class="new-lesson-field">
+        <span id="new-lesson-template-label">Выбор шаблона</span>
+        <div class="new-lesson-select" data-new-lesson-select>
+          <button
+            class="new-lesson-select__trigger"
+            id="new-lesson-template"
+            type="button"
+            aria-haspopup="listbox"
+            aria-expanded="false"
+            aria-controls="new-lesson-template-list"
+            aria-labelledby="new-lesson-template-label new-lesson-template-value"
+          >
+            <span class="new-lesson-select__value" id="new-lesson-template-value">Шаблон 1</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          <ul class="new-lesson-select__list" id="new-lesson-template-list" role="listbox" aria-labelledby="new-lesson-template-label" hidden>
+            <li class="new-lesson-select__option" role="option" tabindex="-1" data-value="template-1" aria-selected="true">Шаблон 1</li>
+          </ul>
+          <input type="hidden" name="template" value="template-1" data-new-lesson-template-value />
+        </div>
+      </div>
 
       <footer class="new-lesson-dialog__footer">
         <button class="new-lesson-dialog__cancel" type="button" data-close-new-lesson-modal>Отмена</button>

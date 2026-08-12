@@ -17,6 +17,14 @@
   const newLessonModal = document.getElementById('new-lesson-modal');
   const newLessonDialog = newLessonModal?.querySelector('.new-lesson-dialog');
   const newLessonTopic = document.getElementById('new-lesson-topic');
+  const newLessonSelect = newLessonModal?.querySelector('[data-new-lesson-select]');
+  const newLessonSelectTrigger = newLessonSelect?.querySelector('.new-lesson-select__trigger');
+  const newLessonSelectList = newLessonSelect?.querySelector('.new-lesson-select__list');
+  const newLessonSelectValue = newLessonSelect?.querySelector('.new-lesson-select__value');
+  const newLessonSelectInput = newLessonSelect?.querySelector('[data-new-lesson-template-value]');
+  const newLessonSelectOptions = newLessonSelect
+    ? [...newLessonSelect.querySelectorAll('.new-lesson-select__option')]
+    : [];
   let toastTimer = null;
   let newLessonReturnFocus = null;
 
@@ -96,11 +104,60 @@
     }
   }
 
+  function isNewLessonSelectOpen() {
+    return Boolean(newLessonSelect?.classList.contains('new-lesson-select--open'));
+  }
+
+  function closeNewLessonSelect({ restoreFocus = false } = {}) {
+    if (!newLessonSelect || !isNewLessonSelectOpen()) return;
+    newLessonSelect.classList.remove('new-lesson-select--open');
+    newLessonSelectTrigger?.setAttribute('aria-expanded', 'false');
+    newLessonSelectList?.setAttribute('hidden', '');
+    if (restoreFocus) newLessonSelectTrigger?.focus();
+  }
+
+  function openNewLessonSelect() {
+    if (!newLessonSelect || !newLessonSelectTrigger || !newLessonSelectList) return;
+    newLessonSelect.classList.add('new-lesson-select--open');
+    newLessonSelectTrigger.setAttribute('aria-expanded', 'true');
+    newLessonSelectList.removeAttribute('hidden');
+    const selected = newLessonSelectOptions.find(option => option.getAttribute('aria-selected') === 'true')
+      || newLessonSelectOptions[0];
+    window.requestAnimationFrame(() => selected?.focus());
+  }
+
+  function toggleNewLessonSelect() {
+    if (isNewLessonSelectOpen()) closeNewLessonSelect({ restoreFocus: true });
+    else openNewLessonSelect();
+  }
+
+  function selectNewLessonTemplate(option) {
+    if (!option || !newLessonSelectValue || !newLessonSelectInput) return;
+    const value = option.dataset.value || '';
+    const label = option.textContent.trim();
+    newLessonSelectOptions.forEach(item => {
+      item.setAttribute('aria-selected', String(item === option));
+    });
+    newLessonSelectValue.textContent = label;
+    newLessonSelectInput.value = value;
+    closeNewLessonSelect({ restoreFocus: true });
+  }
+
+  function moveNewLessonSelectFocus(delta) {
+    if (!newLessonSelectOptions.length) return;
+    const currentIndex = newLessonSelectOptions.indexOf(document.activeElement);
+    const nextIndex = currentIndex < 0
+      ? 0
+      : (currentIndex + delta + newLessonSelectOptions.length) % newLessonSelectOptions.length;
+    newLessonSelectOptions[nextIndex]?.focus();
+  }
+
   function openNewLessonModal(event) {
     if (!newLessonModal || !newLessonDialog) return;
     newLessonReturnFocus = event.currentTarget;
     closeProfileMenu();
     closeNavigation({ restoreFocus: false });
+    closeNewLessonSelect();
     newLessonModal.classList.add('new-lesson-modal--visible');
     newLessonModal.setAttribute('aria-hidden', 'false');
     body.classList.add('new-lesson-modal-open');
@@ -109,6 +166,7 @@
 
   function closeNewLessonModal() {
     if (!newLessonModal?.classList.contains('new-lesson-modal--visible')) return;
+    closeNewLessonSelect();
     newLessonModal.classList.remove('new-lesson-modal--visible');
     newLessonModal.setAttribute('aria-hidden', 'true');
     body.classList.remove('new-lesson-modal-open');
@@ -118,10 +176,23 @@
 
   function keepFocusInsideNewLessonModal(event) {
     if (event.key !== 'Tab' || !newLessonModal?.classList.contains('new-lesson-modal--visible')) return;
-    const focusable = [...newLessonDialog.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled])')];
+    const focusable = [...newLessonDialog.querySelectorAll('button:not([disabled]), input:not([disabled]):not([type="hidden"])')]
+      .filter(el => !el.classList.contains('new-lesson-select__option'));
     const first = focusable[0];
     const last = focusable.at(-1);
     if (!first || !last) return;
+
+    if (isNewLessonSelectOpen() || newLessonSelectOptions.includes(document.activeElement)) {
+      event.preventDefault();
+      closeNewLessonSelect();
+      const triggerIndex = Math.max(0, focusable.indexOf(newLessonSelectTrigger));
+      const next = event.shiftKey
+        ? focusable[triggerIndex - 1] || last
+        : focusable[triggerIndex + 1] || first;
+      next.focus();
+      return;
+    }
+
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last.focus();
@@ -167,6 +238,11 @@
   });
 
   document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && isNewLessonSelectOpen()) {
+      event.preventDefault();
+      closeNewLessonSelect({ restoreFocus: true });
+      return;
+    }
     if (event.key === 'Escape' && newLessonModal?.classList.contains('new-lesson-modal--visible')) {
       event.preventDefault();
       closeNewLessonModal();
@@ -176,6 +252,36 @@
       event.preventDefault();
       closeNavigation();
       return;
+    }
+    if (isNewLessonSelectOpen()) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        moveNewLessonSelectFocus(1);
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveNewLessonSelectFocus(-1);
+        return;
+      }
+      if (event.key === 'Home') {
+        event.preventDefault();
+        newLessonSelectOptions[0]?.focus();
+        return;
+      }
+      if (event.key === 'End') {
+        event.preventDefault();
+        newLessonSelectOptions.at(-1)?.focus();
+        return;
+      }
+      if (event.key === 'Enter' || event.key === ' ') {
+        const option = document.activeElement?.closest?.('.new-lesson-select__option');
+        if (option) {
+          event.preventDefault();
+          selectNewLessonTemplate(option);
+          return;
+        }
+      }
     }
     keepFocusInsideNewLessonModal(event);
     keepFocusInsideSidebar(event);
@@ -202,8 +308,19 @@
   newLessonModal?.querySelectorAll('[data-close-new-lesson-modal]').forEach(button => {
     button.addEventListener('click', closeNewLessonModal);
   });
+  newLessonSelectTrigger?.addEventListener('click', event => {
+    event.stopPropagation();
+    toggleNewLessonSelect();
+  });
+  newLessonSelectOptions.forEach(option => {
+    option.addEventListener('click', event => {
+      event.stopPropagation();
+      selectNewLessonTemplate(option);
+    });
+  });
   document.addEventListener('click', event => {
     if (!event.target.closest('.profile-menu-wrap') && !event.target.closest('.mobile-profile-wrap')) closeProfileMenu();
+    if (!event.target.closest('[data-new-lesson-select]')) closeNewLessonSelect();
   });
   window.AppShell = Object.freeze({ closeNavigation, showToast });
   syncViewportState();

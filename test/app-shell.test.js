@@ -48,7 +48,9 @@ test('admin sees create lesson modal trigger in both profile menus without a gen
   assert.doesNotMatch(html, /href="\/generator[^\"]*"[^>]*>Создать урок/);
   assert.equal((html.match(/id="new-lesson-modal"/g) || []).length, 1);
   assert.match(html, /placeholder="Напр\. Luca Cartoon"/);
-  assert.equal((html.match(/<option value="template-1">Шаблон 1<\/option>/g) || []).length, 1);
+  assert.equal((html.match(/data-value="template-1"[^>]*>Шаблон 1<\/li>/g) || []).length, 1);
+  assert.match(html, /data-new-lesson-select/);
+  assert.match(html, /name="template" value="template-1"/);
   assert.match(html, /class="new-lesson-dialog__create" type="button"/);
 });
 
