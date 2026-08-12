@@ -43,9 +43,65 @@
     }),
   };
 
-  const icons = {
-    sparkles: '✦', compass: '◴', cards: '▣', book: '▤', cap: '◇', chat: '◌', check: '✓',
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const stageIconShapes = {
+    sparkles: [
+      ['path', { d: 'M10 3.2 11.3 8l4.8 1.3-4.8 1.3L10 15.4 8.7 10.6 3.9 9.3 8.7 8z' }],
+      ['path', { d: 'm18.2 13.2.8 3 3 .8-3 .8-.8 3-.8-3-3-.8 3-.8z' }],
+    ],
+    pencil: [
+      ['path', { d: 'm13.2 5.2 5.6 5.6' }],
+      ['path', { d: 'M4 20.1 5.7 14.4 16.2 3.9a2 2 0 0 1 2.8 0l1.1 1.1a2 2 0 0 1 0 2.8L9.6 18.3z' }],
+      ['path', { d: 'M4 20.1 8.4 18.8' }],
+    ],
+    cards: [
+      ['rect', { x: '5', y: '3.5', width: '14', height: '17', rx: '2.2' }],
+      ['path', { d: 'M8.4 9.2h7.2' }],
+      ['path', { d: 'M8.4 13.4h5' }],
+    ],
+    book: [
+      ['path', { d: 'M12 6.2c-1.8-1.2-4.6-1.8-7.5-1.8v13.8c2.9 0 5.7.6 7.5 1.8 1.8-1.2 4.6-1.8 7.5-1.8V4.4c-2.9 0-5.7.6-7.5 1.8z' }],
+      ['path', { d: 'M12 6.2v13.8' }],
+    ],
+    cap: [
+      ['path', { d: 'm3.2 10.4 8.8-4.8 8.8 4.8-8.8 4.8z' }],
+      ['path', { d: 'M7.2 12.6v3.6c1.8 1.6 7.8 1.6 9.6 0v-3.6' }],
+      ['path', { d: 'M20.8 10.4v5.4' }],
+    ],
+    chat: [
+      ['path', { d: 'M14.6 10.8h3.8a2 2 0 0 1 2 2v3.6a2 2 0 0 1-2 2H17v2.2l-3.2-2.2h-1.2a2 2 0 0 1-2-2v-3.6a2 2 0 0 1 2-2z', fill: '#fff' }],
+      ['path', { d: 'M6.4 5.6h7a2.2 2.2 0 0 1 2.2 2.2v4.1a2.2 2.2 0 0 1-2.2 2.2H8.1L4.2 16.8V7.8A2.2 2.2 0 0 1 6.4 5.6z', fill: '#fff' }],
+    ],
+    question: [
+      ['circle', { cx: '12', cy: '12', r: '8.2' }],
+      ['path', { d: 'M9.4 9.5a2.6 2.6 0 1 1 4.4 1.9c-.8.6-1.5 1.1-1.5 2.4' }],
+      ['circle', { cx: '12.3', cy: '16.6', r: '.85', fill: 'currentColor', stroke: 'none' }],
+    ],
   };
+  const stageIconAliases = {
+    sparkles: 'sparkles',
+    compass: 'pencil',
+    pencil: 'pencil',
+    cards: 'cards',
+    book: 'book',
+    cap: 'cap',
+    chat: 'chat',
+    check: 'question',
+    question: 'question',
+  };
+
+  function createStageIcon(name) {
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    const shapes = stageIconShapes[stageIconAliases[name] || 'sparkles'];
+    for (const [tag, attrs] of shapes) {
+      const node = document.createElementNS(svgNS, tag);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      svg.append(node);
+    }
+    return svg;
+  }
 
   function formatTime(seconds) {
     const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -71,14 +127,14 @@
     number.textContent = String(stage.number);
     const icon = document.createElement('span');
     icon.className = 'lesson-stage__icon';
-    icon.textContent = icons[stage.icon] || '•';
+    icon.append(createStageIcon(stage.icon));
     const title = document.createElement('span');
     title.className = 'lesson-stage__title';
     title.textContent = stage.title;
     const duration = document.createElement('span');
     duration.className = 'lesson-stage__duration';
     duration.textContent = `${stage.durationMinutes} min`;
-    button.append(number, icon, title, duration);
+    button.append(icon, number, title, duration);
     button.addEventListener('click', () => selectStage(index));
     return button;
   }
