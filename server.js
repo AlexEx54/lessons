@@ -415,6 +415,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && (
     pathname === '/generator' || pathname === '/generator/' || pathname === '/generator.html'
   )) {
+    // Deprecated legacy surface: intentionally preserved as a working reference
+    // for the future generator, but not linked from current product flows.
     if (!getAuthenticatedUser(req, database)) {
       redirect(res, loginRedirect('/generator'));
       return;
@@ -445,6 +447,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && pathname === '/api/generator/config') {
+    // Legacy generator API. Keep compatible while /generator is retained as a reference.
     if (!requireTeacherAuth(req, res)) return;
     json(res, 200, getGeneratorConfig());
     return;
@@ -497,6 +500,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && pathname === '/api/lessons/generate') {
+    // Legacy generator API. New lesson creation must not depend on this endpoint.
     if (!requireTeacherAuth(req, res)) return;
 
     let body;

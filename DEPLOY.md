@@ -45,7 +45,7 @@ Set these environment variables in the production `.env` on the VPS:
 - `OPENROUTER_REASONING_EFFORT`: optional. Defaults to `xhigh` (max reasoning for DeepSeek V4 Flash).
 
 Open `/` for the public landing. Authenticated teachers use `/app` for the dashboard
-and `/generator` to generate and manage lessons.
+and the deprecated `/generator` reference page. The legacy generator remains functional for internal comparison, but must not be linked from new product flows; see `docs/legacy-generator.md`.
 
 The server requires Node.js 24.15 or newer. After the first deploy, create a teacher:
 
@@ -72,7 +72,7 @@ with your OpenRouter key. The server loads `.env` automatically on start.
 
 Room value can be any code (for example, `maria-friday`).
 
-The generator dashboard creates teacher/student links automatically.
+The deprecated generator dashboard still creates teacher/student links automatically for legacy reference and regression checks.
 
 ## How to run lesson
 

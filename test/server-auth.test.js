@@ -172,7 +172,11 @@ test('login protects teacher pages and exposes the current profile', async t => 
 
   const generator = await fetch(`${baseUrl}/generator`, { headers: { Cookie: cookie } });
   assert.equal(generator.status, 200);
-  assert.doesNotMatch(await generator.text(), /teacher-token|TEACHER_ADMIN_TOKEN/);
+  const generatorHtml = await generator.text();
+  assert.doesNotMatch(generatorHtml, /teacher-token|TEACHER_ADMIN_TOKEN/);
+  assert.match(generatorHtml, /Legacy-генератор уроков/);
+  assert.match(generatorHtml, /Deprecated/);
+  assert.match(generatorHtml, /name="robots" content="noindex,nofollow"/);
 
   const homeContent = await fetch(`${baseUrl}/api/home-content`, { headers: { Cookie: cookie } });
   assert.equal(homeContent.status, 200);

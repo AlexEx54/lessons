@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Генератор уроков — EasyClass</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Legacy-генератор уроков — EasyClass</title>
   <style>
     :root {
       --bg: #f6f7fb;
@@ -107,6 +108,34 @@
       border-radius: 8px;
       box-shadow: var(--shadow);
       padding: 18px;
+    }
+
+    .legacy-notice {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: start;
+      gap: 12px;
+      padding: 14px 16px;
+      border: 1px solid #e7c780;
+      border-radius: 8px;
+      color: #62450b;
+      background: #fff8df;
+      box-shadow: 0 8px 22px rgba(104, 75, 13, 0.08);
+    }
+
+    .legacy-notice strong {
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: #fff;
+      background: #8a5a00;
+      font-size: 0.76rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .legacy-notice p {
+      margin: 1px 0 0;
+      line-height: 1.5;
     }
 
     .generator-grid {
@@ -246,9 +275,14 @@
 </head>
 <body>
   <main class="page">
+    <aside class="legacy-notice" aria-label="Статус генератора">
+      <strong>Deprecated</strong>
+      <p><b>Legacy-генератор сохранён только как внутренний референс.</b><br />Не подключайте его к новым пользовательским сценариям и не развивайте как основной генератор.</p>
+    </aside>
+
     <header class="topbar">
       <div>
-        <h1>Генератор уроков</h1>
+        <h1>Legacy-генератор уроков</h1>
         <p class="meta-line" id="config-line">Загрузка конфигурации...</p>
       </div>
       <button class="ghost" id="refresh-lessons" type="button">Обновить список</button>
