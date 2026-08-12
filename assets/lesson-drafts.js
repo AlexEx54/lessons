@@ -40,6 +40,41 @@
     return button;
   }
 
+  function editorLink(draft) {
+    const link = document.createElement('a');
+    link.className = 'draft-card__editor-link';
+    link.href = `/lesson-drafts/${encodeURIComponent(draft.id)}/edit`;
+    link.textContent = 'Открыть редактор';
+    return link;
+  }
+
+  function deleteButton(draft) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'draft-card__delete';
+    button.textContent = 'Удалить';
+    button.addEventListener('click', async () => {
+      if (!window.confirm(`Удалить черновик «${draft.topic}»? Это действие нельзя отменить.`)) return;
+      button.disabled = true;
+      button.textContent = 'Удаляем…';
+      try {
+        const response = await fetch(`/api/lesson-drafts/${encodeURIComponent(draft.id)}`, {
+          method: 'DELETE',
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'Не удалось удалить черновик.');
+        state.drafts = state.drafts.filter(item => item.id !== draft.id);
+        render();
+        window.AppShell.showToast('Черновик удалён.');
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = 'Удалить';
+        window.AppShell.showToast(error.message || 'Не удалось удалить черновик.');
+      }
+    });
+    return button;
+  }
+
   function draftCard(draft) {
     const card = document.createElement('article');
     card.className = 'draft-card';
@@ -66,26 +101,29 @@
 
     if (draft.status === 'failed') {
       addText(card, 'p', 'draft-card__error', draft.errorMessage || 'Во время генерации произошла ошибка.');
-      const actions = document.createElement('div');
-      actions.className = 'draft-card__actions';
-      actions.append(futureAction('Повторить генерацию', 'Повторный запуск будет подключён вместе с генератором.'));
-      card.append(actions);
     }
 
     if (draft.status === 'review') {
       addText(card, 'p', 'draft-card__hint', 'Контент сгенерирован и готов к проверке и редактированию.');
-      const actions = document.createElement('div');
-      actions.className = 'draft-card__actions';
-      actions.append(
-        futureAction('Открыть редактор', 'Редактор урока скоро появится.'),
-        futureAction('Добавить в библиотеку', 'Публикация будет доступна после подключения редактора.'),
-      );
-      card.append(actions);
     }
 
     if (draft.status === 'published') {
       addText(card, 'p', 'draft-card__hint', `Урок опубликован${draft.publishedAt ? ` ${formatDate(draft.publishedAt)}` : ''}.`);
     }
+
+    const actions = document.createElement('div');
+    actions.className = 'draft-card__actions';
+    if (draft.status === 'failed') {
+      actions.append(futureAction('Повторить генерацию', 'Повторный запуск будет подключён вместе с генератором.'));
+    }
+    if (draft.status === 'review') {
+      actions.append(
+        editorLink(draft),
+        futureAction('Добавить в библиотеку', 'Публикация будет доступна после подключения редактора.'),
+      );
+    }
+    actions.append(deleteButton(draft));
+    card.append(actions);
     return card;
   }
 

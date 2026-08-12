@@ -1,0 +1,135 @@
+(() => {
+  'use strict';
+
+  const state = { lesson: null, activeIndex: 0, elapsedSeconds: 0, timer: null };
+  const byId = id => document.getElementById(id);
+  const plan = byId('lesson-plan');
+  const stages = byId('lesson-stages');
+  const content = byId('lesson-content');
+  const loading = byId('lesson-loading');
+  const errorBox = byId('lesson-error');
+  const toast = byId('lesson-toast');
+  let toastTimer;
+
+  const icons = {
+    sparkles: '✦', compass: '◴', cards: '▣', book: '▤', cap: '◇', chat: '◌', check: '✓',
+  };
+
+  function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const remainder = (seconds % 60).toString().padStart(2, '0');
+    return `${minutes}:${remainder}`;
+  }
+
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add('lesson-toast--visible');
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => toast.classList.remove('lesson-toast--visible'), 2600);
+  }
+
+  function stageButton(stage, index) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'lesson-stage';
+    button.dataset.stageIndex = String(index);
+
+    const number = document.createElement('span');
+    number.className = 'lesson-stage__number';
+    number.textContent = String(stage.number);
+    const icon = document.createElement('span');
+    icon.className = 'lesson-stage__icon';
+    icon.textContent = icons[stage.icon] || '•';
+    const title = document.createElement('span');
+    title.className = 'lesson-stage__title';
+    title.textContent = stage.title;
+    const duration = document.createElement('span');
+    duration.className = 'lesson-stage__duration';
+    duration.textContent = `${stage.durationMinutes} min`;
+    button.append(number, icon, title, duration);
+    button.addEventListener('click', () => selectStage(index));
+    return button;
+  }
+
+  function selectStage(index) {
+    const lesson = state.lesson;
+    if (!lesson || index < 0 || index >= lesson.stages.length) return;
+    state.activeIndex = index;
+    const stage = lesson.stages[index];
+    [...stages.children].forEach((button, buttonIndex) => {
+      const active = buttonIndex === index;
+      button.classList.toggle('lesson-stage--active', active);
+      button.setAttribute('aria-current', active ? 'step' : 'false');
+    });
+    byId('stage-number').textContent = `${stage.number}.`;
+    byId('stage-title').textContent = stage.title;
+    byId('stage-kicker').textContent = stage.id === 'warm-up' ? 'Let’s start!' : 'Lesson stage';
+    byId('empty-stage-duration').textContent = `${stage.durationMinutes} min`;
+    byId('stage-progress').textContent = `${index + 1} из ${lesson.stages.length}`;
+    byId('previous-stage').disabled = index === 0;
+    byId('next-stage').disabled = index === lesson.stages.length - 1;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function render(lesson) {
+    state.lesson = lesson;
+    const meta = lesson.meta || {};
+    document.title = `${meta.title || meta.topic || 'Урок'} — EasyClass`;
+    byId('lesson-title').textContent = `${meta.title || meta.topic || 'Новый урок'} (${meta.level || 'A2'})`;
+    byId('lesson-number').textContent = `Lesson ${meta.lessonNumber || 1} of 1`;
+    byId('total-time').textContent = formatTime((meta.durationMinutes || 45) * 60);
+    stages.replaceChildren(...lesson.stages.map(stageButton));
+    loading.hidden = true;
+    content.hidden = false;
+    selectStage(0);
+  }
+
+  function showError(message) {
+    loading.hidden = true;
+    content.hidden = true;
+    errorBox.hidden = false;
+    byId('lesson-error-message').textContent = message;
+  }
+
+  async function loadLesson() {
+    const match = window.location.pathname.match(/^\/lesson-drafts\/([^/]+)\/edit\/?$/);
+    if (!match) return showError('Некорректная ссылка на урок.');
+    try {
+      const response = await fetch(`/api/lesson-drafts/${encodeURIComponent(decodeURIComponent(match[1]))}`, { cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Черновик урока не найден.');
+      if (!payload.draft?.content?.stages?.length) throw new Error('В черновике пока нет структуры урока.');
+      render(payload.draft.content);
+    } catch (error) {
+      showError(error.message || 'Не удалось загрузить структуру урока.');
+    }
+  }
+
+  function setPlanVisible(visible) {
+    plan.hidden = !visible;
+    byId('show-plan').hidden = visible;
+    document.body.classList.toggle('lesson-plan-hidden', !visible);
+  }
+
+  byId('hide-plan').addEventListener('click', () => setPlanVisible(false));
+  byId('close-plan').addEventListener('click', () => setPlanVisible(false));
+  byId('show-plan').addEventListener('click', () => setPlanVisible(true));
+  byId('previous-stage').addEventListener('click', () => selectStage(state.activeIndex - 1));
+  byId('next-stage').addEventListener('click', () => selectStage(state.activeIndex + 1));
+  byId('teacher-screen').addEventListener('click', () => showToast('Экран преподавателя уже открыт.'));
+  byId('lesson-timer').addEventListener('click', () => {
+    if (state.timer) {
+      window.clearInterval(state.timer);
+      state.timer = null;
+      byId('timer-icon').textContent = '▶';
+      return;
+    }
+    byId('timer-icon').textContent = 'Ⅱ';
+    state.timer = window.setInterval(() => {
+      state.elapsedSeconds += 1;
+      byId('elapsed-time').textContent = formatTime(state.elapsedSeconds);
+    }, 1000);
+  });
+  window.addEventListener('pagehide', () => window.clearInterval(state.timer));
+  loadLesson();
+})();

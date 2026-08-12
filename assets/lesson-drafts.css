@@ -175,7 +175,11 @@
   gap: 8px;
 }
 
-.draft-card__actions button {
+.draft-card__actions button,
+.draft-card__editor-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 36px;
   padding: 0 13px;
   border: 1px solid #dcd5fb;
@@ -186,8 +190,20 @@
   font-weight: 750;
 }
 
-.draft-card__actions button:last-child { color: #fff; border-color: var(--purple); background: var(--purple); }
-.draft-card__actions button[aria-disabled="true"] { opacity: .68; }
+.draft-card__actions button[aria-disabled="true"] {
+  border-color: var(--purple);
+  color: #fff;
+  background: var(--purple);
+  opacity: .68;
+}
+.draft-card__actions .draft-card__delete {
+  margin-left: auto;
+  border-color: #f0cfd3;
+  color: #c43f4a;
+  background: #fff8f8;
+}
+.draft-card__actions .draft-card__delete:hover { border-color: #dd7880; background: #fff0f1; }
+.draft-card__actions .draft-card__delete:disabled { opacity: .55; cursor: wait; }
 
 .draft-state {
   display: grid;

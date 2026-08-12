@@ -28,10 +28,13 @@ const {
   saveLesson,
 } = require('./lib/lesson-store.js');
 const {
+  completeLessonDraft,
   createLessonDraft,
+  deleteLessonDraft,
   findLessonDraft,
   listLessonDrafts,
 } = require('./lib/lesson-draft-store.js');
+const { createSyntheticLesson } = require('./lib/synthetic-lesson.js');
 const {
   generateLessonJson,
   getGeneratorConfig,
@@ -441,6 +444,18 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && pathname.startsWith('/lesson-drafts/') && pathname.endsWith('/edit')) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    const draftId = getLessonIdFromPath(pathname, '/lesson-drafts/', '/edit');
+    if (!findLessonDraft(draftId, user.id, database)) {
+      json(res, 404, { error: 'Черновик урока не найден.' });
+      return;
+    }
+    serveStatic('/lesson-editor.html', res);
+    return;
+  }
+
   if (req.method === 'GET' && (
     pathname === '/generator' || pathname === '/generator/' || pathname === '/generator.html'
   )) {
@@ -506,8 +521,10 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const draft = createLessonDraft({ ownerAdminId: user.id, topic, template }, database);
-      json(res, 201, { draft });
+      const pendingDraft = createLessonDraft({ ownerAdminId: user.id, topic, template }, database);
+      const lesson = createSyntheticLesson(topic);
+      const draft = completeLessonDraft(pendingDraft.id, user.id, lesson, database);
+      json(res, 201, { draft, lessonUrl: `/lesson-drafts/${encodeURIComponent(draft.id)}/edit` });
     } catch (error) {
       console.error('Cannot create lesson draft:', error);
       json(res, 500, { error: 'Не удалось создать черновик урока.' });
@@ -519,6 +536,19 @@ const server = http.createServer(async (req, res) => {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     json(res, 200, { drafts: listLessonDrafts(user.id, database) });
+    return;
+  }
+
+  if (req.method === 'DELETE' && pathname.startsWith('/api/lesson-drafts/')) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    const draftId = getLessonIdFromPath(pathname, '/api/lesson-drafts/');
+    try {
+      deleteLessonDraft(draftId, user.id, database);
+      json(res, 200, { ok: true });
+    } catch (error) {
+      json(res, error.statusCode || 500, { error: error.message || 'Не удалось удалить черновик.' });
+    }
     return;
   }
 

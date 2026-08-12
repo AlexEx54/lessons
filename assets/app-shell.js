@@ -186,7 +186,7 @@
 
     const originalLabel = createLessonDraftButton.innerHTML;
     createLessonDraftButton.disabled = true;
-    createLessonDraftButton.textContent = 'Создаём черновик…';
+    createLessonDraftButton.textContent = 'Создаём структуру…';
     try {
       const response = await fetch('/api/lesson-drafts', {
         method: 'POST',
@@ -195,7 +195,8 @@
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Не удалось создать черновик.');
-      window.location.assign('/lesson-drafts');
+      if (!payload.lessonUrl) throw new Error('Сервер не вернул ссылку на урок.');
+      window.location.assign(payload.lessonUrl);
     } catch (error) {
       showToast(error.message || 'Не удалось создать черновик.');
       createLessonDraftButton.disabled = false;

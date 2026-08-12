@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Урок — EasyClass</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/lesson-editor.css" />
+</head>
+<body>
+  <div class="lesson-app" id="lesson-app">
+    <header class="lesson-header">
+      <a class="lesson-brand" href="/app" aria-label="EasyClass — главная">
+        <img src="/assets/images/easyclass-mark-cropped.png" alt="" width="34" height="28" />
+        <span>Easy<span>Class</span></span>
+      </a>
+      <div class="lesson-identity">
+        <strong id="lesson-title">Загрузка урока…</strong>
+        <small id="lesson-number">Lesson 1 of 1</small>
+      </div>
+      <div class="lesson-header__actions">
+        <button class="timer-card" id="lesson-timer" type="button" aria-label="Запустить таймер урока">
+          <span class="timer-card__play" id="timer-icon">▶</span>
+          <span><strong><span id="elapsed-time">00:00</span> <em>/ <span id="total-time">45:00</span></em></strong><small>Lesson time</small></span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+        </button>
+        <button class="teacher-screen" id="teacher-screen" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          <span>Teacher screen</span>
+        </button>
+        <a class="end-lesson" href="/lesson-drafts">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"/></svg>
+          <span>End lesson</span>
+        </a>
+      </div>
+    </header>
+
+    <div class="lesson-layout">
+      <aside class="lesson-plan" id="lesson-plan">
+        <div class="lesson-plan__heading">
+          <strong>Lesson Plan</strong>
+          <button id="close-plan" type="button" aria-label="Скрыть план">×</button>
+        </div>
+        <nav class="lesson-plan__items" id="lesson-stages" aria-label="Стадии урока"></nav>
+        <button class="hide-plan" id="hide-plan" type="button"><span>←</span> Hide plan</button>
+      </aside>
+
+      <button class="show-plan" id="show-plan" type="button" hidden aria-label="Показать план урока">→</button>
+
+      <main class="lesson-content">
+        <div class="lesson-content__inner" id="lesson-content" hidden>
+          <div class="stage-heading">
+            <h1><span id="stage-number">1.</span> <span id="stage-title">Warm Up</span></h1>
+            <span class="teacher-version">Teacher version</span>
+          </div>
+          <p class="stage-kicker" id="stage-kicker">Lesson stage</p>
+
+          <section class="empty-stage" aria-labelledby="empty-stage-title">
+            <span class="empty-stage__icon" aria-hidden="true">✦</span>
+            <h2 id="empty-stage-title">Стадия готова к наполнению</h2>
+            <p>Структура урока уже создана из JSON. Контент для этой стадии будет сгенерирован на следующем этапе.</p>
+            <div class="empty-stage__meta"><span id="empty-stage-duration">5 min</span><span>Контент пока не добавлен</span></div>
+          </section>
+
+          <div class="stage-pagination">
+            <button id="previous-stage" type="button">← Предыдущая стадия</button>
+            <span id="stage-progress">1 из 7</span>
+            <button id="next-stage" type="button">Следующая стадия →</button>
+          </div>
+        </div>
+
+        <div class="lesson-loading" id="lesson-loading">Загружаем структуру урока…</div>
+        <div class="lesson-error" id="lesson-error" hidden>
+          <strong>Не удалось открыть урок</strong>
+          <p id="lesson-error-message"></p>
+          <a href="/lesson-drafts">Вернуться к черновикам</a>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="lesson-toast" id="lesson-toast" role="status" aria-live="polite"></div>
+  <script src="/assets/lesson-editor.js" defer></script>
+</body>
+</html>

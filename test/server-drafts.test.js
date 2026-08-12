@@ -119,8 +119,18 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   const created = (await createdResponse.json()).draft;
   assert.equal(created.ownerAdminId, firstAdmin.id);
   assert.equal(created.topic, 'Travel English');
-  assert.equal(created.status, 'generating');
-  assert.equal(created.content, null);
+  assert.equal(created.status, 'review');
+  assert.equal(created.content.schemaVersion, 'lesson-draft-v1');
+  assert.equal(created.content.meta.topic, 'Travel English');
+  assert.equal(created.content.stages.length, 7);
+  assert.deepEqual(created.content.stages.map(stage => stage.number), [1, 2, 3, 4, 5, 6, 7]);
+  assert.ok(created.content.stages.every(stage => stage.content === null));
+
+  const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
+    headers: { Cookie: firstAdminCookie },
+  });
+  assert.equal(editorPage.status, 200);
+  assert.match(await editorPage.text(), /id="lesson-stages"/);
 
   const ownList = await fetch(`${baseUrl}/api/lesson-drafts`, {
     headers: { Cookie: firstAdminCookie },
@@ -137,5 +147,24 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.deepEqual((await secondList.json()).drafts, []);
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}`, {
     headers: { Cookie: secondAdminCookie },
+  })).status, 404);
+  assert.equal((await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
+    headers: { Cookie: secondAdminCookie },
+  })).status, 404);
+
+  const foreignDelete = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}`, {
+    method: 'DELETE',
+    headers: { Cookie: secondAdminCookie },
+  });
+  assert.equal(foreignDelete.status, 404);
+
+  const ownDelete = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}`, {
+    method: 'DELETE',
+    headers: { Cookie: firstAdminCookie },
+  });
+  assert.equal(ownDelete.status, 200);
+  assert.deepEqual(await ownDelete.json(), { ok: true });
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}`, {
+    headers: { Cookie: firstAdminCookie },
   })).status, 404);
 });

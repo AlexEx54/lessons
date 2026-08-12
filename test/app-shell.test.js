@@ -94,3 +94,14 @@ test('logout returns the teacher to the public landing page', () => {
   assert.match(appShellScript, /window\.location\.assign\('\/'\)/);
   assert.doesNotMatch(appShellScript, /window\.location\.assign\('\/login'\)/);
 });
+
+test('lesson draft review action links to its editor', () => {
+  const draftScript = fs.readFileSync(path.join(ROOT, 'assets', 'lesson-drafts.js'), 'utf8');
+  assert.match(draftScript, /lesson-drafts\/\$\{encodeURIComponent\(draft\.id\)\}\/edit/);
+  assert.doesNotMatch(draftScript, /futureAction\('Открыть редактор'/);
+});
+
+test('hidden lesson plan cannot be forced visible by its layout styles', () => {
+  const editorStyles = fs.readFileSync(path.join(ROOT, 'assets', 'lesson-editor.css'), 'utf8');
+  assert.match(editorStyles, /\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
+});
