@@ -63,6 +63,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
       HOST: '127.0.0.1',
       PORT: String(port),
       NODE_ENV: 'test',
+      DRAFT_ASSETS_DIR: path.join(temporaryDirectory, 'draft-assets'),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -125,10 +126,10 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.content.stages.length, 7);
   assert.deepEqual(created.content.stages.map(stage => stage.number), [1, 2, 3, 4, 5, 6, 7]);
   assert.deepEqual(created.content.stages[0].content.map(component => component.type), [
-    'teacherNote', 'taskPrompt', 'taskPrompt',
+    'teacherNote', 'taskPrompt', 'thisOrThat', 'taskPrompt',
   ]);
   assert.equal(created.content.stages[0].content[0].id, 'warm-up-teacher-note');
-  assert.deepEqual(created.content.stages[0].content.slice(1).map(component => component.variant), [
+  assert.deepEqual(created.content.stages[0].content.filter(component => component.type === 'taskPrompt').map(component => component.variant), [
     'yourTurn', 'followUp',
   ]);
   assert.ok(created.content.stages.slice(1).every(stage => stage.content === null));
@@ -194,7 +195,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   );
   assert.equal(promptUpdateResponse.status, 200);
   const promptUpdate = (await promptUpdateResponse.json()).draft;
-  const savedPrompt = promptUpdate.content.stages[0].content[2];
+  const savedPrompt = promptUpdate.content.stages[0].content[3];
   assert.equal(savedPrompt.id, 'warm-up-follow-up-prompt');
   assert.equal(savedPrompt.variant, 'followUp');
   assert.equal(savedPrompt.title, 'Next questions:');
@@ -205,6 +206,41 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     body: JSON.stringify({ title: 'Next questions:', text: 'Question', support: { title: '', text: '' } }),
   })).status, 400);
 
+  const imageEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/this-or-that/warm-up-this-or-that/items/summer-choice-one/options/minecraft-house/image`;
+  const png = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    Buffer.from('test-image'),
+  ]);
+  assert.equal((await fetch(imageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: png,
+  })).status, 401);
+  assert.equal((await fetch(imageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: teacherCookie }, body: png,
+  })).status, 403);
+  assert.equal((await fetch(imageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'text/plain', Cookie: firstAdminCookie }, body: png,
+  })).status, 415);
+  assert.equal((await fetch(imageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: Buffer.from('not-png'),
+  })).status, 415);
+  const imageUpdateResponse = await fetch(imageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: png,
+  });
+  assert.equal(imageUpdateResponse.status, 200);
+  const imageDraft = (await imageUpdateResponse.json()).draft;
+  const savedImageSrc = imageDraft.content.stages[0].content[2].items[0].options[0].imageSrc;
+  assert.match(savedImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`));
+  assert.equal((await fetch(`${baseUrl}${savedImageSrc}`)).status, 401);
+  const imageAssetResponse = await fetch(`${baseUrl}${savedImageSrc}`, { headers: { Cookie: firstAdminCookie } });
+  assert.equal(imageAssetResponse.status, 200);
+  assert.deepEqual(Buffer.from(await imageAssetResponse.arrayBuffer()), png);
+  const secondAdminCookieBeforeDelete = await login(baseUrl, 'admin-two@example.com', password);
+  assert.equal((await fetch(`${baseUrl}${savedImageSrc}`, { headers: { Cookie: secondAdminCookieBeforeDelete } })).status, 404);
+  const imageDeleteResponse = await fetch(imageEndpoint, { method: 'DELETE', headers: { Cookie: firstAdminCookie } });
+  assert.equal(imageDeleteResponse.status, 200);
+  assert.equal((await imageDeleteResponse.json()).draft.content.stages[0].content[2].items[0].options[0].imageSrc, undefined);
+  assert.equal((await fetch(`${baseUrl}${savedImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
+
   const ownList = await fetch(`${baseUrl}/api/lesson-drafts`, {
     headers: { Cookie: firstAdminCookie },
   });
@@ -213,7 +249,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { Cookie: firstAdminCookie },
   })).status, 200);
 
-  const secondAdminCookie = await login(baseUrl, 'admin-two@example.com', password);
+  const secondAdminCookie = secondAdminCookieBeforeDelete;
   const secondList = await fetch(`${baseUrl}/api/lesson-drafts`, {
     headers: { Cookie: secondAdminCookie },
   });
@@ -248,6 +284,9 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ title: 'Published', text: 'Edit', support: null }),
+  })).status, 409);
+  assert.equal((await fetch(imageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: png,
   })).status, 409);
 
   const ownDelete = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}`, {

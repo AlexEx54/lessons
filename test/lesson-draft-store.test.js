@@ -13,6 +13,7 @@ const {
   retryLessonDraft,
   updateTaskPrompt,
   updateTeacherNote,
+  updateThisOrThatImage,
 } = require('../lib/lesson-draft-store.js');
 const { createUser } = require('../lib/user-store.js');
 
@@ -194,6 +195,42 @@ test('task prompt update rejects missing, duplicate, and immutable draft targets
   publishLessonDraft(ready.id, owner.id, database);
   assert.throws(() => updateTaskPrompt({
     id: ready.id, ownerAdminId: owner.id, promptId: 'same-prompt', ...changes,
+  }, database), /только черновик на проверке/);
+  database.close();
+});
+
+test('this or that image URL can be added and removed only from an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'image-owner');
+  const outsider = admin(database, 'image-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Images', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'thisOrThat', id: 'choices', items: [{ id: 'pair-one', options: [
+        { id: 'left', caption: 'Left', imagePrompt: 'Left prompt' },
+        { id: 'right', caption: 'Right', imagePrompt: 'Right prompt' },
+      ] }],
+    }] }],
+  }, database);
+  const added = updateThisOrThatImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'choices', itemId: 'pair-one', optionId: 'left', imageSrc: '/asset.png',
+  }, database);
+  assert.equal(added.previousImageSrc, null);
+  assert.equal(added.draft.content.stages[0].content[0].items[0].options[0].imageSrc, '/asset.png');
+  const removed = updateThisOrThatImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'choices', itemId: 'pair-one', optionId: 'left', imageSrc: null,
+  }, database);
+  assert.equal(removed.previousImageSrc, '/asset.png');
+  assert.equal(removed.draft.content.stages[0].content[0].items[0].options[0].imageSrc, undefined);
+  assert.throws(() => updateThisOrThatImage({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'choices', itemId: 'pair-one', optionId: 'left', imageSrc: '/other.png',
+  }, database), /не найден/);
+  assert.throws(() => updateThisOrThatImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'choices', itemId: 'pair-one', optionId: 'missing', imageSrc: '/missing.png',
+  }, database), /не найден/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateThisOrThatImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'choices', itemId: 'pair-one', optionId: 'left', imageSrc: '/late.png',
   }, database), /только черновик на проверке/);
   database.close();
 });

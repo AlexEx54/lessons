@@ -97,3 +97,42 @@ Teacher’s Note содержит подсказки, инструкции и г
 конкретного урока в имена полей или технические шаблоны идентификаторов: используйте
 роль и положение компонента, например `warm-up-follow-up-prompt`, а не
 `summer-speaking-starters`.
+
+## This or That
+
+`thisOrThat` показывает от одной до восьми независимых пар. В каждой паре ученик
+выбирает один из двух вариантов.
+
+```json
+{
+  "type": "thisOrThat",
+  "id": "warm-up-this-or-that",
+  "items": [{
+    "id": "summer-choice-one",
+    "options": [{
+      "id": "minecraft-house",
+      "caption": "Building a house in Minecraft",
+      "imagePrompt": "Colorful square cartoon illustration of a child building a wooden house in a block-based video game, no text."
+    }, {
+      "id": "beach-sandcastle",
+      "caption": "Building a sandcastle on the beach",
+      "imagePrompt": "Colorful square cartoon illustration of a sandcastle on a sunny beach, no text."
+    }]
+  }]
+}
+```
+
+Поля:
+
+- `type` — строго `thisOrThat`.
+- `id` — обязательный уникальный идентификатор компонента в lowercase kebab-case.
+- `items` — массив из 1–8 пар; у каждой пары обязательный уникальный `id` и ровно два `options`.
+- `caption` — обязательная непустая подпись, отображаемая под вариантом.
+- `imagePrompt` — обязательный непустой промт на английском для квадратной иллюстрации без текста. Пока изображения нет, интерфейс показывает помещающуюся часть промта и кнопку копирования полного текста.
+- `imageSrc` — опциональный служебный URL загруженного изображения. Нейросеть это поле не создаёт: его добавляет сервер после загрузки администратором.
+
+Все идентификаторы внутри компонента уникальны и записываются в lowercase kebab-case.
+Не передавайте состояние выбора: оно локальное, независимо для каждой пары и не
+сохраняется после перезагрузки. В редакторе можно только загрузить, заменить или
+удалить изображение; `caption` и `imagePrompt` остаются неизменными. После удаления
+изображения снова показывается сохранённый промт.

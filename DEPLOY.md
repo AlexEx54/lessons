@@ -40,6 +40,7 @@ Set these environment variables in the production `.env` on the VPS:
 - `OPENROUTER_API_KEY`: your OpenRouter API key.
 - `APP_DB_PATH`: SQLite database path. Use `/var/lib/teach_platform/app.sqlite` in production.
 - `LESSONS_DIR`: optional. Defaults to `./data/lessons`.
+- `DRAFT_ASSETS_DIR`: optional. Каталог изображений черновиков; в production используйте `/var/lib/teach_platform/draft-assets`.
 - `USD_RUB_RATE`: optional. Defaults to `83`.
 - `OPENROUTER_MODEL`: optional. Defaults to `deepseek/deepseek-v4-flash`.
 - `OPENROUTER_REASONING_EFFORT`: optional. Defaults to `xhigh` (max reasoning for DeepSeek V4 Flash).

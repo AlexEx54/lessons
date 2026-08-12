@@ -36,6 +36,11 @@
       },
       onError: showToast,
     }),
+    thisOrThat: component => window.ThisOrThatComponent.renderThisOrThat(component, {
+      onUpload: state.draftStatus === 'review' ? uploadThisOrThatImage : undefined,
+      onDelete: state.draftStatus === 'review' ? deleteThisOrThatImage : undefined,
+      onMessage: showToast,
+    }),
   };
 
   const icons = {
@@ -95,7 +100,9 @@
     });
     byId('stage-number').textContent = `${stage.number}.`;
     byId('stage-title').textContent = stage.title;
-    byId('stage-kicker').textContent = stage.id === 'warm-up' ? 'Let’s start!' : 'Lesson stage';
+    byId('stage-kicker').textContent = stage.id === 'warm-up'
+      ? ((stage.content || []).some(component => component?.type === 'thisOrThat') ? 'This or That?' : 'Let’s start!')
+      : 'Lesson stage';
     renderStageContent(stage);
     byId('stage-progress').textContent = `${index + 1} из ${lesson.stages.length}`;
     byId('previous-stage').disabled = index === 0;
@@ -183,6 +190,52 @@
       }
     }
     return null;
+  }
+
+  function findThisOrThat(lesson, componentId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'thisOrThat' && component.id === componentId) return component;
+      }
+    }
+    return null;
+  }
+
+  function thisOrThatImageUrl(componentId, itemId, optionId) {
+    return `/api/lesson-drafts/${encodeURIComponent(state.draftId)}`
+      + `/this-or-that/${encodeURIComponent(componentId)}`
+      + `/items/${encodeURIComponent(itemId)}`
+      + `/options/${encodeURIComponent(optionId)}/image`;
+  }
+
+  async function updateThisOrThatImage(method, componentId, itemId, optionId, file) {
+    try {
+      const response = await fetch(thisOrThatImageUrl(componentId, itemId, optionId), {
+        method,
+        headers: file ? { 'Content-Type': file.type } : undefined,
+        body: file || undefined,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить изображение.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findThisOrThat(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый This or That не найден в черновике.');
+      showToast(method === 'DELETE' ? 'Изображение удалено.' : 'Изображение сохранено.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить изображение.');
+      throw error;
+    }
+  }
+
+  function uploadThisOrThatImage(file, componentId, itemId, optionId) {
+    return updateThisOrThatImage('PUT', componentId, itemId, optionId, file);
+  }
+
+  function deleteThisOrThatImage(componentId, itemId, optionId) {
+    return updateThisOrThatImage('DELETE', componentId, itemId, optionId);
   }
 
   async function saveTeacherNote(text, noteId) {

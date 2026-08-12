@@ -87,12 +87,16 @@ check_files=(
   assets/app-shell.js
   assets/home.js
   assets/library.js
+  assets/lesson-editor.js
+  assets/components/this-or-that.js
   lib/app-shell.js
   lib/auth.js
   lib/db.js
   lib/password.js
   lib/session-store.js
   lib/user-store.js
+  lib/lesson-draft-store.js
+  lib/synthetic-lesson.js
   scripts/create-user.js
   generate-lesson.js
   lib/lesson-build.js

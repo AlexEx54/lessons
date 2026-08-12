@@ -15,14 +15,14 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
   ]);
   assert.ok(lesson.stages.every((stage, index) => stage.number === index + 1));
   assert.deepEqual(lesson.stages[0].content.map(component => component.type), [
-    'teacherNote', 'taskPrompt', 'taskPrompt',
+    'teacherNote', 'taskPrompt', 'thisOrThat', 'taskPrompt',
   ]);
   assert.equal(lesson.stages[0].content[0].id, 'warm-up-teacher-note');
   assert.match(lesson.stages[0].content[0].text, /^- Не заставляйте/);
   assert.match(lesson.stages[0].content[0].text, /\*\*Say:\*\*/);
-  assert.deepEqual(lesson.stages[0].content.slice(1).map(prompt => prompt.variant), ['yourTurn', 'followUp']);
+  assert.deepEqual(lesson.stages[0].content.filter(component => component.type === 'taskPrompt').map(prompt => prompt.variant), ['yourTurn', 'followUp']);
   assert.equal(lesson.stages[0].content[1].id, 'warm-up-your-turn-prompt');
-  assert.equal(lesson.stages[0].content[2].id, 'warm-up-follow-up-prompt');
+  assert.equal(lesson.stages[0].content[3].id, 'warm-up-follow-up-prompt');
   assert.equal(lesson.stages[0].content[1].support, undefined);
   assert.deepEqual(lesson.stages[0].content[1], {
     type: 'taskPrompt',
@@ -31,7 +31,10 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     title: 'Your turn!',
     text: 'Which one did you do more this summer? Answer with a word or a short sentence.',
   });
-  assert.deepEqual(lesson.stages[0].content[2], {
+  assert.equal(lesson.stages[0].content[2].items.length, 4);
+  assert.ok(lesson.stages[0].content[2].items.every(item => item.options.length === 2));
+  assert.ok(lesson.stages[0].content[2].items.flatMap(item => item.options).every(option => option.imagePrompt && !option.imageSrc));
+  assert.deepEqual(lesson.stages[0].content[3], {
     type: 'taskPrompt',
     id: 'warm-up-follow-up-prompt',
     variant: 'followUp',

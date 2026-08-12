@@ -1,4 +1,5 @@
 const http = require('http');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
@@ -35,6 +36,7 @@ const {
   listLessonDrafts,
   updateTaskPrompt,
   updateTeacherNote,
+  updateThisOrThatImage,
 } = require('./lib/lesson-draft-store.js');
 const { createSyntheticLesson } = require('./lib/synthetic-lesson.js');
 const {
@@ -45,6 +47,7 @@ const {
 const PORT = process.env.PORT || 8787;
 const HOST = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
 const ROOT = __dirname;
+const DRAFT_ASSETS_DIR = path.resolve(process.env.DRAFT_ASSETS_DIR || path.join(ROOT, 'data', 'draft-assets'));
 const database = getDatabase();
 
 const clientsByRoom = new Map();
@@ -53,6 +56,12 @@ const MAX_DISPLAY_NAME_LENGTH = 80;
 const MAX_EMAIL_LENGTH = 254;
 const MIN_PASSWORD_LENGTH = 10;
 const MAX_PASSWORD_LENGTH = 256;
+const MAX_DRAFT_IMAGE_BYTES = 5 * 1024 * 1024;
+const DRAFT_IMAGE_TYPES = Object.freeze({
+  'image/jpeg': { extension: '.jpg', matches: buffer => buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff },
+  'image/png': { extension: '.png', matches: buffer => buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) },
+  'image/webp': { extension: '.webp', matches: buffer => buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP' },
+});
 
 // Временный серверный источник лент главной. Контракт можно сохранить при
 // подключении CMS/БД: клиент уже получает и главную ленту, и рекомендации шага 2 по API.
@@ -256,6 +265,36 @@ function readJsonBody(req) {
   });
 }
 
+function readRawBody(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let length = 0;
+    let settled = false;
+    req.on('data', chunk => {
+      if (settled) return;
+      length += chunk.length;
+      if (length > maxBytes) {
+        settled = true;
+        const error = new Error('Изображение превышает 5 МБ.');
+        error.statusCode = 413;
+        reject(error);
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      if (settled) return;
+      settled = true;
+      resolve(Buffer.concat(chunks));
+    });
+    req.on('error', error => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    });
+  });
+}
+
 function requireTeacherAuth(req, res) {
   const user = getAuthenticatedUser(req, database);
   if (!user) {
@@ -315,6 +354,30 @@ function getTaskPromptRouteParams(pathname) {
   } catch (_error) {
     return null;
   }
+}
+
+function getThisOrThatImageRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/this-or-that\/([^/]+)\/items\/([^/]+)\/options\/([^/]+)\/image$/);
+  if (!match) return null;
+  try {
+    const values = match.slice(1).map(value => decodeURIComponent(value).trim());
+    if (values.some(value => !value)) return null;
+    return { draftId: values[0], componentId: values[1], itemId: values[2], optionId: values[3] };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function draftAssetPath(draftId, fileName) {
+  if (!/^[a-f0-9-]{36}$/i.test(draftId) || !/^[a-f0-9-]{36}\.(?:jpg|png|webp)$/i.test(fileName)) return null;
+  const draftDirectory = path.join(DRAFT_ASSETS_DIR, draftId);
+  const absolute = path.join(draftDirectory, fileName);
+  return absolute.startsWith(`${draftDirectory}${path.sep}`) ? absolute : null;
+}
+
+function assetFileFromUrl(value) {
+  const match = String(value || '').match(/^\/api\/lesson-draft-assets\/([a-f0-9-]{36})\/([a-f0-9-]{36}\.(?:jpg|png|webp))$/i);
+  return match ? draftAssetPath(match[1], match[2]) : null;
 }
 
 function publicError(error) {
@@ -518,6 +581,34 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && pathname.startsWith('/api/lesson-draft-assets/')) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    const match = pathname.match(/^\/api\/lesson-draft-assets\/([^/]+)\/([^/]+)$/);
+    let draftId = '';
+    let fileName = '';
+    try {
+      draftId = match ? decodeURIComponent(match[1]) : '';
+      fileName = match ? decodeURIComponent(match[2]) : '';
+    } catch (_error) {
+      // Invalid encoded path is handled as not found below.
+    }
+    const absolute = draftAssetPath(draftId, fileName);
+    if (!absolute || !findLessonDraft(draftId, user.id, database)) {
+      json(res, 404, { error: 'Изображение не найдено.' });
+      return;
+    }
+    fs.readFile(absolute, (error, data) => {
+      if (error) {
+        json(res, 404, { error: 'Изображение не найдено.' });
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': getContentType(absolute), 'Cache-Control': 'private, max-age=3600' });
+      res.end(data);
+    });
+    return;
+  }
+
   if (req.method === 'GET' && pathname === '/api/generator/config') {
     // Legacy generator API. Keep compatible while /generator is retained as a reference.
     if (!requireTeacherAuth(req, res)) return;
@@ -565,6 +656,61 @@ const server = http.createServer(async (req, res) => {
     if (!user) return;
     json(res, 200, { drafts: listLessonDrafts(user.id, database) });
     return;
+  }
+
+  if ((req.method === 'PUT' || req.method === 'DELETE') && pathname.startsWith('/api/lesson-drafts/')) {
+    const imageRoute = getThisOrThatImageRouteParams(pathname);
+    if (imageRoute) {
+      const user = requireAdminAuth(req, res);
+      if (!user) return;
+      let newFile = null;
+      try {
+        if (!/^[a-f0-9-]{36}$/i.test(imageRoute.draftId)) {
+          const error = new Error('Некорректный идентификатор черновика.');
+          error.statusCode = 400;
+          throw error;
+        }
+        let imageSrc = null;
+        if (req.method === 'PUT') {
+          const contentType = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+          const imageType = DRAFT_IMAGE_TYPES[contentType];
+          if (!imageType) {
+            const error = new Error('Разрешены только JPEG, PNG и WebP.');
+            error.statusCode = 415;
+            throw error;
+          }
+          const buffer = await readRawBody(req, MAX_DRAFT_IMAGE_BYTES);
+          if (!buffer.length || !imageType.matches(buffer)) {
+            const error = new Error('Содержимое файла не соответствует формату изображения.');
+            error.statusCode = 415;
+            throw error;
+          }
+          const fileName = `${crypto.randomUUID()}${imageType.extension}`;
+          newFile = draftAssetPath(imageRoute.draftId, fileName);
+          if (!newFile) throw new Error('Некорректный путь изображения.');
+          fs.mkdirSync(path.dirname(newFile), { recursive: true });
+          const temporaryFile = `${newFile}.tmp-${crypto.randomUUID()}`;
+          fs.writeFileSync(temporaryFile, buffer, { flag: 'wx' });
+          fs.renameSync(temporaryFile, newFile);
+          imageSrc = `/api/lesson-draft-assets/${encodeURIComponent(imageRoute.draftId)}/${encodeURIComponent(fileName)}`;
+        }
+        const result = updateThisOrThatImage({
+          id: imageRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: imageRoute.componentId,
+          itemId: imageRoute.itemId,
+          optionId: imageRoute.optionId,
+          imageSrc,
+        }, database);
+        const previousFile = assetFileFromUrl(result.previousImageSrc);
+        if (previousFile && previousFile !== newFile) fs.rmSync(previousFile, { force: true });
+        json(res, 200, { draft: result.draft });
+      } catch (error) {
+        if (newFile) fs.rmSync(newFile, { force: true });
+        json(res, error.statusCode || 500, { error: error.message || 'Не удалось сохранить изображение.' });
+      }
+      return;
+    }
   }
 
   if (req.method === 'PATCH' && pathname.startsWith('/api/lesson-drafts/')) {
@@ -615,6 +761,9 @@ const server = http.createServer(async (req, res) => {
     const draftId = getLessonIdFromPath(pathname, '/api/lesson-drafts/');
     try {
       deleteLessonDraft(draftId, user.id, database);
+      if (/^[a-f0-9-]{36}$/i.test(draftId)) {
+        fs.rmSync(path.join(DRAFT_ASSETS_DIR, draftId), { recursive: true, force: true });
+      }
       json(res, 200, { ok: true });
     } catch (error) {
       json(res, error.statusCode || 500, { error: error.message || 'Не удалось удалить черновик.' });
