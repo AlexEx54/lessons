@@ -1,0 +1,94 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const test = require('node:test');
+const { openDatabase } = require('../lib/db.js');
+const {
+  completeLessonDraft,
+  createLessonDraft,
+  failLessonDraft,
+  findLessonDraft,
+  listLessonDrafts,
+  publishLessonDraft,
+  retryLessonDraft,
+} = require('../lib/lesson-draft-store.js');
+const { createUser } = require('../lib/user-store.js');
+
+function admin(database, suffix) {
+  return createUser({
+    email: `admin-${suffix}@example.com`,
+    displayName: `Admin ${suffix}`,
+    passwordHash: 'unused',
+    role: 'admin',
+  }, database);
+}
+
+test('lesson drafts are isolated by owner and sorted by latest update', () => {
+  const database = openDatabase(':memory:');
+  const firstAdmin = admin(database, 'one');
+  const secondAdmin = admin(database, 'two');
+  const older = createLessonDraft({ ownerAdminId: firstAdmin.id, topic: 'Older', template: 'template-1' }, database);
+  const newer = createLessonDraft({ ownerAdminId: firstAdmin.id, topic: 'Newer', template: 'template-1' }, database);
+  createLessonDraft({ ownerAdminId: secondAdmin.id, topic: 'Private', template: 'template-1' }, database);
+  database.prepare('UPDATE lesson_drafts SET updated_at = ? WHERE id = ?')
+    .run('2026-01-01T00:00:00.000Z', older.id);
+  database.prepare('UPDATE lesson_drafts SET updated_at = ? WHERE id = ?')
+    .run('2026-02-01T00:00:00.000Z', newer.id);
+
+  assert.deepEqual(listLessonDrafts(firstAdmin.id, database).map(item => item.topic), ['Newer', 'Older']);
+  assert.equal(findLessonDraft(older.id, secondAdmin.id, database), null);
+  assert.equal(listLessonDrafts(secondAdmin.id, database).length, 1);
+  database.close();
+});
+
+test('lesson draft lifecycle only allows the supported transitions', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'lifecycle');
+  const readyDraft = createLessonDraft({ ownerAdminId: owner.id, topic: 'Ready', template: 'template-1' }, database);
+  const ready = completeLessonDraft(readyDraft.id, owner.id, { meta: { title: 'Ready lesson' } }, database);
+  assert.equal(ready.status, 'review');
+  assert.deepEqual(ready.content, { meta: { title: 'Ready lesson' } });
+  assert.throws(() => failLessonDraft(ready.id, owner.id, 'Late failure', database), /нельзя перевести/);
+  const published = publishLessonDraft(ready.id, owner.id, database);
+  assert.equal(published.status, 'published');
+  assert.ok(published.publishedAt);
+
+  const failedDraft = createLessonDraft({ ownerAdminId: owner.id, topic: 'Retry', template: 'template-1' }, database);
+  assert.equal(failLessonDraft(failedDraft.id, owner.id, 'Provider error', database).status, 'failed');
+  assert.equal(retryLessonDraft(failedDraft.id, owner.id, database).status, 'generating');
+  assert.throws(() => retryLessonDraft(failedDraft.id, owner.id, database), /только для черновика с ошибкой/);
+  database.close();
+});
+
+test('lesson draft schema enforces status, owner, and topic constraints', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'constraints');
+  const teacher = createUser({
+    email: 'teacher-constraints@example.com',
+    displayName: 'Teacher',
+    passwordHash: 'unused',
+  }, database);
+  const now = new Date().toISOString();
+  assert.throws(() => database.prepare(`
+    INSERT INTO lesson_drafts (
+      id, owner_admin_id, topic, template_id, status, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run('bad-status', owner.id, 'Topic', 'template-1', 'unknown', now, now), /CHECK constraint/);
+  assert.throws(() => database.prepare(`
+    INSERT INTO lesson_drafts (
+      id, owner_admin_id, topic, template_id, status, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    'missing-owner', 'missing-user', 'Topic', 'template-1', 'generating', now, now,
+  ), /FOREIGN KEY constraint/);
+  assert.throws(() => createLessonDraft({
+    ownerAdminId: teacher.id, topic: 'Topic', template: 'template-1',
+  }, database), /должен принадлежать администратору/);
+  assert.throws(() => createLessonDraft({
+    ownerAdminId: 'missing-user', topic: 'Topic', template: 'template-1',
+  }, database), /должен принадлежать администратору/);
+  assert.throws(() => createLessonDraft({
+    ownerAdminId: owner.id, topic: '', template: 'template-1',
+  }, database), /CHECK constraint/);
+  database.close();
+});

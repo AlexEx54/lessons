@@ -209,6 +209,7 @@ p { margin: 0; }
 
 .content--home { max-width: 1180px; }
 .content--library { max-width: 1590px; }
+.content--lesson-drafts { max-width: 1180px; }
 .mobile-header { display: none; }
 
 .welcome-row {

@@ -1,0 +1,41 @@
+<!-- Раздел черновиков. Общий AppShell добавляется серверным renderer. -->
+<section class="drafts-panel" aria-labelledby="drafts-title">
+  <header class="drafts-heading">
+    <div>
+      <p class="drafts-heading__eyebrow">Генерация уроков</p>
+      <h2 id="drafts-title">Черновики уроков</h2>
+      <p>Здесь появятся уроки, созданные нейросетью и ожидающие вашей проверки.</p>
+    </div>
+    <button class="drafts-heading__create" type="button" data-open-new-lesson-modal>
+      <span aria-hidden="true">＋</span> Создать урок
+    </button>
+  </header>
+
+  <nav class="draft-filters" id="draft-filters" aria-label="Фильтры черновиков">
+    <button class="draft-filter draft-filter--active" type="button" data-status="all" aria-pressed="true">Все</button>
+    <button class="draft-filter" type="button" data-status="generating" aria-pressed="false">Генерируются</button>
+    <button class="draft-filter" type="button" data-status="review" aria-pressed="false">На проверке</button>
+    <button class="draft-filter" type="button" data-status="failed" aria-pressed="false">С ошибкой</button>
+    <button class="draft-filter" type="button" data-status="published" aria-pressed="false">Опубликованы</button>
+  </nav>
+
+  <div class="draft-state draft-state--loading" id="draft-loading" role="status">
+    <span class="draft-spinner" aria-hidden="true"></span>
+    <p>Загружаем черновики…</p>
+  </div>
+
+  <div class="draft-state draft-state--error" id="draft-error" role="alert" hidden>
+    <span aria-hidden="true">!</span>
+    <h3>Не удалось загрузить черновики</h3>
+    <p id="draft-error-message"></p>
+    <button id="draft-retry-load" type="button">Попробовать снова</button>
+  </div>
+
+  <div class="draft-state" id="draft-empty" hidden>
+    <span aria-hidden="true">✦</span>
+    <h3>Здесь пока нет черновиков</h3>
+    <p>Создайте новый урок — запись сразу появится в этом разделе.</p>
+  </div>
+
+  <div class="draft-grid" id="draft-grid" aria-live="polite"></div>
+</section>

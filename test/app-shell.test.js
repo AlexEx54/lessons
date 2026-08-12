@@ -37,21 +37,22 @@ test('home renders authenticated teacher profile data', async () => {
   assert.doesNotMatch(html, /id="new-lesson-modal"/);
 });
 
-test('admin sees create lesson modal trigger in both profile menus without a generator link', async () => {
+test('admin sees lesson creation and drafts links in both profile menus without a generator link', async () => {
   const html = await renderAppPage('home', {
     user: { displayName: 'Администратор', email: 'admin@example.com', role: 'admin' },
   });
 
   assert.equal((html.match(/data-open-new-lesson-modal/g) || []).length, 2);
   assert.equal((html.match(/>Создать урок<\/button>/g) || []).length, 2);
-  assert.equal((html.match(/>Создать урок<\/button>\s*<button class="profile-menu__logout"/g) || []).length, 2);
+  assert.equal((html.match(/>Создать урок<\/button>\s*<a href="\/lesson-drafts" role="menuitem">Черновики уроков<\/a>/g) || []).length, 2);
+  assert.equal((html.match(/href="\/lesson-drafts"/g) || []).length, 2);
   assert.doesNotMatch(html, /href="\/generator[^\"]*"[^>]*>Создать урок/);
   assert.equal((html.match(/id="new-lesson-modal"/g) || []).length, 1);
   assert.match(html, /placeholder="Напр\. Luca Cartoon"/);
   assert.equal((html.match(/data-value="template-1"[^>]*>Шаблон 1<\/li>/g) || []).length, 1);
   assert.match(html, /data-new-lesson-select/);
   assert.match(html, /name="template" value="template-1"/);
-  assert.match(html, /class="new-lesson-dialog__create" type="button"/);
+  assert.match(html, /class="new-lesson-dialog__create" type="button" data-create-lesson-draft/);
 });
 
 test('guest does not see create lesson', async () => {
@@ -69,6 +70,19 @@ test('library renders inside the shared shell with one active navigation item', 
   assert.match(html, /src="\/assets\/library\.js"/);
   assert.match(html, /class="content content--library"/);
   assert.deepEqual(activeNavigationItems(html), ['/library.html']);
+});
+
+test('lesson drafts render inside the shared shell for an admin', async () => {
+  const html = await renderAppPage('lessonDrafts', {
+    user: { displayName: 'Администратор', email: 'admin@example.com', role: 'admin' },
+  });
+
+  assert.match(html, /<title>Черновики уроков — EasyClass<\/title>/);
+  assert.match(html, /href="\/assets\/lesson-drafts\.css"/);
+  assert.match(html, /src="\/assets\/lesson-drafts\.js"/);
+  assert.match(html, /class="content content--lesson-drafts"/);
+  assert.match(html, /id="draft-grid"/);
+  assert.deepEqual(activeNavigationItems(html), []);
 });
 
 test('renderer rejects unknown application pages', async () => {

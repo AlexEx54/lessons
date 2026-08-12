@@ -28,6 +28,11 @@ const {
   saveLesson,
 } = require('./lib/lesson-store.js');
 const {
+  createLessonDraft,
+  findLessonDraft,
+  listLessonDrafts,
+} = require('./lib/lesson-draft-store.js');
+const {
   generateLessonJson,
   getGeneratorConfig,
 } = require('./lib/openrouter-lesson.js');
@@ -255,6 +260,16 @@ function requireTeacherAuth(req, res) {
   return user;
 }
 
+function requireAdminAuth(req, res) {
+  const user = requireTeacherAuth(req, res);
+  if (!user) return null;
+  if (user.role !== 'admin') {
+    json(res, 403, { error: 'Раздел доступен только администратору.' });
+    return null;
+  }
+  return user;
+}
+
 function redirect(res, location) {
   res.writeHead(302, { Location: location, 'Cache-Control': 'no-store' });
   res.end();
@@ -412,6 +427,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && (pathname === '/lesson-drafts' || pathname === '/lesson-drafts/')) {
+    const user = getAuthenticatedUser(req, database);
+    if (!user) {
+      redirect(res, loginRedirect('/lesson-drafts'));
+      return;
+    }
+    if (user.role !== 'admin') {
+      json(res, 403, { error: 'Раздел доступен только администратору.' });
+      return;
+    }
+    await serveAppPage('lessonDrafts', res, { user });
+    return;
+  }
+
   if (req.method === 'GET' && (
     pathname === '/generator' || pathname === '/generator/' || pathname === '/generator.html'
   )) {
@@ -450,6 +479,59 @@ const server = http.createServer(async (req, res) => {
     // Legacy generator API. Keep compatible while /generator is retained as a reference.
     if (!requireTeacherAuth(req, res)) return;
     json(res, 200, getGeneratorConfig());
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/lesson-drafts') {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (error) {
+      json(res, 400, { error: error.message || 'Некорректный запрос.' });
+      return;
+    }
+
+    const topic = typeof body.topic === 'string' ? body.topic.trim() : '';
+    const template = typeof body.template === 'string' ? body.template.trim() : '';
+    if (!topic || topic.length > 120) {
+      json(res, 400, { error: 'Тема должна содержать от 1 до 120 символов.' });
+      return;
+    }
+    if (template !== 'template-1') {
+      json(res, 400, { error: 'Выбран неизвестный шаблон урока.' });
+      return;
+    }
+
+    try {
+      const draft = createLessonDraft({ ownerAdminId: user.id, topic, template }, database);
+      json(res, 201, { draft });
+    } catch (error) {
+      console.error('Cannot create lesson draft:', error);
+      json(res, 500, { error: 'Не удалось создать черновик урока.' });
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/lesson-drafts') {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    json(res, 200, { drafts: listLessonDrafts(user.id, database) });
+    return;
+  }
+
+  if (req.method === 'GET' && pathname.startsWith('/api/lesson-drafts/')) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    const draftId = getLessonIdFromPath(pathname, '/api/lesson-drafts/');
+    const draft = findLessonDraft(draftId, user.id, database);
+    if (!draft) {
+      json(res, 404, { error: 'Черновик урока не найден.' });
+      return;
+    }
+    json(res, 200, { draft });
     return;
   }
 

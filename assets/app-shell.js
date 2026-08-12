@@ -17,6 +17,7 @@
   const newLessonModal = document.getElementById('new-lesson-modal');
   const newLessonDialog = newLessonModal?.querySelector('.new-lesson-dialog');
   const newLessonTopic = document.getElementById('new-lesson-topic');
+  const createLessonDraftButton = newLessonModal?.querySelector('[data-create-lesson-draft]');
   const newLessonSelect = newLessonModal?.querySelector('[data-new-lesson-select]');
   const newLessonSelectTrigger = newLessonSelect?.querySelector('.new-lesson-select__trigger');
   const newLessonSelectList = newLessonSelect?.querySelector('.new-lesson-select__list');
@@ -174,6 +175,34 @@
     newLessonReturnFocus = null;
   }
 
+  async function createLessonDraft() {
+    if (!createLessonDraftButton || !newLessonTopic || !newLessonSelectInput) return;
+    const topic = newLessonTopic.value.trim();
+    if (!topic) {
+      showToast('Укажите тему урока.');
+      newLessonTopic.focus();
+      return;
+    }
+
+    const originalLabel = createLessonDraftButton.innerHTML;
+    createLessonDraftButton.disabled = true;
+    createLessonDraftButton.textContent = 'Создаём черновик…';
+    try {
+      const response = await fetch('/api/lesson-drafts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic, template: newLessonSelectInput.value }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось создать черновик.');
+      window.location.assign('/lesson-drafts');
+    } catch (error) {
+      showToast(error.message || 'Не удалось создать черновик.');
+      createLessonDraftButton.disabled = false;
+      createLessonDraftButton.innerHTML = originalLabel;
+    }
+  }
+
   function keepFocusInsideNewLessonModal(event) {
     if (event.key !== 'Tab' || !newLessonModal?.classList.contains('new-lesson-modal--visible')) return;
     const focusable = [...newLessonDialog.querySelectorAll('button:not([disabled]), input:not([disabled]):not([type="hidden"])')]
@@ -318,6 +347,7 @@
       selectNewLessonTemplate(option);
     });
   });
+  createLessonDraftButton?.addEventListener('click', createLessonDraft);
   document.addEventListener('click', event => {
     if (!event.target.closest('.profile-menu-wrap') && !event.target.closest('.mobile-profile-wrap')) closeProfileMenu();
     if (!event.target.closest('[data-new-lesson-select]')) closeNewLessonSelect();
