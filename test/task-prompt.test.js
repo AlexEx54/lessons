@@ -31,4 +31,7 @@ test('task prompt styles derive variants and divider from component structure', 
   assert.match(css, /\.task-prompt--your-turn/);
   assert.match(css, /\.task-prompt--follow-up|--task-prompt-accent/);
   assert.match(css, /\.task-prompt__support \{[^}]*border-top:/s);
+  assert.match(css, /\.task-prompt__text ol/);
+  const source = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'task-prompt.js'), 'utf8');
+  assert.match(source, /insertOrderedList/);
 });

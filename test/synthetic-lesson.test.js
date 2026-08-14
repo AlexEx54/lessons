@@ -46,12 +46,12 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     },
   });
   assert.deepEqual(lesson.stages[1].content.map(component => component.type), [
-    'teacherNote', 'taskPrompt', 'textPanel',
+    'teacherNote', 'taskPrompt', 'illustratedTextPanel', 'textPanel',
   ]);
   assert.equal(lesson.stages[1].content[0].id, 'lead-in-teacher-note');
   assert.equal(lesson.stages[1].content[1].variant, 'yourTurn');
   assert.deepEqual(lesson.stages[1].content[2], {
-    type: 'textPanel',
+    type: 'illustratedTextPanel',
     id: 'lead-in-gamer-message',
     text: '**@GamerAlex:** Guys, my parents took my PC away for 2 weeks! They said I need to “touch grass” and go outside. I survived, but the graphics in the real world are boring… 🙄🌿',
     backgroundColor: '#252A38',
@@ -61,6 +61,12 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     trailingPicture: {
       imagePrompt: 'Minimal gray gaming community chat symbol, simple flat icon, no text, transparent background.',
     },
+  });
+  assert.deepEqual(lesson.stages[1].content[3], {
+    type: 'textPanel',
+    id: 'lead-in-discussion-questions',
+    text: '1. What does “touch grass” mean?\n2. Do you agree that real-world graphics are boring?\n3. How many days can you survive without your PC or console?',
+    backgroundColor: '#FFFFFF',
   });
   assert.ok(lesson.stages.slice(2).every(stage => stage.content === null));
 });

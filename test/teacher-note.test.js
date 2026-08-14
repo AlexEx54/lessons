@@ -20,6 +20,7 @@ test('teacher note parser supports bold, italic, paragraphs, and bullet lists', 
   ].join('\n')), [
     {
       type: 'list',
+      ordered: false,
       items: [
         [{ type: 'text', value: 'Первый пункт' }],
         [
@@ -52,6 +53,14 @@ test('teacher note markdown round-trips supported formatting', () => {
     '- *Italic* and ***both***',
   ].join('\n');
   assert.equal(serializeTeacherNoteBlocks(parseTeacherNoteMarkdown(markdown)), markdown);
+});
+
+test('safe markdown parses and canonically serializes numbered lists', () => {
+  const markdown = '8. First\n3. **Second**\n12. Third';
+  const blocks = parseTeacherNoteMarkdown(markdown);
+  assert.equal(blocks[0].type, 'list');
+  assert.equal(blocks[0].ordered, true);
+  assert.equal(serializeTeacherNoteBlocks(blocks), '1. First\n2. **Second**\n3. Third');
 });
 
 test('teacher note markdown preserves intentional extra blank lines between blocks', () => {
@@ -109,6 +118,24 @@ test('editor serialization preserves a Safari list wrapped in a div', () => {
   assert.equal(editorToMarkdown(editor), 'Intro\n\n- 1\n- 2');
 });
 
+test('editor serialization preserves an ordered Safari list wrapped in a div', () => {
+  const text = value => ({ nodeType: 3, nodeValue: value });
+  const element = (tagName, childNodes = []) => ({
+    nodeType: 1,
+    tagName: tagName.toUpperCase(),
+    childNodes,
+    children: childNodes.filter(child => child.nodeType === 1),
+  });
+  const editor = element('div', [
+    element('div', [element('ol', [
+      element('li', [text('First')]),
+      element('li', [text('Second')]),
+    ])]),
+  ]);
+
+  assert.equal(editorToMarkdown(editor), '1. First\n2. Second');
+});
+
 test('editor serialization preserves empty Safari blocks used for spacing', () => {
   const text = value => ({ nodeType: 3, nodeValue: value });
   const element = (tagName, childNodes = []) => ({
@@ -128,7 +155,7 @@ test('editor serialization preserves empty Safari blocks used for spacing', () =
 
 test('teacher note styles separate paragraph and list blocks and color Safari bold text', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'teacher-note.css'), 'utf8');
-  assert.match(css, /\.teacher-note__body p \+ ul \{ margin-top: 13px; \}/);
+  assert.match(css, /\.teacher-note__body p \+ ul,[\s\S]*\.teacher-note__body p \+ ol \{ margin-top: 13px; \}/);
   assert.match(css, /\.teacher-note__spacer \{ height: 13px; \}/);
   assert.match(css, /\.teacher-note__body strong,\s*\.teacher-note__body b \{ color: #173b7a;/);
 });

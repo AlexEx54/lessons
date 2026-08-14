@@ -4,19 +4,27 @@
   position: relative;
   width: 100%;
   padding: 22px 24px;
+  border: 1px solid color-mix(in srgb, var(--text-panel-foreground) 12%, #dfe2ea);
   border-radius: 18px;
   color: var(--text-panel-foreground);
   background: var(--text-panel-background);
-  box-shadow: 0 8px 22px rgba(24, 25, 36, .14);
+  box-shadow: 0 3px 12px rgba(24, 25, 36, .05);
 }
+.text-panel--illustrated { border-color: transparent; box-shadow: 0 8px 22px rgba(24, 25, 36, .14); }
 .text-panel__layout { display: flex; align-items: center; gap: 20px; min-width: 0; }
 .text-panel__text { flex: 1 1 auto; min-width: 0; font-size: 15px; line-height: 1.65; overflow-wrap: anywhere; }
 .text-panel__text p,
-.text-panel__text ul { margin: 0; }
+.text-panel__text ul,
+.text-panel__text ol { margin: 0; }
 .text-panel__text p + p,
 .text-panel__text p + ul,
-.text-panel__text ul + p { margin-top: 9px; }
-.text-panel__text ul { padding-left: 20px; }
+.text-panel__text p + ol,
+.text-panel__text ul + p,
+.text-panel__text ol + p { margin-top: 9px; }
+.text-panel__text ul,
+.text-panel__text ol { padding-left: 20px; }
+.text-panel--plain .text-panel__text li { padding-left: 8px; }
+.text-panel--plain .text-panel__text li + li { margin-top: 18px; }
 .text-panel__spacer { height: 9px; }
 .text-panel__picture { position: relative; flex: 0 1 88px; width: clamp(48px, 9vw, 88px); max-width: 88px; min-width: 48px; }
 .text-panel__picture img { display: block; width: 100%; height: 88px; object-fit: contain; }

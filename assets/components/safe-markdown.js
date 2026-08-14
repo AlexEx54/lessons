@@ -36,6 +36,7 @@
     const blocks = [];
     let paragraphLines = [];
     let listItems = [];
+    let listOrdered = false;
     let blankLines = 0;
     function flushParagraph() {
       if (!paragraphLines.length) return;
@@ -44,8 +45,9 @@
     }
     function flushList() {
       if (!listItems.length) return;
-      blocks.push({ type: 'list', items: listItems });
+      blocks.push({ type: 'list', ordered: listOrdered, items: listItems });
       listItems = [];
+      listOrdered = false;
     }
     lines.forEach((line) => {
       if (!line.trim()) {
@@ -58,9 +60,14 @@
         for (let count = 1; count < blankLines; count += 1) blocks.push({ type: 'spacer' });
       }
       blankLines = 0;
-      const listMatch = line.match(/^\s*-\s+(.+)$/);
+      const unorderedMatch = line.match(/^\s*-\s+(.+)$/);
+      const orderedMatch = line.match(/^\s*\d+\.\s+(.+)$/);
+      const listMatch = unorderedMatch || orderedMatch;
       if (listMatch) {
         flushParagraph();
+        const ordered = Boolean(orderedMatch);
+        if (listItems.length && listOrdered !== ordered) flushList();
+        listOrdered = ordered;
         listItems.push(parseInlineMarkdown(listMatch[1].trim()));
         return;
       }
@@ -121,7 +128,11 @@
   function serializeMarkdownBlocks(blocks) {
     return joinMarkdownBlocks((blocks || []).map((block) => {
       if (block.type === 'spacer') return null;
-      if (block.type === 'list') return block.items.map(item => `- ${serializeInlineTokens(item)}`).join('\n');
+      if (block.type === 'list') {
+        return block.items.map((item, index) => (
+          `${block.ordered ? `${index + 1}.` : '-'} ${serializeInlineTokens(item)}`
+        )).join('\n');
+      }
       return serializeInlineTokens(block.children || []);
     }));
   }
@@ -148,13 +159,15 @@
       }
       Array.from(parent.childNodes).forEach((node) => {
         const tag = node.nodeType === 1 ? node.tagName.toLowerCase() : '';
-        if (tag === 'ul') {
+        if (tag === 'ul' || tag === 'ol') {
           flushInlineBuffer();
           const items = Array.from(node.children)
             .filter(child => child.tagName.toLowerCase() === 'li')
             .map(child => inlineNodeToMarkdown(child).replace(/\s*\n\s*/g, ' ').trim())
             .filter(Boolean);
-          if (items.length) blocks.push(items.map(item => `- ${item}`).join('\n'));
+          if (items.length) {
+            blocks.push(items.map((item, index) => `${tag === 'ol' ? `${index + 1}.` : '-'} ${item}`).join('\n'));
+          }
           return;
         }
         if (tag === 'div' || tag === 'p') {
@@ -183,7 +196,7 @@
         return spacer;
       }
       if (block.type === 'list') {
-        const list = documentRef.createElement('ul');
+        const list = documentRef.createElement(block.ordered ? 'ol' : 'ul');
         block.items.forEach((tokens) => {
           const item = documentRef.createElement('li');
           appendInlineTokens(item, tokens, documentRef);

@@ -47,8 +47,16 @@
         if (dirty) state.dirtyComponents.add(panelId);
         else state.dirtyComponents.delete(panelId);
       },
-      onUpload: state.draftStatus === 'review' ? uploadTextPanelImage : undefined,
-      onDelete: state.draftStatus === 'review' ? deleteTextPanelImage : undefined,
+      onMessage: showToast,
+    }),
+    illustratedTextPanel: component => window.IllustratedTextPanelComponent.renderIllustratedTextPanel(component, {
+      onSave: state.draftStatus === 'review' ? saveIllustratedTextPanel : undefined,
+      onDirtyChange: (dirty, panelId) => {
+        if (dirty) state.dirtyComponents.add(panelId);
+        else state.dirtyComponents.delete(panelId);
+      },
+      onUpload: state.draftStatus === 'review' ? uploadIllustratedTextPanelImage : undefined,
+      onDelete: state.draftStatus === 'review' ? deleteIllustratedTextPanelImage : undefined,
       onMessage: showToast,
     }),
   };
@@ -276,6 +284,15 @@
     return null;
   }
 
+  function findIllustratedTextPanel(lesson, panelId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'illustratedTextPanel' && component.id === panelId) return component;
+      }
+    }
+    return null;
+  }
+
   function thisOrThatImageUrl(componentId, itemId, optionId) {
     return `/api/lesson-drafts/${encodeURIComponent(state.draftId)}`
       + `/this-or-that/${encodeURIComponent(componentId)}`
@@ -313,40 +330,40 @@
     return updateThisOrThatImage('DELETE', componentId, itemId, optionId);
   }
 
-  function textPanelImageUrl(panelId, side) {
+  function illustratedTextPanelImageUrl(panelId, side) {
     return `/api/lesson-drafts/${encodeURIComponent(state.draftId)}`
-      + `/text-panels/${encodeURIComponent(panelId)}`
+      + `/illustrated-text-panels/${encodeURIComponent(panelId)}`
       + `/pictures/${encodeURIComponent(side)}/image`;
   }
 
-  async function updateTextPanelImage(method, panelId, side, file) {
+  async function updateIllustratedTextPanelImage(method, panelId, side, file) {
     try {
-      const response = await fetch(textPanelImageUrl(panelId, side), {
+      const response = await fetch(illustratedTextPanelImageUrl(panelId, side), {
         method,
         headers: file ? { 'Content-Type': file.type } : undefined,
         body: file || undefined,
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить изображение панели.');
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить изображение иллюстрированной панели.');
       if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
       state.lesson = payload.draft.content;
       state.draftStatus = payload.draft.status;
-      const saved = findTextPanel(state.lesson, panelId);
-      if (!saved) throw new Error('Сохранённая текстовая панель не найдена в черновике.');
+      const saved = findIllustratedTextPanel(state.lesson, panelId);
+      if (!saved) throw new Error('Сохранённая иллюстрированная текстовая панель не найдена в черновике.');
       showToast(method === 'DELETE' ? 'Изображение удалено.' : 'Изображение сохранено.');
       return saved;
     } catch (error) {
-      showToast(error.message || 'Не удалось сохранить изображение панели.');
+      showToast(error.message || 'Не удалось сохранить изображение иллюстрированной панели.');
       throw error;
     }
   }
 
-  function uploadTextPanelImage(file, panelId, side) {
-    return updateTextPanelImage('PUT', panelId, side, file);
+  function uploadIllustratedTextPanelImage(file, panelId, side) {
+    return updateIllustratedTextPanelImage('PUT', panelId, side, file);
   }
 
-  function deleteTextPanelImage(panelId, side) {
-    return updateTextPanelImage('DELETE', panelId, side);
+  function deleteIllustratedTextPanelImage(panelId, side) {
+    return updateIllustratedTextPanelImage('DELETE', panelId, side);
   }
 
   async function saveTeacherNote(text, noteId) {
@@ -420,6 +437,31 @@
       return savedPanel;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить текстовую панель.');
+      throw error;
+    }
+  }
+
+  async function saveIllustratedTextPanel(changes, panelId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/illustrated-text-panels/${encodeURIComponent(panelId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить иллюстрированную текстовую панель.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const savedPanel = findIllustratedTextPanel(state.lesson, panelId);
+      if (!savedPanel) throw new Error('Сохранённая иллюстрированная текстовая панель не найдена в черновике.');
+      showToast('Иллюстрированная текстовая панель сохранена.');
+      return savedPanel;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить иллюстрированную текстовую панель.');
       throw error;
     }
   }

@@ -133,7 +133,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'yourTurn', 'followUp',
   ]);
   assert.deepEqual(created.content.stages[1].content.map(component => component.type), [
-    'teacherNote', 'taskPrompt', 'textPanel',
+    'teacherNote', 'taskPrompt', 'illustratedTextPanel', 'textPanel',
   ]);
   assert.ok(created.content.stages.slice(2).every(stage => stage.content === null));
 
@@ -244,7 +244,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal((await imageDeleteResponse.json()).draft.content.stages[0].content[2].items[0].options[0].imageSrc, undefined);
   assert.equal((await fetch(`${baseUrl}${savedImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
 
-  const panelEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/text-panels/lead-in-gamer-message`;
+  const panelEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/illustrated-text-panels/lead-in-gamer-message`;
   assert.equal((await fetch(panelEndpoint, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -270,6 +270,18 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ text: 'Text', backgroundColor: '#fff' }),
   })).status, 400);
+
+  const plainPanelEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/text-panels/lead-in-discussion-questions`;
+  const plainPanelUpdateResponse = await fetch(plainPanelEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: '1. Updated question\n2. Another question', backgroundColor: '#fefefe' }),
+  });
+  assert.equal(plainPanelUpdateResponse.status, 200);
+  const savedPlainPanel = (await plainPanelUpdateResponse.json()).draft.content.stages[1].content[3];
+  assert.equal(savedPlainPanel.id, 'lead-in-discussion-questions');
+  assert.equal(savedPlainPanel.text, '1. Updated question\n2. Another question');
+  assert.equal(savedPlainPanel.backgroundColor, '#FEFEFE');
 
   const panelImageEndpoint = `${panelEndpoint}/pictures/leading/image`;
   assert.equal((await fetch(panelImageEndpoint, {

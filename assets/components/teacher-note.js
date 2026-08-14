@@ -92,6 +92,7 @@
       formattingButton('B', 'Жирный', 'bold', 'teacher-note__format--bold'),
       formattingButton('I', 'Курсив', 'italic', 'teacher-note__format--italic'),
       formattingButton('• ≡', 'Маркированный список', 'insertUnorderedList'),
+      formattingButton('1. ≡', 'Нумерованный список', 'insertOrderedList'),
     ];
 
     const button = doc.createElement('button');

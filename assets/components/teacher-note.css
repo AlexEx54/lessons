@@ -141,8 +141,10 @@
 
 .teacher-note__body p { margin: 13px 0 0; }
 .teacher-note__body p:first-child { margin-top: 0; }
-.teacher-note__body ul { margin: 0; padding-left: 18px; }
-.teacher-note__body p + ul { margin-top: 13px; }
+.teacher-note__body ul,
+.teacher-note__body ol { margin: 0; padding-left: 18px; }
+.teacher-note__body p + ul,
+.teacher-note__body p + ol { margin-top: 13px; }
 .teacher-note__spacer { height: 13px; }
 .teacher-note__body li { padding-left: 3px; }
 .teacher-note__body li + li { margin-top: 4px; }

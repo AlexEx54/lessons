@@ -27,19 +27,33 @@
     return picture;
   }
 
-  function normalizeTextPanel(data) {
-    if (!data || data.type !== 'textPanel' || !KEBAB_CASE.test(String(data.id || ''))) {
-      throw new Error('TextPanel requires a kebab-case id.');
+  function normalizePanelBasics(data, expectedType, componentName) {
+    if (!data || data.type !== expectedType || !KEBAB_CASE.test(String(data.id || ''))) {
+      throw new Error(`${componentName} requires a kebab-case id.`);
     }
     const backgroundColor = typeof data.backgroundColor === 'string' ? data.backgroundColor.trim() : '';
     if (!HEX_COLOR.test(backgroundColor)) {
-      throw new Error('TextPanel requires backgroundColor in #RRGGBB format.');
+      throw new Error(`${componentName} requires backgroundColor in #RRGGBB format.`);
     }
     return {
-      type: 'textPanel',
+      type: expectedType,
       id: data.id,
       text: requiredText(data.text, 'text'),
       backgroundColor: backgroundColor.toUpperCase(),
+    };
+  }
+
+  function normalizeTextPanel(data) {
+    if (data && (data.leadingPicture != null || data.trailingPicture != null)) {
+      throw new Error('TextPanel does not support picture fields.');
+    }
+    return normalizePanelBasics(data, 'textPanel', 'TextPanel');
+  }
+
+  function normalizeIllustratedTextPanel(data) {
+    const panel = normalizePanelBasics(data, 'illustratedTextPanel', 'IllustratedTextPanel');
+    return {
+      ...panel,
       leadingPicture: normalizePicture(data.leadingPicture, 'leadingPicture'),
       trailingPicture: normalizePicture(data.trailingPicture, 'trailingPicture'),
     };
@@ -78,7 +92,7 @@
     return editing && canUpload ? 'placeholder' : 'hidden';
   }
 
-  function renderTextPanel(data, options, documentRef) {
+  function renderPanel(data, options, documentRef, illustrated) {
     let settings = options || {};
     let doc = documentRef || root.document;
     if (options && typeof options.createElement === 'function') {
@@ -87,7 +101,8 @@
     }
     if (!doc) throw new Error('TextPanel requires a document.');
 
-    let current = normalizeTextPanel(data);
+    const normalize = illustrated ? normalizeIllustratedTextPanel : normalizeTextPanel;
+    let current = normalize(data);
     let editing = false;
     let saving = false;
     let imageBusy = false;
@@ -95,7 +110,7 @@
     let activeEditor = null;
 
     const panel = doc.createElement('section');
-    panel.className = 'text-panel';
+    panel.className = `text-panel text-panel--${illustrated ? 'illustrated' : 'plain'}`;
     panel.dataset.componentId = current.id;
 
     const controls = doc.createElement('div');
@@ -119,7 +134,7 @@
     colorLabel.append(colorPicker, colorText);
 
     const formattingControls = [];
-    [['B', 'Жирный', 'bold'], ['I', 'Курсив', 'italic'], ['• ≡', 'Маркированный список', 'insertUnorderedList']]
+    [['B', 'Жирный', 'bold'], ['I', 'Курсив', 'italic'], ['• ≡', 'Маркированный список', 'insertUnorderedList'], ['1. ≡', 'Нумерованный список', 'insertOrderedList']]
       .forEach(([label, ariaLabel, command]) => {
         const button = doc.createElement('button');
         button.type = 'button';
@@ -192,7 +207,7 @@
       panel.classList.add('text-panel--busy');
       try {
         const saved = await settings.onUpload(file, current.id, side);
-        current = normalizeTextPanel(saved);
+        current = normalize(saved);
         renderLayout();
       } catch (_error) {
         // The parent renderer owns the visible error toast.
@@ -209,7 +224,7 @@
       panel.classList.add('text-panel--busy');
       try {
         const saved = await settings.onDelete(current.id, side);
-        current = normalizeTextPanel(saved);
+        current = normalize(saved);
         renderLayout();
       } catch (_error) {
         // The parent renderer owns the visible error toast.
@@ -282,8 +297,8 @@
 
     function renderLayout() {
       const elements = [];
-      const leading = pictureElement('leading', current.leadingPicture);
-      const trailing = pictureElement('trailing', current.trailingPicture);
+      const leading = illustrated ? pictureElement('leading', current.leadingPicture) : null;
+      const trailing = illustrated ? pictureElement('trailing', current.trailingPicture) : null;
       if (leading) elements.push(leading);
       elements.push(body);
       if (trailing) elements.push(trailing);
@@ -292,7 +307,7 @@
     }
 
     function paint(value) {
-      current = normalizeTextPanel({ ...current, ...value });
+      current = normalize({ ...current, ...value });
       colorPicker.value = current.backgroundColor;
       colorText.value = current.backgroundColor;
       applyColors(current.backgroundColor);
@@ -346,7 +361,7 @@
         backgroundColor: colorText.value.trim().toUpperCase(),
       };
       try {
-        normalizeTextPanel({ ...current, ...changes });
+        normalize({ ...current, ...changes });
       } catch (_error) {
         notify('Введите текст и корректный HEX-цвет в формате #RRGGBB.');
         return;
@@ -402,7 +417,28 @@
     return panel;
   }
 
-  const api = { foregroundForBackground, normalizeTextPanel, pictureRenderMode, renderTextPanel };
+  function renderTextPanel(data, options, documentRef) {
+    return renderPanel(data, options, documentRef, false);
+  }
+
+  function renderIllustratedTextPanel(data, options, documentRef) {
+    return renderPanel(data, options, documentRef, true);
+  }
+
+  const api = {
+    foregroundForBackground,
+    normalizeIllustratedTextPanel,
+    normalizeTextPanel,
+    pictureRenderMode,
+    renderIllustratedTextPanel,
+    renderTextPanel,
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  root.TextPanelComponent = api;
+  root.TextPanelComponent = { foregroundForBackground, normalizeTextPanel, renderTextPanel };
+  root.IllustratedTextPanelComponent = {
+    foregroundForBackground,
+    normalizeIllustratedTextPanel,
+    pictureRenderMode,
+    renderIllustratedTextPanel,
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

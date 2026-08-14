@@ -31,7 +31,9 @@
 .task-prompt__text p:first-child,
 .task-prompt__support-text p:first-child { margin-top: 0; }
 .task-prompt__text ul,
-.task-prompt__support-text ul { margin: 8px 0 0; padding-left: 18px; }
+.task-prompt__text ol,
+.task-prompt__support-text ul,
+.task-prompt__support-text ol { margin: 8px 0 0; padding-left: 18px; }
 .task-prompt__spacer { height: 10px; }
 .task-prompt__support { margin-top: 15px; padding-top: 13px; border-top: 1px solid color-mix(in srgb, var(--task-prompt-accent) 20%, #dfe1e8); }
 .task-prompt__support-header { justify-content: space-between; margin-bottom: 5px; gap: 12px; color: var(--task-prompt-accent); }

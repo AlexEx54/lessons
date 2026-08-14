@@ -85,7 +85,7 @@
     toolbar.setAttribute('role', 'toolbar');
     toolbar.setAttribute('aria-label', 'Форматирование текста задания');
     const formattingControls = [];
-    [['B', 'Жирный', 'bold'], ['I', 'Курсив', 'italic'], ['• ≡', 'Маркированный список', 'insertUnorderedList']]
+    [['B', 'Жирный', 'bold'], ['I', 'Курсив', 'italic'], ['• ≡', 'Маркированный список', 'insertUnorderedList'], ['1. ≡', 'Нумерованный список', 'insertOrderedList']]
       .forEach(([label, ariaLabel, command]) => {
         const button = doc.createElement('button');
         button.type = 'button';
