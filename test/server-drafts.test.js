@@ -135,7 +135,10 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.deepEqual(created.content.stages[1].content.map(component => component.type), [
     'teacherNote', 'taskPrompt', 'illustratedTextPanel', 'textPanel', 'suggestedAnswers',
   ]);
-  assert.ok(created.content.stages.slice(2).every(stage => stage.content === null));
+  assert.deepEqual(created.content.stages[2].content.map(component => component.type), ['teacherNote']);
+  assert.equal(created.content.stages[2].subtitle, 'Summer + Gaming Words');
+  assert.equal(created.content.stages[2].content[0].blocks.length, 3);
+  assert.ok(created.content.stages.slice(3).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: firstAdminCookie },
@@ -176,6 +179,37 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ text: 'Missing' }),
   })).status, 404);
+
+  const compositeNoteResponse = await fetch(
+    `${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/target-vocabulary-teacher-note`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+      body: JSON.stringify({
+        text: 'My extra note',
+        retainedBlockIds: [
+          'target-vocabulary-pronunciation-check',
+          'target-vocabulary-extra-phrases',
+        ],
+      }),
+    },
+  );
+  assert.equal(compositeNoteResponse.status, 200);
+  const compositeNote = (await compositeNoteResponse.json()).draft.content.stages[2].content[0];
+  assert.equal(compositeNote.text, 'My extra note');
+  assert.deepEqual(compositeNote.blocks.map(block => block.id), [
+    'target-vocabulary-pronunciation-check',
+    'target-vocabulary-extra-phrases',
+  ]);
+
+  assert.equal((await fetch(
+    `${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/target-vocabulary-teacher-note`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+      body: JSON.stringify({ text: 'Tamper', retainedBlockIds: ['injected-block'] }),
+    },
+  )).status, 400);
 
   const suggestedAnswersEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/suggested-answers/lead-in-suggested-answers`;
   assert.equal((await fetch(suggestedAnswersEndpoint, {

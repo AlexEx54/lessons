@@ -14,6 +14,8 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     'grammar-focus', 'guided-speaking', 'wrap-up',
   ]);
   assert.ok(lesson.stages.every((stage, index) => stage.number === index + 1));
+  assert.equal(lesson.stages[0].subtitle, 'This or That?');
+  assert.equal(lesson.stages[1].subtitle, 'Gamer Chat');
   assert.deepEqual(lesson.stages[0].content.map(component => component.type), [
     'teacherNote', 'taskPrompt', 'thisOrThat', 'taskPrompt',
   ]);
@@ -73,7 +75,13 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     id: 'lead-in-suggested-answers',
     text: '1. “Touch grass” = go outside, spend time in real life, away from screens.\n2. Possible answer: I don’t agree. Real-world graphics can be beautiful. / I agree. Video games are more exciting.\n3. Personal answer.',
   });
-  assert.ok(lesson.stages.slice(2).every(stage => stage.content === null));
+  assert.deepEqual(lesson.stages[2].content.map(component => component.type), ['teacherNote']);
+  assert.equal(lesson.stages[2].content[0].id, 'target-vocabulary-teacher-note');
+  assert.equal(lesson.stages[2].subtitle, 'Summer + Gaming Words');
+  assert.equal(lesson.stages[2].content[0].text, undefined);
+  assert.deepEqual(lesson.stages[2].content[0].blocks.map(block => block.icon), ['audio', 'chat', 'chatDots']);
+  assert.equal(lesson.stages[2].content[0].blocks[0].tip.text.includes('stress'), true);
+  assert.ok(lesson.stages.slice(3).every(stage => stage.content === null));
 });
 
 test('synthetic warm-up component copy does not depend on the user topic', () => {
@@ -85,5 +93,11 @@ test('synthetic warm-up component copy does not depend on the user topic', () =>
 test('synthetic lead-in component copy does not depend on the user topic', () => {
   const first = createSyntheticLesson('Space travel').stages[1].content;
   const second = createSyntheticLesson('Healthy habits').stages[1].content;
+  assert.deepEqual(first, second);
+});
+
+test('synthetic target vocabulary teacher note does not depend on the user topic', () => {
+  const first = createSyntheticLesson('Space travel').stages[2].content;
+  const second = createSyntheticLesson('Healthy habits').stages[2].content;
   assert.deepEqual(first, second);
 });

@@ -6,10 +6,49 @@ const path = require('node:path');
 const test = require('node:test');
 const {
   editorToMarkdown,
+  normalizeTeacherNote,
   parseInlineMarkdown,
   parseTeacherNoteMarkdown,
   serializeTeacherNoteBlocks,
 } = require('../assets/components/teacher-note.js');
+const { normalizeTeacherNoteBlock } = require('../assets/components/teacher-note-block.js');
+
+test('teacher note accepts legacy text and composite notes with optional custom text', () => {
+  assert.deepEqual(normalizeTeacherNote({ text: ' Legacy ' }), { text: 'Legacy', blocks: [] });
+  const composite = normalizeTeacherNote({
+    blocks: [{
+      type: 'teacherNoteBlock',
+      id: 'pronunciation-check',
+      title: ' Pronunciation Check ',
+      titleColor: '#6545f5',
+      icon: 'audio',
+      text: ' Listen. ',
+      tip: { text: ' Repeat. ' },
+    }],
+  });
+  assert.equal(composite.text, '');
+  assert.deepEqual(composite.blocks[0], {
+    type: 'teacherNoteBlock',
+    id: 'pronunciation-check',
+    title: 'Pronunciation Check',
+    titleColor: '#6545F5',
+    icon: 'audio',
+    text: 'Listen.',
+    tip: { text: 'Repeat.' },
+  });
+});
+
+test('teacher note rejects empty content, duplicate blocks, and malformed nested blocks', () => {
+  assert.throws(() => normalizeTeacherNote({}), /text or at least one block/);
+  const valid = {
+    type: 'teacherNoteBlock', id: 'same-block', title: 'Title', titleColor: '#6545F5', icon: 'chat', text: 'Text',
+  };
+  assert.throws(() => normalizeTeacherNote({ blocks: [valid, valid] }), /unique/);
+  assert.throws(() => normalizeTeacherNoteBlock({ ...valid, titleColor: 'purple' }), /#RRGGBB/);
+  assert.throws(() => normalizeTeacherNoteBlock({ ...valid, icon: 'bell' }), /supported icon/);
+  assert.throws(() => normalizeTeacherNoteBlock({ ...valid, tip: {} }), /tip/);
+  assert.throws(() => normalizeTeacherNoteBlock({ ...valid, type: 'textPanel' }), /type/);
+});
 
 test('teacher note parser supports bold, italic, paragraphs, and bullet lists', () => {
   assert.deepEqual(parseTeacherNoteMarkdown([
@@ -155,7 +194,11 @@ test('editor serialization preserves empty Safari blocks used for spacing', () =
 
 test('teacher note styles separate paragraph and list blocks and color Safari bold text', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'teacher-note.css'), 'utf8');
-  assert.match(css, /\.teacher-note__body p \+ ul,[\s\S]*\.teacher-note__body p \+ ol \{ margin-top: 13px; \}/);
+  assert.match(css, /\.teacher-note__text p \+ ul,[\s\S]*\.teacher-note__text p \+ ol \{ margin-top: 13px; \}/);
   assert.match(css, /\.teacher-note__spacer \{ height: 13px; \}/);
-  assert.match(css, /\.teacher-note__body strong,\s*\.teacher-note__body b \{ color: #173b7a;/);
+  assert.match(css, /\.teacher-note__text strong,\s*\.teacher-note__text b \{ color: #173b7a;/);
+  assert.match(css, /\.teacher-note__blocks \{[\s\S]*display: grid;/);
+  const blockCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'teacher-note-block.css'), 'utf8');
+  assert.match(blockCss, /--teacher-note-block-accent/);
+  assert.match(blockCss, /\.teacher-note-block__tip/);
 });

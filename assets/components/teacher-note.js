@@ -3,16 +3,38 @@
 
   const markdown = root.SafeMarkdown
     || (typeof require === 'function' ? require('./safe-markdown.js') : null);
+  const blockComponent = root.TeacherNoteBlockComponent
+    || (typeof require === 'function' ? require('./teacher-note-block.js') : null);
   if (!markdown) throw new Error('TeacherNote requires SafeMarkdown.');
+  if (!blockComponent) throw new Error('TeacherNote requires TeacherNoteBlock.');
   const {
     editorToMarkdown,
     parseInlineMarkdown,
     parseMarkdown: parseTeacherNoteMarkdown,
     serializeMarkdownBlocks: serializeTeacherNoteBlocks,
   } = markdown;
+  const { normalizeTeacherNoteBlock, renderTeacherNoteBlock } = blockComponent;
   const renderMarkdownInto = (container, value, documentRef) => (
     markdown.renderMarkdownInto(container, value, documentRef, 'teacher-note__spacer')
   );
+
+  function normalizeTeacherNote(data) {
+    if (!data || typeof data !== 'object') throw new Error('TeacherNote requires data.');
+    const text = typeof data.text === 'string' ? data.text.trim() : '';
+    if (data.blocks != null && !Array.isArray(data.blocks)) {
+      throw new Error('TeacherNote blocks must be an array.');
+    }
+    const blocks = (data.blocks || []).map(normalizeTeacherNoteBlock);
+    const blockIds = new Set();
+    blocks.forEach((block) => {
+      if (blockIds.has(block.id)) throw new Error('TeacherNote block ids must be unique.');
+      blockIds.add(block.id);
+    });
+    if (!text && blocks.length === 0) {
+      throw new Error('TeacherNote requires text or at least one block.');
+    }
+    return { text, blocks };
+  }
 
   function createIcon(documentRef) {
     const namespace = 'http://www.w3.org/2000/svg';
@@ -36,16 +58,18 @@
       settings = {};
     }
     if (!doc) throw new Error('TeacherNote requires a document.');
-    if (!data || typeof data.text !== 'string' || !data.text.trim()) {
-      throw new Error('TeacherNote requires a non-empty text value.');
-    }
+    const initial = normalizeTeacherNote(data);
+    let current = initial;
+    let workingBlocks = [...initial.blocks];
+    let editing = false;
+    let saving = false;
+    let initialSnapshot = '';
 
     const note = doc.createElement('aside');
     note.className = 'teacher-note';
 
     const header = doc.createElement('div');
     header.className = 'teacher-note__header';
-
     const heading = doc.createElement('h2');
     heading.className = 'teacher-note__title';
     const icon = doc.createElement('span');
@@ -59,11 +83,12 @@
     content.className = 'teacher-note__body';
     const safeId = String(data.id || 'note').replace(/[^a-zA-Z0-9_-]/g, '-');
     content.id = `teacher-note-${safeId}`;
-    let currentText = data.text;
-    let editing = false;
-    let saving = false;
-    let initialEditorText = '';
-    renderMarkdownInto(content, currentText, doc);
+    const blocks = doc.createElement('div');
+    blocks.className = 'teacher-note__blocks';
+    const customText = doc.createElement('div');
+    customText.className = 'teacher-note__text';
+    customText.dataset.placeholder = 'Добавьте собственную заметку…';
+    content.append(blocks, customText);
 
     const toolbar = doc.createElement('div');
     toolbar.className = 'teacher-note__toolbar';
@@ -81,8 +106,9 @@
       control.addEventListener('mousedown', event => event.preventDefault());
       control.addEventListener('click', () => {
         if (!editing || saving) return;
+        customText.focus();
         if (typeof doc.execCommand === 'function') doc.execCommand(command, false, null);
-        setDirty(editorToMarkdown(content) !== initialEditorText);
+        updateDirty();
       });
       toolbar.append(control);
       return control;
@@ -122,17 +148,50 @@
     editButton.textContent = '✎';
     editButton.setAttribute('aria-label', 'Редактировать Teacher’s Notes');
 
+    function snapshot() {
+      return JSON.stringify({
+        text: editorToMarkdown(customText),
+        retainedBlockIds: workingBlocks.map(block => block.id),
+      });
+    }
+
     function setDirty(dirty) {
       note.classList.toggle('teacher-note--dirty', dirty);
       if (typeof settings.onDirtyChange === 'function') settings.onDirtyChange(dirty, data.id);
     }
 
+    function updateDirty() { setDirty(snapshot() !== initialSnapshot); }
+
+    function paintBlocks() {
+      const rendered = workingBlocks.map(block => renderTeacherNoteBlock(block, {
+        removable: editing,
+        onRemove: (blockId) => {
+          if (!editing || saving) return;
+          workingBlocks = workingBlocks.filter(item => item.id !== blockId);
+          paintBlocks();
+          updateDirty();
+          customText.focus();
+        },
+      }, doc));
+      blocks.replaceChildren(...rendered);
+      blocks.hidden = rendered.length === 0;
+    }
+
+    function paint(value) {
+      current = normalizeTeacherNote(value);
+      workingBlocks = [...current.blocks];
+      paintBlocks();
+      if (current.text) renderMarkdownInto(customText, current.text, doc);
+      else customText.replaceChildren();
+      customText.hidden = !editing && !current.text;
+    }
+
     function leaveEditMode() {
       editing = false;
       saving = false;
-      content.contentEditable = 'false';
-      content.removeAttribute('role');
-      content.removeAttribute('aria-label');
+      customText.contentEditable = 'false';
+      customText.removeAttribute('role');
+      customText.removeAttribute('aria-label');
       note.classList.remove('teacher-note--editing', 'teacher-note--saving');
       toolbar.hidden = true;
       button.hidden = false;
@@ -140,12 +199,14 @@
       editButton.setAttribute('aria-label', 'Редактировать Teacher’s Notes');
       editButton.disabled = false;
       formattingControls.forEach(control => { control.disabled = false; });
+      paintBlocks();
+      customText.hidden = !current.text;
       setDirty(false);
     }
 
     function cancelEditing() {
       if (!editing || saving) return;
-      renderMarkdownInto(content, currentText, doc);
+      paint(current);
       leaveEditMode();
       editButton.focus();
     }
@@ -154,61 +215,59 @@
       if (editing) return;
       if (content.hidden) button.click();
       editing = true;
+      workingBlocks = [...current.blocks];
       note.classList.add('teacher-note--editing');
       toolbar.hidden = false;
       button.hidden = true;
-      content.contentEditable = 'true';
-      content.setAttribute('role', 'textbox');
-      content.setAttribute('aria-label', 'Содержимое Teacher’s Notes');
-      content.setAttribute('aria-multiline', 'true');
+      customText.hidden = false;
+      customText.contentEditable = 'true';
+      customText.setAttribute('role', 'textbox');
+      customText.setAttribute('aria-label', 'Собственный текст Teacher’s Notes');
+      customText.setAttribute('aria-multiline', 'true');
       editButton.textContent = '✓';
       editButton.setAttribute('aria-label', 'Сохранить Teacher’s Notes');
-      initialEditorText = editorToMarkdown(content);
-      content.focus();
+      paintBlocks();
+      initialSnapshot = snapshot();
+      customText.focus();
     }
 
     async function saveEditing() {
       if (!editing || saving) return;
-      const nextText = editorToMarkdown(content);
-      if (!nextText) {
+      const nextText = editorToMarkdown(customText);
+      if (!nextText && workingBlocks.length === 0) {
         if (typeof settings.onError === 'function') {
-          settings.onError('Содержимое Teacher’s Notes не может быть пустым.');
+          settings.onError('Teacher’s Notes должна содержать текст или хотя бы один подблок.');
         }
         return;
       }
+      const changes = { text: nextText || null, retainedBlockIds: workingBlocks.map(block => block.id) };
       saving = true;
       note.classList.add('teacher-note--saving');
       editButton.disabled = true;
       formattingControls.forEach(control => { control.disabled = true; });
       try {
-        await settings.onSave(nextText, data.id);
-        currentText = nextText;
-        renderMarkdownInto(content, currentText, doc);
+        const saved = await settings.onSave(changes, data.id);
+        const fallback = { text: nextText, blocks: workingBlocks };
+        paint(saved || fallback);
         leaveEditMode();
       } catch (_error) {
         saving = false;
         note.classList.remove('teacher-note--saving');
         editButton.disabled = false;
         formattingControls.forEach(control => { control.disabled = false; });
-        content.focus();
+        customText.focus();
       }
     }
 
-    editButton.addEventListener('click', () => {
-      if (editing) saveEditing();
-      else enterEditMode();
-    });
-
-    content.addEventListener('input', () => {
-      if (editing) setDirty(editorToMarkdown(content) !== initialEditorText);
-    });
-    content.addEventListener('keydown', (event) => {
+    editButton.addEventListener('click', () => editing ? saveEditing() : enterEditMode());
+    customText.addEventListener('input', () => { if (editing) updateDirty(); });
+    note.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
         cancelEditing();
       }
     });
-    content.addEventListener('paste', (event) => {
+    customText.addEventListener('paste', (event) => {
       if (!editing) return;
       event.preventDefault();
       const plainText = event.clipboardData?.getData('text/plain') || '';
@@ -219,14 +278,15 @@
     actions.className = 'teacher-note__actions';
     if (typeof settings.onSave === 'function') actions.append(editButton);
     actions.append(button);
-
     header.append(heading, actions);
     note.append(header, toolbar, content);
+    paint(initial);
     return note;
   }
 
   const api = {
     editorToMarkdown,
+    normalizeTeacherNote,
     parseInlineMarkdown,
     parseTeacherNoteMarkdown,
     renderTeacherNote,

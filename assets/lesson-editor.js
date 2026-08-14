@@ -184,9 +184,10 @@
     });
     byId('stage-number').textContent = `${stage.number}.`;
     byId('stage-title').textContent = stage.title;
-    byId('stage-kicker').textContent = stage.id === 'warm-up'
-      ? ((stage.content || []).some(component => component?.type === 'thisOrThat') ? 'This or That?' : 'Let’s start!')
-      : stage.id === 'lead-in' ? 'Gamer Chat' : 'Lesson stage';
+    const subtitle = typeof stage.subtitle === 'string' ? stage.subtitle.trim() : '';
+    const kicker = byId('stage-kicker');
+    kicker.textContent = subtitle;
+    kicker.hidden = !subtitle;
     renderStageContent(stage);
     byId('stage-progress').textContent = `${index + 1} из ${lesson.stages.length}`;
     byId('previous-stage').disabled = index === 0;
@@ -385,14 +386,14 @@
     return updateIllustratedTextPanelImage('DELETE', panelId, side);
   }
 
-  async function saveTeacherNote(text, noteId) {
+  async function saveTeacherNote(changes, noteId) {
     try {
       const response = await fetch(
         `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/teacher-notes/${encodeURIComponent(noteId)}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify(changes),
         },
       );
       const payload = await response.json().catch(() => ({}));

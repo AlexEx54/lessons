@@ -129,6 +129,53 @@ test('teacher note update rejects malformed content and duplicate component ids'
   database.close();
 });
 
+test('composite teacher note update edits custom text and can only remove existing blocks', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'composite-note');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Composite', template: 'template-1' }, database);
+  const blocks = [{
+    type: 'teacherNoteBlock', id: 'first-block', title: 'First', titleColor: '#6545F5', icon: 'audio', text: 'One',
+  }, {
+    type: 'teacherNoteBlock', id: 'second-block', title: 'Second', titleColor: '#20A85B', icon: 'chat', text: 'Two',
+  }];
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{ type: 'teacherNote', id: 'composite-note', blocks }] }],
+  }, database);
+
+  const updated = updateTeacherNote({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    noteId: 'composite-note',
+    text: ' My own note ',
+    retainedBlockIds: ['second-block'],
+  }, database).content.stages[0].content[0];
+  assert.equal(updated.text, 'My own note');
+  assert.deepEqual(updated.blocks, [blocks[1]]);
+
+  assert.throws(() => updateTeacherNote({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    noteId: 'composite-note',
+    text: 'Text',
+    retainedBlockIds: ['unknown-block'],
+  }, database), /неизвестный подблок/);
+  assert.throws(() => updateTeacherNote({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    noteId: 'composite-note',
+    text: '',
+    retainedBlockIds: [],
+  }, database), /текст или хотя бы один подблок/);
+  assert.throws(() => updateTeacherNote({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    noteId: 'composite-note',
+    text: 'Text',
+    retainedBlockIds: ['second-block', 'second-block'],
+  }, database), /повторяющиеся/);
+  database.close();
+});
+
 test('task prompt fields and optional support can be updated in a review draft', () => {
   const database = openDatabase(':memory:');
   const owner = admin(database, 'prompt-owner');

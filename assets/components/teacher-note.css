@@ -98,6 +98,14 @@
   line-height: 1.65;
 }
 
+.teacher-note__blocks {
+  display: grid;
+  gap: 8px;
+}
+
+.teacher-note__text:not([hidden]) { margin-top: 14px; }
+.teacher-note__blocks[hidden] + .teacher-note__text { margin-top: 0; }
+
 .teacher-note__toolbar {
   display: flex;
   align-items: center;
@@ -127,7 +135,7 @@
 .teacher-note__format--bold { font-weight: 800; }
 .teacher-note__format--italic { font-style: italic; }
 
-.teacher-note--editing .teacher-note__body {
+.teacher-note--editing .teacher-note__text {
   min-height: 118px;
   padding: 12px 14px;
   border: 1px solid #8f7af5;
@@ -137,20 +145,26 @@
   outline: none;
 }
 
+.teacher-note--editing .teacher-note__text:empty::before {
+  color: #9690aa;
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
+
 .teacher-note--saving .teacher-note__body { opacity: .7; }
 
-.teacher-note__body p { margin: 13px 0 0; }
-.teacher-note__body p:first-child { margin-top: 0; }
-.teacher-note__body ul,
-.teacher-note__body ol { margin: 0; padding-left: 18px; }
-.teacher-note__body p + ul,
-.teacher-note__body p + ol { margin-top: 13px; }
+.teacher-note__text p { margin: 13px 0 0; }
+.teacher-note__text p:first-child { margin-top: 0; }
+.teacher-note__text ul,
+.teacher-note__text ol { margin: 0; padding-left: 18px; }
+.teacher-note__text p + ul,
+.teacher-note__text p + ol { margin-top: 13px; }
 .teacher-note__spacer { height: 13px; }
-.teacher-note__body li { padding-left: 3px; }
-.teacher-note__body li + li { margin-top: 4px; }
-.teacher-note__body strong,
-.teacher-note__body b { color: #173b7a; font-weight: 750; }
-.teacher-note__body em { font-style: italic; }
+.teacher-note__text li { padding-left: 3px; }
+.teacher-note__text li + li { margin-top: 4px; }
+.teacher-note__text strong,
+.teacher-note__text b { color: #173b7a; font-weight: 750; }
+.teacher-note__text em { font-style: italic; }
 
 @media (max-width: 700px) {
   .teacher-note { padding: 16px; }
@@ -159,5 +173,5 @@
   .teacher-note__toggle { min-height: 32px; padding: 0 9px; }
   .teacher-note__edit { width: 32px; height: 32px; }
   .teacher-note__toolbar { margin-left: 4px; }
-  .teacher-note--editing .teacher-note__body { padding: 11px; }
+  .teacher-note--editing .teacher-note__text { padding: 11px; }
 }

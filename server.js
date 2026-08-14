@@ -811,6 +811,7 @@ const server = http.createServer(async (req, res) => {
           ownerAdminId: user.id,
           noteId: teacherNoteRoute.noteId,
           text: body.text,
+          retainedBlockIds: body.retainedBlockIds,
         }, database);
       } else if (taskPromptRoute) {
         draft = updateTaskPrompt({
