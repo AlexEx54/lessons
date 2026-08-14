@@ -13,6 +13,8 @@ const {
   retryLessonDraft,
   updateTaskPrompt,
   updateTeacherNote,
+  updateTextPanel,
+  updateTextPanelImage,
   updateThisOrThatImage,
 } = require('../lib/lesson-draft-store.js');
 const { createUser } = require('../lib/user-store.js');
@@ -196,6 +198,75 @@ test('task prompt update rejects missing, duplicate, and immutable draft targets
   assert.throws(() => updateTaskPrompt({
     id: ready.id, ownerAdminId: owner.id, promptId: 'same-prompt', ...changes,
   }, database), /только черновик на проверке/);
+  database.close();
+});
+
+test('text panel content and background can be updated in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'panel-owner');
+  const outsider = admin(database, 'panel-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Panel', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'textPanel', id: 'panel-one', text: 'Original', backgroundColor: '#252A38',
+    }] }],
+  }, database);
+
+  const updated = updateTextPanel({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    panelId: 'panel-one',
+    text: ' **Updated** ',
+    backgroundColor: ' #abcdef ',
+  }, database);
+  assert.equal(updated.content.stages[0].content[0].text, '**Updated**');
+  assert.equal(updated.content.stages[0].content[0].backgroundColor, '#ABCDEF');
+  assert.throws(() => updateTextPanel({
+    id: ready.id, ownerAdminId: owner.id, panelId: 'panel-one', text: '', backgroundColor: '#FFFFFF',
+  }, database), /не может быть пустым/);
+  assert.throws(() => updateTextPanel({
+    id: ready.id, ownerAdminId: owner.id, panelId: 'panel-one', text: 'Text', backgroundColor: '#fff',
+  }, database), /#RRGGBB/);
+  assert.throws(() => updateTextPanel({
+    id: ready.id, ownerAdminId: outsider.id, panelId: 'panel-one', text: 'Text', backgroundColor: '#FFFFFF',
+  }, database), /не найден/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateTextPanel({
+    id: ready.id, ownerAdminId: owner.id, panelId: 'panel-one', text: 'Late', backgroundColor: '#FFFFFF',
+  }, database), /только черновик на проверке/);
+  database.close();
+});
+
+test('text panel image URL changes only an existing requested side', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'panel-image');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Panel image', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'textPanel',
+      id: 'panel-one',
+      text: 'Text',
+      backgroundColor: '#252A38',
+      leadingPicture: { imagePrompt: 'Avatar' },
+    }] }],
+  }, database);
+
+  const added = updateTextPanelImage({
+    id: ready.id, ownerAdminId: owner.id, panelId: 'panel-one', side: 'leading', imageSrc: '/asset.png',
+  }, database);
+  assert.equal(added.previousImageSrc, null);
+  assert.equal(added.draft.content.stages[0].content[0].leadingPicture.imageSrc, '/asset.png');
+  const removed = updateTextPanelImage({
+    id: ready.id, ownerAdminId: owner.id, panelId: 'panel-one', side: 'leading', imageSrc: null,
+  }, database);
+  assert.equal(removed.previousImageSrc, '/asset.png');
+  assert.equal(removed.draft.content.stages[0].content[0].leadingPicture.imageSrc, undefined);
+  assert.throws(() => updateTextPanelImage({
+    id: ready.id, ownerAdminId: owner.id, panelId: 'panel-one', side: 'middle', imageSrc: '/bad.png',
+  }, database), /Неизвестная сторона/);
+  assert.throws(() => updateTextPanelImage({
+    id: ready.id, ownerAdminId: owner.id, panelId: 'panel-one', side: 'trailing', imageSrc: '/missing.png',
+  }, database), /Слот изображения/);
   database.close();
 });
 

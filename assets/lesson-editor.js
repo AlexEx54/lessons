@@ -41,6 +41,16 @@
       onDelete: state.draftStatus === 'review' ? deleteThisOrThatImage : undefined,
       onMessage: showToast,
     }),
+    textPanel: component => window.TextPanelComponent.renderTextPanel(component, {
+      onSave: state.draftStatus === 'review' ? saveTextPanel : undefined,
+      onDirtyChange: (dirty, panelId) => {
+        if (dirty) state.dirtyComponents.add(panelId);
+        else state.dirtyComponents.delete(panelId);
+      },
+      onUpload: state.draftStatus === 'review' ? uploadTextPanelImage : undefined,
+      onDelete: state.draftStatus === 'review' ? deleteTextPanelImage : undefined,
+      onMessage: showToast,
+    }),
   };
 
   const svgNS = 'http://www.w3.org/2000/svg';
@@ -158,7 +168,7 @@
     byId('stage-title').textContent = stage.title;
     byId('stage-kicker').textContent = stage.id === 'warm-up'
       ? ((stage.content || []).some(component => component?.type === 'thisOrThat') ? 'This or That?' : 'Let’s start!')
-      : 'Lesson stage';
+      : stage.id === 'lead-in' ? 'Gamer Chat' : 'Lesson stage';
     renderStageContent(stage);
     byId('stage-progress').textContent = `${index + 1} из ${lesson.stages.length}`;
     byId('previous-stage').disabled = index === 0;
@@ -257,6 +267,15 @@
     return null;
   }
 
+  function findTextPanel(lesson, panelId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'textPanel' && component.id === panelId) return component;
+      }
+    }
+    return null;
+  }
+
   function thisOrThatImageUrl(componentId, itemId, optionId) {
     return `/api/lesson-drafts/${encodeURIComponent(state.draftId)}`
       + `/this-or-that/${encodeURIComponent(componentId)}`
@@ -292,6 +311,42 @@
 
   function deleteThisOrThatImage(componentId, itemId, optionId) {
     return updateThisOrThatImage('DELETE', componentId, itemId, optionId);
+  }
+
+  function textPanelImageUrl(panelId, side) {
+    return `/api/lesson-drafts/${encodeURIComponent(state.draftId)}`
+      + `/text-panels/${encodeURIComponent(panelId)}`
+      + `/pictures/${encodeURIComponent(side)}/image`;
+  }
+
+  async function updateTextPanelImage(method, panelId, side, file) {
+    try {
+      const response = await fetch(textPanelImageUrl(panelId, side), {
+        method,
+        headers: file ? { 'Content-Type': file.type } : undefined,
+        body: file || undefined,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить изображение панели.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findTextPanel(state.lesson, panelId);
+      if (!saved) throw new Error('Сохранённая текстовая панель не найдена в черновике.');
+      showToast(method === 'DELETE' ? 'Изображение удалено.' : 'Изображение сохранено.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить изображение панели.');
+      throw error;
+    }
+  }
+
+  function uploadTextPanelImage(file, panelId, side) {
+    return updateTextPanelImage('PUT', panelId, side, file);
+  }
+
+  function deleteTextPanelImage(panelId, side) {
+    return updateTextPanelImage('DELETE', panelId, side);
   }
 
   async function saveTeacherNote(text, noteId) {
@@ -340,6 +395,31 @@
       return savedPrompt;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить блок задания.');
+      throw error;
+    }
+  }
+
+  async function saveTextPanel(changes, panelId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/text-panels/${encodeURIComponent(panelId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить текстовую панель.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const savedPanel = findTextPanel(state.lesson, panelId);
+      if (!savedPanel) throw new Error('Сохранённая текстовая панель не найдена в черновике.');
+      showToast('Текстовая панель сохранена.');
+      return savedPanel;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить текстовую панель.');
       throw error;
     }
   }

@@ -132,7 +132,10 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.deepEqual(created.content.stages[0].content.filter(component => component.type === 'taskPrompt').map(component => component.variant), [
     'yourTurn', 'followUp',
   ]);
-  assert.ok(created.content.stages.slice(1).every(stage => stage.content === null));
+  assert.deepEqual(created.content.stages[1].content.map(component => component.type), [
+    'teacherNote', 'taskPrompt', 'textPanel',
+  ]);
+  assert.ok(created.content.stages.slice(2).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: firstAdminCookie },
@@ -241,6 +244,54 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal((await imageDeleteResponse.json()).draft.content.stages[0].content[2].items[0].options[0].imageSrc, undefined);
   assert.equal((await fetch(`${baseUrl}${savedImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
 
+  const panelEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/text-panels/lead-in-gamer-message`;
+  assert.equal((await fetch(panelEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: 'Guest', backgroundColor: '#FFFFFF' }),
+  })).status, 401);
+  assert.equal((await fetch(panelEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: teacherCookie },
+    body: JSON.stringify({ text: 'Teacher', backgroundColor: '#FFFFFF' }),
+  })).status, 403);
+  const panelUpdateResponse = await fetch(panelEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: '**Updated panel**', backgroundColor: '#abcdef', id: 'ignored' }),
+  });
+  assert.equal(panelUpdateResponse.status, 200);
+  const savedPanel = (await panelUpdateResponse.json()).draft.content.stages[1].content[2];
+  assert.equal(savedPanel.id, 'lead-in-gamer-message');
+  assert.equal(savedPanel.text, '**Updated panel**');
+  assert.equal(savedPanel.backgroundColor, '#ABCDEF');
+  assert.equal((await fetch(panelEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: 'Text', backgroundColor: '#fff' }),
+  })).status, 400);
+
+  const panelImageEndpoint = `${panelEndpoint}/pictures/leading/image`;
+  assert.equal((await fetch(panelImageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: png,
+  })).status, 401);
+  assert.equal((await fetch(panelImageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: teacherCookie }, body: png,
+  })).status, 403);
+  const panelImageResponse = await fetch(panelImageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: png,
+  });
+  assert.equal(panelImageResponse.status, 200);
+  const panelImageSrc = (await panelImageResponse.json()).draft.content.stages[1].content[2].leadingPicture.imageSrc;
+  assert.match(panelImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`));
+  assert.equal((await fetch(`${baseUrl}${panelImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 200);
+  const panelImageDeleteResponse = await fetch(panelImageEndpoint, {
+    method: 'DELETE', headers: { Cookie: firstAdminCookie },
+  });
+  assert.equal(panelImageDeleteResponse.status, 200);
+  assert.equal((await panelImageDeleteResponse.json()).draft.content.stages[1].content[2].leadingPicture.imageSrc, undefined);
+  assert.equal((await fetch(`${baseUrl}${panelImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
+
   const ownList = await fetch(`${baseUrl}/api/lesson-drafts`, {
     headers: { Cookie: firstAdminCookie },
   });
@@ -284,6 +335,14 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ title: 'Published', text: 'Edit', support: null }),
+  })).status, 409);
+  assert.equal((await fetch(panelEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: 'Published', backgroundColor: '#FFFFFF' }),
+  })).status, 409);
+  assert.equal((await fetch(panelImageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: png,
   })).status, 409);
   assert.equal((await fetch(imageEndpoint, {
     method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: png,

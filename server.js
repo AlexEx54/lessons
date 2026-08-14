@@ -36,6 +36,8 @@ const {
   listLessonDrafts,
   updateTaskPrompt,
   updateTeacherNote,
+  updateTextPanel,
+  updateTextPanelImage,
   updateThisOrThatImage,
 } = require('./lib/lesson-draft-store.js');
 const { createSyntheticLesson } = require('./lib/synthetic-lesson.js');
@@ -356,6 +358,31 @@ function getTaskPromptRouteParams(pathname) {
   }
 }
 
+function getTextPanelRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/text-panels\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      panelId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getTextPanelImageRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/text-panels\/([^/]+)\/pictures\/(leading|trailing)\/image$/);
+  if (!match) return null;
+  try {
+    const values = match.slice(1).map(value => decodeURIComponent(value).trim());
+    if (values.some(value => !value)) return null;
+    return { draftId: values[0], panelId: values[1], side: values[2] };
+  } catch (_error) {
+    return null;
+  }
+}
+
 function getThisOrThatImageRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/this-or-that\/([^/]+)\/items\/([^/]+)\/options\/([^/]+)\/image$/);
   if (!match) return null;
@@ -659,7 +686,9 @@ const server = http.createServer(async (req, res) => {
   }
 
   if ((req.method === 'PUT' || req.method === 'DELETE') && pathname.startsWith('/api/lesson-drafts/')) {
-    const imageRoute = getThisOrThatImageRouteParams(pathname);
+    const thisOrThatImageRoute = getThisOrThatImageRouteParams(pathname);
+    const textPanelImageRoute = getTextPanelImageRouteParams(pathname);
+    const imageRoute = thisOrThatImageRoute || textPanelImageRoute;
     if (imageRoute) {
       const user = requireAdminAuth(req, res);
       if (!user) return;
@@ -694,14 +723,22 @@ const server = http.createServer(async (req, res) => {
           fs.renameSync(temporaryFile, newFile);
           imageSrc = `/api/lesson-draft-assets/${encodeURIComponent(imageRoute.draftId)}/${encodeURIComponent(fileName)}`;
         }
-        const result = updateThisOrThatImage({
-          id: imageRoute.draftId,
-          ownerAdminId: user.id,
-          componentId: imageRoute.componentId,
-          itemId: imageRoute.itemId,
-          optionId: imageRoute.optionId,
-          imageSrc,
-        }, database);
+        const result = thisOrThatImageRoute
+          ? updateThisOrThatImage({
+            id: imageRoute.draftId,
+            ownerAdminId: user.id,
+            componentId: imageRoute.componentId,
+            itemId: imageRoute.itemId,
+            optionId: imageRoute.optionId,
+            imageSrc,
+          }, database)
+          : updateTextPanelImage({
+            id: imageRoute.draftId,
+            ownerAdminId: user.id,
+            panelId: imageRoute.panelId,
+            side: imageRoute.side,
+            imageSrc,
+          }, database);
         const previousFile = assetFileFromUrl(result.previousImageSrc);
         if (previousFile && previousFile !== newFile) fs.rmSync(previousFile, { force: true });
         json(res, 200, { draft: result.draft });
@@ -718,8 +755,10 @@ const server = http.createServer(async (req, res) => {
     if (!user) return;
     const teacherNoteRoute = getTeacherNoteRouteParams(pathname);
     const taskPromptRoute = getTaskPromptRouteParams(pathname);
+    const textPanelRoute = getTextPanelRouteParams(pathname);
     if ((!teacherNoteRoute || !teacherNoteRoute.draftId || !teacherNoteRoute.noteId)
-      && (!taskPromptRoute || !taskPromptRoute.draftId || !taskPromptRoute.promptId)) {
+      && (!taskPromptRoute || !taskPromptRoute.draftId || !taskPromptRoute.promptId)
+      && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)) {
       json(res, 404, { error: 'Редактируемый компонент не найден.' });
       return;
     }
@@ -733,14 +772,16 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const draft = teacherNoteRoute
-        ? updateTeacherNote({
+      let draft;
+      if (teacherNoteRoute) {
+        draft = updateTeacherNote({
           id: teacherNoteRoute.draftId,
           ownerAdminId: user.id,
           noteId: teacherNoteRoute.noteId,
           text: body.text,
-        }, database)
-        : updateTaskPrompt({
+        }, database);
+      } else if (taskPromptRoute) {
+        draft = updateTaskPrompt({
           id: taskPromptRoute.draftId,
           ownerAdminId: user.id,
           promptId: taskPromptRoute.promptId,
@@ -748,6 +789,15 @@ const server = http.createServer(async (req, res) => {
           text: body.text,
           support: body.support,
         }, database);
+      } else {
+        draft = updateTextPanel({
+          id: textPanelRoute.draftId,
+          ownerAdminId: user.id,
+          panelId: textPanelRoute.panelId,
+          text: body.text,
+          backgroundColor: body.backgroundColor,
+        }, database);
+      }
       json(res, 200, { draft });
     } catch (error) {
       json(res, error.statusCode || 500, { error: error.message || 'Не удалось сохранить компонент.' });
