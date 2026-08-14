@@ -41,6 +41,11 @@
       onDelete: state.draftStatus === 'review' ? deleteThisOrThatImage : undefined,
       onMessage: showToast,
     }),
+    matchWords: component => window.MatchWordsComponent.renderMatchWords(component, {
+      onUpload: state.draftStatus === 'review' ? uploadMatchWordsImage : undefined,
+      onDelete: state.draftStatus === 'review' ? deleteMatchWordsImage : undefined,
+      onMessage: showToast,
+    }),
     textPanel: component => window.TextPanelComponent.renderTextPanel(component, {
       onSave: state.draftStatus === 'review' ? saveTextPanel : undefined,
       onDirtyChange: (dirty, panelId) => {
@@ -286,6 +291,15 @@
     return null;
   }
 
+  function findMatchWords(lesson, componentId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'matchWords' && component.id === componentId) return component;
+      }
+    }
+    return null;
+  }
+
   function findTextPanel(lesson, panelId) {
     for (const stage of lesson.stages || []) {
       for (const component of stage.content || []) {
@@ -348,6 +362,42 @@
 
   function deleteThisOrThatImage(componentId, itemId, optionId) {
     return updateThisOrThatImage('DELETE', componentId, itemId, optionId);
+  }
+
+  function matchWordsImageUrl(componentId, itemId) {
+    return `/api/lesson-drafts/${encodeURIComponent(state.draftId)}`
+      + `/match-words/${encodeURIComponent(componentId)}`
+      + `/items/${encodeURIComponent(itemId)}/image`;
+  }
+
+  async function updateMatchWordsImage(method, componentId, itemId, file) {
+    try {
+      const response = await fetch(matchWordsImageUrl(componentId, itemId), {
+        method,
+        headers: file ? { 'Content-Type': file.type } : undefined,
+        body: file || undefined,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить изображение Match the Words.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findMatchWords(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый Match the Words не найден в черновике.');
+      showToast(method === 'DELETE' ? 'Изображение удалено.' : 'Изображение сохранено.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить изображение Match the Words.');
+      throw error;
+    }
+  }
+
+  function uploadMatchWordsImage(file, componentId, itemId) {
+    return updateMatchWordsImage('PUT', componentId, itemId, file);
+  }
+
+  function deleteMatchWordsImage(componentId, itemId) {
+    return updateMatchWordsImage('DELETE', componentId, itemId);
   }
 
   function illustratedTextPanelImageUrl(panelId, side) {

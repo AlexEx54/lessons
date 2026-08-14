@@ -133,7 +133,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.deepEqual(created.content.stages[1].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'illustratedTextPanel', 'textPanel', 'markdownCard',
   ]);
-  assert.deepEqual(created.content.stages[2].content.map(component => component.type), ['teacherNote', 'markdownCard']);
+  assert.deepEqual(created.content.stages[2].content.map(component => component.type), ['teacherNote', 'markdownCard', 'matchWords']);
   assert.equal(created.content.stages[2].subtitle, 'Summer + Gaming Words');
   assert.equal(created.content.stages[2].content[0].blocks.length, 3);
   assert.ok(created.content.stages.slice(3).every(stage => stage.content === null));
@@ -321,6 +321,19 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(imageDeleteResponse.status, 200);
   assert.equal((await imageDeleteResponse.json()).draft.content.stages[0].content[2].items[0].options[0].imageSrc, undefined);
   assert.equal((await fetch(`${baseUrl}${savedImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
+
+  const matchWordsImageEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/match-words/target-vocabulary-match-words/items/hang-out/image`;
+  assert.equal((await fetch(matchWordsImageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: png,
+  })).status, 401);
+  const matchWordsImageResponse = await fetch(matchWordsImageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: png,
+  });
+  assert.equal(matchWordsImageResponse.status, 200);
+  const matchWordsImageSrc = (await matchWordsImageResponse.json()).draft.content.stages[2].content[2].items[0].imageSrc;
+  assert.match(matchWordsImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`));
+  assert.equal((await fetch(matchWordsImageEndpoint, { method: 'DELETE', headers: { Cookie: firstAdminCookie } })).status, 200);
+  assert.equal((await fetch(`${baseUrl}${matchWordsImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
 
   const panelEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/illustrated-text-panels/lead-in-gamer-message`;
   assert.equal((await fetch(panelEndpoint, {

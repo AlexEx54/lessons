@@ -37,6 +37,7 @@ const {
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateMarkdownCard,
+  updateMatchWordsImage,
   updateTaskPrompt,
   updateTeacherNote,
   updateTextPanel,
@@ -423,6 +424,18 @@ function getThisOrThatImageRouteParams(pathname) {
   }
 }
 
+function getMatchWordsImageRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/match-words\/([^/]+)\/items\/([^/]+)\/image$/);
+  if (!match) return null;
+  try {
+    const values = match.slice(1).map(value => decodeURIComponent(value).trim());
+    if (values.some(value => !value)) return null;
+    return { draftId: values[0], componentId: values[1], itemId: values[2] };
+  } catch (_error) {
+    return null;
+  }
+}
+
 function draftAssetPath(draftId, fileName) {
   if (!/^[a-f0-9-]{36}$/i.test(draftId) || !/^[a-f0-9-]{36}\.(?:jpg|png|webp)$/i.test(fileName)) return null;
   const draftDirectory = path.join(DRAFT_ASSETS_DIR, draftId);
@@ -715,8 +728,9 @@ const server = http.createServer(async (req, res) => {
 
   if ((req.method === 'PUT' || req.method === 'DELETE') && pathname.startsWith('/api/lesson-drafts/')) {
     const thisOrThatImageRoute = getThisOrThatImageRouteParams(pathname);
+    const matchWordsImageRoute = getMatchWordsImageRouteParams(pathname);
     const illustratedTextPanelImageRoute = getIllustratedTextPanelImageRouteParams(pathname);
-    const imageRoute = thisOrThatImageRoute || illustratedTextPanelImageRoute;
+    const imageRoute = thisOrThatImageRoute || matchWordsImageRoute || illustratedTextPanelImageRoute;
     if (imageRoute) {
       const user = requireAdminAuth(req, res);
       if (!user) return;
@@ -751,22 +765,33 @@ const server = http.createServer(async (req, res) => {
           fs.renameSync(temporaryFile, newFile);
           imageSrc = `/api/lesson-draft-assets/${encodeURIComponent(imageRoute.draftId)}/${encodeURIComponent(fileName)}`;
         }
-        const result = thisOrThatImageRoute
-          ? updateThisOrThatImage({
+        let result;
+        if (thisOrThatImageRoute) {
+          result = updateThisOrThatImage({
             id: imageRoute.draftId,
             ownerAdminId: user.id,
             componentId: imageRoute.componentId,
             itemId: imageRoute.itemId,
             optionId: imageRoute.optionId,
             imageSrc,
-          }, database)
-          : updateIllustratedTextPanelImage({
+          }, database);
+        } else if (matchWordsImageRoute) {
+          result = updateMatchWordsImage({
+            id: imageRoute.draftId,
+            ownerAdminId: user.id,
+            componentId: imageRoute.componentId,
+            itemId: imageRoute.itemId,
+            imageSrc,
+          }, database);
+        } else {
+          result = updateIllustratedTextPanelImage({
             id: imageRoute.draftId,
             ownerAdminId: user.id,
             panelId: imageRoute.panelId,
             side: imageRoute.side,
             imageSrc,
           }, database);
+        }
         const previousFile = assetFileFromUrl(result.previousImageSrc);
         if (previousFile && previousFile !== newFile) fs.rmSync(previousFile, { force: true });
         json(res, 200, { draft: result.draft });

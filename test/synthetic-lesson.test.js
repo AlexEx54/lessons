@@ -81,7 +81,7 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     accentColor: '#1EAD58',
     studentVisibility: 'controlled',
   });
-  assert.deepEqual(lesson.stages[2].content.map(component => component.type), ['teacherNote', 'markdownCard']);
+  assert.deepEqual(lesson.stages[2].content.map(component => component.type), ['teacherNote', 'markdownCard', 'matchWords']);
   assert.equal(lesson.stages[2].content[0].id, 'target-vocabulary-teacher-note');
   assert.equal(lesson.stages[2].subtitle, 'Summer + Gaming Words');
   assert.equal(lesson.stages[2].content[0].text, undefined);
@@ -96,6 +96,14 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     accentColor: '#20A85B',
     studentVisibility: 'controlled',
   });
+  assert.equal(lesson.stages[2].content[2].id, 'target-vocabulary-match-words');
+  assert.equal(lesson.stages[2].content[2].items.length, 10);
+  assert.deepEqual(
+    lesson.stages[2].content[2].items.map(item => item.term),
+    ['to hang out (with friends)', 'to beat a game / a boss', 'to go offline / go AFK', 'to chill out',
+      'to level up', 'to get bored', 'to stay up late', 'to try something new', 'to spend time outdoors', 'to get stuck'],
+  );
+  assert.ok(lesson.stages[2].content[2].items.every(item => item.imagePrompt && !item.imageSrc));
   assert.ok(lesson.stages.slice(3).every(stage => stage.content === null));
 });
 

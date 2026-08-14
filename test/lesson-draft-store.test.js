@@ -14,6 +14,7 @@ const {
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateMarkdownCard,
+  updateMatchWordsImage,
   updateTaskPrompt,
   updateTeacherNote,
   updateTextPanel,
@@ -433,6 +434,41 @@ test('this or that image URL can be added and removed only from an owned review 
   publishLessonDraft(ready.id, owner.id, database);
   assert.throws(() => updateThisOrThatImage({
     id: ready.id, ownerAdminId: owner.id, componentId: 'choices', itemId: 'pair-one', optionId: 'left', imageSrc: '/late.png',
+  }, database), /только черновик на проверке/);
+  database.close();
+});
+
+test('match words image URL can be added and removed only from an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'match-image-owner');
+  const outsider = admin(database, 'match-image-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Match images', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'matchWords',
+      id: 'match-words',
+      items: [{ id: 'first-word', term: 'First', imagePrompt: 'First prompt' }],
+    }] }],
+  }, database);
+  const added = updateMatchWordsImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'match-words', itemId: 'first-word', imageSrc: '/asset.png',
+  }, database);
+  assert.equal(added.previousImageSrc, null);
+  assert.equal(added.draft.content.stages[0].content[0].items[0].imageSrc, '/asset.png');
+  const removed = updateMatchWordsImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'match-words', itemId: 'first-word', imageSrc: null,
+  }, database);
+  assert.equal(removed.previousImageSrc, '/asset.png');
+  assert.equal(removed.draft.content.stages[0].content[0].items[0].imageSrc, undefined);
+  assert.throws(() => updateMatchWordsImage({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'match-words', itemId: 'first-word', imageSrc: '/other.png',
+  }, database), /не найден/);
+  assert.throws(() => updateMatchWordsImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'match-words', itemId: 'missing', imageSrc: '/missing.png',
+  }, database), /не найден/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateMatchWordsImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'match-words', itemId: 'first-word', imageSrc: '/late.png',
   }, database), /только черновик на проверке/);
   database.close();
 });
