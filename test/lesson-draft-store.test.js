@@ -15,6 +15,7 @@ const {
   updateIllustratedTextPanelImage,
   updateTaskPrompt,
   updateTeacherNote,
+  updateSuggestedAnswers,
   updateTextPanel,
   updateThisOrThatImage,
 } = require('../lib/lesson-draft-store.js');
@@ -171,6 +172,55 @@ test('task prompt fields and optional support can be updated in a review draft',
     text: 'Question',
     support: { title: 'Support', text: '' },
   }, database), /дополнительной секции/);
+  database.close();
+});
+
+test('suggested answers text can be updated only on one owned review component', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'answers-owner');
+  const outsider = admin(database, 'answers-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Answers', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'suggestedAnswers', id: 'lead-in-answers', text: '1. Original',
+    }] }],
+  }, database);
+
+  const updated = updateSuggestedAnswers({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'lead-in-answers',
+    text: '  1. **Updated**\n2. Personal answer.  ',
+  }, database);
+  assert.deepEqual(updated.content.stages[0].content[0], {
+    type: 'suggestedAnswers',
+    id: 'lead-in-answers',
+    text: '1. **Updated**\n2. Personal answer.',
+  });
+  assert.throws(() => updateSuggestedAnswers({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'lead-in-answers', text: ' ',
+  }, database), /не может быть пустым/);
+  assert.throws(() => updateSuggestedAnswers({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing', text: 'Text',
+  }, database), /не найден/);
+  assert.throws(() => updateSuggestedAnswers({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'lead-in-answers', text: 'Text',
+  }, database), /Черновик урока не найден/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateSuggestedAnswers({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'lead-in-answers', text: 'Too late',
+  }, database), /только черновик на проверке/);
+
+  const duplicatePending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Duplicates', template: 'template-1' }, database);
+  const duplicate = completeLessonDraft(duplicatePending.id, owner.id, {
+    stages: [
+      { content: [{ type: 'suggestedAnswers', id: 'same-answers', text: 'One' }] },
+      { content: [{ type: 'suggestedAnswers', id: 'same-answers', text: 'Two' }] },
+    ],
+  }, database);
+  assert.throws(() => updateSuggestedAnswers({
+    id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-answers', text: 'Text',
+  }, database), /несколько/);
   database.close();
 });
 

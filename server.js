@@ -38,6 +38,7 @@ const {
   updateIllustratedTextPanelImage,
   updateTaskPrompt,
   updateTeacherNote,
+  updateSuggestedAnswers,
   updateTextPanel,
   updateThisOrThatImage,
 } = require('./lib/lesson-draft-store.js');
@@ -353,6 +354,19 @@ function getTaskPromptRouteParams(pathname) {
     return {
       draftId: decodeURIComponent(match[1]).trim(),
       promptId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getSuggestedAnswersRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/suggested-answers\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
     };
   } catch (_error) {
     return null;
@@ -769,10 +783,12 @@ const server = http.createServer(async (req, res) => {
     if (!user) return;
     const teacherNoteRoute = getTeacherNoteRouteParams(pathname);
     const taskPromptRoute = getTaskPromptRouteParams(pathname);
+    const suggestedAnswersRoute = getSuggestedAnswersRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
     if ((!teacherNoteRoute || !teacherNoteRoute.draftId || !teacherNoteRoute.noteId)
       && (!taskPromptRoute || !taskPromptRoute.draftId || !taskPromptRoute.promptId)
+      && (!suggestedAnswersRoute || !suggestedAnswersRoute.draftId || !suggestedAnswersRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)) {
       json(res, 404, { error: 'Редактируемый компонент не найден.' });
@@ -804,6 +820,13 @@ const server = http.createServer(async (req, res) => {
           title: body.title,
           text: body.text,
           support: body.support,
+        }, database);
+      } else if (suggestedAnswersRoute) {
+        draft = updateSuggestedAnswers({
+          id: suggestedAnswersRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: suggestedAnswersRoute.componentId,
+          text: body.text,
         }, database);
       } else if (textPanelRoute) {
         draft = updateTextPanel({

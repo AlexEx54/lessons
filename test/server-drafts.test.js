@@ -133,7 +133,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'yourTurn', 'followUp',
   ]);
   assert.deepEqual(created.content.stages[1].content.map(component => component.type), [
-    'teacherNote', 'taskPrompt', 'illustratedTextPanel', 'textPanel',
+    'teacherNote', 'taskPrompt', 'illustratedTextPanel', 'textPanel', 'suggestedAnswers',
   ]);
   assert.ok(created.content.stages.slice(2).every(stage => stage.content === null));
 
@@ -172,6 +172,44 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     body: JSON.stringify({ text: '   ' }),
   })).status, 400);
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/missing-note`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: 'Missing' }),
+  })).status, 404);
+
+  const suggestedAnswersEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/suggested-answers/lead-in-suggested-answers`;
+  assert.equal((await fetch(suggestedAnswersEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: 'Guest edit' }),
+  })).status, 401);
+  assert.equal((await fetch(suggestedAnswersEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: teacherCookie },
+    body: JSON.stringify({ text: 'Teacher edit' }),
+  })).status, 403);
+  const suggestedAnswersUpdate = await fetch(suggestedAnswersEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      text: '  1. **Updated answer**\n2. Personal answer.  ',
+      id: 'attempted-id-change',
+      type: 'textPanel',
+    }),
+  });
+  assert.equal(suggestedAnswersUpdate.status, 200);
+  const savedSuggestedAnswers = (await suggestedAnswersUpdate.json()).draft.content.stages[1].content[4];
+  assert.deepEqual(savedSuggestedAnswers, {
+    type: 'suggestedAnswers',
+    id: 'lead-in-suggested-answers',
+    text: '1. **Updated answer**\n2. Personal answer.',
+  });
+  assert.equal((await fetch(suggestedAnswersEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: '   ' }),
+  })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/suggested-answers/missing-answers`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ text: 'Missing' }),
@@ -325,6 +363,11 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { 'Content-Type': 'application/json', Cookie: secondAdminCookie },
     body: JSON.stringify({ text: 'Foreign edit' }),
   })).status, 404);
+  assert.equal((await fetch(suggestedAnswersEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: secondAdminCookie },
+    body: JSON.stringify({ text: 'Foreign edit' }),
+  })).status, 404);
   assert.equal((await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: secondAdminCookie },
   })).status, 404);
@@ -347,6 +390,11 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ title: 'Published', text: 'Edit', support: null }),
+  })).status, 409);
+  assert.equal((await fetch(suggestedAnswersEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: 'Published edit' }),
   })).status, 409);
   assert.equal((await fetch(panelEndpoint, {
     method: 'PATCH',

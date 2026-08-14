@@ -59,6 +59,16 @@
       onDelete: state.draftStatus === 'review' ? deleteIllustratedTextPanelImage : undefined,
       onMessage: showToast,
     }),
+    suggestedAnswers: component => window.SuggestedAnswersComponent.renderSuggestedAnswers(component, {
+      viewerRole: 'teacher',
+      studentVisible: false,
+      onSave: state.draftStatus === 'review' ? saveSuggestedAnswers : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
   };
 
   const svgNS = 'http://www.w3.org/2000/svg';
@@ -231,7 +241,7 @@
       } catch (_error) {
         return unsupportedComponent(component);
       }
-    });
+    }).filter(Boolean);
     container.replaceChildren(...rendered);
   }
 
@@ -288,6 +298,15 @@
     for (const stage of lesson.stages || []) {
       for (const component of stage.content || []) {
         if (component?.type === 'illustratedTextPanel' && component.id === panelId) return component;
+      }
+    }
+    return null;
+  }
+
+  function findSuggestedAnswers(lesson, componentId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'suggestedAnswers' && component.id === componentId) return component;
       }
     }
     return null;
@@ -462,6 +481,31 @@
       return savedPanel;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить иллюстрированную текстовую панель.');
+      throw error;
+    }
+  }
+
+  async function saveSuggestedAnswers(text, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/suggested-answers/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить Suggested answers.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findSuggestedAnswers(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый Suggested answers не найден в черновике.');
+      showToast('Suggested answers сохранён.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить Suggested answers.');
       throw error;
     }
   }

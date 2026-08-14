@@ -46,7 +46,7 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     },
   });
   assert.deepEqual(lesson.stages[1].content.map(component => component.type), [
-    'teacherNote', 'taskPrompt', 'illustratedTextPanel', 'textPanel',
+    'teacherNote', 'taskPrompt', 'illustratedTextPanel', 'textPanel', 'suggestedAnswers',
   ]);
   assert.equal(lesson.stages[1].content[0].id, 'lead-in-teacher-note');
   assert.equal(lesson.stages[1].content[1].variant, 'yourTurn');
@@ -67,6 +67,11 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     id: 'lead-in-discussion-questions',
     text: '1. What does “touch grass” mean?\n2. Do you agree that real-world graphics are boring?\n3. How many days can you survive without your PC or console?',
     backgroundColor: '#FFFFFF',
+  });
+  assert.deepEqual(lesson.stages[1].content[4], {
+    type: 'suggestedAnswers',
+    id: 'lead-in-suggested-answers',
+    text: '1. “Touch grass” = go outside, spend time in real life, away from screens.\n2. Possible answer: I don’t agree. Real-world graphics can be beautiful. / I agree. Video games are more exciting.\n3. Personal answer.',
   });
   assert.ok(lesson.stages.slice(2).every(stage => stage.content === null));
 });
