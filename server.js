@@ -36,9 +36,9 @@ const {
   listLessonDrafts,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
+  updateMarkdownCard,
   updateTaskPrompt,
   updateTeacherNote,
-  updateSuggestedAnswers,
   updateTextPanel,
   updateThisOrThatImage,
 } = require('./lib/lesson-draft-store.js');
@@ -360,8 +360,8 @@ function getTaskPromptRouteParams(pathname) {
   }
 }
 
-function getSuggestedAnswersRouteParams(pathname) {
-  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/suggested-answers\/([^/]+)$/);
+function getMarkdownCardRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/markdown-cards\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -783,12 +783,12 @@ const server = http.createServer(async (req, res) => {
     if (!user) return;
     const teacherNoteRoute = getTeacherNoteRouteParams(pathname);
     const taskPromptRoute = getTaskPromptRouteParams(pathname);
-    const suggestedAnswersRoute = getSuggestedAnswersRouteParams(pathname);
+    const markdownCardRoute = getMarkdownCardRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
     if ((!teacherNoteRoute || !teacherNoteRoute.draftId || !teacherNoteRoute.noteId)
       && (!taskPromptRoute || !taskPromptRoute.draftId || !taskPromptRoute.promptId)
-      && (!suggestedAnswersRoute || !suggestedAnswersRoute.draftId || !suggestedAnswersRoute.componentId)
+      && (!markdownCardRoute || !markdownCardRoute.draftId || !markdownCardRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)) {
       json(res, 404, { error: 'Редактируемый компонент не найден.' });
@@ -822,11 +822,12 @@ const server = http.createServer(async (req, res) => {
           text: body.text,
           support: body.support,
         }, database);
-      } else if (suggestedAnswersRoute) {
-        draft = updateSuggestedAnswers({
-          id: suggestedAnswersRoute.draftId,
+      } else if (markdownCardRoute) {
+        draft = updateMarkdownCard({
+          id: markdownCardRoute.draftId,
           ownerAdminId: user.id,
-          componentId: suggestedAnswersRoute.componentId,
+          componentId: markdownCardRoute.componentId,
+          title: body.title,
           text: body.text,
         }, database);
       } else if (textPanelRoute) {

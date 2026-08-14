@@ -1,0 +1,98 @@
+.markdown-card {
+  --markdown-card-accent: #1ead58;
+  --markdown-card-border: color-mix(in srgb, var(--markdown-card-accent) 48%, #fff);
+  --markdown-card-background: color-mix(in srgb, var(--markdown-card-accent) 3%, #fff);
+  width: 100%;
+  padding: 18px 21px 20px;
+  border: 1px solid var(--markdown-card-border);
+  border-radius: 11px;
+  color: #242842;
+  background: var(--markdown-card-background);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--markdown-card-accent) 4%, transparent);
+}
+
+.markdown-card__header,
+.markdown-card__heading,
+.markdown-card__actions,
+.markdown-card__visibility {
+  display: flex;
+  align-items: center;
+}
+
+.markdown-card__header { justify-content: space-between; gap: 18px; }
+.markdown-card__heading { margin: 0; gap: 12px; color: var(--markdown-card-accent); font-size: 14px; font-weight: 750; }
+.markdown-card__icon { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 auto; }
+.markdown-card__icon svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.markdown-card__icon circle { fill: none; }
+.markdown-card[data-icon="chat"] .markdown-card__icon circle { fill: currentColor; stroke: none; }
+.markdown-card__actions { flex: 0 0 auto; gap: 7px; }
+
+.markdown-card__visibility,
+.markdown-card__edit,
+.markdown-card__format {
+  border: 1px solid var(--markdown-card-border);
+  border-radius: 7px;
+  color: #686f7f;
+  background: #fff;
+  font-weight: 700;
+}
+
+.markdown-card__visibility { min-height: 34px; padding: 0 10px; gap: 8px; font-size: 11px; }
+.markdown-card__visibility svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.markdown-card__edit { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; color: var(--markdown-card-accent); font-size: 17px; }
+.markdown-card__visibility:hover,
+.markdown-card__edit:hover,
+.markdown-card__format:hover { background: var(--markdown-card-background); }
+.markdown-card__edit:disabled,
+.markdown-card__format:disabled { opacity: .5; cursor: wait; }
+
+.markdown-card__body { padding: 10px 4px 0 36px; font-size: 13px; line-height: 1.65; }
+.markdown-card__body p { margin: 10px 0 0; }
+.markdown-card__body p:first-child { margin-top: 0; }
+.markdown-card__body ul,
+.markdown-card__body ol { margin: 0; padding-left: 20px; }
+.markdown-card__body li { padding-left: 7px; }
+.markdown-card__body li + li { margin-top: 7px; }
+.markdown-card__body li::marker { color: var(--markdown-card-accent); font-weight: 750; }
+.markdown-card__body strong,
+.markdown-card__body b { font-weight: 750; }
+.markdown-card__spacer { height: 10px; }
+
+.markdown-card__toolbar {
+  display: flex;
+  width: fit-content;
+  margin: 11px 4px 0 36px;
+  padding: 4px;
+  gap: 3px;
+  border: 1px solid var(--markdown-card-border);
+  border-radius: 8px;
+  background: #fff;
+}
+.markdown-card__toolbar[hidden] { display: none; }
+.markdown-card__format { min-width: 31px; height: 29px; padding: 0 7px; color: var(--markdown-card-accent); }
+.markdown-card__format:nth-child(1) { font-weight: 800; }
+.markdown-card__format:nth-child(2) { font-style: italic; }
+.markdown-card--editing .markdown-card__title,
+.markdown-card--editing .markdown-card__body {
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--markdown-card-accent) 10%, transparent);
+  outline: 1px solid var(--markdown-card-accent);
+}
+.markdown-card--editing .markdown-card__title { min-width: 80px; padding: 4px 7px; }
+.markdown-card--editing .markdown-card__body { min-height: 108px; margin-top: 10px; padding: 11px 12px; }
+.markdown-card--editing [contenteditable="true"]:empty::before {
+  color: #9296a8;
+  content: attr(data-placeholder);
+  font-weight: 500;
+  pointer-events: none;
+}
+.markdown-card--saving { opacity: .7; }
+
+@media (max-width: 700px) {
+  .markdown-card { padding: 16px; }
+  .markdown-card__header { align-items: flex-start; }
+  .markdown-card__body { padding-left: 4px; }
+  .markdown-card__toolbar { margin-left: 4px; }
+  .markdown-card__visibility { padding: 0 8px; }
+}

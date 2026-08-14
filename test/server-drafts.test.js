@@ -126,16 +126,14 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.content.stages.length, 7);
   assert.deepEqual(created.content.stages.map(stage => stage.number), [1, 2, 3, 4, 5, 6, 7]);
   assert.deepEqual(created.content.stages[0].content.map(component => component.type), [
-    'teacherNote', 'taskPrompt', 'thisOrThat', 'taskPrompt',
+    'teacherNote', 'markdownCard', 'thisOrThat', 'taskPrompt',
   ]);
   assert.equal(created.content.stages[0].content[0].id, 'warm-up-teacher-note');
-  assert.deepEqual(created.content.stages[0].content.filter(component => component.type === 'taskPrompt').map(component => component.variant), [
-    'yourTurn', 'followUp',
-  ]);
+  assert.deepEqual(created.content.stages[0].content.filter(component => component.type === 'taskPrompt').map(component => component.variant), ['followUp']);
   assert.deepEqual(created.content.stages[1].content.map(component => component.type), [
-    'teacherNote', 'taskPrompt', 'illustratedTextPanel', 'textPanel', 'suggestedAnswers',
+    'teacherNote', 'markdownCard', 'illustratedTextPanel', 'textPanel', 'markdownCard',
   ]);
-  assert.deepEqual(created.content.stages[2].content.map(component => component.type), ['teacherNote']);
+  assert.deepEqual(created.content.stages[2].content.map(component => component.type), ['teacherNote', 'markdownCard']);
   assert.equal(created.content.stages[2].subtitle, 'Summer + Gaming Words');
   assert.equal(created.content.stages[2].content[0].blocks.length, 3);
   assert.ok(created.content.stages.slice(3).every(stage => stage.content === null));
@@ -211,45 +209,53 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     },
   )).status, 400);
 
-  const suggestedAnswersEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/suggested-answers/lead-in-suggested-answers`;
-  assert.equal((await fetch(suggestedAnswersEndpoint, {
+  const markdownCardEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/markdown-cards/lead-in-suggested-answers-card`;
+  assert.equal((await fetch(markdownCardEndpoint, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: 'Guest edit' }),
+    body: JSON.stringify({ title: 'Guest', text: 'Guest edit' }),
   })).status, 401);
-  assert.equal((await fetch(suggestedAnswersEndpoint, {
+  assert.equal((await fetch(markdownCardEndpoint, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: teacherCookie },
-    body: JSON.stringify({ text: 'Teacher edit' }),
+    body: JSON.stringify({ title: 'Teacher', text: 'Teacher edit' }),
   })).status, 403);
-  const suggestedAnswersUpdate = await fetch(suggestedAnswersEndpoint, {
+  const markdownCardUpdate = await fetch(markdownCardEndpoint, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({
+      title: '  Updated answers  ',
       text: '  1. **Updated answer**\n2. Personal answer.  ',
       id: 'attempted-id-change',
       type: 'textPanel',
+      icon: 'book',
+      accentColor: '#000000',
+      studentVisibility: 'always',
     }),
   });
-  assert.equal(suggestedAnswersUpdate.status, 200);
-  const savedSuggestedAnswers = (await suggestedAnswersUpdate.json()).draft.content.stages[1].content[4];
-  assert.deepEqual(savedSuggestedAnswers, {
-    type: 'suggestedAnswers',
-    id: 'lead-in-suggested-answers',
+  assert.equal(markdownCardUpdate.status, 200);
+  const savedMarkdownCard = (await markdownCardUpdate.json()).draft.content.stages[1].content[4];
+  assert.deepEqual(savedMarkdownCard, {
+    type: 'markdownCard',
+    id: 'lead-in-suggested-answers-card',
+    title: 'Updated answers',
     text: '1. **Updated answer**\n2. Personal answer.',
+    icon: 'check',
+    accentColor: '#1EAD58',
+    studentVisibility: 'controlled',
   });
-  assert.equal((await fetch(suggestedAnswersEndpoint, {
+  assert.equal((await fetch(markdownCardEndpoint, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
-    body: JSON.stringify({ text: '   ' }),
+    body: JSON.stringify({ title: 'Title', text: '   ' }),
   })).status, 400);
-  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/suggested-answers/missing-answers`, {
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/markdown-cards/missing-card`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
-    body: JSON.stringify({ text: 'Missing' }),
+    body: JSON.stringify({ title: 'Missing', text: 'Missing' }),
   })).status, 404);
 
-  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/task-prompts/warm-up-your-turn-prompt`, {
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/task-prompts/warm-up-follow-up-prompt`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title: 'Guest', text: 'Edit', support: null }),
@@ -397,10 +403,10 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { 'Content-Type': 'application/json', Cookie: secondAdminCookie },
     body: JSON.stringify({ text: 'Foreign edit' }),
   })).status, 404);
-  assert.equal((await fetch(suggestedAnswersEndpoint, {
+  assert.equal((await fetch(markdownCardEndpoint, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: secondAdminCookie },
-    body: JSON.stringify({ text: 'Foreign edit' }),
+    body: JSON.stringify({ title: 'Foreign', text: 'Foreign edit' }),
   })).status, 404);
   assert.equal((await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: secondAdminCookie },
@@ -420,15 +426,15 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ text: 'Published edit' }),
   })).status, 409);
-  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/task-prompts/warm-up-your-turn-prompt`, {
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/task-prompts/warm-up-follow-up-prompt`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ title: 'Published', text: 'Edit', support: null }),
   })).status, 409);
-  assert.equal((await fetch(suggestedAnswersEndpoint, {
+  assert.equal((await fetch(markdownCardEndpoint, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
-    body: JSON.stringify({ text: 'Published edit' }),
+    body: JSON.stringify({ title: 'Published', text: 'Published edit' }),
   })).status, 409);
   assert.equal((await fetch(panelEndpoint, {
     method: 'PATCH',

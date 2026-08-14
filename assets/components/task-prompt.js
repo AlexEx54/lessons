@@ -4,7 +4,7 @@
   const markdown = root.SafeMarkdown
     || (typeof require === 'function' ? require('./safe-markdown.js') : null);
   if (!markdown) throw new Error('TaskPrompt requires SafeMarkdown.');
-  const VARIANTS = new Set(['yourTurn', 'followUp']);
+  const VARIANTS = new Set(['followUp']);
 
   function normalizeTitle(value) {
     return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
@@ -59,7 +59,7 @@
     let activeEditor = null;
 
     const prompt = doc.createElement('aside');
-    prompt.className = `task-prompt task-prompt--${data.variant === 'yourTurn' ? 'your-turn' : 'follow-up'}`;
+    prompt.className = 'task-prompt task-prompt--follow-up';
 
     const header = doc.createElement('div');
     header.className = 'task-prompt__header';

@@ -59,10 +59,10 @@
       onDelete: state.draftStatus === 'review' ? deleteIllustratedTextPanelImage : undefined,
       onMessage: showToast,
     }),
-    suggestedAnswers: component => window.SuggestedAnswersComponent.renderSuggestedAnswers(component, {
+    markdownCard: component => window.MarkdownCardComponent.renderMarkdownCard(component, {
       viewerRole: 'teacher',
       studentVisible: false,
-      onSave: state.draftStatus === 'review' ? saveSuggestedAnswers : undefined,
+      onSave: state.draftStatus === 'review' ? saveMarkdownCard : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
         else state.dirtyComponents.delete(componentId);
@@ -304,10 +304,10 @@
     return null;
   }
 
-  function findSuggestedAnswers(lesson, componentId) {
+  function findMarkdownCard(lesson, componentId) {
     for (const stage of lesson.stages || []) {
       for (const component of stage.content || []) {
-        if (component?.type === 'suggestedAnswers' && component.id === componentId) return component;
+        if (component?.type === 'markdownCard' && component.id === componentId) return component;
       }
     }
     return null;
@@ -486,27 +486,27 @@
     }
   }
 
-  async function saveSuggestedAnswers(text, componentId) {
+  async function saveMarkdownCard(changes, componentId) {
     try {
       const response = await fetch(
-        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/suggested-answers/${encodeURIComponent(componentId)}`,
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/markdown-cards/${encodeURIComponent(componentId)}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify(changes),
         },
       );
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить Suggested answers.');
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить карточку.');
       if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
       state.lesson = payload.draft.content;
       state.draftStatus = payload.draft.status;
-      const saved = findSuggestedAnswers(state.lesson, componentId);
-      if (!saved) throw new Error('Сохранённый Suggested answers не найден в черновике.');
-      showToast('Suggested answers сохранён.');
+      const saved = findMarkdownCard(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённая карточка не найдена в черновике.');
+      showToast('Карточка сохранена.');
       return saved;
     } catch (error) {
-      showToast(error.message || 'Не удалось сохранить Suggested answers.');
+      showToast(error.message || 'Не удалось сохранить карточку.');
       throw error;
     }
   }

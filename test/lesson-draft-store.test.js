@@ -13,9 +13,9 @@ const {
   retryLessonDraft,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
+  updateMarkdownCard,
   updateTaskPrompt,
   updateTeacherNote,
-  updateSuggestedAnswers,
   updateTextPanel,
   updateThisOrThatImage,
 } = require('../lib/lesson-draft-store.js');
@@ -222,51 +222,57 @@ test('task prompt fields and optional support can be updated in a review draft',
   database.close();
 });
 
-test('suggested answers text can be updated only on one owned review component', () => {
+test('markdown card title and text can be updated without changing presentation fields', () => {
   const database = openDatabase(':memory:');
   const owner = admin(database, 'answers-owner');
   const outsider = admin(database, 'answers-outsider');
   const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Answers', template: 'template-1' }, database);
   const ready = completeLessonDraft(pending.id, owner.id, {
     stages: [{ content: [{
-      type: 'suggestedAnswers', id: 'lead-in-answers', text: '1. Original',
+      type: 'markdownCard', id: 'lead-in-answers', title: 'Suggested answers', text: '1. Original',
+      icon: 'check', accentColor: '#1EAD58', studentVisibility: 'controlled',
     }] }],
   }, database);
 
-  const updated = updateSuggestedAnswers({
+  const updated = updateMarkdownCard({
     id: ready.id,
     ownerAdminId: owner.id,
     componentId: 'lead-in-answers',
+    title: ' Updated answers ',
     text: '  1. **Updated**\n2. Personal answer.  ',
   }, database);
   assert.deepEqual(updated.content.stages[0].content[0], {
-    type: 'suggestedAnswers',
+    type: 'markdownCard',
     id: 'lead-in-answers',
+    title: 'Updated answers',
     text: '1. **Updated**\n2. Personal answer.',
+    icon: 'check',
+    accentColor: '#1EAD58',
+    studentVisibility: 'controlled',
   });
-  assert.throws(() => updateSuggestedAnswers({
-    id: ready.id, ownerAdminId: owner.id, componentId: 'lead-in-answers', text: ' ',
-  }, database), /не может быть пустым/);
-  assert.throws(() => updateSuggestedAnswers({
-    id: ready.id, ownerAdminId: owner.id, componentId: 'missing', text: 'Text',
+  assert.throws(() => updateMarkdownCard({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'lead-in-answers', title: '', text: 'Text',
+  }, database), /не могут быть пустыми/);
+  assert.throws(() => updateMarkdownCard({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing', title: 'Title', text: 'Text',
   }, database), /не найден/);
-  assert.throws(() => updateSuggestedAnswers({
-    id: ready.id, ownerAdminId: outsider.id, componentId: 'lead-in-answers', text: 'Text',
+  assert.throws(() => updateMarkdownCard({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'lead-in-answers', title: 'Title', text: 'Text',
   }, database), /Черновик урока не найден/);
   publishLessonDraft(ready.id, owner.id, database);
-  assert.throws(() => updateSuggestedAnswers({
-    id: ready.id, ownerAdminId: owner.id, componentId: 'lead-in-answers', text: 'Too late',
+  assert.throws(() => updateMarkdownCard({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'lead-in-answers', title: 'Title', text: 'Too late',
   }, database), /только черновик на проверке/);
 
   const duplicatePending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Duplicates', template: 'template-1' }, database);
   const duplicate = completeLessonDraft(duplicatePending.id, owner.id, {
     stages: [
-      { content: [{ type: 'suggestedAnswers', id: 'same-answers', text: 'One' }] },
-      { content: [{ type: 'suggestedAnswers', id: 'same-answers', text: 'Two' }] },
+      { content: [{ type: 'markdownCard', id: 'same-answers', title: 'One', text: 'One' }] },
+      { content: [{ type: 'markdownCard', id: 'same-answers', title: 'Two', text: 'Two' }] },
     ],
   }, database);
-  assert.throws(() => updateSuggestedAnswers({
-    id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-answers', text: 'Text',
+  assert.throws(() => updateMarkdownCard({
+    id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-answers', title: 'Title', text: 'Text',
   }, database), /несколько/);
   database.close();
 });
@@ -278,7 +284,7 @@ test('task prompt update rejects missing, duplicate, and immutable draft targets
   const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Prompts', template: 'template-1' }, database);
   const ready = completeLessonDraft(pending.id, owner.id, {
     stages: [
-      { content: [{ type: 'taskPrompt', id: 'same-prompt', variant: 'yourTurn', title: 'One', text: 'One' }] },
+      { content: [{ type: 'taskPrompt', id: 'same-prompt', variant: 'followUp', title: 'One', text: 'One' }] },
       { content: [{ type: 'taskPrompt', id: 'same-prompt', variant: 'followUp', title: 'Two', text: 'Two' }] },
     ],
   }, database);

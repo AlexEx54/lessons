@@ -17,21 +17,23 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
   assert.equal(lesson.stages[0].subtitle, 'This or That?');
   assert.equal(lesson.stages[1].subtitle, 'Gamer Chat');
   assert.deepEqual(lesson.stages[0].content.map(component => component.type), [
-    'teacherNote', 'taskPrompt', 'thisOrThat', 'taskPrompt',
+    'teacherNote', 'markdownCard', 'thisOrThat', 'taskPrompt',
   ]);
   assert.equal(lesson.stages[0].content[0].id, 'warm-up-teacher-note');
   assert.match(lesson.stages[0].content[0].text, /^- Не заставляйте/);
   assert.match(lesson.stages[0].content[0].text, /\*\*Say:\*\*/);
-  assert.deepEqual(lesson.stages[0].content.filter(component => component.type === 'taskPrompt').map(prompt => prompt.variant), ['yourTurn', 'followUp']);
-  assert.equal(lesson.stages[0].content[1].id, 'warm-up-your-turn-prompt');
+  assert.deepEqual(lesson.stages[0].content.filter(component => component.type === 'taskPrompt').map(prompt => prompt.variant), ['followUp']);
+  assert.equal(lesson.stages[0].content[1].id, 'warm-up-your-turn-card');
   assert.equal(lesson.stages[0].content[3].id, 'warm-up-follow-up-prompt');
   assert.equal(lesson.stages[0].content[1].support, undefined);
   assert.deepEqual(lesson.stages[0].content[1], {
-    type: 'taskPrompt',
-    id: 'warm-up-your-turn-prompt',
-    variant: 'yourTurn',
+    type: 'markdownCard',
+    id: 'warm-up-your-turn-card',
     title: 'Your turn!',
     text: 'Which one did you do more this summer? Answer with a word or a short sentence.',
+    icon: 'chat',
+    accentColor: '#1EAD58',
+    studentVisibility: 'always',
   });
   assert.equal(lesson.stages[0].content[2].items.length, 4);
   assert.ok(lesson.stages[0].content[2].items.every(item => item.options.length === 2));
@@ -48,10 +50,10 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     },
   });
   assert.deepEqual(lesson.stages[1].content.map(component => component.type), [
-    'teacherNote', 'taskPrompt', 'illustratedTextPanel', 'textPanel', 'suggestedAnswers',
+    'teacherNote', 'markdownCard', 'illustratedTextPanel', 'textPanel', 'markdownCard',
   ]);
   assert.equal(lesson.stages[1].content[0].id, 'lead-in-teacher-note');
-  assert.equal(lesson.stages[1].content[1].variant, 'yourTurn');
+  assert.equal(lesson.stages[1].content[1].studentVisibility, 'always');
   assert.deepEqual(lesson.stages[1].content[2], {
     type: 'illustratedTextPanel',
     id: 'lead-in-gamer-message',
@@ -71,16 +73,29 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     backgroundColor: '#FFFFFF',
   });
   assert.deepEqual(lesson.stages[1].content[4], {
-    type: 'suggestedAnswers',
-    id: 'lead-in-suggested-answers',
+    type: 'markdownCard',
+    id: 'lead-in-suggested-answers-card',
+    title: 'Suggested answers',
     text: '1. “Touch grass” = go outside, spend time in real life, away from screens.\n2. Possible answer: I don’t agree. Real-world graphics can be beautiful. / I agree. Video games are more exciting.\n3. Personal answer.',
+    icon: 'check',
+    accentColor: '#1EAD58',
+    studentVisibility: 'controlled',
   });
-  assert.deepEqual(lesson.stages[2].content.map(component => component.type), ['teacherNote']);
+  assert.deepEqual(lesson.stages[2].content.map(component => component.type), ['teacherNote', 'markdownCard']);
   assert.equal(lesson.stages[2].content[0].id, 'target-vocabulary-teacher-note');
   assert.equal(lesson.stages[2].subtitle, 'Summer + Gaming Words');
   assert.equal(lesson.stages[2].content[0].text, undefined);
   assert.deepEqual(lesson.stages[2].content[0].blocks.map(block => block.icon), ['audio', 'chat', 'chatDots']);
   assert.equal(lesson.stages[2].content[0].blocks[0].tip.text.includes('stress'), true);
+  assert.deepEqual(lesson.stages[2].content[1], {
+    type: 'markdownCard',
+    id: 'target-vocabulary-card',
+    title: 'Vocabulary',
+    text: '1. **to hang out (with friends)** — spend free time together\n2. **to beat a game / a boss** — win and finish it\n3. **to go offline / go AFK** — disconnect from the internet\n4. **to chill out** — relax\n5. **to level up** — get better / reach a new stage\n6. **to get bored** — feel no interest\n7. **to stay up late** — go to bed very late\n8. **to try something new** — do something different for the first time\n9. **to spend time outdoors** — be outside\n10. **to get stuck** — be unable to continue',
+    icon: 'book',
+    accentColor: '#20A85B',
+    studentVisibility: 'controlled',
+  });
   assert.ok(lesson.stages.slice(3).every(stage => stage.content === null));
 });
 
