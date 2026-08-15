@@ -268,3 +268,47 @@ Teacher’s Note содержит подсказки, инструкции и г
 сохраняется после перезагрузки. В редакторе можно только загрузить, заменить или
 удалить изображение; `caption` и `imagePrompt` остаются неизменными. После удаления
 изображения снова показывается сохранённый промт.
+
+## Dropdown Choice
+
+`dropdownChoice` показывает связный текст с интерактивными выпадающими списками.
+Компонент подходит для контекстных заданий, в которых ученик выбирает правильное
+слово или фразу для каждого пропуска.
+
+```json
+{
+  "type": "dropdownChoice",
+  "id": "target-vocabulary-context-dropdown",
+  "title": "Task 2 · Vocabulary in Context — Dropdown",
+  "instruction": "Fill in the blanks with the correct words from the dropdown lists.",
+  "segments": [{
+    "type": "text",
+    "text": "This summer, I wanted "
+  }, {
+    "type": "choice",
+    "id": "hang-out-context",
+    "options": ["to get bored", "to hang out (with friends)", "to stay up late"],
+    "answer": "to hang out (with friends)"
+  }, {
+    "type": "text",
+    "text": " and spend less time at home."
+  }]
+}
+```
+
+Поля:
+
+- `type` — строго `dropdownChoice`.
+- `id` — обязательный уникальный идентификатор компонента в lowercase kebab-case.
+- `title` и `instruction` — обязательные непустые строки без HTML и Markdown.
+- `segments` — непустой массив текстовых и choice-сегментов в порядке отображения.
+- Текстовый сегмент содержит только `type: "text"` и непустой `text`.
+- Choice-сегмент содержит уникальный lowercase kebab-case `id`, от двух уникальных
+  `options` и `answer`, который в точности совпадает с одним из вариантов.
+- В одном компоненте должно быть от 1 до 12 choice-сегментов. HTML и Markdown во
+  всех видимых строках запрещены.
+
+После выбора неверный вариант подсвечивается красным и остаётся доступным для
+повторной попытки. Верный вариант подсвечивается зелёным и блокируется. Состояние
+ответов локальное: оно не передаётся в JSON и сбрасывается после повторной отрисовки.
+Редактирование и серверное сохранение этого компонента пока не поддерживаются.

@@ -1,0 +1,24 @@
+.dropdown-choice { padding: 20px; border: 1px solid #e7e3f4; border-radius: 12px; background: #fff; box-shadow: 0 4px 16px rgba(39, 32, 76, .035); }
+.dropdown-choice__title { margin: 0; color: #17182d; font-size: 18px; line-height: 1.35; }
+.dropdown-choice__instruction { margin: 3px 0 15px; color: #656a80; font-size: 12px; }
+.dropdown-choice__passage { color: #25263a; font-size: 14px; font-weight: 500; line-height: 2.65; }
+.dropdown-choice__field { display: inline-flex; align-items: center; gap: 5px; margin: 0 4px; vertical-align: middle; white-space: nowrap; }
+.dropdown-choice__number { color: #6c6e80; font-size: 11px; font-weight: 700; }
+.dropdown-choice__select { max-width: min(260px, 70vw); min-height: 34px; padding: 0 34px 0 12px; border: 1px solid #dcd9e7; border-radius: 7px; color: #343449; background-color: #fff; font: 600 12px/1.3 Inter, sans-serif; cursor: pointer; transition: border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, background-color 160ms ease; }
+.dropdown-choice__select:hover { border-color: #bdb5e5; }
+.dropdown-choice__select:focus-visible { outline: 3px solid rgba(101, 69, 245, .18); outline-offset: 2px; border-color: #6545f5; }
+.dropdown-choice__select--wrong { color: #e43f50; border-color: #ef8090; background-color: #fff7f8; box-shadow: 0 0 0 2px rgba(228, 63, 80, .08); }
+.dropdown-choice__select--correct { color: #168c48; border-color: #a9ddb9; background-color: #effaf2; box-shadow: 0 0 0 2px rgba(32, 168, 91, .08); cursor: default; opacity: 1; }
+.dropdown-choice__select:disabled { -webkit-text-fill-color: #168c48; opacity: 1; }
+.dropdown-choice__status { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+@media (max-width: 560px) {
+  .dropdown-choice { padding: 15px 12px; }
+  .dropdown-choice__passage { font-size: 13px; line-height: 2.8; }
+  .dropdown-choice__field { max-width: 100%; margin-inline: 2px; }
+  .dropdown-choice__select { max-width: 68vw; font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdown-choice__select { transition-duration: 1ms !important; }
+}

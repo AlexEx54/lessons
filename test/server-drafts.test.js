@@ -134,7 +134,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'teacherNote', 'markdownCard', 'illustratedTextPanel', 'textPanel', 'markdownCard',
   ]);
   assert.deepEqual(created.content.stages[2].content.map(component => component.type), [
-    'teacherNote', 'markdownCard', 'matchWords', 'markdownCard',
+    'teacherNote', 'markdownCard', 'matchWords', 'markdownCard', 'dropdownChoice', 'markdownCard',
   ]);
   assert.equal(created.content.stages[2].subtitle, 'Summer + Gaming Words');
   assert.equal(created.content.stages[2].content[0].blocks.length, 3);
@@ -145,6 +145,18 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     text: '- **go offline / go AFK** — explain that AFK = “away from keyboard”.\n- **level up** — usually used in games; means “reach the next level” and become stronger or better.\n- **get stuck** — explain with examples: in a game (can’t move forward) or in real life (have a problem).\n- **beat a game / a boss** — clarify: “beat a boss” = win against a very strong enemy.\n- **spend time outdoors** — “outdoors” = outside, in nature or outside the house.',
     icon: 'book',
     accentColor: '#6545F5',
+    studentVisibility: 'teacherOnly',
+  });
+  const targetVocabularyDropdown = created.content.stages[2].content[4];
+  assert.equal(targetVocabularyDropdown.id, 'target-vocabulary-context-dropdown');
+  assert.equal(targetVocabularyDropdown.segments.filter(segment => segment.type === 'choice').length, 8);
+  assert.deepEqual(created.content.stages[2].content[5], {
+    type: 'markdownCard',
+    id: 'target-vocabulary-context-answer-key',
+    title: 'Answer Key',
+    text: '1. **to hang out (with friends)**\n2. **to go offline / go AFK**\n3. **to beat a game / a boss**\n4. **to level up**\n5. **to get stuck**\n6. **to spend time outdoors**\n7. **to try something new**\n8. **to stay up late**',
+    icon: 'check',
+    accentColor: '#20A85B',
     studentVisibility: 'teacherOnly',
   });
   assert.ok(created.content.stages.slice(3).every(stage => stage.content === null));

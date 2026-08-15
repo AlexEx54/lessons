@@ -46,6 +46,7 @@
       onDelete: state.draftStatus === 'review' ? deleteMatchWordsImage : undefined,
       onMessage: showToast,
     }),
+    dropdownChoice: component => window.DropdownChoiceComponent.renderDropdownChoice(component),
     textPanel: component => window.TextPanelComponent.renderTextPanel(component, {
       onSave: state.draftStatus === 'review' ? saveTextPanel : undefined,
       onDirtyChange: (dirty, panelId) => {

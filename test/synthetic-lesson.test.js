@@ -82,7 +82,7 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     studentVisibility: 'controlled',
   });
   assert.deepEqual(lesson.stages[2].content.map(component => component.type), [
-    'teacherNote', 'markdownCard', 'matchWords', 'markdownCard',
+    'teacherNote', 'markdownCard', 'matchWords', 'markdownCard', 'dropdownChoice', 'markdownCard',
   ]);
   assert.equal(lesson.stages[2].content[0].id, 'target-vocabulary-teacher-note');
   assert.equal(lesson.stages[2].subtitle, 'Summer + Gaming Words');
@@ -113,6 +113,30 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     text: '- **go offline / go AFK** — explain that AFK = “away from keyboard”.\n- **level up** — usually used in games; means “reach the next level” and become stronger or better.\n- **get stuck** — explain with examples: in a game (can’t move forward) or in real life (have a problem).\n- **beat a game / a boss** — clarify: “beat a boss” = win against a very strong enemy.\n- **spend time outdoors** — “outdoors” = outside, in nature or outside the house.',
     icon: 'book',
     accentColor: '#6545F5',
+    studentVisibility: 'teacherOnly',
+  });
+  const dropdown = lesson.stages[2].content[4];
+  assert.equal(dropdown.id, 'target-vocabulary-context-dropdown');
+  const choices = dropdown.segments.filter(segment => segment.type === 'choice');
+  assert.equal(choices.length, 8);
+  assert.deepEqual(choices.map(choice => choice.answer), [
+    'to hang out (with friends)',
+    'to go offline / go AFK',
+    'to beat a game / a boss',
+    'to level up',
+    'to get stuck',
+    'to spend time outdoors',
+    'to try something new',
+    'to stay up late',
+  ]);
+  assert.ok(choices.every(choice => choice.options.length === 3 && choice.options.includes(choice.answer)));
+  assert.deepEqual(lesson.stages[2].content[5], {
+    type: 'markdownCard',
+    id: 'target-vocabulary-context-answer-key',
+    title: 'Answer Key',
+    text: '1. **to hang out (with friends)**\n2. **to go offline / go AFK**\n3. **to beat a game / a boss**\n4. **to level up**\n5. **to get stuck**\n6. **to spend time outdoors**\n7. **to try something new**\n8. **to stay up late**',
+    icon: 'check',
+    accentColor: '#20A85B',
     studentVisibility: 'teacherOnly',
   });
   assert.ok(lesson.stages.slice(3).every(stage => stage.content === null));
