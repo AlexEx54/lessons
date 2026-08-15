@@ -81,7 +81,9 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     accentColor: '#1EAD58',
     studentVisibility: 'controlled',
   });
-  assert.deepEqual(lesson.stages[2].content.map(component => component.type), ['teacherNote', 'markdownCard', 'matchWords']);
+  assert.deepEqual(lesson.stages[2].content.map(component => component.type), [
+    'teacherNote', 'markdownCard', 'matchWords', 'markdownCard',
+  ]);
   assert.equal(lesson.stages[2].content[0].id, 'target-vocabulary-teacher-note');
   assert.equal(lesson.stages[2].subtitle, 'Summer + Gaming Words');
   assert.equal(lesson.stages[2].content[0].text, undefined);
@@ -104,6 +106,15 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
       'to level up', 'to get bored', 'to stay up late', 'to try something new', 'to spend time outdoors', 'to get stuck'],
   );
   assert.ok(lesson.stages[2].content[2].items.every(item => item.imagePrompt && !item.imageSrc));
+  assert.deepEqual(lesson.stages[2].content[3], {
+    type: 'markdownCard',
+    id: 'target-vocabulary-extra-explanation-card',
+    title: '1. Words That Need Extra Explanation',
+    text: '- **go offline / go AFK** — explain that AFK = “away from keyboard”.\n- **level up** — usually used in games; means “reach the next level” and become stronger or better.\n- **get stuck** — explain with examples: in a game (can’t move forward) or in real life (have a problem).\n- **beat a game / a boss** — clarify: “beat a boss” = win against a very strong enemy.\n- **spend time outdoors** — “outdoors” = outside, in nature or outside the house.',
+    icon: 'book',
+    accentColor: '#6545F5',
+    studentVisibility: 'teacherOnly',
+  });
   assert.ok(lesson.stages.slice(3).every(stage => stage.content === null));
 });
 

@@ -133,9 +133,20 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.deepEqual(created.content.stages[1].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'illustratedTextPanel', 'textPanel', 'markdownCard',
   ]);
-  assert.deepEqual(created.content.stages[2].content.map(component => component.type), ['teacherNote', 'markdownCard', 'matchWords']);
+  assert.deepEqual(created.content.stages[2].content.map(component => component.type), [
+    'teacherNote', 'markdownCard', 'matchWords', 'markdownCard',
+  ]);
   assert.equal(created.content.stages[2].subtitle, 'Summer + Gaming Words');
   assert.equal(created.content.stages[2].content[0].blocks.length, 3);
+  assert.deepEqual(created.content.stages[2].content[3], {
+    type: 'markdownCard',
+    id: 'target-vocabulary-extra-explanation-card',
+    title: '1. Words That Need Extra Explanation',
+    text: '- **go offline / go AFK** — explain that AFK = “away from keyboard”.\n- **level up** — usually used in games; means “reach the next level” and become stronger or better.\n- **get stuck** — explain with examples: in a game (can’t move forward) or in real life (have a problem).\n- **beat a game / a boss** — clarify: “beat a boss” = win against a very strong enemy.\n- **spend time outdoors** — “outdoors” = outside, in nature or outside the house.',
+    icon: 'book',
+    accentColor: '#6545F5',
+    studentVisibility: 'teacherOnly',
+  });
   assert.ok(created.content.stages.slice(3).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
