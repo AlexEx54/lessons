@@ -135,6 +135,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   ]);
   assert.deepEqual(created.content.stages[2].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'matchWords', 'markdownCard', 'dropdownChoice', 'markdownCard', 'fillInBlanks',
+    'personalizedQuestions', 'markdownCard',
   ]);
   assert.equal(created.content.stages[2].subtitle, 'Summer + Gaming Words');
   assert.equal(created.content.stages[2].content[0].blocks.length, 3);
@@ -162,6 +163,17 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.deepEqual(created.content.stages[2].content[6].items.map(item => item.answer), [
     'chill out', 'spend time outdoors', 'get stuck', 'hangs out', 'beat', 'go offline',
   ]);
+  assert.equal(created.content.stages[2].content[7].id, 'target-vocabulary-personalized-questions');
+  assert.equal(created.content.stages[2].content[7].items.length, 4);
+  assert.deepEqual(created.content.stages[2].content[8], {
+    type: 'markdownCard',
+    id: 'target-vocabulary-sentence-starters-card',
+    title: 'Support: Sentence Starters',
+    text: 'Use these starters if you need help answering.\n\n- **I usually like to ...**\n- **One time I ...**\n- **I feel ... when ...**',
+    icon: 'chat',
+    accentColor: '#20A85B',
+    studentVisibility: 'always',
+  });
   assert.ok(created.content.stages.slice(3).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
@@ -189,6 +201,54 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.deepEqual(savedFillInBlanks.items, [{
     id: 'fill-item-added', before: 'We can', answer: 'chill out', after: 'after class.',
   }]);
+
+  const personalizedQuestionsEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/personalized-questions/target-vocabulary-personalized-questions';
+  assert.equal((await fetch(personalizedQuestionsEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Guest', instruction: 'Guest', items: [] }),
+  })).status, 401);
+  assert.equal((await fetch(personalizedQuestionsEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: teacherCookie },
+    body: JSON.stringify({ title: 'Teacher', instruction: 'Teacher', items: [] }),
+  })).status, 403);
+  const personalizedQuestionsUpdate = await fetch(personalizedQuestionsEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      type: 'markdownCard',
+      id: 'attempted-id-change',
+      title: ' Updated questions ',
+      instruction: ' Speak freely. ',
+      items: [{ id: 'second-question', question: 'Do you **play games**?', followUp: 'Which ones?' },
+        { id: 'first-question', question: 'Do you go outside?', followUp: 'With whom?' }],
+    }),
+  });
+  assert.equal(personalizedQuestionsUpdate.status, 200);
+  const savedPersonalizedQuestions = (await personalizedQuestionsUpdate.json()).draft.content.stages[2].content[7];
+  assert.deepEqual(savedPersonalizedQuestions, {
+    type: 'personalizedQuestions',
+    id: 'target-vocabulary-personalized-questions',
+    title: 'Updated questions',
+    instruction: 'Speak freely.',
+    items: [{ id: 'second-question', question: 'Do you **play games**?', followUp: 'Which ones?' },
+      { id: 'first-question', question: 'Do you go outside?', followUp: 'With whom?' }],
+  });
+  assert.equal((await fetch(personalizedQuestionsEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Questions', instruction: 'Speak.', items: [] }),
+  })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/personalized-questions/missing-questions`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: 'Questions', instruction: 'Speak.',
+      items: [{ id: 'question-one', question: 'Question?', followUp: 'Why?' }],
+    }),
+  })).status, 404);
 
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/warm-up-teacher-note`, {
     method: 'PATCH',
@@ -484,6 +544,14 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ text: 'Published edit' }),
+  })).status, 409);
+  assert.equal((await fetch(personalizedQuestionsEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: 'Published questions', instruction: 'Speak.',
+      items: [{ id: 'question-one', question: 'Question?', followUp: 'Why?' }],
+    }),
   })).status, 409);
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/task-prompts/warm-up-follow-up-prompt`, {
     method: 'PATCH',

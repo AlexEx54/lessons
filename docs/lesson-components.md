@@ -162,6 +162,41 @@ Teacher’s Note содержит подсказки, инструкции и г
 роль и положение компонента, например `warm-up-follow-up-prompt`, а не
 `summer-speaking-starters`.
 
+## Personalized Questions
+
+`personalizedQuestions` — неинтерактивный список устных вопросов с отдельной
+follow-up репликой для каждого пункта.
+
+```json
+{
+  "type": "personalizedQuestions",
+  "id": "target-vocabulary-personalized-questions",
+  "title": "Task 4 · Personalised Questions",
+  "instruction": "Answer the questions out loud. There are no right or wrong answers!",
+  "items": [{
+    "id": "favorite-time-outdoors",
+    "question": "What’s your favorite way to **spend time outdoors**?",
+    "followUp": "Who do you usually spend that time with?"
+  }]
+}
+```
+
+Поля:
+
+- `type` — строго `personalizedQuestions`.
+- `id` — обязательный уникальный lowercase kebab-case идентификатор.
+- `title` и `instruction` — обязательные непустые строки.
+- `items` — от 1 до 12 элементов с уникальными kebab-case `id` и непустыми
+  `question`/`followUp`.
+- В вопросах разрешён только безопасный inline Markdown: `**жирный**`,
+  `*курсив*` и `***жирный курсив***`. HTML, ссылки, изображения, блочные элементы
+  и переносы строк не поддерживаются. Follow-up хранится как обычный текст и
+  оформляется курсивом самим компонентом.
+
+Администратор review-черновика может менять заголовок и инструкцию, редактировать,
+добавлять и удалять пары, а также менять их порядок. Поля `type`, id компонента и
+существующие id элементов не редактируются; новые id создаёт интерфейс.
+
 ## Text Panel
 
 `textPanel` показывает простой текстовый блок с настраиваемым цветом фона. Этот

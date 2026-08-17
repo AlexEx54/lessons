@@ -39,6 +39,7 @@ const {
   updateFillInBlanks,
   updateMarkdownCard,
   updateMatchWordsImage,
+  updatePersonalizedQuestions,
   updateTaskPrompt,
   updateTeacherNote,
   updateTextPanel,
@@ -377,6 +378,19 @@ function getMarkdownCardRouteParams(pathname) {
 
 function getFillInBlanksRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/fill-in-blanks\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getPersonalizedQuestionsRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/personalized-questions\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -824,12 +838,14 @@ const server = http.createServer(async (req, res) => {
     const taskPromptRoute = getTaskPromptRouteParams(pathname);
     const markdownCardRoute = getMarkdownCardRouteParams(pathname);
     const fillInBlanksRoute = getFillInBlanksRouteParams(pathname);
+    const personalizedQuestionsRoute = getPersonalizedQuestionsRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
     if ((!teacherNoteRoute || !teacherNoteRoute.draftId || !teacherNoteRoute.noteId)
       && (!taskPromptRoute || !taskPromptRoute.draftId || !taskPromptRoute.promptId)
       && (!markdownCardRoute || !markdownCardRoute.draftId || !markdownCardRoute.componentId)
       && (!fillInBlanksRoute || !fillInBlanksRoute.draftId || !fillInBlanksRoute.componentId)
+      && (!personalizedQuestionsRoute || !personalizedQuestionsRoute.draftId || !personalizedQuestionsRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)) {
       json(res, 404, { error: 'Редактируемый компонент не найден.' });
@@ -876,6 +892,15 @@ const server = http.createServer(async (req, res) => {
           id: fillInBlanksRoute.draftId,
           ownerAdminId: user.id,
           componentId: fillInBlanksRoute.componentId,
+          items: body.items,
+        }, database);
+      } else if (personalizedQuestionsRoute) {
+        draft = updatePersonalizedQuestions({
+          id: personalizedQuestionsRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: personalizedQuestionsRoute.componentId,
+          title: body.title,
+          instruction: body.instruction,
           items: body.items,
         }, database);
       } else if (textPanelRoute) {

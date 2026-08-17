@@ -83,6 +83,7 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
   });
   assert.deepEqual(lesson.stages[2].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'matchWords', 'markdownCard', 'dropdownChoice', 'markdownCard', 'fillInBlanks',
+    'personalizedQuestions', 'markdownCard',
   ]);
   assert.equal(lesson.stages[2].content[0].id, 'target-vocabulary-teacher-note');
   assert.equal(lesson.stages[2].subtitle, 'Summer + Gaming Words');
@@ -145,6 +146,38 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
   assert.deepEqual(fillInBlanks.items.map(item => item.answer), [
     'chill out', 'spend time outdoors', 'get stuck', 'hangs out', 'beat', 'go offline',
   ]);
+  assert.deepEqual(lesson.stages[2].content[7], {
+    type: 'personalizedQuestions',
+    id: 'target-vocabulary-personalized-questions',
+    title: 'Task 4 · Personalised Questions',
+    instruction: 'Answer the questions out loud. There are no right or wrong answers!',
+    items: [{
+      id: 'favorite-time-outdoors',
+      question: 'What’s your favorite way to **spend time outdoors**?',
+      followUp: 'Who do you usually spend that time with?',
+    }, {
+      id: 'hang-out-or-play-online',
+      question: 'Do you prefer to **hang out (with friends)** or **play games online**?',
+      followUp: 'What do you like to do when you hang out with your friends?',
+    }, {
+      id: 'beat-hard-game-or-boss',
+      question: 'Have you ever tried to **beat a game or a boss** that was really hard?',
+      followUp: 'What game was it and how did you feel when you finally did it?',
+    }, {
+      id: 'level-up-and-unlock',
+      question: 'Do you like to **level up** and **unlock** new things in games?',
+      followUp: 'What’s the most interesting thing you’ve unlocked?',
+    }],
+  });
+  assert.deepEqual(lesson.stages[2].content[8], {
+    type: 'markdownCard',
+    id: 'target-vocabulary-sentence-starters-card',
+    title: 'Support: Sentence Starters',
+    text: 'Use these starters if you need help answering.\n\n- **I usually like to ...**\n- **One time I ...**\n- **I feel ... when ...**',
+    icon: 'chat',
+    accentColor: '#20A85B',
+    studentVisibility: 'always',
+  });
   assert.ok(lesson.stages.slice(3).every(stage => stage.content === null));
 });
 

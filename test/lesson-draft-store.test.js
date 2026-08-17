@@ -16,6 +16,7 @@ const {
   updateFillInBlanks,
   updateMarkdownCard,
   updateMatchWordsImage,
+  updatePersonalizedQuestions,
   updateTaskPrompt,
   updateTeacherNote,
   updateTextPanel,
@@ -320,6 +321,67 @@ test('fill in the blanks items can be edited, added, removed, and reordered in r
   assert.throws(() => updateFillInBlanks({
     id: ready.id, ownerAdminId: owner.id, componentId: 'target-fill', items,
   }, database), /только черновик на проверке/);
+  database.close();
+});
+
+test('personalized questions content and order can be updated only in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'questions-owner');
+  const outsider = admin(database, 'questions-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Questions', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'personalizedQuestions',
+      id: 'target-questions',
+      title: 'Task 4',
+      instruction: 'Speak.',
+      items: [{ id: 'first-question', question: 'First?', followUp: 'Why?' }],
+    }] }],
+  }, database);
+  const items = [
+    { id: 'second-question', question: 'Do you **play games**?', followUp: 'Which ones?' },
+    { id: 'first-question', question: 'Updated first?', followUp: 'With whom?' },
+  ];
+  const updated = updatePersonalizedQuestions({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'target-questions',
+    title: ' Updated questions ',
+    instruction: ' Answer out loud. ',
+    items,
+  }, database);
+  assert.deepEqual(updated.content.stages[0].content[0], {
+    type: 'personalizedQuestions',
+    id: 'target-questions',
+    title: 'Updated questions',
+    instruction: 'Answer out loud.',
+    items,
+  });
+  assert.throws(() => updatePersonalizedQuestions({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'target-questions',
+    title: 'Questions', instruction: 'Speak.', items,
+  }, database), /не найден/);
+  assert.throws(() => updatePersonalizedQuestions({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing-questions',
+    title: 'Questions', instruction: 'Speak.', items,
+  }, database), /не найден/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updatePersonalizedQuestions({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'target-questions',
+    title: 'Questions', instruction: 'Speak.', items,
+  }, database), /только черновик на проверке/);
+
+  const duplicatePending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Duplicate questions', template: 'template-1' }, database);
+  const duplicate = completeLessonDraft(duplicatePending.id, owner.id, {
+    stages: [
+      { content: [{ type: 'personalizedQuestions', id: 'same-questions', title: 'One', instruction: 'Speak.', items }] },
+      { content: [{ type: 'personalizedQuestions', id: 'same-questions', title: 'Two', instruction: 'Speak.', items }] },
+    ],
+  }, database);
+  assert.throws(() => updatePersonalizedQuestions({
+    id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-questions',
+    title: 'Questions', instruction: 'Speak.', items,
+  }, database), /несколько/);
   database.close();
 });
 

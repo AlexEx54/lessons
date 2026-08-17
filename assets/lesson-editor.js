@@ -56,6 +56,14 @@
       },
       onError: showToast,
     }),
+    personalizedQuestions: component => window.PersonalizedQuestionsComponent.renderPersonalizedQuestions(component, {
+      onSave: state.draftStatus === 'review' ? savePersonalizedQuestions : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
     textPanel: component => window.TextPanelComponent.renderTextPanel(component, {
       onSave: state.draftStatus === 'review' ? saveTextPanel : undefined,
       onDirtyChange: (dirty, panelId) => {
@@ -346,6 +354,15 @@
     return null;
   }
 
+  function findPersonalizedQuestions(lesson, componentId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'personalizedQuestions' && component.id === componentId) return component;
+      }
+    }
+    return null;
+  }
+
   function thisOrThatImageUrl(componentId, itemId, optionId) {
     return `/api/lesson-drafts/${encodeURIComponent(state.draftId)}`
       + `/this-or-that/${encodeURIComponent(componentId)}`
@@ -601,6 +618,31 @@
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить Fill in the Blanks.');
+      throw error;
+    }
+  }
+
+  async function savePersonalizedQuestions(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/personalized-questions/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить Personalised Questions.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findPersonalizedQuestions(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый Personalised Questions не найден в черновике.');
+      showToast('Personalised Questions сохранены.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить Personalised Questions.');
       throw error;
     }
   }
