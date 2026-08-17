@@ -13,6 +13,7 @@ const {
   retryLessonDraft,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
+  updateFillInBlanks,
   updateMarkdownCard,
   updateMatchWordsImage,
   updateTaskPrompt,
@@ -275,6 +276,50 @@ test('markdown card title and text can be updated without changing presentation 
   assert.throws(() => updateMarkdownCard({
     id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-answers', title: 'Title', text: 'Text',
   }, database), /несколько/);
+  database.close();
+});
+
+test('fill in the blanks items can be edited, added, removed, and reordered in review', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'fill-owner');
+  const outsider = admin(database, 'fill-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Fill', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'fillInBlanks',
+      id: 'target-fill',
+      title: 'Task 3',
+      instruction: 'Complete the sentences.',
+      items: [{ id: 'first-item', before: 'First', answer: 'one', after: '.' }],
+    }] }],
+  }, database);
+  const items = [
+    { id: 'second-item', before: 'Second', answer: 'two', after: '.' },
+    { id: 'first-item', before: 'Updated first', answer: 'one', after: '!' },
+  ];
+  const updated = updateFillInBlanks({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'target-fill', items,
+  }, database);
+  assert.deepEqual(updated.content.stages[0].content[0], {
+    type: 'fillInBlanks',
+    id: 'target-fill',
+    title: 'Task 3',
+    instruction: 'Complete the sentences.',
+    items,
+  });
+  assert.throws(() => updateFillInBlanks({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'target-fill', items: [],
+  }, database), /between 1 and 12/);
+  assert.throws(() => updateFillInBlanks({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'target-fill', items,
+  }, database), /не найден/);
+  assert.throws(() => updateFillInBlanks({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing', items,
+  }, database), /не найден/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateFillInBlanks({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'target-fill', items,
+  }, database), /только черновик на проверке/);
   database.close();
 });
 

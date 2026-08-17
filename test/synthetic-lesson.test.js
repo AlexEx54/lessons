@@ -82,7 +82,7 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     studentVisibility: 'controlled',
   });
   assert.deepEqual(lesson.stages[2].content.map(component => component.type), [
-    'teacherNote', 'markdownCard', 'matchWords', 'markdownCard', 'dropdownChoice', 'markdownCard',
+    'teacherNote', 'markdownCard', 'matchWords', 'markdownCard', 'dropdownChoice', 'markdownCard', 'fillInBlanks',
   ]);
   assert.equal(lesson.stages[2].content[0].id, 'target-vocabulary-teacher-note');
   assert.equal(lesson.stages[2].subtitle, 'Summer + Gaming Words');
@@ -139,6 +139,12 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     accentColor: '#20A85B',
     studentVisibility: 'teacherOnly',
   });
+  const fillInBlanks = lesson.stages[2].content[6];
+  assert.equal(fillInBlanks.id, 'target-vocabulary-fill-in-blanks');
+  assert.equal(fillInBlanks.items.length, 6);
+  assert.deepEqual(fillInBlanks.items.map(item => item.answer), [
+    'chill out', 'spend time outdoors', 'get stuck', 'hangs out', 'beat', 'go offline',
+  ]);
   assert.ok(lesson.stages.slice(3).every(stage => stage.content === null));
 });
 

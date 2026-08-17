@@ -47,6 +47,15 @@
       onMessage: showToast,
     }),
     dropdownChoice: component => window.DropdownChoiceComponent.renderDropdownChoice(component),
+    fillInBlanks: component => window.FillInBlanksComponent.renderFillInBlanks(component, {
+      viewerRole: 'teacher',
+      onSave: state.draftStatus === 'review' ? saveFillInBlanks : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
     textPanel: component => window.TextPanelComponent.renderTextPanel(component, {
       onSave: state.draftStatus === 'review' ? saveTextPanel : undefined,
       onDirtyChange: (dirty, panelId) => {
@@ -328,6 +337,15 @@
     return null;
   }
 
+  function findFillInBlanks(lesson, componentId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'fillInBlanks' && component.id === componentId) return component;
+      }
+    }
+    return null;
+  }
+
   function thisOrThatImageUrl(componentId, itemId, optionId) {
     return `/api/lesson-drafts/${encodeURIComponent(state.draftId)}`
       + `/this-or-that/${encodeURIComponent(componentId)}`
@@ -558,6 +576,31 @@
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить карточку.');
+      throw error;
+    }
+  }
+
+  async function saveFillInBlanks(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/fill-in-blanks/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить Fill in the Blanks.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findFillInBlanks(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый Fill in the Blanks не найден в черновике.');
+      showToast('Fill in the Blanks сохранён.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить Fill in the Blanks.');
       throw error;
     }
   }

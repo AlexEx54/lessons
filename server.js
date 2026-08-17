@@ -36,6 +36,7 @@ const {
   listLessonDrafts,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
+  updateFillInBlanks,
   updateMarkdownCard,
   updateMatchWordsImage,
   updateTaskPrompt,
@@ -363,6 +364,19 @@ function getTaskPromptRouteParams(pathname) {
 
 function getMarkdownCardRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/markdown-cards\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getFillInBlanksRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/fill-in-blanks\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -809,11 +823,13 @@ const server = http.createServer(async (req, res) => {
     const teacherNoteRoute = getTeacherNoteRouteParams(pathname);
     const taskPromptRoute = getTaskPromptRouteParams(pathname);
     const markdownCardRoute = getMarkdownCardRouteParams(pathname);
+    const fillInBlanksRoute = getFillInBlanksRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
     if ((!teacherNoteRoute || !teacherNoteRoute.draftId || !teacherNoteRoute.noteId)
       && (!taskPromptRoute || !taskPromptRoute.draftId || !taskPromptRoute.promptId)
       && (!markdownCardRoute || !markdownCardRoute.draftId || !markdownCardRoute.componentId)
+      && (!fillInBlanksRoute || !fillInBlanksRoute.draftId || !fillInBlanksRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)) {
       json(res, 404, { error: 'Редактируемый компонент не найден.' });
@@ -854,6 +870,13 @@ const server = http.createServer(async (req, res) => {
           componentId: markdownCardRoute.componentId,
           title: body.title,
           text: body.text,
+        }, database);
+      } else if (fillInBlanksRoute) {
+        draft = updateFillInBlanks({
+          id: fillInBlanksRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: fillInBlanksRoute.componentId,
+          items: body.items,
         }, database);
       } else if (textPanelRoute) {
         draft = updateTextPanel({

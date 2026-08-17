@@ -134,7 +134,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'teacherNote', 'markdownCard', 'illustratedTextPanel', 'textPanel', 'markdownCard',
   ]);
   assert.deepEqual(created.content.stages[2].content.map(component => component.type), [
-    'teacherNote', 'markdownCard', 'matchWords', 'markdownCard', 'dropdownChoice', 'markdownCard',
+    'teacherNote', 'markdownCard', 'matchWords', 'markdownCard', 'dropdownChoice', 'markdownCard', 'fillInBlanks',
   ]);
   assert.equal(created.content.stages[2].subtitle, 'Summer + Gaming Words');
   assert.equal(created.content.stages[2].content[0].blocks.length, 3);
@@ -159,6 +159,9 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     accentColor: '#20A85B',
     studentVisibility: 'teacherOnly',
   });
+  assert.deepEqual(created.content.stages[2].content[6].items.map(item => item.answer), [
+    'chill out', 'spend time outdoors', 'get stuck', 'hangs out', 'beat', 'go offline',
+  ]);
   assert.ok(created.content.stages.slice(3).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
@@ -166,6 +169,26 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   });
   assert.equal(editorPage.status, 200);
   assert.match(await editorPage.text(), /id="lesson-stages"/);
+
+  const fillInBlanksEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/fill-in-blanks/target-vocabulary-fill-in-blanks`;
+  assert.equal((await fetch(fillInBlanksEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items: [] }),
+  })).status, 401);
+  const fillInBlanksUpdate = await fetch(fillInBlanksEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ items: [{
+      id: 'fill-item-added', before: 'We can', answer: 'chill out', after: 'after class.',
+    }] }),
+  });
+  assert.equal(fillInBlanksUpdate.status, 200);
+  const savedFillInBlanks = (await fillInBlanksUpdate.json()).draft.content.stages[2].content[6];
+  assert.equal(savedFillInBlanks.title, 'Task 3 · Fill in the Blanks');
+  assert.deepEqual(savedFillInBlanks.items, [{
+    id: 'fill-item-added', before: 'We can', answer: 'chill out', after: 'after class.',
+  }]);
 
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/warm-up-teacher-note`, {
     method: 'PATCH',
