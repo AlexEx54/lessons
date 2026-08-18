@@ -11,6 +11,8 @@ const {
   listLessonDrafts,
   publishLessonDraft,
   retryLessonDraft,
+  updateAudioPlayer,
+  updateAudioPlayerAudio,
   updateDescribeAndGuess,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
@@ -725,6 +727,76 @@ test('text reading fields and image slots can be updated only in an owned review
   }, database), /только черновик на проверке/);
   assert.throws(() => updateTextReadingImage({
     id: ready.id, ownerAdminId: owner.id, componentId: 'reading-text', side: 'text', imageSrc: '/late.png',
+  }, database), /только черновик на проверке/);
+  database.close();
+});
+
+test('audio player title and audio slot can be updated only in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'audio-owner');
+  const outsider = admin(database, 'audio-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Listening', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'audioPlayer',
+      id: 'listening-audio',
+      title: 'Listen to the audio',
+      script: 'Alex: Hello.\nMia: Hi.',
+    }] }],
+  }, database);
+
+  const updated = updateAudioPlayer({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'listening-audio',
+    title: '  Play the dialogue  ',
+  }, database);
+  assert.deepEqual(updated.content.stages[0].content[0], {
+    type: 'audioPlayer',
+    id: 'listening-audio',
+    title: 'Play the dialogue',
+    script: 'Alex: Hello.\nMia: Hi.',
+  });
+
+  const added = updateAudioPlayerAudio({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'listening-audio', audioSrc: '/audio.mp3',
+  }, database);
+  assert.equal(added.previousAudioSrc, null);
+  assert.equal(added.draft.content.stages[0].content[0].audioSrc, '/audio.mp3');
+  assert.equal(added.draft.content.stages[0].content[0].script, 'Alex: Hello.\nMia: Hi.');
+  const removed = updateAudioPlayerAudio({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'listening-audio', audioSrc: null,
+  }, database);
+  assert.equal(removed.previousAudioSrc, '/audio.mp3');
+  assert.equal(removed.draft.content.stages[0].content[0].audioSrc, undefined);
+
+  assert.throws(() => updateAudioPlayer({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'listening-audio', title: '',
+  }, database), /requires title/);
+  assert.throws(() => updateAudioPlayer({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'listening-audio', title: 'Title',
+  }, database), /Черновик урока не найден/);
+  assert.throws(() => updateAudioPlayer({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing-audio', title: 'Title',
+  }, database), /не найден/);
+
+  const duplicatePending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Duplicate audio', template: 'template-1' }, database);
+  const duplicate = completeLessonDraft(duplicatePending.id, owner.id, {
+    stages: [
+      { content: [{ type: 'audioPlayer', id: 'same-audio', title: 'One', script: 'One' }] },
+      { content: [{ type: 'audioPlayer', id: 'same-audio', title: 'Two', script: 'Two' }] },
+    ],
+  }, database);
+  assert.throws(() => updateAudioPlayer({
+    id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-audio', title: 'Title',
+  }, database), /несколько/);
+
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateAudioPlayer({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'listening-audio', title: 'Late',
+  }, database), /только черновик на проверке/);
+  assert.throws(() => updateAudioPlayerAudio({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'listening-audio', audioSrc: '/late.mp3',
   }, database), /только черновик на проверке/);
   database.close();
 });

@@ -246,11 +246,38 @@ test('synthetic lesson contains eight ordered stages and the mock-aligned warm-u
   assert.match(lesson.stages[3].content[4].text, /\*\*Task 1:\*\*\n\nB —/);
   assert.doesNotMatch(lesson.stages[3].content[4].text, /Possible follow-up/);
   assert.doesNotMatch(lesson.stages[3].content[4].text, /5B —/);
-  assert.deepEqual(lesson.stages[4].content, [{
+  assert.deepEqual(lesson.stages[4].content.map(component => component.type), ['teacherNote', 'audioPlayer']);
+  assert.deepEqual(lesson.stages[4].content[0], {
     type: 'teacherNote',
     id: 'listening-teacher-note',
     text: '- Цель первого прослушивания: понять общую ситуацию, где происходит разговор и о чём он.\n- Цель второго прослушивания: услышать детали и выбрать точные ответы.\n- Не нужно объяснять заранее слова: camp, backpack, sunscreen, cabin, workshop, guitar.\n- Предложение к Target Grammar: “We’re going to stay in cabins.”, “I’m going to bring my guitar.”, “We’re going to leave on Friday morning.”\n- Ответы, которые могут вызвать обсуждение: почему ребята выбрали AFK Summer и что ученик сам взял бы с собой.',
-  }]);
+  });
+  const listeningAudio = lesson.stages[4].content[1];
+  assert.equal(listeningAudio.id, 'listening-audio');
+  assert.equal(listeningAudio.title, 'Listen to the audio');
+  assert.equal(listeningAudio.audioSrc, undefined);
+  assert.match(listeningAudio.script, /to hang out with friends/);
+  assert.match(listeningAudio.script, /beat a game/);
+  assert.match(listeningAudio.script, /go offline/);
+  assert.match(listeningAudio.script, /go AFK/);
+  assert.match(listeningAudio.script, /chill out/);
+  assert.match(listeningAudio.script, /level up/);
+  assert.match(listeningAudio.script, /got bored/);
+  assert.match(listeningAudio.script, /stay up late/);
+  assert.match(listeningAudio.script, /try something new/);
+  assert.match(listeningAudio.script, /spend time outdoors/);
+  assert.match(listeningAudio.script, /got stuck/);
+  assert.match(listeningAudio.script, /We’re going to stay in cabins/);
+  assert.match(listeningAudio.script, /I’m going to bring my guitar/);
+  assert.match(listeningAudio.script, /We’re going to leave on Friday morning/);
+  assert.match(listeningAudio.script, /\bcamp\b/);
+  assert.match(listeningAudio.script, /\bbackpack\b/);
+  assert.match(listeningAudio.script, /\bsunscreen\b/);
+  assert.match(listeningAudio.script, /\bcabin/);
+  assert.match(listeningAudio.script, /\bworkshop\b/);
+  assert.match(listeningAudio.script, /\bguitar\b/);
+  const spokenWords = listeningAudio.script.replace(/^[^:]+:\s*/gm, '').split(/\s+/).filter(Boolean);
+  assert.ok(spokenWords.length >= 250 && spokenWords.length <= 360, `expected ~2 minutes of speech, got ${spokenWords.length} words`);
   assert.ok(lesson.stages.slice(5).every(stage => stage.content === null));
 });
 

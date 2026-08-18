@@ -189,8 +189,11 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.ok(created.content.stages[3].content[1].textImage.imagePrompt);
   assert.equal(created.content.stages[3].content[1].headerImage.imageSrc, undefined);
   assert.equal(created.content.stages[3].content[1].textImage.imageSrc, undefined);
-  assert.deepEqual(created.content.stages[4].content.map(component => component.type), ['teacherNote']);
+  assert.deepEqual(created.content.stages[4].content.map(component => component.type), ['teacherNote', 'audioPlayer']);
   assert.equal(created.content.stages[4].content[0].id, 'listening-teacher-note');
+  assert.equal(created.content.stages[4].content[1].id, 'listening-audio');
+  assert.equal(created.content.stages[4].content[1].title, 'Listen to the audio');
+  assert.equal(created.content.stages[4].content[1].audioSrc, undefined);
   assert.equal(created.content.stages[4].subtitle, 'Listen to the audio');
   assert.ok(created.content.stages.slice(5).every(stage => stage.content === null));
 
@@ -677,6 +680,76 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal((await fetch(textReadingHeaderImageEndpoint, {
     method: 'DELETE', headers: { Cookie: firstAdminCookie },
   })).status, 200);
+
+  const audioPlayerEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/audio-player/listening-audio`;
+  const audioPlayerUpdateResponse = await fetch(audioPlayerEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Play the dialogue' }),
+  });
+  assert.equal(audioPlayerUpdateResponse.status, 200);
+  const savedAudioPlayer = (await audioPlayerUpdateResponse.json()).draft.content.stages[4].content[1];
+  assert.equal(savedAudioPlayer.title, 'Play the dialogue');
+  assert.ok(savedAudioPlayer.script.includes('AFK Summer'));
+  assert.equal(savedAudioPlayer.audioSrc, undefined);
+  assert.equal((await fetch(audioPlayerEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: '' }),
+  })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/audio-player/missing-audio`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Missing' }),
+  })).status, 404);
+
+  const audioEndpoint = `${audioPlayerEndpoint}/audio`;
+  const mp3 = Buffer.from([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+  assert.equal((await fetch(audioEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'audio/mpeg' }, body: mp3,
+  })).status, 401);
+  assert.equal((await fetch(audioEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'audio/mpeg', Cookie: teacherCookie }, body: mp3,
+  })).status, 403);
+  assert.equal((await fetch(audioEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: png,
+  })).status, 415);
+  const audioUploadResponse = await fetch(audioEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'audio/mpeg', Cookie: firstAdminCookie }, body: mp3,
+  });
+  assert.equal(audioUploadResponse.status, 200);
+  const firstAudioSrc = (await audioUploadResponse.json()).draft.content.stages[4].content[1].audioSrc;
+  assert.match(firstAudioSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.mp3$`));
+  const audioFileResponse = await fetch(`${baseUrl}${firstAudioSrc}`, { headers: { Cookie: firstAdminCookie } });
+  assert.equal(audioFileResponse.status, 200);
+  assert.equal(audioFileResponse.headers.get('content-type'), 'audio/mpeg');
+  assert.equal(audioFileResponse.headers.get('accept-ranges'), 'bytes');
+  const audioHeadResponse = await fetch(`${baseUrl}${firstAudioSrc}`, {
+    method: 'HEAD', headers: { Cookie: firstAdminCookie },
+  });
+  assert.equal(audioHeadResponse.status, 200);
+  assert.equal(audioHeadResponse.headers.get('accept-ranges'), 'bytes');
+  const audioRangeResponse = await fetch(`${baseUrl}${firstAudioSrc}`, {
+    headers: { Cookie: firstAdminCookie, Range: 'bytes=0-3' },
+  });
+  assert.equal(audioRangeResponse.status, 206);
+  assert.equal(audioRangeResponse.headers.get('content-range'), `bytes 0-3/${mp3.length}`);
+  assert.equal(Buffer.from(await audioRangeResponse.arrayBuffer()).equals(mp3.subarray(0, 4)), true);
+  const secondAudioResponse = await fetch(audioEndpoint, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'audio/mpeg', Cookie: firstAdminCookie },
+    body: Buffer.concat([mp3, Buffer.from('-replacement')]),
+  });
+  assert.equal(secondAudioResponse.status, 200);
+  const secondAudioSrc = (await secondAudioResponse.json()).draft.content.stages[4].content[1].audioSrc;
+  assert.notEqual(secondAudioSrc, firstAudioSrc);
+  assert.equal((await fetch(`${baseUrl}${firstAudioSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
+  const audioDeleteResponse = await fetch(audioEndpoint, {
+    method: 'DELETE', headers: { Cookie: firstAdminCookie },
+  });
+  assert.equal(audioDeleteResponse.status, 200);
+  assert.equal((await audioDeleteResponse.json()).draft.content.stages[4].content[1].audioSrc, undefined);
+  assert.equal((await fetch(`${baseUrl}${secondAudioSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
 
   const ownList = await fetch(`${baseUrl}/api/lesson-drafts`, {
     headers: { Cookie: firstAdminCookie },

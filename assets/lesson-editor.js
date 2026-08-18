@@ -109,6 +109,16 @@
       onDelete: state.draftStatus === 'review' ? deleteTextReadingImage : undefined,
       onMessage: showToast,
     }),
+    audioPlayer: component => window.AudioPlayerComponent.renderAudioPlayer(component, {
+      onSave: state.draftStatus === 'review' ? saveAudioPlayer : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onUpload: state.draftStatus === 'review' ? uploadAudioPlayerAudio : undefined,
+      onDelete: state.draftStatus === 'review' ? deleteAudioPlayerAudio : undefined,
+      onMessage: showToast,
+    }),
     markdownCard: component => window.MarkdownCardComponent.renderMarkdownCard(component, {
       viewerRole: 'teacher',
       studentVisible: false,
@@ -378,6 +388,15 @@
     return null;
   }
 
+  function findAudioPlayer(lesson, componentId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'audioPlayer' && component.id === componentId) return component;
+      }
+    }
+    return null;
+  }
+
   function findMarkdownCard(lesson, componentId) {
     for (const stage of lesson.stages || []) {
       for (const component of stage.content || []) {
@@ -568,6 +587,41 @@
     return updateTextReadingImage('DELETE', componentId, side);
   }
 
+  function audioPlayerAudioUrl(componentId) {
+    return `/api/lesson-drafts/${encodeURIComponent(state.draftId)}`
+      + `/audio-player/${encodeURIComponent(componentId)}/audio`;
+  }
+
+  async function updateAudioPlayerAudio(method, componentId, file) {
+    try {
+      const response = await fetch(audioPlayerAudioUrl(componentId), {
+        method,
+        headers: file ? { 'Content-Type': file.type } : undefined,
+        body: file || undefined,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить аудио.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findAudioPlayer(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый аудиоплеер не найден в черновике.');
+      showToast(method === 'DELETE' ? 'Аудио удалено.' : 'Аудио сохранено.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить аудио.');
+      throw error;
+    }
+  }
+
+  function uploadAudioPlayerAudio(file, componentId) {
+    return updateAudioPlayerAudio('PUT', componentId, file);
+  }
+
+  function deleteAudioPlayerAudio(componentId) {
+    return updateAudioPlayerAudio('DELETE', componentId);
+  }
+
   async function saveTeacherNote(changes, noteId) {
     try {
       const response = await fetch(
@@ -664,6 +718,31 @@
       return savedPanel;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить иллюстрированную текстовую панель.');
+      throw error;
+    }
+  }
+
+  async function saveAudioPlayer(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/audio-player/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить аудиоплеер.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findAudioPlayer(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый аудиоплеер не найден в черновике.');
+      showToast('Аудиоплеер сохранён.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить аудиоплеер.');
       throw error;
     }
   }

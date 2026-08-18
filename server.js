@@ -34,6 +34,8 @@ const {
   deleteLessonDraft,
   findLessonDraft,
   listLessonDrafts,
+  updateAudioPlayer,
+  updateAudioPlayerAudio,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateDescribeAndGuess,
@@ -68,10 +70,57 @@ const MAX_EMAIL_LENGTH = 254;
 const MIN_PASSWORD_LENGTH = 10;
 const MAX_PASSWORD_LENGTH = 256;
 const MAX_DRAFT_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_DRAFT_AUDIO_BYTES = 20 * 1024 * 1024;
 const DRAFT_IMAGE_TYPES = Object.freeze({
   'image/jpeg': { extension: '.jpg', matches: buffer => buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff },
   'image/png': { extension: '.png', matches: buffer => buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) },
   'image/webp': { extension: '.webp', matches: buffer => buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP' },
+});
+const DRAFT_AUDIO_TYPES = Object.freeze({
+  'audio/mpeg': {
+    extension: '.mp3',
+    matches: buffer => buffer.length >= 3 && (
+      (buffer[0] === 0x49 && buffer[1] === 0x44 && buffer[2] === 0x33)
+      || (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0)
+    ),
+  },
+  'audio/mp3': {
+    extension: '.mp3',
+    matches: buffer => buffer.length >= 3 && (
+      (buffer[0] === 0x49 && buffer[1] === 0x44 && buffer[2] === 0x33)
+      || (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0)
+    ),
+  },
+  'audio/wav': {
+    extension: '.wav',
+    matches: buffer => buffer.length >= 12
+      && buffer.toString('ascii', 0, 4) === 'RIFF'
+      && buffer.toString('ascii', 8, 12) === 'WAVE',
+  },
+  'audio/wave': {
+    extension: '.wav',
+    matches: buffer => buffer.length >= 12
+      && buffer.toString('ascii', 0, 4) === 'RIFF'
+      && buffer.toString('ascii', 8, 12) === 'WAVE',
+  },
+  'audio/x-wav': {
+    extension: '.wav',
+    matches: buffer => buffer.length >= 12
+      && buffer.toString('ascii', 0, 4) === 'RIFF'
+      && buffer.toString('ascii', 8, 12) === 'WAVE',
+  },
+  'audio/mp4': {
+    extension: '.m4a',
+    matches: buffer => buffer.length >= 12
+      && buffer.toString('ascii', 4, 8) === 'ftyp'
+      && ['M4A ', 'M4B ', 'mp41', 'mp42', 'isom', 'MSNV'].includes(buffer.toString('ascii', 8, 12)),
+  },
+  'audio/x-m4a': {
+    extension: '.m4a',
+    matches: buffer => buffer.length >= 12
+      && buffer.toString('ascii', 4, 8) === 'ftyp'
+      && ['M4A ', 'M4B ', 'mp41', 'mp42', 'isom', 'MSNV'].includes(buffer.toString('ascii', 8, 12)),
+  },
 });
 
 // Временный серверный источник лент главной. Контракт можно сохранить при
@@ -174,6 +223,9 @@ function getContentType(filePath) {
   if (ext === '.svg') return 'image/svg+xml';
   if (ext === '.png') return 'image/png';
   if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.mp3') return 'audio/mpeg';
+  if (ext === '.wav') return 'audio/wav';
+  if (ext === '.m4a') return 'audio/mp4';
   return 'text/plain; charset=utf-8';
 }
 
@@ -458,6 +510,31 @@ function getIllustratedTextPanelRouteParams(pathname) {
   }
 }
 
+function getAudioPlayerRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/audio-player\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getAudioPlayerAudioRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/audio-player\/([^/]+)\/audio$/);
+  if (!match) return null;
+  try {
+    const values = match.slice(1).map(value => decodeURIComponent(value).trim());
+    if (values.some(value => !value)) return null;
+    return { draftId: values[0], componentId: values[1] };
+  } catch (_error) {
+    return null;
+  }
+}
+
 function getTextReadingRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/text-readings\/([^/]+)$/);
   if (!match) return null;
@@ -520,15 +597,67 @@ function getMatchWordsImageRouteParams(pathname) {
 }
 
 function draftAssetPath(draftId, fileName) {
-  if (!/^[a-f0-9-]{36}$/i.test(draftId) || !/^[a-f0-9-]{36}\.(?:jpg|png|webp)$/i.test(fileName)) return null;
+  if (!/^[a-f0-9-]{36}$/i.test(draftId) || !/^[a-f0-9-]{36}\.(?:jpg|png|webp|mp3|wav|m4a)$/i.test(fileName)) {
+    return null;
+  }
   const draftDirectory = path.join(DRAFT_ASSETS_DIR, draftId);
   const absolute = path.join(draftDirectory, fileName);
   return absolute.startsWith(`${draftDirectory}${path.sep}`) ? absolute : null;
 }
 
 function assetFileFromUrl(value) {
-  const match = String(value || '').match(/^\/api\/lesson-draft-assets\/([a-f0-9-]{36})\/([a-f0-9-]{36}\.(?:jpg|png|webp))$/i);
+  const match = String(value || '').match(/^\/api\/lesson-draft-assets\/([a-f0-9-]{36})\/([a-f0-9-]{36}\.(?:jpg|png|webp|mp3|wav|m4a))$/i);
   return match ? draftAssetPath(match[1], match[2]) : null;
+}
+
+function parseByteRange(header, total) {
+  const match = String(header || '').trim().match(/^bytes=(\d*)-(\d*)$/i);
+  if (!match || total < 1) return null;
+  const hasStart = match[1] !== '';
+  const hasEnd = match[2] !== '';
+  if (!hasStart && !hasEnd) return null;
+  let start;
+  let end;
+  if (!hasStart) {
+    start = Math.max(0, total - Number(match[2]));
+    end = total - 1;
+  } else {
+    start = Number(match[1]);
+    end = hasEnd ? Number(match[2]) : total - 1;
+  }
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > end || start >= total) {
+    return null;
+  }
+  return { start, end: Math.min(end, total - 1) };
+}
+
+function sendDraftAsset(res, absolute, data, rangeHeader) {
+  const contentType = getContentType(absolute);
+  const total = data.length;
+  const headers = {
+    'Content-Type': contentType,
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'private, max-age=3600',
+  };
+  if (!rangeHeader) {
+    headers['Content-Length'] = total;
+    res.writeHead(200, headers);
+    res.end(data);
+    return;
+  }
+  const range = parseByteRange(rangeHeader, total);
+  if (!range) {
+    res.writeHead(416, {
+      'Content-Range': `bytes */${total}`,
+      'Accept-Ranges': 'bytes',
+    });
+    res.end();
+    return;
+  }
+  headers['Content-Range'] = `bytes ${range.start}-${range.end}/${total}`;
+  headers['Content-Length'] = range.end - range.start + 1;
+  res.writeHead(206, headers);
+  res.end(data.subarray(range.start, range.end + 1));
 }
 
 function publicError(error) {
@@ -732,7 +861,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'GET' && pathname.startsWith('/api/lesson-draft-assets/')) {
+  if ((req.method === 'GET' || req.method === 'HEAD') && pathname.startsWith('/api/lesson-draft-assets/')) {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     const match = pathname.match(/^\/api\/lesson-draft-assets\/([^/]+)\/([^/]+)$/);
@@ -746,16 +875,31 @@ const server = http.createServer(async (req, res) => {
     }
     const absolute = draftAssetPath(draftId, fileName);
     if (!absolute || !findLessonDraft(draftId, user.id, database)) {
-      json(res, 404, { error: 'Изображение не найдено.' });
+      json(res, 404, { error: 'Файл не найден.' });
       return;
     }
-    fs.readFile(absolute, (error, data) => {
-      if (error) {
-        json(res, 404, { error: 'Изображение не найдено.' });
+    fs.stat(absolute, (statError, stats) => {
+      if (statError || !stats.isFile()) {
+        json(res, 404, { error: 'Файл не найден.' });
         return;
       }
-      res.writeHead(200, { 'Content-Type': getContentType(absolute), 'Cache-Control': 'private, max-age=3600' });
-      res.end(data);
+      if (req.method === 'HEAD') {
+        res.writeHead(200, {
+          'Content-Type': getContentType(absolute),
+          'Content-Length': stats.size,
+          'Accept-Ranges': 'bytes',
+          'Cache-Control': 'private, max-age=3600',
+        });
+        res.end();
+        return;
+      }
+      fs.readFile(absolute, (error, data) => {
+        if (error) {
+          json(res, 404, { error: 'Файл не найден.' });
+          return;
+        }
+        sendDraftAsset(res, absolute, data, req.headers.range);
+      });
     });
     return;
   }
@@ -810,6 +954,57 @@ const server = http.createServer(async (req, res) => {
   }
 
   if ((req.method === 'PUT' || req.method === 'DELETE') && pathname.startsWith('/api/lesson-drafts/')) {
+    const audioPlayerAudioRoute = getAudioPlayerAudioRouteParams(pathname);
+    if (audioPlayerAudioRoute) {
+      const user = requireAdminAuth(req, res);
+      if (!user) return;
+      let newFile = null;
+      try {
+        if (!/^[a-f0-9-]{36}$/i.test(audioPlayerAudioRoute.draftId)) {
+          const error = new Error('Некорректный идентификатор черновика.');
+          error.statusCode = 400;
+          throw error;
+        }
+        let audioSrc = null;
+        if (req.method === 'PUT') {
+          const contentType = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+          const audioType = DRAFT_AUDIO_TYPES[contentType];
+          if (!audioType) {
+            const error = new Error('Разрешены только MP3, WAV и M4A.');
+            error.statusCode = 415;
+            throw error;
+          }
+          const buffer = await readRawBody(req, MAX_DRAFT_AUDIO_BYTES);
+          if (!buffer.length || !audioType.matches(buffer)) {
+            const error = new Error('Содержимое файла не соответствует формату аудио.');
+            error.statusCode = 415;
+            throw error;
+          }
+          const fileName = `${crypto.randomUUID()}${audioType.extension}`;
+          newFile = draftAssetPath(audioPlayerAudioRoute.draftId, fileName);
+          if (!newFile) throw new Error('Некорректный путь аудио.');
+          fs.mkdirSync(path.dirname(newFile), { recursive: true });
+          const temporaryFile = `${newFile}.tmp-${crypto.randomUUID()}`;
+          fs.writeFileSync(temporaryFile, buffer, { flag: 'wx' });
+          fs.renameSync(temporaryFile, newFile);
+          audioSrc = `/api/lesson-draft-assets/${encodeURIComponent(audioPlayerAudioRoute.draftId)}/${encodeURIComponent(fileName)}`;
+        }
+        const result = updateAudioPlayerAudio({
+          id: audioPlayerAudioRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: audioPlayerAudioRoute.componentId,
+          audioSrc,
+        }, database);
+        const previousFile = assetFileFromUrl(result.previousAudioSrc);
+        if (previousFile && previousFile !== newFile) fs.rmSync(previousFile, { force: true });
+        json(res, 200, { draft: result.draft });
+      } catch (error) {
+        if (newFile) fs.rmSync(newFile, { force: true });
+        json(res, error.statusCode || 500, { error: error.message || 'Не удалось сохранить аудио.' });
+      }
+      return;
+    }
+
     const thisOrThatImageRoute = getThisOrThatImageRouteParams(pathname);
     const matchWordsImageRoute = getMatchWordsImageRouteParams(pathname);
     const illustratedTextPanelImageRoute = getIllustratedTextPanelImageRouteParams(pathname);
@@ -910,6 +1105,7 @@ const server = http.createServer(async (req, res) => {
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
     const textReadingRoute = getTextReadingRouteParams(pathname);
+    const audioPlayerRoute = getAudioPlayerRouteParams(pathname);
     if ((!teacherNoteRoute || !teacherNoteRoute.draftId || !teacherNoteRoute.noteId)
       && (!taskPromptRoute || !taskPromptRoute.draftId || !taskPromptRoute.promptId)
       && (!markdownCardRoute || !markdownCardRoute.draftId || !markdownCardRoute.componentId)
@@ -919,7 +1115,8 @@ const server = http.createServer(async (req, res) => {
       && (!describeAndGuessRoute || !describeAndGuessRoute.draftId || !describeAndGuessRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)
-      && (!textReadingRoute || !textReadingRoute.draftId || !textReadingRoute.componentId)) {
+      && (!textReadingRoute || !textReadingRoute.draftId || !textReadingRoute.componentId)
+      && (!audioPlayerRoute || !audioPlayerRoute.draftId || !audioPlayerRoute.componentId)) {
       json(res, 404, { error: 'Редактируемый компонент не найден.' });
       return;
     }
@@ -1010,6 +1207,13 @@ const server = http.createServer(async (req, res) => {
           title: body.title,
           subtitle: body.subtitle,
           text: body.text,
+        }, database);
+      } else if (audioPlayerRoute) {
+        draft = updateAudioPlayer({
+          id: audioPlayerRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: audioPlayerRoute.componentId,
+          title: body.title,
         }, database);
       } else {
         draft = updateIllustratedTextPanel({
