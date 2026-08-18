@@ -16,6 +16,7 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
   assert.ok(lesson.stages.every((stage, index) => stage.number === index + 1));
   assert.equal(lesson.stages[0].subtitle, 'This or That?');
   assert.equal(lesson.stages[1].subtitle, 'Gamer Chat');
+  assert.equal(lesson.stages[3].subtitle, 'Read the text');
   assert.deepEqual(lesson.stages[0].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'thisOrThat', 'taskPrompt',
   ]);
@@ -197,7 +198,23 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
       tip: 'You can use examples, actions, feelings and details, but don’t say the word!',
     },
   });
-  assert.ok(lesson.stages.slice(3).every(stage => stage.content === null));
+  assert.deepEqual(lesson.stages[3].content.map(component => component.type), ['teacherNote', 'textReading']);
+  assert.equal(lesson.stages[3].content[0].id, 'reading-listening-teacher-note');
+  assert.match(lesson.stages[3].content[0].text, /форматом blog post/);
+  assert.deepEqual(lesson.stages[3].content[1], {
+    type: 'textReading',
+    id: 'reading-text',
+    title: 'My Exchange Week Surprise',
+    subtitle: 'by ClaryNomad16 · Posted Aug 20',
+    headerImage: {
+      imagePrompt: 'Small friendly circular avatar of a teenage student with short brown hair, warm smile, blue hoodie, clean colorful educational illustration, no text, simple background.',
+    },
+    text: 'Last month, I joined a one-week school exchange in Bristol. Before the trip, I thought everything would be exciting and easy. I imagined friendly classmates, fun lessons, and lots of time to explore the city. To be honest, I was also nervous because I had never stayed with a host family before.\n\nOn the first day, things felt harder than I expected. I got lost in the school building. I didn’t understand the teacher’s accent, and I was too shy to start conversations. At lunch, I almost sat alone, but then a girl called Mia invited me to join her table. After that, the day slowly became better.\n\nDuring the week, I tried new food, worked on a science project with local students, and visited the Clifton Suspension Bridge. The best part was learning how normal daily life was in another country. It wasn’t a movie-like adventure every minute, but it felt real and interesting.\n\nBy the end of the week, I was much more confident. The exchange was not perfect, but it taught me to adapt, speak up, and enjoy small moments. Now I would definitely do it again.',
+    textImage: {
+      imagePrompt: 'Colorful wide educational illustration of a teenage exchange student with a backpack standing in a friendly Bristol school hallway, lockers and diverse classmates in the background, a small exchange program welcome sign with no readable text, warm modern cartoon style.',
+    },
+  });
+  assert.ok(lesson.stages.slice(4).every(stage => stage.content === null));
 });
 
 test('synthetic warm-up component copy does not depend on the user topic', () => {
@@ -215,5 +232,11 @@ test('synthetic lead-in component copy does not depend on the user topic', () =>
 test('synthetic target vocabulary teacher note does not depend on the user topic', () => {
   const first = createSyntheticLesson('Space travel').stages[2].content;
   const second = createSyntheticLesson('Healthy habits').stages[2].content;
+  assert.deepEqual(first, second);
+});
+
+test('synthetic reading content does not depend on the user topic', () => {
+  const first = createSyntheticLesson('Space travel').stages[3].content;
+  const second = createSyntheticLesson('Healthy habits').stages[3].content;
   assert.deepEqual(first, second);
 });

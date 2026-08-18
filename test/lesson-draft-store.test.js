@@ -20,6 +20,8 @@ const {
   updatePersonalizedQuestions,
   updateTaskPrompt,
   updateTeacherNote,
+  updateTextReading,
+  updateTextReadingImage,
   updateTextPanel,
   updateThisOrThatImage,
 } = require('../lib/lesson-draft-store.js');
@@ -547,6 +549,106 @@ test('text panel image URL changes only an existing requested side', () => {
   assert.throws(() => updateIllustratedTextPanelImage({
     id: ready.id, ownerAdminId: owner.id, panelId: 'panel-one', side: 'trailing', imageSrc: '/missing.png',
   }, database), /Слот изображения/);
+  database.close();
+});
+
+test('text reading fields and image slots can be updated only in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'reading-owner');
+  const outsider = admin(database, 'reading-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Reading', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'textReading',
+      id: 'reading-text',
+      title: 'Original title',
+      subtitle: 'Original subtitle',
+      headerImage: { imagePrompt: 'Header prompt' },
+      text: 'Original text',
+      textImage: { imagePrompt: 'Text prompt' },
+    }] }],
+  }, database);
+
+  const updated = updateTextReading({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'reading-text',
+    title: ' Updated title ',
+    subtitle: ' Updated subtitle ',
+    text: ' **Updated** text ',
+  }, database);
+  assert.deepEqual(updated.content.stages[0].content[0], {
+    type: 'textReading',
+    id: 'reading-text',
+    title: 'Updated title',
+    subtitle: 'Updated subtitle',
+    headerImage: { imagePrompt: 'Header prompt' },
+    text: '**Updated** text',
+    textImage: { imagePrompt: 'Text prompt' },
+  });
+
+  const withoutSubtitle = updateTextReading({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'reading-text',
+    title: 'Title',
+    subtitle: '   ',
+    text: 'Text',
+  }, database);
+  assert.equal(withoutSubtitle.content.stages[0].content[0].subtitle, undefined);
+  assert.throws(() => updateTextReading({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'reading-text', title: '', text: 'Text',
+  }, database), /requires title/);
+  assert.throws(() => updateTextReading({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'reading-text', title: 'Title', text: 'Text',
+  }, database), /Черновик урока не найден/);
+  assert.throws(() => updateTextReading({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing-reading', title: 'Title', text: 'Text',
+  }, database), /не найден/);
+
+  const headerAdded = updateTextReadingImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'reading-text', side: 'header', imageSrc: '/header.png',
+  }, database);
+  assert.equal(headerAdded.previousImageSrc, null);
+  assert.equal(headerAdded.draft.content.stages[0].content[0].headerImage.imageSrc, '/header.png');
+  const textAdded = updateTextReadingImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'reading-text', side: 'text', imageSrc: '/text.png',
+  }, database);
+  assert.equal(textAdded.draft.content.stages[0].content[0].textImage.imageSrc, '/text.png');
+  const headerRemoved = updateTextReadingImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'reading-text', side: 'header', imageSrc: null,
+  }, database);
+  assert.equal(headerRemoved.previousImageSrc, '/header.png');
+  assert.equal(headerRemoved.draft.content.stages[0].content[0].headerImage.imageSrc, undefined);
+  assert.throws(() => updateTextReadingImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'reading-text', side: 'middle', imageSrc: '/bad.png',
+  }, database), /Неизвестная область/);
+  const duplicatePending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Duplicate reading', template: 'template-1' }, database);
+  const duplicate = completeLessonDraft(duplicatePending.id, owner.id, {
+    stages: [
+      { content: [{ type: 'textReading', id: 'same-reading', title: 'One', text: 'One' }] },
+      { content: [{ type: 'textReading', id: 'same-reading', title: 'Two', text: 'Two' }] },
+    ],
+  }, database);
+  assert.throws(() => updateTextReading({
+    id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-reading', title: 'Title', text: 'Text',
+  }, database), /несколько/);
+
+  const missingSlotPending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Missing reading image', template: 'template-1' }, database);
+  const missingSlot = completeLessonDraft(missingSlotPending.id, owner.id, {
+    stages: [{ content: [{ type: 'textReading', id: 'reading-without-header', title: 'Title', text: 'Text' }] }],
+  }, database);
+  assert.throws(() => updateTextReadingImage({
+    id: missingSlot.id, ownerAdminId: owner.id, componentId: 'reading-without-header', side: 'header', imageSrc: '/bad.png',
+  }, database), /Слот изображения/);
+
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateTextReading({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'reading-text', title: 'Late', text: 'Text',
+  }, database), /только черновик на проверке/);
+  assert.throws(() => updateTextReadingImage({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'reading-text', side: 'text', imageSrc: '/late.png',
+  }, database), /только черновик на проверке/);
   database.close();
 });
 

@@ -174,7 +174,16 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     accentColor: '#20A85B',
     studentVisibility: 'always',
   });
-  assert.ok(created.content.stages.slice(3).every(stage => stage.content === null));
+  assert.deepEqual(created.content.stages[3].content.map(component => component.type), ['teacherNote', 'textReading']);
+  assert.equal(created.content.stages[3].subtitle, 'Read the text');
+  assert.equal(created.content.stages[3].content[0].id, 'reading-listening-teacher-note');
+  assert.equal(created.content.stages[3].content[1].title, 'My Exchange Week Surprise');
+  assert.equal(created.content.stages[3].content[1].subtitle, 'by ClaryNomad16 · Posted Aug 20');
+  assert.ok(created.content.stages[3].content[1].headerImage.imagePrompt);
+  assert.ok(created.content.stages[3].content[1].textImage.imagePrompt);
+  assert.equal(created.content.stages[3].content[1].headerImage.imageSrc, undefined);
+  assert.equal(created.content.stages[3].content[1].textImage.imageSrc, undefined);
+  assert.ok(created.content.stages.slice(4).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: firstAdminCookie },
@@ -524,6 +533,86 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal((await panelImageDeleteResponse.json()).draft.content.stages[1].content[2].leadingPicture.imageSrc, undefined);
   assert.equal((await fetch(`${baseUrl}${panelImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
 
+  const textReadingEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/text-readings/reading-text`;
+  assert.equal((await fetch(textReadingEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Guest', subtitle: 'Guest', text: 'Guest' }),
+  })).status, 401);
+  assert.equal((await fetch(textReadingEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: teacherCookie },
+    body: JSON.stringify({ title: 'Teacher', subtitle: 'Teacher', text: 'Teacher' }),
+  })).status, 403);
+  const textReadingUpdateResponse = await fetch(textReadingEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: '  My Updated Exchange  ',
+      subtitle: '   ',
+      text: '  **Updated** reading text.  ',
+      id: 'ignored',
+      type: 'textPanel',
+    }),
+  });
+  assert.equal(textReadingUpdateResponse.status, 200);
+  const savedTextReading = (await textReadingUpdateResponse.json()).draft.content.stages[3].content[1];
+  assert.equal(savedTextReading.id, 'reading-text');
+  assert.equal(savedTextReading.title, 'My Updated Exchange');
+  assert.equal(savedTextReading.subtitle, undefined);
+  assert.equal(savedTextReading.text, '**Updated** reading text.');
+  assert.ok(savedTextReading.headerImage.imagePrompt);
+  assert.ok(savedTextReading.textImage.imagePrompt);
+  assert.equal((await fetch(textReadingEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: '', text: 'Text' }),
+  })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/text-readings/missing-reading`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Missing', text: 'Missing' }),
+  })).status, 404);
+
+  const textReadingImageEndpoint = `${textReadingEndpoint}/pictures/text/image`;
+  assert.equal((await fetch(textReadingImageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: png,
+  })).status, 401);
+  assert.equal((await fetch(textReadingImageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: teacherCookie }, body: png,
+  })).status, 403);
+  const textReadingImageResponse = await fetch(textReadingImageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: png,
+  });
+  assert.equal(textReadingImageResponse.status, 200);
+  const firstTextReadingImageSrc = (await textReadingImageResponse.json()).draft.content.stages[3].content[1].textImage.imageSrc;
+  assert.match(firstTextReadingImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`));
+  assert.equal((await fetch(`${baseUrl}${firstTextReadingImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 200);
+  const secondTextReadingImageResponse = await fetch(textReadingImageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: Buffer.concat([png, Buffer.from('-replacement')]),
+  });
+  assert.equal(secondTextReadingImageResponse.status, 200);
+  const secondTextReadingImageSrc = (await secondTextReadingImageResponse.json()).draft.content.stages[3].content[1].textImage.imageSrc;
+  assert.notEqual(secondTextReadingImageSrc, firstTextReadingImageSrc);
+  assert.equal((await fetch(`${baseUrl}${firstTextReadingImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
+  const textReadingImageDeleteResponse = await fetch(textReadingImageEndpoint, {
+    method: 'DELETE', headers: { Cookie: firstAdminCookie },
+  });
+  assert.equal(textReadingImageDeleteResponse.status, 200);
+  assert.equal((await textReadingImageDeleteResponse.json()).draft.content.stages[3].content[1].textImage.imageSrc, undefined);
+  assert.equal((await fetch(`${baseUrl}${secondTextReadingImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
+
+  const textReadingHeaderImageEndpoint = `${textReadingEndpoint}/pictures/header/image`;
+  const textReadingHeaderResponse = await fetch(textReadingHeaderImageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: png,
+  });
+  assert.equal(textReadingHeaderResponse.status, 200);
+  const textReadingHeaderImageSrc = (await textReadingHeaderResponse.json()).draft.content.stages[3].content[1].headerImage.imageSrc;
+  assert.match(textReadingHeaderImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`));
+  assert.equal((await fetch(textReadingHeaderImageEndpoint, {
+    method: 'DELETE', headers: { Cookie: firstAdminCookie },
+  })).status, 200);
+
   const ownList = await fetch(`${baseUrl}/api/lesson-drafts`, {
     headers: { Cookie: firstAdminCookie },
   });
@@ -592,6 +681,13 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     body: JSON.stringify({ text: 'Published', backgroundColor: '#FFFFFF' }),
   })).status, 409);
   assert.equal((await fetch(panelImageEndpoint, {
+    method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: png,
+  })).status, 409);
+  assert.equal((await fetch(textReadingEndpoint, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Published', text: 'Published edit' }),
+  })).status, 409);
+  assert.equal((await fetch(textReadingImageEndpoint, {
     method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: png,
   })).status, 409);
   assert.equal((await fetch(imageEndpoint, {

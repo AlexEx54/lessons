@@ -43,6 +43,8 @@ const {
   updatePersonalizedQuestions,
   updateTaskPrompt,
   updateTeacherNote,
+  updateTextReading,
+  updateTextReadingImage,
   updateTextPanel,
   updateThisOrThatImage,
 } = require('./lib/lesson-draft-store.js');
@@ -442,6 +444,31 @@ function getIllustratedTextPanelRouteParams(pathname) {
   }
 }
 
+function getTextReadingRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/text-readings\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getTextReadingImageRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/text-readings\/([^/]+)\/pictures\/(header|text)\/image$/);
+  if (!match) return null;
+  try {
+    const values = match.slice(1).map(value => decodeURIComponent(value).trim());
+    if (values.some(value => !value)) return null;
+    return { draftId: values[0], componentId: values[1], side: values[2] };
+  } catch (_error) {
+    return null;
+  }
+}
+
 function getIllustratedTextPanelImageRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/illustrated-text-panels\/([^/]+)\/pictures\/(leading|trailing)\/image$/);
   if (!match) return null;
@@ -772,7 +799,8 @@ const server = http.createServer(async (req, res) => {
     const thisOrThatImageRoute = getThisOrThatImageRouteParams(pathname);
     const matchWordsImageRoute = getMatchWordsImageRouteParams(pathname);
     const illustratedTextPanelImageRoute = getIllustratedTextPanelImageRouteParams(pathname);
-    const imageRoute = thisOrThatImageRoute || matchWordsImageRoute || illustratedTextPanelImageRoute;
+    const textReadingImageRoute = getTextReadingImageRouteParams(pathname);
+    const imageRoute = thisOrThatImageRoute || matchWordsImageRoute || illustratedTextPanelImageRoute || textReadingImageRoute;
     if (imageRoute) {
       const user = requireAdminAuth(req, res);
       if (!user) return;
@@ -826,6 +854,15 @@ const server = http.createServer(async (req, res) => {
             imageSrc,
           }, database);
         } else {
+          if (textReadingImageRoute) {
+            result = updateTextReadingImage({
+              id: imageRoute.draftId,
+              ownerAdminId: user.id,
+              componentId: imageRoute.componentId,
+              side: imageRoute.side,
+              imageSrc,
+            }, database);
+          } else {
           result = updateIllustratedTextPanelImage({
             id: imageRoute.draftId,
             ownerAdminId: user.id,
@@ -833,6 +870,7 @@ const server = http.createServer(async (req, res) => {
             side: imageRoute.side,
             imageSrc,
           }, database);
+          }
         }
         const previousFile = assetFileFromUrl(result.previousImageSrc);
         if (previousFile && previousFile !== newFile) fs.rmSync(previousFile, { force: true });
@@ -856,6 +894,7 @@ const server = http.createServer(async (req, res) => {
     const describeAndGuessRoute = getDescribeAndGuessRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
+    const textReadingRoute = getTextReadingRouteParams(pathname);
     if ((!teacherNoteRoute || !teacherNoteRoute.draftId || !teacherNoteRoute.noteId)
       && (!taskPromptRoute || !taskPromptRoute.draftId || !taskPromptRoute.promptId)
       && (!markdownCardRoute || !markdownCardRoute.draftId || !markdownCardRoute.componentId)
@@ -863,7 +902,8 @@ const server = http.createServer(async (req, res) => {
       && (!personalizedQuestionsRoute || !personalizedQuestionsRoute.draftId || !personalizedQuestionsRoute.componentId)
       && (!describeAndGuessRoute || !describeAndGuessRoute.draftId || !describeAndGuessRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
-      && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)) {
+      && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)
+      && (!textReadingRoute || !textReadingRoute.draftId || !textReadingRoute.componentId)) {
       json(res, 404, { error: 'Редактируемый компонент не найден.' });
       return;
     }
@@ -936,6 +976,15 @@ const server = http.createServer(async (req, res) => {
           panelId: textPanelRoute.panelId,
           text: body.text,
           backgroundColor: body.backgroundColor,
+        }, database);
+      } else if (textReadingRoute) {
+        draft = updateTextReading({
+          id: textReadingRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: textReadingRoute.componentId,
+          title: body.title,
+          subtitle: body.subtitle,
+          text: body.text,
         }, database);
       } else {
         draft = updateIllustratedTextPanel({

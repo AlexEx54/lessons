@@ -90,6 +90,16 @@
       onDelete: state.draftStatus === 'review' ? deleteIllustratedTextPanelImage : undefined,
       onMessage: showToast,
     }),
+    textReading: component => window.TextReadingComponent.renderTextReading(component, {
+      onSave: state.draftStatus === 'review' ? saveTextReading : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onUpload: state.draftStatus === 'review' ? uploadTextReadingImage : undefined,
+      onDelete: state.draftStatus === 'review' ? deleteTextReadingImage : undefined,
+      onMessage: showToast,
+    }),
     markdownCard: component => window.MarkdownCardComponent.renderMarkdownCard(component, {
       viewerRole: 'teacher',
       studentVisible: false,
@@ -344,6 +354,15 @@
     return null;
   }
 
+  function findTextReading(lesson, componentId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'textReading' && component.id === componentId) return component;
+      }
+    }
+    return null;
+  }
+
   function findMarkdownCard(lesson, componentId) {
     for (const stage of lesson.stages || []) {
       for (const component of stage.content || []) {
@@ -489,6 +508,42 @@
     return updateIllustratedTextPanelImage('DELETE', panelId, side);
   }
 
+  function textReadingImageUrl(componentId, side) {
+    return `/api/lesson-drafts/${encodeURIComponent(state.draftId)}`
+      + `/text-readings/${encodeURIComponent(componentId)}`
+      + `/pictures/${encodeURIComponent(side)}/image`;
+  }
+
+  async function updateTextReadingImage(method, componentId, side, file) {
+    try {
+      const response = await fetch(textReadingImageUrl(componentId, side), {
+        method,
+        headers: file ? { 'Content-Type': file.type } : undefined,
+        body: file || undefined,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить изображение текста для чтения.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findTextReading(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый текст для чтения не найден в черновике.');
+      showToast(method === 'DELETE' ? 'Изображение удалено.' : 'Изображение сохранено.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить изображение текста для чтения.');
+      throw error;
+    }
+  }
+
+  function uploadTextReadingImage(file, componentId, side) {
+    return updateTextReadingImage('PUT', componentId, side, file);
+  }
+
+  function deleteTextReadingImage(componentId, side) {
+    return updateTextReadingImage('DELETE', componentId, side);
+  }
+
   async function saveTeacherNote(changes, noteId) {
     try {
       const response = await fetch(
@@ -585,6 +640,31 @@
       return savedPanel;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить иллюстрированную текстовую панель.');
+      throw error;
+    }
+  }
+
+  async function saveTextReading(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/text-readings/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить текст для чтения.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findTextReading(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый текст для чтения не найден в черновике.');
+      showToast('Текст для чтения сохранён.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить текст для чтения.');
       throw error;
     }
   }
