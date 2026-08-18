@@ -17,6 +17,7 @@ const {
   updateFillInBlanks,
   updateMarkdownCard,
   updateMatchWordsImage,
+  updateMultipleChoice,
   updatePersonalizedQuestions,
   updateTaskPrompt,
   updateTeacherNote,
@@ -384,6 +385,82 @@ test('personalized questions content and order can be updated only in an owned r
   assert.throws(() => updatePersonalizedQuestions({
     id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-questions',
     title: 'Questions', instruction: 'Speak.', items,
+  }, database), /несколько/);
+  database.close();
+});
+
+test('multiple choice content and order can be updated only in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'choice-owner');
+  const outsider = admin(database, 'choice-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Choice', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'multipleChoice',
+      id: 'target-choice',
+      title: 'Task 1',
+      instruction: 'Choose.',
+      items: [{ id: 'first-question', question: 'First?', options: ['One', 'Two'], answer: 'One' }],
+    }] }],
+  }, database);
+  const items = [
+    { id: 'second-question', question: 'Second?', options: ['Yes', 'No', 'Maybe'], answer: 'No', explanation: 'Because the text says no.' },
+    { id: 'first-question', question: 'Updated first?', options: ['One', 'Two'], answer: 'Two', explanation: '   ' },
+  ];
+  const updated = updateMultipleChoice({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'target-choice',
+    title: ' Updated quiz ',
+    instruction: ' Choose the best answer. ',
+    items,
+  }, database);
+  assert.deepEqual(updated.content.stages[0].content[0], {
+    type: 'multipleChoice',
+    id: 'target-choice',
+    title: 'Updated quiz',
+    instruction: 'Choose the best answer.',
+    items: [{
+      id: 'second-question',
+      question: 'Second?',
+      options: ['Yes', 'No', 'Maybe'],
+      answer: 'No',
+      explanation: 'Because the text says no.',
+    }, {
+      id: 'first-question',
+      question: 'Updated first?',
+      options: ['One', 'Two'],
+      answer: 'Two',
+    }],
+  });
+  assert.throws(() => updateMultipleChoice({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'target-choice',
+    title: 'Quiz', instruction: 'Choose.', items,
+  }, database), /не найден/);
+  assert.throws(() => updateMultipleChoice({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing-choice',
+    title: 'Quiz', instruction: 'Choose.', items,
+  }, database), /не найден/);
+  assert.throws(() => updateMultipleChoice({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'target-choice',
+    title: 'Quiz', instruction: 'Choose.', items: [],
+  }, database), /between 1 and 12/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateMultipleChoice({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'target-choice',
+    title: 'Quiz', instruction: 'Choose.', items,
+  }, database), /только черновик на проверке/);
+
+  const duplicatePending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Duplicate choice', template: 'template-1' }, database);
+  const duplicate = completeLessonDraft(duplicatePending.id, owner.id, {
+    stages: [
+      { content: [{ type: 'multipleChoice', id: 'same-choice', title: 'One', instruction: 'Choose.', items: [items[1]] }] },
+      { content: [{ type: 'multipleChoice', id: 'same-choice', title: 'Two', instruction: 'Choose.', items: [items[1]] }] },
+    ],
+  }, database);
+  assert.throws(() => updateMultipleChoice({
+    id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-choice',
+    title: 'Quiz', instruction: 'Choose.', items: [items[1]],
   }, database), /несколько/);
   database.close();
 });

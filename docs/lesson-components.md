@@ -356,6 +356,9 @@ follow-up репликой для каждого пункта.
 preview отображаются только загруженные файлы. Не создавайте пустые объекты
 `headerImage` или `textImage`, если соответствующая иллюстрация не нужна.
 
+После текста для чтения обычно идут один или несколько `multipleChoice` и
+отдельный `markdownCard` Answer Key. Сам `textReading` ответов не содержит.
+
 ## This or That
 
 `thisOrThat` показывает от одной до восьми независимых пар. В каждой паре ученик
@@ -481,3 +484,81 @@ student view. В review-редакторе администратор может
 и правильный ответ, добавлять и удалять строки и менять их порядок. `type`, `id`,
 `title` и `instruction` после генерации не редактируются. Нейросеть должна брать
 целевые ответы из vocabulary и адаптировать их грамматическую форму к предложению.
+
+## Multiple Choice
+
+`multipleChoice` показывает один или несколько вопросов с выбором одного верного
+варианта. Компонент подходит для reading/listening и других заданий с фиксированным
+правильным ответом.
+
+```json
+{
+  "type": "multipleChoice",
+  "id": "reading-gist-quiz",
+  "title": "Task 1. Reading for Gist",
+  "instruction": "Choose the best answer.",
+  "items": [{
+    "id": "main-idea",
+    "question": "What is the main idea of the text?",
+    "options": [
+      "The writer had a terrible trip and wants to forget it.",
+      "The writer discovered that an exchange week was challenging but rewarding.",
+      "The writer mostly wanted to talk about famous places in Bristol."
+    ],
+    "answer": "The writer discovered that an exchange week was challenging but rewarding.",
+    "explanation": "The text is about expectations, challenges, and positive results."
+  }]
+}
+```
+
+Поля:
+
+- `type` — строго `multipleChoice`.
+- `id` — обязательный уникальный lowercase kebab-case идентификатор компонента.
+- `title` и `instruction` — обязательные непустые строки без HTML и Markdown.
+- `items` — от 1 до 12 вопросов; их `id` уникальны внутри компонента и записаны
+  в lowercase kebab-case.
+- `question` — обязательный непустой текст вопроса без разметки.
+- `options` — от 2 до 8 уникальных непустых строк. Буквы A, B, C интерфейс
+  проставляет сам по порядку вариантов.
+- `answer` — обязательная строка, которая в точности совпадает с одним из `options`.
+- `explanation` — опциональная непустая строка без разметки. Пустое значение не
+  передавайте: поле должно отсутствовать целиком. Если пояснение есть, после
+  верного ответа интерфейс показывает `Correct!` и этот текст.
+- HTML и Markdown во всех видимых строках запрещены.
+
+Один вопрос отображается без нумерации. Несколько вопросов нумеруются и
+оборачиваются во внутренние карточки. Неверный вариант подсвечивается красным
+и остаётся доступным для повторной попытки. Верный вариант подсвечивается
+зелёным и блокирует вопрос. Для преподавателя верные варианты заранее
+помечены тускло-зелёным. Состояние ответов локальное: оно не передаётся в JSON
+и сбрасывается после повторной отрисовки.
+
+Teacher Answer Key в этот компонент не встроен. Если ключ нужен, добавьте
+отдельный `markdownCard` с `studentVisibility: "teacherOnly"` после всех
+квизов стадии. Перечислите верные буквы; пояснение после длинного тире
+включайте только когда у пункта есть `explanation`.
+
+В reading/listening типичный порядок такой: `teacherNote`, `textReading`,
+gist-квиз из одного вопроса, detail-квиз из нескольких вопросов, затем
+Answer Key. Для нескольких квизов в одном ключе группируйте ответы по Task:
+
+```json
+{
+  "type": "markdownCard",
+  "id": "reading-listening-answer-key",
+  "title": "Answer Key",
+  "text": "**Task 1:**\n\nB — The text is about expectations, challenges, and positive results.\n\n**Task 2:**\n\n1A — The writer was nervous because they had never stayed with a host family before.\n\n2B — On the first day, the writer got lost in the school building.\n\n5B",
+  "icon": "check",
+  "accentColor": "#20A85B",
+  "studentVisibility": "teacherOnly"
+}
+```
+
+Абзацы в `text` разделяйте пустой строкой, иначе соседние строки сольются.
+Пункт без `explanation` записывайте одной буквой, без тире: `5B`, а не `5B —`.
+
+В review-редакторе администратор может изменять заголовок, инструкцию, вопросы,
+варианты, правильный ответ и пояснение, а также добавлять, удалять и менять
+порядок вопросов и вариантов. Поля `type`, id компонента и существующие id
+вопросов неизменяемы; новые id создаёт интерфейс.

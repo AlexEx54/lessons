@@ -198,9 +198,12 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
       tip: 'You can use examples, actions, feelings and details, but don’t say the word!',
     },
   });
-  assert.deepEqual(lesson.stages[3].content.map(component => component.type), ['teacherNote', 'textReading']);
+  assert.deepEqual(lesson.stages[3].content.map(component => component.type), [
+    'teacherNote', 'textReading', 'multipleChoice', 'multipleChoice', 'markdownCard',
+  ]);
   assert.equal(lesson.stages[3].content[0].id, 'reading-listening-teacher-note');
   assert.match(lesson.stages[3].content[0].text, /форматом blog post/);
+  assert.match(lesson.stages[3].content[0].text, /В Task 2/);
   assert.deepEqual(lesson.stages[3].content[1], {
     type: 'textReading',
     id: 'reading-text',
@@ -214,6 +217,34 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
       imagePrompt: 'Colorful wide educational illustration of a teenage exchange student with a backpack standing in a friendly Bristol school hallway, lockers and diverse classmates in the background, a small exchange program welcome sign with no readable text, warm modern cartoon style.',
     },
   });
+  const gistQuiz = lesson.stages[3].content[2];
+  assert.equal(gistQuiz.id, 'reading-gist-quiz');
+  assert.equal(gistQuiz.items.length, 1);
+  assert.equal(gistQuiz.items[0].options.length, 3);
+  assert.equal(
+    gistQuiz.items[0].answer,
+    'The writer discovered that an exchange week was challenging but rewarding.',
+  );
+  assert.equal(gistQuiz.items[0].explanation, 'The text is about expectations, challenges, and positive results.');
+  const detailQuiz = lesson.stages[3].content[3];
+  assert.equal(detailQuiz.id, 'reading-detail-quiz');
+  assert.equal(detailQuiz.items.length, 5);
+  assert.deepEqual(detailQuiz.items.map(item => item.options.indexOf(item.answer)), [0, 1, 1, 1, 1]);
+  assert.equal(detailQuiz.items[0].explanation, 'The writer was nervous because they had never stayed with a host family before.');
+  assert.equal(detailQuiz.items[3].explanation, 'The best part of the week was learning about real daily life in another country.');
+  assert.equal(detailQuiz.items[4].explanation, undefined);
+  assert.deepEqual(lesson.stages[3].content[4], {
+    type: 'markdownCard',
+    id: 'reading-listening-answer-key',
+    title: 'Answer Key',
+    text: '**Task 1:**\n\nB — The text is about expectations, challenges, and positive results.\n\n**Task 2:**\n\n1A — The writer was nervous because they had never stayed with a host family before.\n\n2B — On the first day, the writer got lost in the school building.\n\n3B — Mia helped the writer feel more comfortable at lunch.\n\n4B — The best part of the week was learning about real daily life in another country.\n\n5B',
+    icon: 'check',
+    accentColor: '#20A85B',
+    studentVisibility: 'teacherOnly',
+  });
+  assert.match(lesson.stages[3].content[4].text, /\*\*Task 1:\*\*\n\nB —/);
+  assert.doesNotMatch(lesson.stages[3].content[4].text, /Possible follow-up/);
+  assert.doesNotMatch(lesson.stages[3].content[4].text, /5B —/);
   assert.ok(lesson.stages.slice(4).every(stage => stage.content === null));
 });
 

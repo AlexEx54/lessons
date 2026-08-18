@@ -90,6 +90,15 @@
       onDelete: state.draftStatus === 'review' ? deleteIllustratedTextPanelImage : undefined,
       onMessage: showToast,
     }),
+    multipleChoice: component => window.MultipleChoiceComponent.renderMultipleChoice(component, {
+      viewerRole: 'teacher',
+      onSave: state.draftStatus === 'review' ? saveMultipleChoice : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
     textReading: component => window.TextReadingComponent.renderTextReading(component, {
       onSave: state.draftStatus === 'review' ? saveTextReading : undefined,
       onDirtyChange: (dirty, componentId) => {
@@ -385,6 +394,15 @@
     for (const stage of lesson.stages || []) {
       for (const component of stage.content || []) {
         if (component?.type === 'personalizedQuestions' && component.id === componentId) return component;
+      }
+    }
+    return null;
+  }
+
+  function findMultipleChoice(lesson, componentId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'multipleChoice' && component.id === componentId) return component;
       }
     }
     return null;
@@ -740,6 +758,31 @@
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить Personalised Questions.');
+      throw error;
+    }
+  }
+
+  async function saveMultipleChoice(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/multiple-choice/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить Multiple Choice.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findMultipleChoice(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый Multiple Choice не найден в черновике.');
+      showToast('Multiple Choice сохранён.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить Multiple Choice.');
       throw error;
     }
   }

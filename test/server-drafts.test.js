@@ -174,7 +174,13 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     accentColor: '#20A85B',
     studentVisibility: 'always',
   });
-  assert.deepEqual(created.content.stages[3].content.map(component => component.type), ['teacherNote', 'textReading']);
+  assert.deepEqual(created.content.stages[3].content.map(component => component.type), [
+    'teacherNote', 'textReading', 'multipleChoice', 'multipleChoice', 'markdownCard',
+  ]);
+  assert.equal(created.content.stages[3].content[2].id, 'reading-gist-quiz');
+  assert.equal(created.content.stages[3].content[3].items.length, 5);
+  assert.equal(created.content.stages[3].content[3].items[4].explanation, undefined);
+  assert.equal(created.content.stages[3].content[4].id, 'reading-listening-answer-key');
   assert.equal(created.content.stages[3].subtitle, 'Read the text');
   assert.equal(created.content.stages[3].content[0].id, 'reading-listening-teacher-note');
   assert.equal(created.content.stages[3].content[1].title, 'My Exchange Week Surprise');
@@ -273,6 +279,62 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     items: [{ id: 'describe-level-up', text: 'level up' }],
     howToPlay: { title: 'Game rules', steps: ['Pick a word.', 'Explain it.'], tip: 'Use examples.' },
   });
+  const multipleChoiceEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/multiple-choice/reading-gist-quiz`;
+  assert.equal((await fetch(multipleChoiceEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Guest', instruction: 'Guest', items: [] }),
+  })).status, 401);
+  assert.equal((await fetch(multipleChoiceEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: teacherCookie },
+    body: JSON.stringify({ title: 'Teacher', instruction: 'Teacher', items: [] }),
+  })).status, 403);
+  const multipleChoiceUpdate = await fetch(multipleChoiceEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      type: 'markdownCard',
+      id: 'attempted-id-change',
+      title: ' Updated gist ',
+      instruction: ' Choose carefully. ',
+      items: [{
+        id: 'main-idea',
+        question: 'What is the main idea?',
+        options: ['Wrong', 'Right'],
+        answer: 'Right',
+        explanation: '   ',
+      }],
+    }),
+  });
+  assert.equal(multipleChoiceUpdate.status, 200);
+  const savedMultipleChoice = (await multipleChoiceUpdate.json()).draft.content.stages[3].content[2];
+  assert.deepEqual(savedMultipleChoice, {
+    type: 'multipleChoice',
+    id: 'reading-gist-quiz',
+    title: 'Updated gist',
+    instruction: 'Choose carefully.',
+    items: [{
+      id: 'main-idea',
+      question: 'What is the main idea?',
+      options: ['Wrong', 'Right'],
+      answer: 'Right',
+    }],
+  });
+  assert.equal((await fetch(multipleChoiceEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Quiz', instruction: 'Choose.', items: [] }),
+  })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/multiple-choice/missing-choice`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: 'Quiz', instruction: 'Choose.',
+      items: [{ id: 'one', question: 'Question?', options: ['A', 'B'], answer: 'A' }],
+    }),
+  })).status, 404);
+
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/personalized-questions/missing-questions`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
