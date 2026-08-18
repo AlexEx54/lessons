@@ -539,14 +539,16 @@ Teacher Answer Key в этот компонент не встроен. Если 
 квизов стадии. Перечислите верные буквы; пояснение после длинного тире
 включайте только когда у пункта есть `explanation`.
 
-В reading/listening типичный порядок такой: `teacherNote`, `textReading`,
-gist-квиз из одного вопроса, detail-квиз из нескольких вопросов, затем
-Answer Key. Для нескольких квизов в одном ключе группируйте ответы по Task:
+В reading типичный порядок такой: `teacherNote`, `textReading`, gist-квиз из
+одного вопроса, detail-квиз из нескольких вопросов, затем Answer Key. Listening
+оформляется отдельной стадией; её `teacherNote` размещается первым перед
+остальным listening-контентом. Для нескольких квизов в одном ключе группируйте
+ответы по Task:
 
 ```json
 {
   "type": "markdownCard",
-  "id": "reading-listening-answer-key",
+  "id": "reading-answer-key",
   "title": "Answer Key",
   "text": "**Task 1:**\n\nB — The text is about expectations, challenges, and positive results.\n\n**Task 2:**\n\n1A — The writer was nervous because they had never stayed with a host family before.\n\n2B — On the first day, the writer got lost in the school building.\n\n5B",
   "icon": "check",

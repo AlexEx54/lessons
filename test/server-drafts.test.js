@@ -123,8 +123,8 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.status, 'review');
   assert.equal(created.content.schemaVersion, 'lesson-draft-v1');
   assert.equal(created.content.meta.topic, 'Travel English');
-  assert.equal(created.content.stages.length, 7);
-  assert.deepEqual(created.content.stages.map(stage => stage.number), [1, 2, 3, 4, 5, 6, 7]);
+  assert.equal(created.content.stages.length, 8);
+  assert.deepEqual(created.content.stages.map(stage => stage.number), [1, 2, 3, 4, 5, 6, 7, 8]);
   assert.deepEqual(created.content.stages[0].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'thisOrThat', 'taskPrompt',
   ]);
@@ -180,16 +180,19 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.content.stages[3].content[2].id, 'reading-gist-quiz');
   assert.equal(created.content.stages[3].content[3].items.length, 5);
   assert.equal(created.content.stages[3].content[3].items[4].explanation, undefined);
-  assert.equal(created.content.stages[3].content[4].id, 'reading-listening-answer-key');
+  assert.equal(created.content.stages[3].content[4].id, 'reading-answer-key');
   assert.equal(created.content.stages[3].subtitle, 'Read the text');
-  assert.equal(created.content.stages[3].content[0].id, 'reading-listening-teacher-note');
+  assert.equal(created.content.stages[3].content[0].id, 'reading-teacher-note');
   assert.equal(created.content.stages[3].content[1].title, 'My Exchange Week Surprise');
   assert.equal(created.content.stages[3].content[1].subtitle, 'by ClaryNomad16 · Posted Aug 20');
   assert.ok(created.content.stages[3].content[1].headerImage.imagePrompt);
   assert.ok(created.content.stages[3].content[1].textImage.imagePrompt);
   assert.equal(created.content.stages[3].content[1].headerImage.imageSrc, undefined);
   assert.equal(created.content.stages[3].content[1].textImage.imageSrc, undefined);
-  assert.ok(created.content.stages.slice(4).every(stage => stage.content === null));
+  assert.deepEqual(created.content.stages[4].content.map(component => component.type), ['teacherNote']);
+  assert.equal(created.content.stages[4].content[0].id, 'listening-teacher-note');
+  assert.equal(created.content.stages[4].subtitle, 'Listen to the audio');
+  assert.ok(created.content.stages.slice(5).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: firstAdminCookie },

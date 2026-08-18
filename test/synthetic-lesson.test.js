@@ -4,19 +4,20 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
 
-test('synthetic lesson contains seven ordered stages and the mock-aligned warm-up prompts', () => {
+test('synthetic lesson contains eight ordered stages and the mock-aligned warm-up prompts', () => {
   const lesson = createSyntheticLesson('  Space travel  ');
   assert.equal(lesson.meta.topic, 'Space travel');
   assert.equal(lesson.meta.durationMinutes, 45);
-  assert.equal(lesson.stages.length, 7);
+  assert.equal(lesson.stages.length, 8);
   assert.deepEqual(lesson.stages.map(stage => stage.id), [
-    'warm-up', 'lead-in', 'target-vocabulary', 'reading-listening',
+    'warm-up', 'lead-in', 'target-vocabulary', 'reading', 'listening',
     'grammar-focus', 'guided-speaking', 'wrap-up',
   ]);
   assert.ok(lesson.stages.every((stage, index) => stage.number === index + 1));
   assert.equal(lesson.stages[0].subtitle, 'This or That?');
   assert.equal(lesson.stages[1].subtitle, 'Gamer Chat');
   assert.equal(lesson.stages[3].subtitle, 'Read the text');
+  assert.equal(lesson.stages[4].subtitle, 'Listen to the audio');
   assert.deepEqual(lesson.stages[0].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'thisOrThat', 'taskPrompt',
   ]);
@@ -201,7 +202,7 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
   assert.deepEqual(lesson.stages[3].content.map(component => component.type), [
     'teacherNote', 'textReading', 'multipleChoice', 'multipleChoice', 'markdownCard',
   ]);
-  assert.equal(lesson.stages[3].content[0].id, 'reading-listening-teacher-note');
+  assert.equal(lesson.stages[3].content[0].id, 'reading-teacher-note');
   assert.match(lesson.stages[3].content[0].text, /форматом blog post/);
   assert.match(lesson.stages[3].content[0].text, /В Task 2/);
   assert.deepEqual(lesson.stages[3].content[1], {
@@ -235,7 +236,7 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
   assert.equal(detailQuiz.items[4].explanation, undefined);
   assert.deepEqual(lesson.stages[3].content[4], {
     type: 'markdownCard',
-    id: 'reading-listening-answer-key',
+    id: 'reading-answer-key',
     title: 'Answer Key',
     text: '**Task 1:**\n\nB — The text is about expectations, challenges, and positive results.\n\n**Task 2:**\n\n1A — The writer was nervous because they had never stayed with a host family before.\n\n2B — On the first day, the writer got lost in the school building.\n\n3B — Mia helped the writer feel more comfortable at lunch.\n\n4B — The best part of the week was learning about real daily life in another country.\n\n5B',
     icon: 'check',
@@ -245,7 +246,12 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
   assert.match(lesson.stages[3].content[4].text, /\*\*Task 1:\*\*\n\nB —/);
   assert.doesNotMatch(lesson.stages[3].content[4].text, /Possible follow-up/);
   assert.doesNotMatch(lesson.stages[3].content[4].text, /5B —/);
-  assert.ok(lesson.stages.slice(4).every(stage => stage.content === null));
+  assert.deepEqual(lesson.stages[4].content, [{
+    type: 'teacherNote',
+    id: 'listening-teacher-note',
+    text: '- Цель первого прослушивания: понять общую ситуацию, где происходит разговор и о чём он.\n- Цель второго прослушивания: услышать детали и выбрать точные ответы.\n- Не нужно объяснять заранее слова: camp, backpack, sunscreen, cabin, workshop, guitar.\n- Предложение к Target Grammar: “We’re going to stay in cabins.”, “I’m going to bring my guitar.”, “We’re going to leave on Friday morning.”\n- Ответы, которые могут вызвать обсуждение: почему ребята выбрали AFK Summer и что ученик сам взял бы с собой.',
+  }]);
+  assert.ok(lesson.stages.slice(5).every(stage => stage.content === null));
 });
 
 test('synthetic warm-up component copy does not depend on the user topic', () => {
@@ -269,5 +275,11 @@ test('synthetic target vocabulary teacher note does not depend on the user topic
 test('synthetic reading content does not depend on the user topic', () => {
   const first = createSyntheticLesson('Space travel').stages[3].content;
   const second = createSyntheticLesson('Healthy habits').stages[3].content;
+  assert.deepEqual(first, second);
+});
+
+test('synthetic listening teacher notes do not depend on the user topic', () => {
+  const first = createSyntheticLesson('Space travel').stages[4].content;
+  const second = createSyntheticLesson('Healthy habits').stages[4].content;
   assert.deepEqual(first, second);
 });
