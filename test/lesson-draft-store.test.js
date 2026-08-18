@@ -11,6 +11,7 @@ const {
   listLessonDrafts,
   publishLessonDraft,
   retryLessonDraft,
+  updateDescribeAndGuess,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateFillInBlanks,
@@ -382,6 +383,46 @@ test('personalized questions content and order can be updated only in an owned r
     id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-questions',
     title: 'Questions', instruction: 'Speak.', items,
   }, database), /несколько/);
+  database.close();
+});
+
+test('Describe and Guess copy, words, and rules can be updated only in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'describe-owner');
+  const outsider = admin(database, 'describe-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Describe', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'describeAndGuess', id: 'target-describe', title: 'Extra Task', instruction: 'Describe it.',
+      items: [{ id: 'word-one', text: 'level up' }],
+      howToPlay: { title: 'How to Play', steps: ['Pick a word.'], tip: 'Use examples.' },
+    }] }],
+  }, database);
+  const updated = updateDescribeAndGuess({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'target-describe',
+    title: ' Updated game ',
+    instruction: ' Take turns. ',
+    items: [{ id: 'word-two', text: ' get stuck ' }, { id: 'word-one', text: ' level up ' }],
+    howToPlay: { title: ' Rules ', steps: [' Explain it. ', ' Guess it. '], tip: ' Use actions. ' },
+  }, database);
+  assert.deepEqual(updated.content.stages[0].content[0], {
+    type: 'describeAndGuess', id: 'target-describe', title: 'Updated game', instruction: 'Take turns.',
+    items: [{ id: 'word-two', text: 'get stuck' }, { id: 'word-one', text: 'level up' }],
+    howToPlay: { title: 'Rules', steps: ['Explain it.', 'Guess it.'], tip: 'Use actions.' },
+  });
+  assert.throws(() => updateDescribeAndGuess({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'target-describe', title: 'Game', instruction: 'Play.',
+    items: [{ id: 'word-one', text: 'word' }],
+    howToPlay: { title: 'Rules', steps: ['Play.'], tip: 'Try.' },
+  }, database), /не найден/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateDescribeAndGuess({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'target-describe', title: 'Game', instruction: 'Play.',
+    items: [{ id: 'word-one', text: 'word' }],
+    howToPlay: { title: 'Rules', steps: ['Play.'], tip: 'Try.' },
+  }, database), /только черновик на проверке/);
   database.close();
 });
 

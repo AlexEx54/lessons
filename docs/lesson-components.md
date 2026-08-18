@@ -197,6 +197,54 @@ follow-up репликой для каждого пункта.
 добавлять и удалять пары, а также менять их порядок. Поля `type`, id компонента и
 существующие id элементов не редактируются; новые id создаёт интерфейс.
 
+## Describe and Guess
+
+`describeAndGuess` — финальное дополнительное устное упражнение vocabulary. Ученик и
+преподаватель по очереди объясняют слова, не называя их; угаданные слова можно
+зачеркнуть нажатием.
+
+```json
+{
+  "type": "describeAndGuess",
+  "id": "target-vocabulary-describe-and-guess",
+  "title": "Extra Task · Describe and Guess",
+  "instruction": "Take turns with your teacher. Describe the word without saying it. Can your partner guess it?",
+  "items": [{
+    "id": "describe-hang-out",
+    "text": "to hang out (with friends)"
+  }],
+  "howToPlay": {
+    "title": "How to Play",
+    "steps": [
+      "Choose a word from the list.",
+      "Describe it without saying the word or any part of it.",
+      "Your partner guesses the word."
+    ],
+    "tip": "You can use examples, actions, feelings and details, but don’t say the word!"
+  }
+}
+```
+
+Поля:
+
+- `type` — строго `describeAndGuess`.
+- `id` — обязательный уникальный lowercase kebab-case идентификатор.
+- `title` и `instruction` — обязательные непустые строки без HTML и Markdown.
+- `items` — от 1 до 12 слов или фраз с уникальными kebab-case `id` и непустым
+  обычным текстом в `text`.
+- `howToPlay` — обязательный редактируемый объект. Он содержит непустые `title` и
+  `tip`, а также от 1 до 8 непустых строк в `steps`. Генератор использует одинаковый
+  стартовый текст правил для всех тем урока.
+
+Нажатие на слово локально включает или снимает зачёркивание. Это состояние не
+хранится в JSON и сбрасывается после повторной отрисовки. Кнопка `Показать`
+резервируется для отдельной будущей механики student screen и пока не изменяет
+состояние компонента.
+
+В review-редакторе администратор может менять заголовок, инструкцию, слова, заголовок
+правил, шаги и tip, а также добавлять, удалять и переставлять слова и шаги. Поля
+`type`, id компонента и существующие id слов неизменяемы; новые id создаёт интерфейс.
+
 ## Text Panel
 
 `textPanel` показывает простой текстовый блок с настраиваемым цветом фона. Этот

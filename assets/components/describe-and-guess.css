@@ -1,0 +1,55 @@
+.describe-and-guess, .describe-and-guess * { box-sizing: border-box; }
+.describe-and-guess { width: 100%; padding: 16px 18px 18px; border: 1px solid #ececf2; border-radius: 12px; color: #20243b; background: #fff; box-shadow: 0 3px 13px rgba(35, 31, 72, .035); }
+.describe-and-guess__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.describe-and-guess__title { margin: 0; font-size: 21px; line-height: 1.3; font-weight: 800; letter-spacing: -.015em; }
+.describe-and-guess__instruction { max-width: 730px; margin: 5px 0 0; color: #3e4256; font-size: 13px; line-height: 1.55; white-space: pre-line; }
+.describe-and-guess__actions { display: flex; flex: 0 0 auto; gap: 7px; }
+.describe-and-guess__show, .describe-and-guess__edit { display: flex; align-items: center; justify-content: center; min-height: 36px; border: 1px solid #e4e1f3; border-radius: 8px; color: #6545f5; background: #fff; }
+.describe-and-guess__show { padding: 0 11px; gap: 6px; font-size: 11px; font-weight: 700; }
+.describe-and-guess__show svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.describe-and-guess__edit { width: 36px; font-size: 17px; }
+.describe-and-guess__show:hover, .describe-and-guess__edit:hover { background: #f6f3ff; }
+.describe-and-guess__words { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 19px; gap: 13px 16px; }
+.describe-and-guess__word { min-height: 49px; padding: 9px 13px; border: 1.5px solid #9a75ef; border-radius: 8px; color: #25283d; background: #f5f0ff; font-size: 13px; font-weight: 700; line-height: 1.3; transition: background 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease; }
+.describe-and-guess__word:hover { background: #eee6ff; transform: translateY(-1px); }
+.describe-and-guess__word--crossed { color: #89899a; background: #f5f4f8; opacity: .72; text-decoration: line-through 2px; text-decoration-color: #6545f5; }
+.describe-and-guess__guide { display: grid; grid-template-columns: minmax(0, 1fr) 310px; align-items: center; margin-top: 18px; padding: 16px 23px 15px; border: 1px solid #a9d6b5; border-radius: 11px; background: #f3fbf4; }
+.describe-and-guess__guide-heading { display: flex; align-items: center; gap: 10px; color: #179b46; }
+.describe-and-guess__gamepad { width: 36px; height: 36px; flex: 0 0 auto; object-fit: contain; }
+.describe-and-guess__guide-heading h3 { margin: 0; font-size: 15px; font-weight: 800; }
+.describe-and-guess__steps { margin: 11px 0 0; padding: 0; list-style: none; counter-reset: describe-step; }
+.describe-and-guess__steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; min-height: 25px; gap: 9px; color: #323749; font-size: 12px; line-height: 1.55; counter-increment: describe-step; }
+.describe-and-guess__steps li::before { display: grid; place-items: center; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; color: #fff; background: #39aa5e; content: counter(describe-step); font-size: 10px; font-weight: 800; }
+.describe-and-guess__dialogue { justify-self: center; width: 280px; max-height: 230px; object-fit: contain; }
+.describe-and-guess__tip { max-width: 630px; margin: 11px 0 0 54px; padding: 8px 12px; border: 1px solid #b9dac1; border-radius: 7px; color: #303c36; background: #f8fff9; font-size: 11px; line-height: 1.5; }
+.describe-and-guess__tip > span { display: inline-grid; place-items: center; margin-right: 7px; color: #1ca14c; vertical-align: middle; }
+.describe-and-guess__tip > span svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.describe-and-guess__tip strong { color: #179b46; }
+.describe-and-guess__editor { display: grid; gap: 12px; }
+.describe-and-guess__editor h3 { margin: 8px 0 0; color: #6545f5; font-size: 14px; }
+.describe-and-guess__field { display: grid; gap: 5px; color: #55596c; font-size: 11px; font-weight: 700; }
+.describe-and-guess__field input, .describe-and-guess__field textarea, .describe-and-guess__editor-row input { width: 100%; padding: 9px 10px; border: 1px solid #d8d9e2; border-radius: 7px; color: #242842; background: #fff; font: inherit; font-size: 13px; }
+.describe-and-guess__field textarea { min-height: 64px; resize: vertical; }
+.describe-and-guess__editor-list { display: grid; gap: 8px; }
+.describe-and-guess__editor-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.describe-and-guess__row-actions, .describe-and-guess__editor-actions { display: flex; align-items: center; gap: 6px; }
+.describe-and-guess__small-button, .describe-and-guess__add, .describe-and-guess__save { min-height: 34px; padding: 0 10px; border: 1px solid #d3c9fb; border-radius: 7px; color: #6545f5; background: #fff; font-size: 12px; font-weight: 700; }
+.describe-and-guess__remove { color: #a34458; border-color: #efcbd3; }
+.describe-and-guess__add { width: fit-content; }
+.describe-and-guess__editor-actions { justify-content: flex-end; margin-top: 5px; }
+.describe-and-guess__save { color: #fff; background: #6545f5; }
+.describe-and-guess--saving { opacity: .7; }
+@media (max-width: 760px) {
+  .describe-and-guess { padding: 15px; }
+  .describe-and-guess__header { flex-direction: column; }
+  .describe-and-guess__actions { align-self: flex-end; }
+  .describe-and-guess__words { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .describe-and-guess__guide { grid-template-columns: 1fr; padding: 15px; }
+  .describe-and-guess__dialogue { display: none; }
+  .describe-and-guess__tip { margin-left: 0; }
+  .describe-and-guess__editor-row { grid-template-columns: 1fr; }
+  .describe-and-guess__row-actions { justify-content: flex-end; }
+}
+@media (max-width: 460px) {
+  .describe-and-guess__words { grid-template-columns: 1fr; }
+}

@@ -83,7 +83,7 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
   });
   assert.deepEqual(lesson.stages[2].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'matchWords', 'markdownCard', 'dropdownChoice', 'markdownCard', 'fillInBlanks',
-    'personalizedQuestions', 'markdownCard',
+    'personalizedQuestions', 'markdownCard', 'describeAndGuess',
   ]);
   assert.equal(lesson.stages[2].content[0].id, 'target-vocabulary-teacher-note');
   assert.equal(lesson.stages[2].subtitle, 'Summer + Gaming Words');
@@ -177,6 +177,25 @@ test('synthetic lesson contains seven ordered stages and the mock-aligned warm-u
     icon: 'chat',
     accentColor: '#20A85B',
     studentVisibility: 'always',
+  });
+  assert.deepEqual(lesson.stages[2].content[9], {
+    type: 'describeAndGuess',
+    id: 'target-vocabulary-describe-and-guess',
+    title: 'Extra Task · Describe and Guess',
+    instruction: 'Take turns with your teacher. Describe the word without saying it. Can your partner guess it?',
+    items: [{ id: 'describe-hang-out', text: 'to hang out (with friends)' },
+      { id: 'describe-go-offline-afk', text: 'to go offline / go AFK' },
+      { id: 'describe-spend-time-outdoors', text: 'to spend time outdoors' },
+      { id: 'describe-try-something-new', text: 'to try something new' },
+      { id: 'describe-level-up', text: 'to level up' },
+      { id: 'describe-get-stuck', text: 'to get stuck' }],
+    howToPlay: {
+      title: 'How to Play',
+      steps: ['Choose a word from the list.', 'Describe it without saying the word or any part of it.',
+        'Your partner guesses the word.', 'Click the word when it’s guessed. It will be crossed out.',
+        'Take turns and keep playing!'],
+      tip: 'You can use examples, actions, feelings and details, but don’t say the word!',
+    },
   });
   assert.ok(lesson.stages.slice(3).every(stage => stage.content === null));
 });

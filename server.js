@@ -36,6 +36,7 @@ const {
   listLessonDrafts,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
+  updateDescribeAndGuess,
   updateFillInBlanks,
   updateMarkdownCard,
   updateMatchWordsImage,
@@ -391,6 +392,19 @@ function getFillInBlanksRouteParams(pathname) {
 
 function getPersonalizedQuestionsRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/personalized-questions\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getDescribeAndGuessRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/describe-and-guess\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -839,6 +853,7 @@ const server = http.createServer(async (req, res) => {
     const markdownCardRoute = getMarkdownCardRouteParams(pathname);
     const fillInBlanksRoute = getFillInBlanksRouteParams(pathname);
     const personalizedQuestionsRoute = getPersonalizedQuestionsRouteParams(pathname);
+    const describeAndGuessRoute = getDescribeAndGuessRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
     if ((!teacherNoteRoute || !teacherNoteRoute.draftId || !teacherNoteRoute.noteId)
@@ -846,6 +861,7 @@ const server = http.createServer(async (req, res) => {
       && (!markdownCardRoute || !markdownCardRoute.draftId || !markdownCardRoute.componentId)
       && (!fillInBlanksRoute || !fillInBlanksRoute.draftId || !fillInBlanksRoute.componentId)
       && (!personalizedQuestionsRoute || !personalizedQuestionsRoute.draftId || !personalizedQuestionsRoute.componentId)
+      && (!describeAndGuessRoute || !describeAndGuessRoute.draftId || !describeAndGuessRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)) {
       json(res, 404, { error: 'Редактируемый компонент не найден.' });
@@ -902,6 +918,16 @@ const server = http.createServer(async (req, res) => {
           title: body.title,
           instruction: body.instruction,
           items: body.items,
+        }, database);
+      } else if (describeAndGuessRoute) {
+        draft = updateDescribeAndGuess({
+          id: describeAndGuessRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: describeAndGuessRoute.componentId,
+          title: body.title,
+          instruction: body.instruction,
+          items: body.items,
+          howToPlay: body.howToPlay,
         }, database);
       } else if (textPanelRoute) {
         draft = updateTextPanel({

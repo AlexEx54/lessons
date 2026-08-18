@@ -135,7 +135,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   ]);
   assert.deepEqual(created.content.stages[2].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'matchWords', 'markdownCard', 'dropdownChoice', 'markdownCard', 'fillInBlanks',
-    'personalizedQuestions', 'markdownCard',
+    'personalizedQuestions', 'markdownCard', 'describeAndGuess',
   ]);
   assert.equal(created.content.stages[2].subtitle, 'Summer + Gaming Words');
   assert.equal(created.content.stages[2].content[0].blocks.length, 3);
@@ -241,6 +241,29 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ title: 'Questions', instruction: 'Speak.', items: [] }),
   })).status, 400);
+
+  const describeAndGuessEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/describe-and-guess/target-vocabulary-describe-and-guess';
+  const describeAndGuessUpdate = await fetch(describeAndGuessEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: 'Updated extra task',
+      instruction: 'Describe and guess.',
+      items: [{ id: 'describe-level-up', text: 'level up' }],
+      howToPlay: { title: 'Game rules', steps: ['Pick a word.', 'Explain it.'], tip: 'Use examples.' },
+    }),
+  });
+  assert.equal(describeAndGuessUpdate.status, 200);
+  const savedDescribeAndGuess = (await describeAndGuessUpdate.json()).draft.content.stages[2].content[9];
+  assert.deepEqual(savedDescribeAndGuess, {
+    type: 'describeAndGuess',
+    id: 'target-vocabulary-describe-and-guess',
+    title: 'Updated extra task',
+    instruction: 'Describe and guess.',
+    items: [{ id: 'describe-level-up', text: 'level up' }],
+    howToPlay: { title: 'Game rules', steps: ['Pick a word.', 'Explain it.'], tip: 'Use examples.' },
+  });
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/personalized-questions/missing-questions`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
