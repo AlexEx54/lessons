@@ -19,6 +19,7 @@ const {
   updateFillInBlanks,
   updateMarkdownCard,
   updateMatchWordsImage,
+  updateCheckboxChoice,
   updateMultipleChoice,
   updatePersonalizedQuestions,
   updateTaskPrompt,
@@ -462,6 +463,86 @@ test('multiple choice content and order can be updated only in an owned review d
   }, database);
   assert.throws(() => updateMultipleChoice({
     id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-choice',
+    title: 'Quiz', instruction: 'Choose.', items: [items[1]],
+  }, database), /несколько/);
+  database.close();
+});
+
+test('checkbox choice content and order can be updated only in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'checkbox-owner');
+  const outsider = admin(database, 'checkbox-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Checkbox', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'checkboxChoice',
+      id: 'target-checkbox',
+      title: 'Task 1',
+      instruction: 'Choose.',
+      items: [{ id: 'first-question', question: 'First?', options: ['One', 'Two'], answers: ['One'] }],
+    }] }],
+  }, database);
+  const items = [
+    { id: 'second-question', question: 'Second?', options: ['Yes', 'No', 'Maybe'], answers: ['Maybe', 'Yes'] },
+    { id: 'first-question', question: 'Updated first?', options: ['One', 'Two'], answers: ['Two'] },
+  ];
+  const updated = updateCheckboxChoice({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'target-checkbox',
+    title: ' Updated quiz ',
+    instruction: ' Choose the correct options. ',
+    items,
+  }, database);
+  assert.deepEqual(updated.content.stages[0].content[0], {
+    type: 'checkboxChoice',
+    id: 'target-checkbox',
+    title: 'Updated quiz',
+    instruction: 'Choose the correct options.',
+    items: [{
+      id: 'second-question',
+      question: 'Second?',
+      options: ['Yes', 'No', 'Maybe'],
+      answers: ['Yes', 'Maybe'],
+    }, {
+      id: 'first-question',
+      question: 'Updated first?',
+      options: ['One', 'Two'],
+      answers: ['Two'],
+    }],
+  });
+  assert.throws(() => updateCheckboxChoice({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'target-checkbox',
+    title: 'Quiz', instruction: 'Choose.', items,
+  }, database), /не найден/);
+  assert.throws(() => updateCheckboxChoice({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing-checkbox',
+    title: 'Quiz', instruction: 'Choose.', items,
+  }, database), /не найден/);
+  assert.throws(() => updateCheckboxChoice({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'target-checkbox',
+    title: 'Quiz', instruction: 'Choose.', items: [],
+  }, database), /between 1 and 12/);
+  assert.throws(() => updateCheckboxChoice({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'target-checkbox',
+    title: 'Quiz', instruction: 'Choose.',
+    items: [{ id: 'second-question', question: 'Second?', options: ['Yes', 'No'], answers: [] }],
+  }, database), /at least one answer/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateCheckboxChoice({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'target-checkbox',
+    title: 'Quiz', instruction: 'Choose.', items,
+  }, database), /только черновик на проверке/);
+
+  const duplicatePending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Duplicate checkbox', template: 'template-1' }, database);
+  const duplicate = completeLessonDraft(duplicatePending.id, owner.id, {
+    stages: [
+      { content: [{ type: 'checkboxChoice', id: 'same-checkbox', title: 'One', instruction: 'Choose.', items: [items[1]] }] },
+      { content: [{ type: 'checkboxChoice', id: 'same-checkbox', title: 'Two', instruction: 'Choose.', items: [items[1]] }] },
+    ],
+  }, database);
+  assert.throws(() => updateCheckboxChoice({
+    id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-checkbox',
     title: 'Quiz', instruction: 'Choose.', items: [items[1]],
   }, database), /несколько/);
   database.close();

@@ -42,6 +42,7 @@ const {
   updateFillInBlanks,
   updateMarkdownCard,
   updateMatchWordsImage,
+  updateCheckboxChoice,
   updateMultipleChoice,
   updatePersonalizedQuestions,
   updateTaskPrompt,
@@ -447,6 +448,19 @@ function getFillInBlanksRouteParams(pathname) {
 
 function getMultipleChoiceRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/multiple-choice\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getCheckboxChoiceRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/checkbox-choice\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -1100,6 +1114,7 @@ const server = http.createServer(async (req, res) => {
     const markdownCardRoute = getMarkdownCardRouteParams(pathname);
     const fillInBlanksRoute = getFillInBlanksRouteParams(pathname);
     const multipleChoiceRoute = getMultipleChoiceRouteParams(pathname);
+    const checkboxChoiceRoute = getCheckboxChoiceRouteParams(pathname);
     const personalizedQuestionsRoute = getPersonalizedQuestionsRouteParams(pathname);
     const describeAndGuessRoute = getDescribeAndGuessRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
@@ -1111,6 +1126,7 @@ const server = http.createServer(async (req, res) => {
       && (!markdownCardRoute || !markdownCardRoute.draftId || !markdownCardRoute.componentId)
       && (!fillInBlanksRoute || !fillInBlanksRoute.draftId || !fillInBlanksRoute.componentId)
       && (!multipleChoiceRoute || !multipleChoiceRoute.draftId || !multipleChoiceRoute.componentId)
+      && (!checkboxChoiceRoute || !checkboxChoiceRoute.draftId || !checkboxChoiceRoute.componentId)
       && (!personalizedQuestionsRoute || !personalizedQuestionsRoute.draftId || !personalizedQuestionsRoute.componentId)
       && (!describeAndGuessRoute || !describeAndGuessRoute.draftId || !describeAndGuessRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
@@ -1168,6 +1184,15 @@ const server = http.createServer(async (req, res) => {
           id: multipleChoiceRoute.draftId,
           ownerAdminId: user.id,
           componentId: multipleChoiceRoute.componentId,
+          title: body.title,
+          instruction: body.instruction,
+          items: body.items,
+        }, database);
+      } else if (checkboxChoiceRoute) {
+        draft = updateCheckboxChoice({
+          id: checkboxChoiceRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: checkboxChoiceRoute.componentId,
           title: body.title,
           instruction: body.instruction,
           items: body.items,

@@ -189,11 +189,19 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.ok(created.content.stages[3].content[1].textImage.imagePrompt);
   assert.equal(created.content.stages[3].content[1].headerImage.imageSrc, undefined);
   assert.equal(created.content.stages[3].content[1].textImage.imageSrc, undefined);
-  assert.deepEqual(created.content.stages[4].content.map(component => component.type), ['teacherNote', 'audioPlayer']);
+  assert.deepEqual(created.content.stages[4].content.map(component => component.type), [
+    'teacherNote', 'audioPlayer', 'checkboxChoice', 'audioPlayer', 'multipleChoice', 'markdownCard',
+  ]);
   assert.equal(created.content.stages[4].content[0].id, 'listening-teacher-note');
   assert.equal(created.content.stages[4].content[1].id, 'listening-audio');
   assert.equal(created.content.stages[4].content[1].title, 'Listen to the audio');
   assert.equal(created.content.stages[4].content[1].audioSrc, undefined);
+  assert.equal(created.content.stages[4].content[2].id, 'listening-gist-quiz');
+  assert.equal(created.content.stages[4].content[3].id, 'listening-audio-again');
+  assert.equal(created.content.stages[4].content[3].title, 'Listen to the audio one more time');
+  assert.equal(created.content.stages[4].content[3].script, created.content.stages[4].content[1].script);
+  assert.equal(created.content.stages[4].content[4].id, 'listening-detail-quiz');
+  assert.equal(created.content.stages[4].content[5].id, 'listening-answer-key');
   assert.equal(created.content.stages[4].subtitle, 'Listen to the audio');
   assert.ok(created.content.stages.slice(5).every(stage => stage.content === null));
 
@@ -338,6 +346,60 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     body: JSON.stringify({
       title: 'Quiz', instruction: 'Choose.',
       items: [{ id: 'one', question: 'Question?', options: ['A', 'B'], answer: 'A' }],
+    }),
+  })).status, 404);
+  const checkboxChoiceEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/checkbox-choice/listening-gist-quiz`;
+  assert.equal((await fetch(checkboxChoiceEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Guest', instruction: 'Guest', items: [] }),
+  })).status, 401);
+  assert.equal((await fetch(checkboxChoiceEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: teacherCookie },
+    body: JSON.stringify({ title: 'Teacher', instruction: 'Teacher', items: [] }),
+  })).status, 403);
+  const checkboxChoiceUpdate = await fetch(checkboxChoiceEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      type: 'markdownCard',
+      id: 'attempted-id-change',
+      title: ' Updated gist ',
+      instruction: ' Choose carefully. ',
+      items: [{
+        id: 'conversation-place',
+        question: 'Where does it happen?',
+        options: ['Home', 'Camp office', 'Bus'],
+        answers: ['Bus', 'Home'],
+      }],
+    }),
+  });
+  assert.equal(checkboxChoiceUpdate.status, 200);
+  const savedCheckboxChoice = (await checkboxChoiceUpdate.json()).draft.content.stages[4].content[2];
+  assert.deepEqual(savedCheckboxChoice, {
+    type: 'checkboxChoice',
+    id: 'listening-gist-quiz',
+    title: 'Updated gist',
+    instruction: 'Choose carefully.',
+    items: [{
+      id: 'conversation-place',
+      question: 'Where does it happen?',
+      options: ['Home', 'Camp office', 'Bus'],
+      answers: ['Home', 'Bus'],
+    }],
+  });
+  assert.equal((await fetch(checkboxChoiceEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Quiz', instruction: 'Choose.', items: [] }),
+  })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/checkbox-choice/missing-checkbox`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: 'Quiz', instruction: 'Choose.',
+      items: [{ id: 'one', question: 'Question?', options: ['A', 'B'], answers: ['A'] }],
     }),
   })).status, 404);
 

@@ -246,7 +246,9 @@ test('synthetic lesson contains eight ordered stages and the mock-aligned warm-u
   assert.match(lesson.stages[3].content[4].text, /\*\*Task 1:\*\*\n\nB —/);
   assert.doesNotMatch(lesson.stages[3].content[4].text, /Possible follow-up/);
   assert.doesNotMatch(lesson.stages[3].content[4].text, /5B —/);
-  assert.deepEqual(lesson.stages[4].content.map(component => component.type), ['teacherNote', 'audioPlayer']);
+  assert.deepEqual(lesson.stages[4].content.map(component => component.type), [
+    'teacherNote', 'audioPlayer', 'checkboxChoice', 'audioPlayer', 'multipleChoice', 'markdownCard',
+  ]);
   assert.deepEqual(lesson.stages[4].content[0], {
     type: 'teacherNote',
     id: 'listening-teacher-note',
@@ -278,6 +280,30 @@ test('synthetic lesson contains eight ordered stages and the mock-aligned warm-u
   assert.match(listeningAudio.script, /\bguitar\b/);
   const spokenWords = listeningAudio.script.replace(/^[^:]+:\s*/gm, '').split(/\s+/).filter(Boolean);
   assert.ok(spokenWords.length >= 250 && spokenWords.length <= 360, `expected ~2 minutes of speech, got ${spokenWords.length} words`);
+  const listeningGist = lesson.stages[4].content[2];
+  assert.equal(listeningGist.id, 'listening-gist-quiz');
+  assert.equal(listeningGist.items.length, 2);
+  assert.deepEqual(listeningGist.items[0].answers, ['At the AFK Summer camp office']);
+  assert.deepEqual(listeningGist.items[1].answers, ['What to pack for AFK Summer', 'Why they chose the camp']);
+  const listeningAudioAgain = lesson.stages[4].content[3];
+  assert.equal(listeningAudioAgain.id, 'listening-audio-again');
+  assert.equal(listeningAudioAgain.title, 'Listen to the audio one more time');
+  assert.equal(listeningAudioAgain.script, listeningAudio.script);
+  assert.equal(listeningAudioAgain.audioSrc, undefined);
+  const listeningDetail = lesson.stages[4].content[4];
+  assert.equal(listeningDetail.id, 'listening-detail-quiz');
+  assert.equal(listeningDetail.items.length, 5);
+  assert.deepEqual(listeningDetail.items.map(item => item.options.indexOf(item.answer)), [1, 2, 0, 1, 2]);
+  assert.equal(listeningDetail.items[4].explanation, undefined);
+  assert.deepEqual(lesson.stages[4].content[5], {
+    type: 'markdownCard',
+    id: 'listening-answer-key',
+    title: 'Answer Key',
+    text: '**Task 1:**\n\n1B — The conversation happens at the AFK Summer camp office.\n\n2A, B — They talk about packing and why they chose AFK Summer.\n\n**Task 2:**\n\n1B — They are going to leave on Friday morning.\n\n2C — They are going to stay in cabins.\n\n3A — Mia is going to bring her guitar.\n\n4B — There is a music workshop on Tuesday.\n\n5C',
+    icon: 'check',
+    accentColor: '#20A85B',
+    studentVisibility: 'teacherOnly',
+  });
   assert.ok(lesson.stages.slice(5).every(stage => stage.content === null));
 });
 
