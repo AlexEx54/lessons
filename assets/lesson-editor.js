@@ -56,6 +56,14 @@
       },
       onError: showToast,
     }),
+    dragWordsInText: component => window.DragWordsInTextComponent.renderDragWordsInText(component, {
+      onSave: state.draftStatus === 'review' ? saveDragWordsInText : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
     personalizedQuestions: component => window.PersonalizedQuestionsComponent.renderPersonalizedQuestions(component, {
       onSave: state.draftStatus === 'review' ? savePersonalizedQuestions : undefined,
       onDirtyChange: (dirty, componentId) => {
@@ -419,6 +427,15 @@
     for (const stage of lesson.stages || []) {
       for (const component of stage.content || []) {
         if (component?.type === 'fillInBlanks' && component.id === componentId) return component;
+      }
+    }
+    return null;
+  }
+
+  function findDragWordsInText(lesson, componentId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'dragWordsInText' && component.id === componentId) return component;
       }
     }
     return null;
@@ -836,6 +853,31 @@
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить Fill in the Blanks.');
+      throw error;
+    }
+  }
+
+  async function saveDragWordsInText(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/drag-words-in-text/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить Complete the Rule.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findDragWordsInText(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый Complete the Rule не найден в черновике.');
+      showToast('Complete the Rule сохранён.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить Complete the Rule.');
       throw error;
     }
   }

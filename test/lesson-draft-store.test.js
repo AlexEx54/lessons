@@ -17,6 +17,7 @@ const {
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateFillInBlanks,
+  updateDragWordsInText,
   updateMarkdownCard,
   updateMatchWordsImage,
   updateCheckboxChoice,
@@ -327,6 +328,58 @@ test('fill in the blanks items can be edited, added, removed, and reordered in r
   publishLessonDraft(ready.id, owner.id, database);
   assert.throws(() => updateFillInBlanks({
     id: ready.id, ownerAdminId: owner.id, componentId: 'target-fill', items,
+  }, database), /только черновик на проверке/);
+  database.close();
+});
+
+test('drag words in text copy, bank, and gaps can be updated only in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'drag-owner');
+  const outsider = admin(database, 'drag-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Drag', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'dragWordsInText',
+      id: 'complete-the-rule',
+      title: 'Complete the Rule',
+      instruction: 'Drag the words.',
+      words: ['past', 'future'],
+      text: 'It was true in the [[past]].',
+    }] }],
+  }, database);
+  const updated = updateDragWordsInText({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'complete-the-rule',
+    title: ' Updated title ',
+    instruction: '  Place them. ',
+    words: ['past', 'now', 'future'],
+    text: 'It was true in the [[past]], not [[now]].',
+  }, database);
+  assert.deepEqual(updated.content.stages[0].content[0], {
+    type: 'dragWordsInText',
+    id: 'complete-the-rule',
+    title: 'Updated title',
+    instruction: 'Place them.',
+    words: ['past', 'now', 'future'],
+    text: 'It was true in the [[past]], not [[now]].',
+  });
+  assert.throws(() => updateDragWordsInText({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'complete-the-rule',
+    title: 'Title', instruction: 'Instruction', words: ['only'], text: 'A [[only]].',
+  }, database), /between 2 and 12 words/);
+  assert.throws(() => updateDragWordsInText({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'complete-the-rule',
+    title: 'Title', instruction: 'Instruction', words: ['past', 'future'], text: 'A [[past]].',
+  }, database), /не найден/);
+  assert.throws(() => updateDragWordsInText({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing',
+    title: 'Title', instruction: 'Instruction', words: ['past', 'future'], text: 'A [[past]].',
+  }, database), /не найден/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateDragWordsInText({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'complete-the-rule',
+    title: 'Title', instruction: 'Instruction', words: ['past', 'future'], text: 'A [[past]].',
   }, database), /только черновик на проверке/);
   database.close();
 });

@@ -18,6 +18,7 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.equal(lesson.stages[1].subtitle, 'Gamer Chat');
   assert.equal(lesson.stages[3].subtitle, 'Read the text');
   assert.equal(lesson.stages[4].subtitle, 'Listen to the audio');
+  assert.equal(lesson.stages[5].subtitle, 'Complete the Rule');
   assert.deepEqual(lesson.stages[0].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'thisOrThat', 'taskPrompt',
   ]);
@@ -308,7 +309,7 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.equal(grammarPresentation.title, 'Grammar Presentation');
   assert.equal(grammarPresentation.durationMinutes, 5);
   assert.deepEqual(grammarPresentation.content.map(component => component.type), [
-    'teacherNote', 'textPanel', 'textPanel',
+    'teacherNote', 'textPanel', 'textPanel', 'dragWordsInText',
   ]);
   assert.deepEqual(grammarPresentation.content[0], {
     type: 'teacherNote',
@@ -318,7 +319,7 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.deepEqual(grammarPresentation.content[1], {
     type: 'textPanel',
     id: 'grammar-presentation-notice-rule',
-    text: '{l}**Task 1. Notice and Complete the Rule**{/l}\n\n{s}Look at the examples. What grammar structure is used here?{/s}\n\n1. I **used to** think an exchange year would feel like one long adventure.\n2. I **used to** finish school at 2:30.\n3. I couldn’t **get used to** eating lunch at 11:15.\n4. I **got used to** the workload after a few weeks.\n5. I’m finally **getting used to** asking teachers for help.',
+    text: '{l}**Notice the Rule**{/l}\n\n{s}Look at the examples. What grammar structure is used here?{/s}\n\n1. I **used to** think an exchange year would feel like one long adventure.\n2. I **used to** finish school at 2:30.\n3. I couldn’t **get used to** eating lunch at 11:15.\n4. I **got used to** the workload after a few weeks.\n5. I’m finally **getting used to** asking teachers for help.',
     backgroundColor: '#FFFFFF',
     accentColor: '#6545F5',
     showBorder: false,
@@ -330,6 +331,14 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
     backgroundColor: '#FFFFFF',
     accentColor: '#20A85B',
     showBorder: true,
+  });
+  assert.deepEqual(grammarPresentation.content[3], {
+    type: 'dragWordsInText',
+    id: 'grammar-presentation-complete-the-rule',
+    title: 'Complete the Rule',
+    instruction: 'Drag the correct words into the gaps.',
+    words: ['past', 'base verb', 'comfortable', '-ing', 'future', 'infinitive with to'],
+    text: 'used to + [[base verb]]. We use it for habits or states that were true in the [[past]] but are different now.\n\nget used to + noun / verb + [[-ing]]. It means to become [[comfortable]] with a new situation.',
   });
   assert.ok(lesson.stages.slice(6).every(stage => stage.content === null));
 });

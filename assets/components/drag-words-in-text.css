@@ -1,0 +1,279 @@
+.drag-words-in-text {
+  padding: 20px;
+  border: 1px solid #e7e3f4;
+  border-radius: 12px;
+  background: #fff;
+  color: #24222b;
+  box-shadow: 0 4px 16px rgba(39, 32, 76, .035);
+}
+
+.drag-words-in-text__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.drag-words-in-text__title {
+  margin: 0;
+  color: #17182d;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.drag-words-in-text__instruction {
+  margin: 3px 0 15px;
+  color: #656a80;
+  font-size: 12px;
+}
+
+.drag-words-in-text__edit,
+.drag-words-in-text__tool {
+  border: 1px solid #dcd6e8;
+  border-radius: 7px;
+  background: #fff;
+  color: #6545f5;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.drag-words-in-text__edit {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 17px;
+}
+
+.drag-words-in-text__edit:disabled,
+.drag-words-in-text__tool:disabled,
+.drag-words-in-text__chip-remove:disabled,
+.drag-words-in-text__gap-remove:disabled {
+  cursor: default;
+  opacity: .45;
+}
+
+.drag-words-in-text__toolbar {
+  display: flex;
+  width: fit-content;
+  margin: 0 0 12px;
+  padding: 4px;
+  gap: 3px;
+  border: 1px solid #e7e3f4;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.drag-words-in-text__toolbar[hidden] { display: none; }
+
+.drag-words-in-text__tool {
+  min-height: 29px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.drag-words-in-text__bank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.drag-words-in-text__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #cfc4fb;
+  border-radius: 999px;
+  background: #fff;
+  color: #6545f5;
+  cursor: grab;
+  font: 600 12px/1.3 Inter, sans-serif;
+  touch-action: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.drag-words-in-text__chip:hover {
+  border-color: #b5a6f6;
+  background: #faf8ff;
+}
+
+.drag-words-in-text__chip--picked {
+  border-color: #6545f5;
+  background: #f4f0ff;
+  box-shadow: 0 0 0 3px rgba(101, 69, 245, .16);
+  cursor: grab;
+}
+
+.drag-words-in-text__chip--dragging { opacity: .35; }
+
+.drag-words-in-text__ghost {
+  position: fixed;
+  z-index: 40;
+  margin: 0;
+  pointer-events: none;
+  box-shadow: 0 10px 24px rgba(101, 69, 245, .2);
+  transform: translate(-50%, -60%);
+}
+
+.drag-words-in-text__passage {
+  color: #25263a;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 2.65;
+}
+
+.drag-words-in-text__paragraph {
+  margin: 0;
+}
+
+.drag-words-in-text__paragraph + .drag-words-in-text__paragraph {
+  margin-top: 10px;
+}
+
+.drag-words-in-text__gap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  min-height: 34px;
+  margin: 0 4px;
+  padding: 0 12px;
+  border: 1.5px dashed #6545f5;
+  border-radius: 999px;
+  background: #fcfbff;
+  vertical-align: middle;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.drag-words-in-text__gap--target {
+  border-style: solid;
+  background: #f4f0ff;
+  box-shadow: 0 0 0 3px rgba(101, 69, 245, .12);
+}
+
+.drag-words-in-text__gap--wrong {
+  border-style: solid;
+  border-color: #ef8090;
+  background: #fff7f8;
+  box-shadow: 0 0 0 2px rgba(228, 63, 80, .08);
+}
+
+.drag-words-in-text__gap--correct {
+  border: 1px solid #a9ddb9;
+  background: #effaf2;
+  color: #168c48;
+  cursor: default;
+  font-weight: 600;
+}
+
+.drag-words-in-text__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.drag-words-in-text--editing .drag-words-in-text__title,
+.drag-words-in-text--editing .drag-words-in-text__instruction {
+  min-width: 80px;
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #6545f5 10%, transparent);
+  outline: 1px solid #6545f5;
+}
+
+.drag-words-in-text--editing .drag-words-in-text__chip {
+  cursor: text;
+  touch-action: auto;
+  user-select: text;
+}
+
+.drag-words-in-text--editing .drag-words-in-text__chip-text,
+.drag-words-in-text--editing .drag-words-in-text__gap-answer {
+  min-width: 28px;
+  outline: none;
+  box-shadow: none;
+}
+
+.drag-words-in-text--editing .drag-words-in-text__text {
+  display: inline;
+  white-space: pre-wrap;
+  min-width: .6em;
+  padding: 0 1px;
+  box-shadow: none;
+  outline: none;
+  border-radius: 3px;
+}
+
+.drag-words-in-text--editing .drag-words-in-text__passage {
+  cursor: text;
+}
+
+.drag-words-in-text--editing .drag-words-in-text__gap {
+  cursor: text;
+  gap: 4px;
+  padding-right: 6px;
+}
+
+.drag-words-in-text__chip-remove,
+.drag-words-in-text__gap-remove {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8b8499;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.drag-words-in-text__chip-remove:hover,
+.drag-words-in-text__gap-remove:hover {
+  color: #b13b4a;
+  background: #fff2f4;
+}
+
+.drag-words-in-text__chip--add {
+  border-style: dashed;
+  color: #7b74c9;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.drag-words-in-text--editing [contenteditable="true"]:empty::before {
+  color: #9296a8;
+  content: attr(data-placeholder);
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.drag-words-in-text--saving { opacity: .7; }
+
+@media (max-width: 560px) {
+  .drag-words-in-text { padding: 15px 12px; }
+  .drag-words-in-text__passage { font-size: 13px; line-height: 2.8; }
+  .drag-words-in-text__chip,
+  .drag-words-in-text__gap { min-height: 32px; }
+  .drag-words-in-text__gap { min-width: 72px; margin-inline: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drag-words-in-text__chip,
+  .drag-words-in-text__gap { transition: none; }
+}

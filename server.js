@@ -30,6 +30,7 @@ const {
   updateIllustratedTextPanelImage,
   updateDescribeAndGuess,
   updateFillInBlanks,
+  updateDragWordsInText,
   updateMarkdownCard,
   updateMatchWordsImage,
   updateCheckboxChoice,
@@ -381,6 +382,19 @@ function getMarkdownCardRouteParams(pathname) {
 
 function getFillInBlanksRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/fill-in-blanks\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getDragWordsInTextRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/drag-words-in-text\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -1033,6 +1047,7 @@ const server = http.createServer(async (req, res) => {
     const taskPromptRoute = getTaskPromptRouteParams(pathname);
     const markdownCardRoute = getMarkdownCardRouteParams(pathname);
     const fillInBlanksRoute = getFillInBlanksRouteParams(pathname);
+    const dragWordsInTextRoute = getDragWordsInTextRouteParams(pathname);
     const multipleChoiceRoute = getMultipleChoiceRouteParams(pathname);
     const checkboxChoiceRoute = getCheckboxChoiceRouteParams(pathname);
     const personalizedQuestionsRoute = getPersonalizedQuestionsRouteParams(pathname);
@@ -1045,6 +1060,7 @@ const server = http.createServer(async (req, res) => {
       && (!taskPromptRoute || !taskPromptRoute.draftId || !taskPromptRoute.promptId)
       && (!markdownCardRoute || !markdownCardRoute.draftId || !markdownCardRoute.componentId)
       && (!fillInBlanksRoute || !fillInBlanksRoute.draftId || !fillInBlanksRoute.componentId)
+      && (!dragWordsInTextRoute || !dragWordsInTextRoute.draftId || !dragWordsInTextRoute.componentId)
       && (!multipleChoiceRoute || !multipleChoiceRoute.draftId || !multipleChoiceRoute.componentId)
       && (!checkboxChoiceRoute || !checkboxChoiceRoute.draftId || !checkboxChoiceRoute.componentId)
       && (!personalizedQuestionsRoute || !personalizedQuestionsRoute.draftId || !personalizedQuestionsRoute.componentId)
@@ -1098,6 +1114,16 @@ const server = http.createServer(async (req, res) => {
           ownerAdminId: user.id,
           componentId: fillInBlanksRoute.componentId,
           items: body.items,
+        }, database);
+      } else if (dragWordsInTextRoute) {
+        draft = updateDragWordsInText({
+          id: dragWordsInTextRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: dragWordsInTextRoute.componentId,
+          title: body.title,
+          instruction: body.instruction,
+          words: body.words,
+          text: body.text,
         }, database);
       } else if (multipleChoiceRoute) {
         draft = updateMultipleChoice({

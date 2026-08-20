@@ -205,10 +205,12 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.content.stages[4].content[5].id, 'listening-answer-key');
   assert.equal(created.content.stages[4].subtitle, 'Listen to the audio');
   assert.equal(created.content.stages[5].id, 'grammar-presentation');
+  assert.equal(created.content.stages[5].subtitle, 'Complete the Rule');
   assert.deepEqual(created.content.stages[5].content.map(component => component.id), [
     'grammar-presentation-teacher-note',
     'grammar-presentation-notice-rule',
     'grammar-presentation-concept-checking',
+    'grammar-presentation-complete-the-rule',
   ]);
   assert.equal(created.content.stages[5].content[1].showBorder, false);
   assert.equal(created.content.stages[5].content[2].accentColor, '#20A85B');
@@ -239,6 +241,39 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.deepEqual(savedFillInBlanks.items, [{
     id: 'fill-item-added', before: 'We can', answer: 'chill out', after: 'after class.',
   }]);
+
+  const dragWordsEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/drag-words-in-text/grammar-presentation-complete-the-rule';
+  assert.equal((await fetch(dragWordsEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Guest', instruction: 'Guest', words: ['a', 'b'], text: 'A [[a]].' }),
+  })).status, 401);
+  const dragWordsUpdate = await fetch(dragWordsEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: ' Updated rule ',
+      instruction: '  Place the words. ',
+      words: ['past', 'now', 'future'],
+      text: 'It was true in the [[past]], not [[now]].',
+    }),
+  });
+  assert.equal(dragWordsUpdate.status, 200);
+  const savedDragWords = (await dragWordsUpdate.json()).draft.content.stages[5].content[3];
+  assert.deepEqual(savedDragWords, {
+    type: 'dragWordsInText',
+    id: 'grammar-presentation-complete-the-rule',
+    title: 'Updated rule',
+    instruction: 'Place the words.',
+    words: ['past', 'now', 'future'],
+    text: 'It was true in the [[past]], not [[now]].',
+  });
+  assert.equal((await fetch(dragWordsEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Broken', instruction: 'Broken', words: ['only'], text: 'No gap.' }),
+  })).status, 400);
 
   const personalizedQuestionsEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
     + '/personalized-questions/target-vocabulary-personalized-questions';
