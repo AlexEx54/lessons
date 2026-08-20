@@ -4,14 +4,14 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
 
-test('synthetic lesson contains eight ordered stages and the mock-aligned warm-up prompts', () => {
+test('synthetic lesson contains nine ordered stages and the mock-aligned content', () => {
   const lesson = createSyntheticLesson('  Space travel  ');
   assert.equal(lesson.meta.topic, 'Space travel');
-  assert.equal(lesson.meta.durationMinutes, 45);
-  assert.equal(lesson.stages.length, 8);
+  assert.equal(lesson.meta.durationMinutes, 50);
+  assert.equal(lesson.stages.length, 9);
   assert.deepEqual(lesson.stages.map(stage => stage.id), [
     'warm-up', 'lead-in', 'target-vocabulary', 'reading', 'listening',
-    'grammar-focus', 'guided-speaking', 'wrap-up',
+    'grammar-presentation', 'grammar-focus', 'guided-speaking', 'wrap-up',
   ]);
   assert.ok(lesson.stages.every((stage, index) => stage.number === index + 1));
   assert.equal(lesson.stages[0].subtitle, 'This or That?');
@@ -304,7 +304,34 @@ test('synthetic lesson contains eight ordered stages and the mock-aligned warm-u
     accentColor: '#20A85B',
     studentVisibility: 'teacherOnly',
   });
-  assert.ok(lesson.stages.slice(5).every(stage => stage.content === null));
+  const grammarPresentation = lesson.stages[5];
+  assert.equal(grammarPresentation.title, 'Grammar Presentation');
+  assert.equal(grammarPresentation.durationMinutes, 5);
+  assert.deepEqual(grammarPresentation.content.map(component => component.type), [
+    'teacherNote', 'textPanel', 'textPanel',
+  ]);
+  assert.deepEqual(grammarPresentation.content[0], {
+    type: 'teacherNote',
+    id: 'grammar-presentation-teacher-note',
+    text: '- **Notice pattern:** “used to” = past habit/state that is different now; “get used to” = become accustomed to something new.\n- **CCQs to ask orally:** “Was it true in the past or is it true now?” “Was it easy at first?” “Are we talking about a past habit or a new situation?” “After ‘to’, do we use a base verb or -ing here?”\n- **Explain simply:** “used to” talks about before; “get used to” talks about adaptation over time.\n- **Typical mistakes:** “get used to + base verb” instead of “-ing”; confusing “used to” with past simple; writing “use to” in affirmative sentences.',
+  });
+  assert.deepEqual(grammarPresentation.content[1], {
+    type: 'textPanel',
+    id: 'grammar-presentation-notice-rule',
+    text: '{l}**Task 1. Notice and Complete the Rule**{/l}\n\n{s}Look at the examples. What grammar structure is used here?{/s}\n\n1. I **used to** think an exchange year would feel like one long adventure.\n2. I **used to** finish school at 2:30.\n3. I couldn’t **get used to** eating lunch at 11:15.\n4. I **got used to** the workload after a few weeks.\n5. I’m finally **getting used to** asking teachers for help.',
+    backgroundColor: '#FFFFFF',
+    accentColor: '#6545F5',
+    showBorder: false,
+  });
+  assert.deepEqual(grammarPresentation.content[2], {
+    type: 'textPanel',
+    id: 'grammar-presentation-concept-checking',
+    text: '{l}**Concept-checking questions:**{/l}\n\n1. In sentence 2, was that routine true in the past or is it true now?\n2. In sentence 3, was eating lunch at 11:15 easy at first?\n3. In sentences 4–5, are we talking about a habit or a change over time?\n4. After “get used to”, do we use a noun / -ing form or a base verb?',
+    backgroundColor: '#FFFFFF',
+    accentColor: '#20A85B',
+    showBorder: true,
+  });
+  assert.ok(lesson.stages.slice(6).every(stage => stage.content === null));
 });
 
 test('synthetic warm-up component copy does not depend on the user topic', () => {

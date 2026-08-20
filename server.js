@@ -1223,6 +1223,8 @@ const server = http.createServer(async (req, res) => {
           panelId: textPanelRoute.panelId,
           text: body.text,
           backgroundColor: body.backgroundColor,
+          accentColor: body.accentColor,
+          showBorder: body.showBorder,
         }, database);
       } else if (textReadingRoute) {
         draft = updateTextReading({

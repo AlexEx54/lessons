@@ -1,18 +1,20 @@
 .text-panel {
   --text-panel-background: #252a38;
   --text-panel-foreground: #fff;
+  --text-panel-accent: var(--text-panel-foreground);
   position: relative;
   width: 100%;
   padding: 22px 24px;
-  border: 1px solid color-mix(in srgb, var(--text-panel-foreground) 12%, #dfe2ea);
+  border: 1px solid var(--text-panel-accent);
   border-radius: 18px;
   color: var(--text-panel-foreground);
   background: var(--text-panel-background);
   box-shadow: 0 3px 12px rgba(24, 25, 36, .05);
 }
 .text-panel--illustrated { border-color: transparent; box-shadow: 0 8px 22px rgba(24, 25, 36, .14); }
+.text-panel--plain.text-panel--frameless { padding: 0; border-color: transparent; border-radius: 0; box-shadow: none; }
 .text-panel__layout { display: flex; align-items: center; gap: 20px; min-width: 0; }
-.text-panel__text { flex: 1 1 auto; min-width: 0; font-size: 15px; line-height: 1.65; overflow-wrap: anywhere; }
+.text-panel__text { flex: 1 1 auto; min-width: 0; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
 .text-panel__text p,
 .text-panel__text ul,
 .text-panel__text ol { margin: 0; }
@@ -24,7 +26,16 @@
 .text-panel__text ul,
 .text-panel__text ol { padding-left: 20px; }
 .text-panel--plain .text-panel__text li { padding-left: 8px; }
-.text-panel--plain .text-panel__text li + li { margin-top: 18px; }
+.text-panel--plain .text-panel__text li + li { margin-top: 12px; }
+.text-panel--plain .text-panel__text > p:first-child [data-md-size="l"] {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: -.01em;
+}
+.text-panel--plain .text-panel__text strong,
+.text-panel--plain .text-panel__text b,
+.text-panel--plain .text-panel__text li::marker { color: var(--text-panel-accent); }
 .text-panel__spacer { height: 9px; }
 .text-panel__picture { position: relative; flex: 0 1 88px; width: clamp(48px, 9vw, 88px); max-width: 88px; min-width: 48px; }
 .text-panel__picture img { display: block; width: 100%; height: 88px; object-fit: contain; }
@@ -39,7 +50,10 @@
 .text-panel__image-action--remove { color: #cf3342; }
 .text-panel__edit { position: absolute; top: -14px; right: 10px; z-index: 5; display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid #ded9f7; border-radius: 8px; color: #6545f5; background: #fff; font-weight: 800; box-shadow: 0 5px 16px rgba(63, 46, 132, .12); }
 .text-panel__controls { display: flex; align-items: center; gap: 7px; margin: -7px 36px 15px 0; padding-bottom: 12px; border-bottom: 1px solid color-mix(in srgb, currentColor 22%, transparent); }
-.text-panel__color-label { display: flex; align-items: center; gap: 7px; margin-right: auto; font-size: 11px; font-weight: 700; }
+.text-panel__color-label { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; }
+.text-panel__color-label:first-child { margin-right: auto; }
+.text-panel__border-label { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.text-panel__border-toggle { accent-color: var(--text-panel-accent); }
 .text-panel__color-picker {
   -webkit-appearance: none;
   appearance: none;
@@ -64,6 +78,7 @@
 }
 .text-panel__color-text { width: 78px; min-height: 27px; padding: 0 7px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); border-radius: 6px; color: inherit; background: color-mix(in srgb, var(--text-panel-background) 82%, transparent); font: inherit; text-transform: uppercase; }
 .text-panel__format { width: 30px; min-height: 27px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); border-radius: 6px; color: inherit; background: color-mix(in srgb, var(--text-panel-background) 82%, transparent); font-size: 11px; font-weight: 800; }
+.text-panel__format--list { width: 40px; white-space: nowrap; }
 .text-panel__format--size { width: auto; min-width: 28px; padding: 0 5px; font-size: 10px; letter-spacing: 0.02em; }
 .text-panel--editing .text-panel__text { padding: 7px 9px; border-radius: 7px; outline: 1px solid color-mix(in srgb, currentColor 42%, transparent); background: color-mix(in srgb, currentColor 7%, transparent); }
 .text-panel--dirty .text-panel__edit { box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 24%, transparent); }
@@ -83,4 +98,5 @@
   .text-panel__copy { top: 3px; right: 3px; width: 18px; height: 18px; font-size: 9px; }
   .text-panel__controls { flex-wrap: wrap; }
   .text-panel__color-label { width: 100%; }
+  .text-panel--plain.text-panel--frameless { padding: 0; }
 }

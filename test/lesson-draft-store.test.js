@@ -636,12 +636,31 @@ test('text panel content and background can be updated in an owned review draft'
   }, database);
   assert.equal(updated.content.stages[0].content[0].text, '**Updated**');
   assert.equal(updated.content.stages[0].content[0].backgroundColor, '#ABCDEF');
+  assert.equal(updated.content.stages[0].content[0].accentColor, undefined);
+  assert.equal(updated.content.stages[0].content[0].showBorder, undefined);
+  const styled = updateTextPanel({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    panelId: 'panel-one',
+    text: '**Styled**',
+    backgroundColor: '#ffffff',
+    accentColor: ' #20a85b ',
+    showBorder: false,
+  }, database);
+  assert.equal(styled.content.stages[0].content[0].accentColor, '#20A85B');
+  assert.equal(styled.content.stages[0].content[0].showBorder, false);
   assert.throws(() => updateTextPanel({
     id: ready.id, ownerAdminId: owner.id, panelId: 'panel-one', text: '', backgroundColor: '#FFFFFF',
   }, database), /не может быть пустым/);
   assert.throws(() => updateTextPanel({
     id: ready.id, ownerAdminId: owner.id, panelId: 'panel-one', text: 'Text', backgroundColor: '#fff',
   }, database), /#RRGGBB/);
+  assert.throws(() => updateTextPanel({
+    id: ready.id, ownerAdminId: owner.id, panelId: 'panel-one', text: 'Text', backgroundColor: '#FFFFFF', accentColor: '#123',
+  }, database), /#RRGGBB/);
+  assert.throws(() => updateTextPanel({
+    id: ready.id, ownerAdminId: owner.id, panelId: 'panel-one', text: 'Text', backgroundColor: '#FFFFFF', showBorder: 'no',
+  }, database), /boolean/);
   assert.throws(() => updateTextPanel({
     id: ready.id, ownerAdminId: outsider.id, panelId: 'panel-one', text: 'Text', backgroundColor: '#FFFFFF',
   }, database), /не найден/);

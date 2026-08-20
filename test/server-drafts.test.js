@@ -123,8 +123,9 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.status, 'review');
   assert.equal(created.content.schemaVersion, 'lesson-draft-v1');
   assert.equal(created.content.meta.topic, 'Travel English');
-  assert.equal(created.content.stages.length, 8);
-  assert.deepEqual(created.content.stages.map(stage => stage.number), [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.equal(created.content.meta.durationMinutes, 50);
+  assert.equal(created.content.stages.length, 9);
+  assert.deepEqual(created.content.stages.map(stage => stage.number), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
   assert.deepEqual(created.content.stages[0].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'thisOrThat', 'taskPrompt',
   ]);
@@ -203,7 +204,15 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.content.stages[4].content[4].id, 'listening-detail-quiz');
   assert.equal(created.content.stages[4].content[5].id, 'listening-answer-key');
   assert.equal(created.content.stages[4].subtitle, 'Listen to the audio');
-  assert.ok(created.content.stages.slice(5).every(stage => stage.content === null));
+  assert.equal(created.content.stages[5].id, 'grammar-presentation');
+  assert.deepEqual(created.content.stages[5].content.map(component => component.id), [
+    'grammar-presentation-teacher-note',
+    'grammar-presentation-notice-rule',
+    'grammar-presentation-concept-checking',
+  ]);
+  assert.equal(created.content.stages[5].content[1].showBorder, false);
+  assert.equal(created.content.stages[5].content[2].accentColor, '#20A85B');
+  assert.ok(created.content.stages.slice(6).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: firstAdminCookie },
@@ -641,6 +650,32 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(savedPlainPanel.id, 'lead-in-discussion-questions');
   assert.equal(savedPlainPanel.text, '1. Updated question\n2. Another question');
   assert.equal(savedPlainPanel.backgroundColor, '#FEFEFE');
+  assert.equal(savedPlainPanel.accentColor, undefined);
+  assert.equal(savedPlainPanel.showBorder, undefined);
+  const styledPlainPanelResponse = await fetch(plainPanelEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      text: 'Styled question',
+      backgroundColor: '#ffffff',
+      accentColor: '#20a85b',
+      showBorder: false,
+    }),
+  });
+  assert.equal(styledPlainPanelResponse.status, 200);
+  const styledPlainPanel = (await styledPlainPanelResponse.json()).draft.content.stages[1].content[3];
+  assert.equal(styledPlainPanel.accentColor, '#20A85B');
+  assert.equal(styledPlainPanel.showBorder, false);
+  assert.equal((await fetch(plainPanelEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: 'Invalid', backgroundColor: '#FFFFFF', accentColor: '#123', showBorder: true }),
+  })).status, 400);
+  assert.equal((await fetch(plainPanelEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: 'Invalid', backgroundColor: '#FFFFFF', accentColor: '#6545F5', showBorder: 'no' }),
+  })).status, 400);
 
   const panelImageEndpoint = `${panelEndpoint}/pictures/leading/image`;
   assert.equal((await fetch(panelImageEndpoint, {

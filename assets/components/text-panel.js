@@ -47,7 +47,21 @@
     if (data && (data.leadingPicture != null || data.trailingPicture != null)) {
       throw new Error('TextPanel does not support picture fields.');
     }
-    return normalizePanelBasics(data, 'textPanel', 'TextPanel');
+    const panel = normalizePanelBasics(data, 'textPanel', 'TextPanel');
+    const accentColor = data.accentColor == null
+      ? foregroundForBackground(panel.backgroundColor)
+      : String(data.accentColor).trim();
+    if (!HEX_COLOR.test(accentColor)) {
+      throw new Error('TextPanel requires accentColor in #RRGGBB format.');
+    }
+    if (data.showBorder != null && typeof data.showBorder !== 'boolean') {
+      throw new Error('TextPanel showBorder must be a boolean.');
+    }
+    return {
+      ...panel,
+      accentColor: accentColor.toUpperCase(),
+      showBorder: data.showBorder == null ? true : data.showBorder,
+    };
   }
 
   function normalizeIllustratedTextPanel(data) {
@@ -133,12 +147,38 @@
     colorText.setAttribute('aria-label', 'HEX-код цвета фона панели');
     colorLabel.append(colorPicker, colorText);
 
+    const accentLabel = doc.createElement('label');
+    accentLabel.className = 'text-panel__color-label text-panel__color-label--accent';
+    accentLabel.textContent = 'Цвет акцента';
+    const accentPicker = doc.createElement('input');
+    accentPicker.type = 'color';
+    accentPicker.className = 'text-panel__color-picker';
+    accentPicker.setAttribute('aria-label', 'Цвет акцента панели');
+    accentPicker.title = 'Выбрать цвет акцента';
+    const accentText = doc.createElement('input');
+    accentText.type = 'text';
+    accentText.className = 'text-panel__color-text';
+    accentText.maxLength = 7;
+    accentText.spellcheck = false;
+    accentText.setAttribute('aria-label', 'HEX-код цвета акцента панели');
+    accentLabel.append(accentPicker, accentText);
+
+    const borderLabel = doc.createElement('label');
+    borderLabel.className = 'text-panel__border-label';
+    const borderToggle = doc.createElement('input');
+    borderToggle.type = 'checkbox';
+    borderToggle.className = 'text-panel__border-toggle';
+    const borderText = doc.createElement('span');
+    borderText.textContent = 'Показывать рамку';
+    borderLabel.append(borderToggle, borderText);
+
     const formattingControls = [];
     [['B', 'Жирный', 'bold'], ['I', 'Курсив', 'italic'], ['• ≡', 'Маркированный список', 'insertUnorderedList'], ['1. ≡', 'Нумерованный список', 'insertOrderedList']]
       .forEach(([label, ariaLabel, command]) => {
         const button = doc.createElement('button');
         button.type = 'button';
         button.className = 'text-panel__format';
+        if (command.endsWith('List')) button.classList.add('text-panel__format--list');
         button.textContent = label;
         button.setAttribute('aria-label', ariaLabel);
         button.addEventListener('mousedown', event => event.preventDefault());
@@ -165,7 +205,9 @@
       });
       formattingControls.push(button);
     });
-    controls.append(colorLabel, ...formattingControls);
+    controls.append(colorLabel);
+    if (!illustrated) controls.append(accentLabel, borderLabel);
+    controls.append(...formattingControls);
 
     const editButton = doc.createElement('button');
     editButton.type = 'button';
@@ -183,10 +225,15 @@
     }
 
     function snapshot() {
-      return JSON.stringify({
+      const value = {
         text: markdown.editorToMarkdown(body),
         backgroundColor: colorText.value.trim().toUpperCase(),
-      });
+      };
+      if (!illustrated) {
+        value.accentColor = accentText.value.trim().toUpperCase();
+        value.showBorder = borderToggle.checked;
+      }
+      return JSON.stringify(value);
     }
 
     function setDirty(dirty) {
@@ -198,9 +245,13 @@
       if (editing) setDirty(snapshot() !== initialSnapshot);
     }
 
-    function applyColors(backgroundColor) {
+    function applyAppearance(backgroundColor, accentColor, showBorder) {
       panel.style.setProperty('--text-panel-background', backgroundColor);
       panel.style.setProperty('--text-panel-foreground', foregroundForBackground(backgroundColor));
+      if (!illustrated) {
+        panel.style.setProperty('--text-panel-accent', accentColor);
+        panel.classList.toggle('text-panel--frameless', !showBorder);
+      }
     }
 
     async function copyPrompt(prompt, button) {
@@ -325,7 +376,12 @@
       current = normalize({ ...current, ...value });
       colorPicker.value = current.backgroundColor;
       colorText.value = current.backgroundColor;
-      applyColors(current.backgroundColor);
+      if (!illustrated) {
+        accentPicker.value = current.accentColor;
+        accentText.value = current.accentColor;
+        borderToggle.checked = current.showBorder;
+      }
+      applyAppearance(current.backgroundColor, current.accentColor, current.showBorder);
       markdown.renderMarkdownInto(body, current.text, doc, 'text-panel__spacer');
       renderLayout();
     }
@@ -375,10 +431,14 @@
         text: markdown.editorToMarkdown(body),
         backgroundColor: colorText.value.trim().toUpperCase(),
       };
+      if (!illustrated) {
+        changes.accentColor = accentText.value.trim().toUpperCase();
+        changes.showBorder = borderToggle.checked;
+      }
       try {
         normalize({ ...current, ...changes });
       } catch (_error) {
-        notify('Введите текст и корректный HEX-цвет в формате #RRGGBB.');
+        notify('Введите текст, корректные HEX-цвета и настройку рамки.');
         return;
       }
       saving = true;
@@ -414,15 +474,32 @@
     });
     colorPicker.addEventListener('input', () => {
       colorText.value = colorPicker.value.toUpperCase();
-      applyColors(colorText.value);
+      applyAppearance(colorText.value, accentText.value, borderToggle.checked);
       updateDirty();
     });
     colorText.addEventListener('input', () => {
       const value = colorText.value.trim();
       if (HEX_COLOR.test(value)) {
         colorPicker.value = value;
-        applyColors(value);
+        applyAppearance(value, accentText.value, borderToggle.checked);
       }
+      updateDirty();
+    });
+    accentPicker.addEventListener('input', () => {
+      accentText.value = accentPicker.value.toUpperCase();
+      applyAppearance(colorText.value, accentText.value, borderToggle.checked);
+      updateDirty();
+    });
+    accentText.addEventListener('input', () => {
+      const value = accentText.value.trim();
+      if (HEX_COLOR.test(value)) {
+        accentPicker.value = value;
+        applyAppearance(colorText.value, value, borderToggle.checked);
+      }
+      updateDirty();
+    });
+    borderToggle.addEventListener('change', () => {
+      applyAppearance(colorText.value, accentText.value, borderToggle.checked);
       updateDirty();
     });
 

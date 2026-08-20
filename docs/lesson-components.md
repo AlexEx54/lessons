@@ -249,7 +249,8 @@ follow-up репликой для каждого пункта.
 
 ## Text Panel
 
-`textPanel` показывает простой текстовый блок с настраиваемым цветом фона. Этот
+`textPanel` показывает простой текстовый блок с настраиваемыми цветами фона и
+акцента. Панель может отображаться с рамкой или без визуального контейнера. Этот
 тип не содержит изображений.
 
 ```json
@@ -257,7 +258,9 @@ follow-up репликой для каждого пункта.
   "type": "textPanel",
   "id": "lead-in-discussion-questions",
   "text": "1. What does “touch grass” mean?\n2. Do you agree that real-world graphics are boring?\n3. How many days can you survive without your PC or console?",
-  "backgroundColor": "#FFFFFF"
+  "backgroundColor": "#FFFFFF",
+  "accentColor": "#6545F5",
+  "showBorder": false
 }
 ```
 
@@ -269,8 +272,14 @@ follow-up репликой для каждого пункта.
   маркированные и нумерованные списки.
 - `backgroundColor` — обязательный цвет в формате `#RRGGBB`. Интерфейс автоматически
   выбирает контрастный тёмный или белый цвет текста.
+- `accentColor` — опциональный цвет выделения в формате `#RRGGBB`. Он применяется
+  к рамке, жирным фрагментам и маркерам списков. По умолчанию совпадает с
+  автоматически выбранным цветом текста.
+- `showBorder` — опциональный boolean. По умолчанию `true`. Значение `false`
+  убирает рамку, тень, скругление и внутренние отступы панели.
 
-Администратор может редактировать `text` и `backgroundColor`. Поля
+Администратор может редактировать `text`, `backgroundColor`, `accentColor` и
+`showBorder`. Поля
 `leadingPicture` и `trailingPicture` для этого типа запрещены.
 
 ## Illustrated Text Panel

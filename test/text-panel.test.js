@@ -31,6 +31,8 @@ test('plain text panel normalizes text and HEX color without picture fields', ()
     id: 'lead-in-message',
     text: '**Alex:** Hello!',
     backgroundColor: '#ABCDEF',
+    accentColor: '#171A2B',
+    showBorder: true,
   });
   assert.throws(() => normalizeTextPanel(panel({ leadingPicture: { imagePrompt: 'Avatar' } })), /does not support picture/);
 });
@@ -58,6 +60,8 @@ test('text panel types reject invalid ids, empty content, colors, and incomplete
   assert.throws(() => normalizeTextPanel(panel({ id: 'Wrong ID' })), /kebab-case id/);
   assert.throws(() => normalizeTextPanel(panel({ text: ' ' })), /requires text/);
   assert.throws(() => normalizeTextPanel(panel({ backgroundColor: '#123' })), /#RRGGBB/);
+  assert.throws(() => normalizeTextPanel(panel({ accentColor: '#123' })), /accentColor/);
+  assert.throws(() => normalizeTextPanel(panel({ showBorder: 'false' })), /boolean/);
   assert.throws(() => normalizeIllustratedTextPanel(illustratedPanel({ type: 'textPanel' })), /kebab-case id/);
   assert.throws(() => normalizeIllustratedTextPanel(illustratedPanel({ leadingPicture: {} })), /imagePrompt/);
   assert.throws(() => normalizeIllustratedTextPanel(illustratedPanel({ trailingPicture: 'image' })), /must be an object/);
@@ -90,10 +94,19 @@ test('text panel CSS keeps pictures beside text and defines no phantom slot colu
   assert.match(css, /\.text-panel__color-picker::-webkit-color-swatch/);
   assert.match(css, /@media \(max-width: 620px\)/);
   assert.match(css, /\.text-panel__text ol/);
+  assert.match(css, /\.text-panel__text \{[^}]*font-size: 14px;[^}]*line-height: 1\.6;/s);
+  assert.match(css, /\.text-panel--plain \.text-panel__text > p:first-child \[data-md-size="l"\] \{[^}]*font-size: 18px;/s);
+  assert.match(css, /\.text-panel--plain \.text-panel__text li \+ li \{ margin-top: 12px; \}/);
   assert.match(css, /\.text-panel--plain/);
+  assert.match(css, /\.text-panel--plain\.text-panel--frameless \{[^}]*padding: 0;[^}]*border-color: transparent;[^}]*border-radius: 0;[^}]*box-shadow: none;/s);
+  assert.match(css, /\.text-panel--plain \.text-panel__text strong/);
+  assert.match(css, /li::marker \{ color: var\(--text-panel-accent\); \}/);
+  assert.match(css, /\.text-panel__border-toggle/);
   assert.match(css, /\.text-panel--illustrated/);
   assert.match(css, /\.text-panel__format--size/);
   assert.doesNotMatch(css, /grid-template-columns:\s*[^;}]*1fr[^;}]*1fr/);
   const source = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'text-panel.js'), 'utf8');
   assert.match(source, /applyTextSize/);
+  assert.match(source, /text-panel__format--list/);
+  assert.match(css, /\.text-panel__format--list \{[^}]*width: 40px;[^}]*white-space: nowrap;/s);
 });
