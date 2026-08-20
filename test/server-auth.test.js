@@ -57,6 +57,10 @@ test('login protects teacher pages and exposes the current profile', async t => 
   });
   await waitForServer(baseUrl, child);
 
+  const health = await fetch(`${baseUrl}/health`);
+  assert.equal(health.status, 200);
+  assert.deepEqual(await health.json(), { ok: true });
+
   const publicLanding = await fetch(`${baseUrl}/`);
   assert.equal(publicLanding.status, 200);
   const landingHtml = await publicLanding.text();
@@ -70,8 +74,6 @@ test('login protects teacher pages and exposes the current profile', async t => 
   const appWithoutSession = await fetch(`${baseUrl}/app`, { redirect: 'manual' });
   assert.equal(appWithoutSession.status, 302);
   assert.equal(appWithoutSession.headers.get('location'), '/login?next=%2Fapp');
-  const protectedGeneratorApi = await fetch(`${baseUrl}/api/generator/config`);
-  assert.equal(protectedGeneratorApi.status, 401);
 
   const invalidRegistrations = [
     { displayName: '', email: 'new@example.com', password: 'valid-password', termsAccepted: true },
@@ -169,14 +171,6 @@ test('login protects teacher pages and exposes the current profile', async t => 
 
   const authenticatedLibrary = await fetch(`${baseUrl}/library.html`, { headers: { Cookie: cookie } });
   assert.match(await authenticatedLibrary.text(), /Тестовый преподаватель/);
-
-  const generator = await fetch(`${baseUrl}/generator`, { headers: { Cookie: cookie } });
-  assert.equal(generator.status, 200);
-  const generatorHtml = await generator.text();
-  assert.doesNotMatch(generatorHtml, /teacher-token|TEACHER_ADMIN_TOKEN/);
-  assert.match(generatorHtml, /Legacy-генератор уроков/);
-  assert.match(generatorHtml, /Deprecated/);
-  assert.match(generatorHtml, /name="robots" content="noindex,nofollow"/);
 
   const homeContent = await fetch(`${baseUrl}/api/home-content`, { headers: { Cookie: cookie } });
   assert.equal(homeContent.status, 200);

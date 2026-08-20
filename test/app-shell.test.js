@@ -37,7 +37,7 @@ test('home renders authenticated teacher profile data', async () => {
   assert.doesNotMatch(html, /id="new-lesson-modal"/);
 });
 
-test('admin sees lesson creation and drafts links in both profile menus without a generator link', async () => {
+test('admin sees lesson creation and drafts links in both profile menus', async () => {
   const html = await renderAppPage('home', {
     user: { displayName: 'Администратор', email: 'admin@example.com', role: 'admin' },
   });
@@ -46,7 +46,6 @@ test('admin sees lesson creation and drafts links in both profile menus without 
   assert.equal((html.match(/>Создать урок<\/button>/g) || []).length, 2);
   assert.equal((html.match(/>Создать урок<\/button>\s*<a href="\/lesson-drafts" role="menuitem">Черновики уроков<\/a>/g) || []).length, 2);
   assert.equal((html.match(/href="\/lesson-drafts"/g) || []).length, 2);
-  assert.doesNotMatch(html, /href="\/generator[^\"]*"[^>]*>Создать урок/);
   assert.equal((html.match(/id="new-lesson-modal"/g) || []).length, 1);
   assert.match(html, /placeholder="Напр\. Luca Cartoon"/);
   assert.equal((html.match(/data-value="template-1"[^>]*>Шаблон 1<\/li>/g) || []).length, 1);

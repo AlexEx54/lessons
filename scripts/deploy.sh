@@ -10,7 +10,7 @@ SERVER_PORT=${SERVER_PORT:-4537}
 SERVER_USER=${SERVER_USER:-root}
 APP_DIR=${APP_DIR:-/opt/teach_platform}
 STAGING_DIR=${STAGING_DIR:-/opt/teach_platform.next}
-LESSONS_DIR=${LESSONS_DIR:-/var/lib/teach_platform/lessons}
+APP_DATA_DIR=${APP_DATA_DIR:-/var/lib/teach_platform}
 SERVICE_NAME=${SERVICE_NAME:-teach-platform.service}
 PUBLIC_URL=${PUBLIC_URL:-https://grekko.duckdns.org:8444}
 ALLOW_DIRTY=${ALLOW_DIRTY:-0}
@@ -55,12 +55,12 @@ rsync -az --delete \
 
 log "Серверные проверки и переключение версии"
 ssh "${SSH_OPTIONS[@]}" "$SSH_TARGET" bash -s -- \
-  "$APP_DIR" "$STAGING_DIR" "$LESSONS_DIR" "$SERVICE_NAME" "$BACKUP_RETENTION" <<'REMOTE_SCRIPT'
+  "$APP_DIR" "$STAGING_DIR" "$APP_DATA_DIR" "$SERVICE_NAME" "$BACKUP_RETENTION" <<'REMOTE_SCRIPT'
 set -Eeuo pipefail
 
 APP_DIR=$1
 STAGING_DIR=$2
-LESSONS_DIR=$3
+APP_DATA_DIR=$3
 SERVICE_NAME=$4
 BACKUP_RETENTION=$5
 NODE=/usr/bin/node
@@ -99,11 +99,6 @@ check_files=(
   lib/lesson-draft-store.js
   lib/synthetic-lesson.js
   scripts/create-user.js
-  generate-lesson.js
-  lib/lesson-build.js
-  lib/lesson-store.js
-  lib/openrouter-lesson.js
-  lib/lesson-validate.js
 )
 
 for file in "${check_files[@]}"; do
@@ -111,8 +106,7 @@ for file in "${check_files[@]}"; do
 done
 "$NODE" --test test/app-shell.test.js
 
-env HOST=127.0.0.1 PORT=8788 LESSONS_DIR="$LESSONS_DIR" \
-  "$NODE" server.js >/tmp/teach-platform-next.log 2>&1 &
+env HOST=127.0.0.1 PORT=8788 "$NODE" server.js >/tmp/teach-platform-next.log 2>&1 &
 stage_pid=$!
 
 stop_stage() {
@@ -138,14 +132,13 @@ fi
 
 curl -fsS --max-time 5 http://127.0.0.1:8788/health >/dev/null
 curl -fsS --max-time 5 http://127.0.0.1:8788/library.html >/dev/null
-curl -fsS --max-time 5 http://127.0.0.1:8788/api/lessons >/dev/null
 stop_stage
 trap - EXIT
 
 stamp=$(date +%Y%m%d-%H%M%S)
 install -d -m 700 "$BACKUP_DIR"
 tar -C "$(dirname "$APP_DIR")" -czf "$BACKUP_DIR/teach_platform-app-$stamp.tar.gz" "$(basename "$APP_DIR")"
-tar -C "$(dirname "$(dirname "$LESSONS_DIR")")" -czf "$BACKUP_DIR/teach_platform-data-$stamp.tar.gz" "$(basename "$(dirname "$LESSONS_DIR")")"
+tar -C "$(dirname "$APP_DATA_DIR")" -czf "$BACKUP_DIR/teach_platform-data-$stamp.tar.gz" "$(basename "$APP_DATA_DIR")"
 chmod 600 "$BACKUP_DIR/teach_platform-app-$stamp.tar.gz" "$BACKUP_DIR/teach_platform-data-$stamp.tar.gz"
 
 PREVIOUS_DIR="${APP_DIR}.previous"
@@ -181,8 +174,7 @@ if [[ "$live_ready" != "1" ]]; then
 fi
 
 if ! curl -fsS --max-time 5 http://127.0.0.1:8787/ >/dev/null \
-  || ! curl -fsS --max-time 5 http://127.0.0.1:8787/library.html >/dev/null \
-  || ! curl -fsS --max-time 5 http://127.0.0.1:8787/api/lessons >/dev/null; then
+  || ! curl -fsS --max-time 5 http://127.0.0.1:8787/library.html >/dev/null; then
   rollback
   exit 1
 fi

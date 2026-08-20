@@ -7,9 +7,7 @@ const { loadDotEnv } = require('./lib/env.js');
 
 loadDotEnv(path.join(__dirname, '.env'));
 
-const { buildLessonHtml, getLessonTitle } = require('./lib/lesson-build.js');
 const { renderAppPage } = require('./lib/app-shell.js');
-const { validateLesson } = require('./lib/lesson-validate.js');
 const {
   clearSessionCookie,
   getAuthenticatedUser,
@@ -20,14 +18,6 @@ const { getDatabase } = require('./lib/db.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
 const { createUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
-const {
-  createLessonId,
-  deleteLesson,
-  listLessons,
-  readLessonHtml,
-  readLessonJson,
-  saveLesson,
-} = require('./lib/lesson-store.js');
 const {
   completeLessonDraft,
   createLessonDraft,
@@ -53,10 +43,6 @@ const {
   updateThisOrThatImage,
 } = require('./lib/lesson-draft-store.js');
 const { createSyntheticLesson } = require('./lib/synthetic-lesson.js');
-const {
-  generateLessonJson,
-  getGeneratorConfig,
-} = require('./lib/openrouter-lesson.js');
 
 const PORT = process.env.PORT || 8787;
 const HOST = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
@@ -64,7 +50,6 @@ const ROOT = __dirname;
 const DRAFT_ASSETS_DIR = path.resolve(process.env.DRAFT_ASSETS_DIR || path.join(ROOT, 'data', 'draft-assets'));
 const database = getDatabase();
 
-const clientsByRoom = new Map();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_DISPLAY_NAME_LENGTH = 80;
 const MAX_EMAIL_LENGTH = 254;
@@ -211,10 +196,6 @@ function json(res, status, payload, extraHeaders = {}) {
   res.end(JSON.stringify(payload));
 }
 
-function ndjson(res, payload) {
-  res.write(`${JSON.stringify(payload)}\n`);
-}
-
 function getContentType(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === '.html') return 'text/html; charset=utf-8';
@@ -236,14 +217,7 @@ function safePathname(inputPath) {
 }
 
 function serveStatic(reqPath, res) {
-  let target;
-  if (reqPath === '/') {
-    target = 'index.html';
-  } else if (reqPath === '/generator' || reqPath === '/generator/') {
-    target = 'generator.html';
-  } else {
-    target = safePathname(reqPath.slice(1));
-  }
+  const target = reqPath === '/' ? 'index.html' : safePathname(reqPath.slice(1));
   const absolute = path.join(ROOT, target);
 
   if (!absolute.startsWith(ROOT) || target === 'data' || target.startsWith(`data${path.sep}`) || target.startsWith('data/')) {
@@ -277,34 +251,6 @@ async function serveAppPage(pageId, res, context = {}) {
     console.error(`Cannot render app page "${pageId}":`, error);
     json(res, 500, { error: 'Cannot render app page.' });
   }
-}
-
-function addClient(roomId, client) {
-  if (!clientsByRoom.has(roomId)) {
-    clientsByRoom.set(roomId, new Set());
-  }
-  clientsByRoom.get(roomId).add(client);
-}
-
-function removeClient(roomId, client) {
-  const room = clientsByRoom.get(roomId);
-  if (!room) return;
-  room.delete(client);
-  if (room.size === 0) {
-    clientsByRoom.delete(roomId);
-  }
-}
-
-function broadcast(roomId, payload, senderId) {
-  const room = clientsByRoom.get(roomId);
-  if (!room) return;
-
-  const wire = `event: lesson\ndata: ${JSON.stringify(payload)}\n\n`;
-
-  room.forEach((client) => {
-    if (client.id === senderId) return;
-    client.res.write(wire);
-  });
 }
 
 function readJsonBody(req) {
@@ -674,12 +620,6 @@ function sendDraftAsset(res, absolute, data, rangeHeader) {
   res.end(data.subarray(range.start, range.end + 1));
 }
 
-function publicError(error) {
-  const payload = { type: 'error', message: error.message || 'Unexpected error.' };
-  if (Array.isArray(error.details)) payload.details = error.details;
-  return payload;
-}
-
 const server = http.createServer(async (req, res) => {
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = requestUrl.pathname;
@@ -841,19 +781,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'GET' && (
-    pathname === '/generator' || pathname === '/generator/' || pathname === '/generator.html'
-  )) {
-    // Deprecated legacy surface: intentionally preserved as a working reference
-    // for the future generator, but not linked from current product flows.
-    if (!getAuthenticatedUser(req, database)) {
-      redirect(res, loginRedirect('/generator'));
-      return;
-    }
-    serveStatic('/generator.html', res);
-    return;
-  }
-
   if (req.method === 'GET' && (pathname === '/' || pathname === '/index.html')) {
     serveStatic('/index.html', res);
     return;
@@ -865,7 +792,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && pathname === '/health') {
-    json(res, 200, { ok: true, rooms: clientsByRoom.size });
+    json(res, 200, { ok: true });
     return;
   }
 
@@ -915,13 +842,6 @@ const server = http.createServer(async (req, res) => {
         sendDraftAsset(res, absolute, data, req.headers.range);
       });
     });
-    return;
-  }
-
-  if (req.method === 'GET' && pathname === '/api/generator/config') {
-    // Legacy generator API. Keep compatible while /generator is retained as a reference.
-    if (!requireTeacherAuth(req, res)) return;
-    json(res, 200, getGeneratorConfig());
     return;
   }
 
@@ -1287,201 +1207,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'GET' && pathname === '/api/lessons') {
-    try {
-      json(res, 200, { lessons: await listLessons() });
-    } catch (error) {
-      json(res, 500, { error: error.message || 'Cannot read lessons.' });
-    }
-    return;
-  }
-
-  if (req.method === 'GET' && pathname.startsWith('/api/lessons/') && pathname.endsWith('/json')) {
-    const lessonId = getLessonIdFromPath(pathname, '/api/lessons/', '/json');
-    try {
-      json(res, 200, await readLessonJson(lessonId));
-    } catch (error) {
-      json(res, error.statusCode || 404, { error: error.message || 'Lesson not found.' });
-    }
-    return;
-  }
-
-  if (req.method === 'GET' && pathname.startsWith('/lesson/')) {
-    const lessonId = getLessonIdFromPath(pathname, '/lesson/');
-    try {
-      const html = await readLessonHtml(lessonId);
-      res.writeHead(200, {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-store',
-      });
-      res.end(html);
-    } catch (error) {
-      json(res, error.statusCode || 404, { error: error.message || 'Lesson not found.' });
-    }
-    return;
-  }
-
-  if (req.method === 'DELETE' && pathname.startsWith('/api/lessons/')) {
-    if (!requireTeacherAuth(req, res)) return;
-    const lessonId = getLessonIdFromPath(pathname, '/api/lessons/');
-    try {
-      await deleteLesson(lessonId);
-      json(res, 200, { ok: true });
-    } catch (error) {
-      json(res, error.statusCode || 500, { error: error.message || 'Cannot delete lesson.' });
-    }
-    return;
-  }
-
-  if (req.method === 'POST' && pathname === '/api/lessons/generate') {
-    // Legacy generator API. New lesson creation must not depend on this endpoint.
-    if (!requireTeacherAuth(req, res)) return;
-
-    let body;
-    try {
-      body = await readJsonBody(req);
-    } catch (error) {
-      json(res, 400, { error: error.message || 'Bad request' });
-      return;
-    }
-
-    const topic = typeof body.topic === 'string' ? body.topic.trim() : '';
-    const targetGrammar = typeof body.targetGrammar === 'string' ? body.targetGrammar.trim() : '';
-
-    if (!topic) {
-      json(res, 400, { error: 'topic is required.' });
-      return;
-    }
-    if (topic.length > 240 || targetGrammar.length > 800) {
-      json(res, 400, { error: 'topic or targetGrammar is too long.' });
-      return;
-    }
-
-    res.writeHead(200, {
-      'Content-Type': 'application/x-ndjson; charset=utf-8',
-      'Cache-Control': 'no-store, no-transform',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no',
-    });
-
-    try {
-      ndjson(res, { type: 'status', message: 'Starting lesson generation...' });
-      const generated = await generateLessonJson({
-        topic,
-        targetGrammar,
-        onEvent: event => ndjson(res, event),
-      });
-
-      ndjson(res, { type: 'status', message: 'Validating generated lesson JSON...' });
-      const validation = validateLesson(generated.lesson);
-      if (validation.errors.length) {
-        const error = new Error('Generated lesson did not pass validation.');
-        error.details = validation.errors;
-        throw error;
-      }
-
-      ndjson(res, { type: 'status', message: 'Building standalone lesson page...' });
-      const html = buildLessonHtml(generated.lesson);
-      const id = createLessonId((generated.lesson.meta && generated.lesson.meta.topic) || topic);
-      const title = getLessonTitle(generated.lesson);
-      const cost = generated.cost || {};
-      const meta = await saveLesson({
-        lesson: generated.lesson,
-        html,
-        metadata: {
-          id,
-          title,
-          topic: (generated.lesson.meta && generated.lesson.meta.topic) || topic,
-          targetGrammar: (generated.lesson.meta && generated.lesson.meta.targetGrammar) || targetGrammar,
-          model: generated.model,
-          reasoningEffort: generated.reasoningEffort,
-          generationId: generated.generationId,
-          costUsd: cost.usd,
-          costRub: cost.rub,
-          costSource: cost.source,
-          usage: {
-            promptTokens: cost.promptTokens,
-            completionTokens: cost.completionTokens,
-            reasoningTokens: cost.reasoningTokens,
-            totalTokens: cost.totalTokens,
-          },
-          validationWarnings: validation.warnings,
-        },
-      });
-
-      ndjson(res, { type: 'complete', lesson: meta });
-      res.end();
-    } catch (error) {
-      ndjson(res, publicError(error));
-      res.end();
-    }
-    return;
-  }
-
-  if (req.method === 'GET' && pathname === '/events') {
-    const roomId = (requestUrl.searchParams.get('room') || '').trim();
-    const clientId = (requestUrl.searchParams.get('clientId') || '').trim();
-    const role = (requestUrl.searchParams.get('role') || '').trim();
-
-    if (!roomId || !clientId || !role) {
-      json(res, 400, { error: 'room, clientId and role are required' });
-      return;
-    }
-
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no',
-    });
-
-    const client = { id: clientId, role, res };
-    addClient(roomId, client);
-
-    res.write(`event: lesson\ndata: ${JSON.stringify({ type: 'system_join', roomId, role, at: Date.now() })}\n\n`);
-
-    const keepAlive = setInterval(() => {
-      res.write(': ping\n\n');
-    }, 20000);
-
-    req.on('close', () => {
-      clearInterval(keepAlive);
-      removeClient(roomId, client);
-    });
-
-    return;
-  }
-
-  if (req.method === 'POST' && pathname === '/event') {
-    try {
-      const body = await readJsonBody(req);
-      const roomId = typeof body.roomId === 'string' ? body.roomId.trim() : '';
-      const senderId = typeof body.senderId === 'string' ? body.senderId.trim() : '';
-      const role = typeof body.role === 'string' ? body.role.trim() : '';
-      const type = typeof body.type === 'string' ? body.type.trim() : '';
-      const payload = body.payload && typeof body.payload === 'object' ? body.payload : {};
-
-      if (!roomId || !senderId || !role || !type) {
-        json(res, 400, { error: 'roomId, senderId, role and type are required' });
-        return;
-      }
-
-      broadcast(roomId, {
-        type,
-        roomId,
-        role,
-        senderId,
-        payload,
-        at: Date.now(),
-      }, senderId);
-
-      json(res, 200, { ok: true });
-    } catch (error) {
-      json(res, 400, { error: error.message || 'Bad request' });
-    }
-    return;
-  }
-
   if (req.method === 'GET' && pathname.startsWith('/assets/')) {
     serveStatic(pathname, res);
     return;
@@ -1496,5 +1221,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Lesson server running on http://${HOST}:${PORT}`);
+  console.log(`EasyClass server running on http://${HOST}:${PORT}`);
 });
