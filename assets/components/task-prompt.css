@@ -42,6 +42,7 @@
 .task-prompt__format { min-width: 31px; height: 29px; padding: 0 7px; }
 .task-prompt__format:nth-child(1) { font-weight: 800; }
 .task-prompt__format:nth-child(2) { font-style: italic; }
+.task-prompt__format--size { min-width: 28px; padding: 0 5px; font-size: 10px; letter-spacing: 0.02em; }
 .task-prompt__add-support,
 .task-prompt__remove-support { padding: 5px 8px; font-size: 11px; }
 .task-prompt__add-support { margin-top: 12px; border: 1px dashed var(--task-prompt-border); }

@@ -72,6 +72,7 @@
 .markdown-card__format { min-width: 31px; height: 29px; padding: 0 7px; color: var(--markdown-card-accent); }
 .markdown-card__format:nth-child(1) { font-weight: 800; }
 .markdown-card__format:nth-child(2) { font-style: italic; }
+.markdown-card__format--size { min-width: 28px; padding: 0 5px; font-size: 10px; letter-spacing: 0.02em; }
 .markdown-card--editing .markdown-card__title,
 .markdown-card--editing .markdown-card__body {
   border-radius: 7px;

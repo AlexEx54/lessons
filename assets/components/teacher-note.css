@@ -134,6 +134,7 @@
 
 .teacher-note__format--bold { font-weight: 800; }
 .teacher-note__format--italic { font-style: italic; }
+.teacher-note__format--size { min-width: 28px; padding: 0 5px; font-size: 10px; font-weight: 800; letter-spacing: 0.02em; }
 
 .teacher-note--editing .teacher-note__text {
   min-height: 118px;

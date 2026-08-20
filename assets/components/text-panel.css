@@ -64,6 +64,7 @@
 }
 .text-panel__color-text { width: 78px; min-height: 27px; padding: 0 7px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); border-radius: 6px; color: inherit; background: color-mix(in srgb, var(--text-panel-background) 82%, transparent); font: inherit; text-transform: uppercase; }
 .text-panel__format { width: 30px; min-height: 27px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); border-radius: 6px; color: inherit; background: color-mix(in srgb, var(--text-panel-background) 82%, transparent); font-size: 11px; font-weight: 800; }
+.text-panel__format--size { width: auto; min-width: 28px; padding: 0 5px; font-size: 10px; letter-spacing: 0.02em; }
 .text-panel--editing .text-panel__text { padding: 7px 9px; border-radius: 7px; outline: 1px solid color-mix(in srgb, currentColor 42%, transparent); background: color-mix(in srgb, currentColor 7%, transparent); }
 .text-panel--dirty .text-panel__edit { box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 24%, transparent); }
 .text-panel--busy,

@@ -31,4 +31,6 @@ test('task prompt styles derive variants and divider from component structure', 
   assert.match(css, /\.task-prompt__text ol/);
   const source = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'task-prompt.js'), 'utf8');
   assert.match(source, /insertOrderedList/);
+  assert.match(source, /applyTextSize/);
+  assert.match(css, /task-prompt__format--size/);
 });

@@ -69,5 +69,8 @@ test('markdown card renderer exposes configurable visuals, markdown editing, and
   assert.match(source, /onStudentVisibilityChange/);
   assert.match(source, /markdown\.editorToMarkdown/);
   assert.match(source, /insertOrderedList/);
+  assert.match(source, /applyTextSize/);
+  assert.match(source, /TEXT_SIZES/);
+  assert.match(css, /markdown-card__format--size/);
   assert.doesNotMatch(source, /localStorage|sessionStorage/);
 });

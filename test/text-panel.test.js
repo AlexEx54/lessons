@@ -92,5 +92,8 @@ test('text panel CSS keeps pictures beside text and defines no phantom slot colu
   assert.match(css, /\.text-panel__text ol/);
   assert.match(css, /\.text-panel--plain/);
   assert.match(css, /\.text-panel--illustrated/);
+  assert.match(css, /\.text-panel__format--size/);
   assert.doesNotMatch(css, /grid-template-columns:\s*[^;}]*1fr[^;}]*1fr/);
+  const source = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'text-panel.js'), 'utf8');
+  assert.match(source, /applyTextSize/);
 });

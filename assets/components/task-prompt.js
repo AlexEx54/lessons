@@ -102,6 +102,22 @@
         formattingControls.push(button);
         toolbar.append(button);
       });
+    (markdown.TEXT_SIZES || []).forEach((size) => {
+      const button = doc.createElement('button');
+      button.type = 'button';
+      button.className = 'task-prompt__format task-prompt__format--size';
+      button.textContent = size.toUpperCase();
+      button.setAttribute('aria-label', `Размер текста ${size.toUpperCase()}`);
+      button.addEventListener('mousedown', event => event.preventDefault());
+      button.addEventListener('click', () => {
+        if (!editing || saving || !activeEditor) return;
+        activeEditor.focus();
+        markdown.applyTextSize(doc, size);
+        updateDirty();
+      });
+      formattingControls.push(button);
+      toolbar.append(button);
+    });
 
     const body = doc.createElement('div');
     body.className = 'task-prompt__body';

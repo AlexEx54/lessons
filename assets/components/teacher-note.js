@@ -120,6 +120,23 @@
       formattingButton('• ≡', 'Маркированный список', 'insertUnorderedList'),
       formattingButton('1. ≡', 'Нумерованный список', 'insertOrderedList'),
     ];
+    (markdown.TEXT_SIZES || []).forEach((size) => {
+      const control = doc.createElement('button');
+      control.type = 'button';
+      control.className = 'teacher-note__format teacher-note__format--size';
+      control.textContent = size.toUpperCase();
+      control.title = `Размер текста ${size.toUpperCase()}`;
+      control.setAttribute('aria-label', `Размер текста ${size.toUpperCase()}`);
+      control.addEventListener('mousedown', event => event.preventDefault());
+      control.addEventListener('click', () => {
+        if (!editing || saving) return;
+        customText.focus();
+        markdown.applyTextSize(doc, size);
+        updateDirty();
+      });
+      toolbar.append(control);
+      formattingControls.push(control);
+    });
 
     const button = doc.createElement('button');
     button.type = 'button';

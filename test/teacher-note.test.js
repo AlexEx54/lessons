@@ -198,6 +198,9 @@ test('teacher note styles separate paragraph and list blocks and color Safari bo
   assert.match(css, /\.teacher-note__spacer \{ height: 13px; \}/);
   assert.match(css, /\.teacher-note__text strong,\s*\.teacher-note__text b \{ color: #173b7a;/);
   assert.match(css, /\.teacher-note__blocks \{[\s\S]*display: grid;/);
+  assert.match(css, /\.teacher-note__format--size/);
+  const source = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'teacher-note.js'), 'utf8');
+  assert.match(source, /applyTextSize/);
   const blockCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'teacher-note-block.css'), 'utf8');
   assert.match(blockCss, /--teacher-note-block-accent/);
   assert.match(blockCss, /\.teacher-note-block__tip/);

@@ -74,6 +74,7 @@
   font-size: 11px;
   font-weight: 800;
 }
+.text-reading__format--size { min-width: 28px; padding: 0 5px; font-size: 10px; letter-spacing: 0.02em; }
 
 .text-reading__body-layout { display: flex; align-items: flex-start; min-width: 0; gap: 25px; }
 .text-reading__text {

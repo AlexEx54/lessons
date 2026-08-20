@@ -189,6 +189,22 @@
         formattingControls.push(button);
         toolbar.append(button);
       });
+    (markdown.TEXT_SIZES || []).forEach((size) => {
+      const button = doc.createElement('button');
+      button.type = 'button';
+      button.className = 'markdown-card__format markdown-card__format--size';
+      button.textContent = size.toUpperCase();
+      button.setAttribute('aria-label', `Размер текста ${size.toUpperCase()}`);
+      button.addEventListener('mousedown', event => event.preventDefault());
+      button.addEventListener('click', () => {
+        if (!editing || saving) return;
+        content.focus();
+        markdown.applyTextSize(doc, size);
+        updateDirty();
+      });
+      formattingControls.push(button);
+      toolbar.append(button);
+    });
 
     const content = doc.createElement('div');
     content.className = 'markdown-card__body';

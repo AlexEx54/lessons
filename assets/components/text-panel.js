@@ -150,6 +150,21 @@
         });
         formattingControls.push(button);
       });
+    (markdown.TEXT_SIZES || []).forEach((size) => {
+      const button = doc.createElement('button');
+      button.type = 'button';
+      button.className = 'text-panel__format text-panel__format--size';
+      button.textContent = size.toUpperCase();
+      button.setAttribute('aria-label', `Размер текста ${size.toUpperCase()}`);
+      button.addEventListener('mousedown', event => event.preventDefault());
+      button.addEventListener('click', () => {
+        if (!editing || saving || !activeEditor) return;
+        activeEditor.focus();
+        markdown.applyTextSize(doc, size);
+        updateDirty();
+      });
+      formattingControls.push(button);
+    });
     controls.append(colorLabel, ...formattingControls);
 
     const editButton = doc.createElement('button');

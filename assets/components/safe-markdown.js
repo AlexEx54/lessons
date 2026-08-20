@@ -1,6 +1,10 @@
 (function initSafeMarkdown(root) {
   'use strict';
 
+  const TEXT_SIZES = ['s', 'm', 'l', 'xl'];
+  const TEXT_SIZE_SET = new Set(TEXT_SIZES);
+  const SIZE_OPEN = /^\{(xl|[sml])\}/;
+
   function appendTextToken(tokens, value) {
     if (!value) return;
     const previous = tokens[tokens.length - 1];
@@ -13,6 +17,22 @@
     const tokens = [];
     let index = 0;
     while (index < source.length) {
+      const sizeMatch = source.slice(index).match(SIZE_OPEN);
+      if (sizeMatch) {
+        const size = sizeMatch[1];
+        const open = sizeMatch[0];
+        const close = `{/${size}}`;
+        const closing = source.indexOf(close, index + open.length);
+        if (closing > index + open.length) {
+          tokens.push({
+            type: 'size',
+            size,
+            children: parseInlineMarkdown(source.slice(index + open.length, closing)),
+          });
+          index = closing + close.length;
+          continue;
+        }
+      }
       const marker = source.startsWith('***', index) ? '***'
         : source.startsWith('**', index) ? '**'
           : source[index] === '*' ? '*' : '';
@@ -79,10 +99,35 @@
     return blocks;
   }
 
+  function readMdSize(node) {
+    if (!node) return '';
+    if (node.dataset && typeof node.dataset.mdSize === 'string') return node.dataset.mdSize;
+    if (typeof node.getAttribute === 'function') {
+      return node.getAttribute('data-md-size') || '';
+    }
+    return '';
+  }
+
+  function isSizeSpan(node) {
+    return Boolean(
+      node
+      && node.nodeType === 1
+      && String(node.tagName || '').toLowerCase() === 'span'
+      && TEXT_SIZE_SET.has(readMdSize(node)),
+    );
+  }
+
   function appendInlineTokens(parent, tokens, documentRef) {
     tokens.forEach((token) => {
       if (token.type === 'text') {
         parent.append(documentRef.createTextNode(token.value));
+        return;
+      }
+      if (token.type === 'size') {
+        const span = documentRef.createElement('span');
+        span.setAttribute('data-md-size', token.size);
+        appendInlineTokens(span, token.children, documentRef);
+        parent.append(span);
         return;
       }
       if (token.type === 'strongEmphasis') {
@@ -102,6 +147,7 @@
   function serializeInlineTokens(tokens) {
     return tokens.map((token) => {
       if (token.type === 'text') return token.value;
+      if (token.type === 'size') return `{${token.size}}${serializeInlineTokens(token.children)}{/${token.size}}`;
       if (token.type === 'strong') return `**${serializeInlineTokens(token.children)}**`;
       if (token.type === 'emphasis') return `*${serializeInlineTokens(token.children)}*`;
       if (token.type === 'strongEmphasis') return `***${serializeInlineTokens(token.children)}***`;
@@ -145,6 +191,10 @@
     if (tag === 'br') return '\n';
     if (tag === 'strong' || tag === 'b') return value ? `**${value}**` : '';
     if (tag === 'em' || tag === 'i') return value ? `*${value}*` : '';
+    if (tag === 'span') {
+      const size = readMdSize(node);
+      if (TEXT_SIZE_SET.has(size) && value) return `{${size}}${value}{/${size}}`;
+    }
     return value;
   }
 
@@ -211,7 +261,78 @@
     container.replaceChildren(...rendered);
   }
 
+  function unwrapSizeSpan(span) {
+    const parent = span.parentNode;
+    if (!parent) return;
+    while (span.firstChild) parent.insertBefore(span.firstChild, span);
+    parent.removeChild(span);
+  }
+
+  function unwrapSizeSpansIn(node) {
+    const spans = [];
+    function collect(current) {
+      Array.from(current.childNodes || []).forEach((child) => {
+        if (child.nodeType !== 1) return;
+        collect(child);
+        if (isSizeSpan(child)) spans.push(child);
+      });
+    }
+    collect(node);
+    spans.forEach(unwrapSizeSpan);
+  }
+
+  function findExactSizeSpan(documentRef, range, size) {
+    let node = range.commonAncestorContainer;
+    if (node.nodeType === 3) node = node.parentNode;
+    while (node && node.nodeType === 1) {
+      if (isSizeSpan(node)) {
+        if (readMdSize(node) !== size) return null;
+        const spanRange = documentRef.createRange();
+        spanRange.selectNodeContents(node);
+        // Range.START_TO_START === 0, Range.END_TO_END === 2
+        if (
+          range.compareBoundaryPoints(0, spanRange) === 0
+          && range.compareBoundaryPoints(2, spanRange) === 0
+        ) {
+          return node;
+        }
+        return null;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function applyTextSize(documentRef, size) {
+    if (!documentRef || !TEXT_SIZE_SET.has(size)) return false;
+    const selection = typeof documentRef.getSelection === 'function' ? documentRef.getSelection() : null;
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return false;
+
+    const range = selection.getRangeAt(0);
+    const exactSpan = findExactSizeSpan(documentRef, range, size);
+    if (exactSpan) {
+      unwrapSizeSpan(exactSpan);
+      selection.removeAllRanges();
+      return true;
+    }
+
+    const contents = range.extractContents();
+    unwrapSizeSpansIn(contents);
+    const span = documentRef.createElement('span');
+    span.setAttribute('data-md-size', size);
+    span.append(contents);
+    range.insertNode(span);
+
+    selection.removeAllRanges();
+    const next = documentRef.createRange();
+    next.selectNodeContents(span);
+    selection.addRange(next);
+    return true;
+  }
+
   const api = {
+    TEXT_SIZES,
+    applyTextSize,
     editorToMarkdown,
     parseInlineMarkdown,
     parseMarkdown,

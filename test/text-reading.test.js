@@ -89,4 +89,7 @@ test('textReading CSS keeps the header image compact and the text image beside t
   assert.match(css, /\.text-reading__read-label/);
   assert.match(css, /@media \(max-width: 700px\)/);
   assert.match(css, /flex-direction: column/);
+  assert.match(css, /\.text-reading__format--size/);
+  const source = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'text-reading.js'), 'utf8');
+  assert.match(source, /applyTextSize/);
 });
