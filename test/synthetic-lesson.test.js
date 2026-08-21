@@ -370,7 +370,43 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.equal(grammarPresentation.content[6].sections[0].title, '');
   assert.equal(grammarPresentation.content[6].sections[1].title, 'Short explanations:');
   assert.equal(grammarPresentation.content[6].sections[1].headingSize, undefined);
-  assert.ok(lesson.stages.slice(6).every(stage => stage.content === null));
+  const grammarFocus = lesson.stages[6];
+  assert.equal(grammarFocus.title, 'Grammar Focus');
+  assert.equal(grammarFocus.subtitle, 'Practice the Rule');
+  assert.equal(grammarFocus.durationMinutes, 8);
+  assert.deepEqual(grammarFocus.content.map(component => component.type), [
+    'teacherNote', 'dropdownChoice', 'markdownCard',
+  ]);
+  assert.equal(grammarFocus.content[0].id, 'grammar-focus-teacher-note');
+  assert.deepEqual(grammarFocus.content[0].blocks.map(block => block.id), [
+    'grammar-focus-transition-phrases',
+    'grammar-focus-struggle-tips',
+    'grammar-focus-correction-timing',
+    'grammar-focus-free-practice-success',
+  ]);
+  assert.deepEqual(grammarFocus.content[0].blocks.map(block => block.title), [
+    'Transition phrases',
+    'Tips if the student struggles',
+    'Correct now / later',
+    'Free Practice success',
+  ]);
+  assert.equal(new Set(grammarFocus.content[0].blocks.map(block => block.titleColor)).size, 4);
+  assert.equal(grammarFocus.content[1].id, 'grammar-focus-choose-the-correct-options');
+  assert.equal(grammarFocus.content[1].title, '**Task 1. Choose the correct options.**');
+  assert.equal(grammarFocus.content[1].accentColor, '#6545F5');
+  assert.deepEqual(grammarFocus.content[1].choices.map(choice => choice.answer), [
+    'used to', 'get used to', 'got used to', 'am getting used to',
+    'use to', 'use to', 'get used to', 'used to',
+  ]);
+  assert.match(grammarFocus.content[1].text, /^\*\*1\.\*\* Before AFK Summer/);
+  assert.equal(grammarFocus.content[2].id, 'grammar-focus-answer-key');
+  assert.equal(grammarFocus.content[2].title, 'Answer Key & Explanations');
+  assert.equal(grammarFocus.content[2].layout, 'columns');
+  assert.deepEqual(grammarFocus.content[2].sections.map(section => section.id), [
+    'answers', 'short-explanations',
+  ]);
+  assert.equal(grammarFocus.content[2].studentVisibility, 'teacherOnly');
+  assert.ok(lesson.stages.slice(7).every(stage => stage.content === null));
 });
 
 test('synthetic warm-up component copy does not depend on the user topic', () => {

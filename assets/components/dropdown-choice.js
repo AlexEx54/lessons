@@ -6,8 +6,11 @@
   if (!inlineGapText) throw new Error('DropdownChoice requires InlineGapText.');
 
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+  const HEX_COLOR = /^#[0-9A-F]{6}$/;
+  const DEFAULT_ACCENT_COLOR = '#17182D';
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s/m;
-  const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'text', 'choices'];
+  const UNSUPPORTED_ACCENT_MARKUP = /<[^>]*>|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s/m;
+  const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'text', 'choices', 'accentColor'];
 
   function normalizeSpace(value) {
     return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
@@ -20,14 +23,58 @@
     return normalized;
   }
 
+  function parseAccentMarkdown(value, field = 'text') {
+    const source = String(value || '');
+    if (UNSUPPORTED_ACCENT_MARKUP.test(source)) {
+      throw new Error(`DropdownChoice allows only **bold** Markdown in ${field}.`);
+    }
+    const tokens = [];
+    let index = 0;
+    while (index < source.length) {
+      const opening = source.indexOf('**', index);
+      const strayAsterisk = source.indexOf('*', index);
+      if (opening === -1) {
+        if (strayAsterisk !== -1) {
+          throw new Error(`DropdownChoice allows only **bold** Markdown in ${field}.`);
+        }
+        if (index < source.length) tokens.push({ type: 'text', value: source.slice(index) });
+        break;
+      }
+      if (strayAsterisk !== opening) {
+        throw new Error(`DropdownChoice allows only **bold** Markdown in ${field}.`);
+      }
+      if (opening > index) tokens.push({ type: 'text', value: source.slice(index, opening) });
+      const closing = source.indexOf('**', opening + 2);
+      if (closing === -1) throw new Error(`DropdownChoice has unclosed bold Markdown in ${field}.`);
+      const content = source.slice(opening + 2, closing);
+      if (!content.trim() || content.includes('\n') || content.includes('*')) {
+        throw new Error(`DropdownChoice has invalid bold Markdown in ${field}.`);
+      }
+      tokens.push({ type: 'strong', value: content });
+      index = closing + 2;
+    }
+    return tokens;
+  }
+
+  function accentText(value, field, collapseWhitespace = false) {
+    const normalized = collapseWhitespace
+      ? normalizeSpace(value)
+      : (typeof value === 'string' ? value.trim() : '');
+    if (!normalized) throw new Error(`DropdownChoice requires ${field}.`);
+    parseAccentMarkdown(normalized, field);
+    return normalized;
+  }
+
+  function stripAccentMarkdown(value) {
+    return parseAccentMarkdown(value).map(token => token.value).join('');
+  }
+
   function parseChoiceText(value) {
     const parts = inlineGapText.parseMarkedText(value, {
       label: 'DropdownChoice', minimum: 1, maximum: 12,
     });
     parts.forEach((part) => {
-      if (part.type === 'text' && MARKUP.test(part.text)) {
-        throw new Error('DropdownChoice does not allow HTML or Markdown in text.');
-      }
+      if (part.type === 'text') parseAccentMarkdown(part.text, 'text');
       if (part.type === 'gap' && !KEBAB_CASE.test(part.token)) {
         throw new Error('DropdownChoice gap markers must contain kebab-case choice ids.');
       }
@@ -42,6 +89,10 @@
     if (Object.keys(data).some(key => !COMPONENT_KEYS.includes(key))) {
       throw new Error('DropdownChoice contains unsupported fields.');
     }
+    const accentColor = data.accentColor == null
+      ? DEFAULT_ACCENT_COLOR
+      : String(data.accentColor).trim().toUpperCase();
+    if (!HEX_COLOR.test(accentColor)) throw new Error('DropdownChoice requires a #RRGGBB accentColor.');
     const parts = parseChoiceText(data.text);
     if (!Array.isArray(data.choices) || data.choices.length < 1 || data.choices.length > 12) {
       throw new Error('DropdownChoice requires between 1 and 12 choices.');
@@ -76,9 +127,9 @@
     }
     return {
       type: 'dropdownChoice', id: data.id,
-      title: plainText(data.title, 'a title'),
+      title: accentText(data.title, 'a title', true),
       instruction: plainText(data.instruction, 'an instruction'),
-      text: inlineGapText.serializeMarkedText(parts), choices,
+      text: inlineGapText.serializeMarkedText(parts), choices, accentColor,
     };
   }
 
@@ -91,6 +142,16 @@
     const base = String(value || '').toLowerCase().normalize('NFKD')
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     return base || 'choice';
+  }
+
+  function appendAccentMarkdown(parent, value, documentRef, preserveBreaks = false) {
+    parseAccentMarkdown(value).forEach((token) => {
+      const target = token.type === 'strong' ? documentRef.createElement('strong') : parent;
+      if (token.type === 'strong') target.className = 'dropdown-choice__accent';
+      if (preserveBreaks) inlineGapText.appendTextWithBreaks(target, token.value, documentRef);
+      else target.append(documentRef.createTextNode(token.value));
+      if (target !== parent) parent.append(target);
+    });
   }
 
   function renderDropdownChoice(data, options, documentRef) {
@@ -109,7 +170,8 @@
     const section = doc.createElement('section');
     section.className = 'dropdown-choice';
     section.dataset.componentId = current.id;
-    section.setAttribute('aria-label', current.title);
+    section.style.setProperty('--dropdown-choice-accent', current.accentColor);
+    section.setAttribute('aria-label', stripAccentMarkdown(current.title));
     const header = doc.createElement('div');
     header.className = 'dropdown-choice__header';
     const title = doc.createElement('h2');
@@ -197,7 +259,10 @@
     }
 
     function paintPlay() {
-      title.textContent = current.title;
+      section.style.setProperty('--dropdown-choice-accent', current.accentColor);
+      section.setAttribute('aria-label', stripAccentMarkdown(current.title));
+      title.replaceChildren();
+      appendAccentMarkdown(title, current.title, doc);
       instruction.textContent = current.instruction;
       title.contentEditable = 'false';
       instruction.contentEditable = 'false';
@@ -205,7 +270,7 @@
         const paragraph = doc.createElement('p');
         paragraph.className = 'dropdown-choice__paragraph';
         paragraphParts.forEach((part) => {
-          if (part.type === 'text') inlineGapText.appendTextWithBreaks(paragraph, part.text, doc);
+          if (part.type === 'text') appendAccentMarkdown(paragraph, part.text, doc, true);
           else paragraph.append(makePlaySelect(choiceById(part.token)));
         });
         return paragraph;
@@ -397,6 +462,7 @@
       section.classList.add('dropdown-choice--editing');
       toolbar.hidden = false;
       choiceEditor.hidden = false;
+      title.textContent = current.title;
       title.contentEditable = 'true';
       instruction.contentEditable = 'true';
       editButton.textContent = '✓';
@@ -425,7 +491,8 @@
     async function saveEditing() {
       const candidate = { type: 'dropdownChoice', id: current.id,
         title: title.textContent, instruction: instruction.textContent,
-        text: inlineGapText.serializeMarkedText(inlineGapText.compactParts(editorParts())), choices: editorChoices };
+        text: inlineGapText.serializeMarkedText(inlineGapText.compactParts(editorParts())),
+        choices: editorChoices, accentColor: current.accentColor };
       try { normalizeDropdownChoice(candidate); } catch (error) {
         if (typeof settings.onError === 'function') settings.onError(error.message);
         return;
@@ -459,7 +526,15 @@
     return section;
   }
 
-  const api = { getSelectionState, normalizeDropdownChoice, parseChoiceText, renderDropdownChoice };
+  const api = {
+    DEFAULT_ACCENT_COLOR,
+    getSelectionState,
+    normalizeDropdownChoice,
+    parseAccentMarkdown,
+    parseChoiceText,
+    renderDropdownChoice,
+    stripAccentMarkdown,
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.DropdownChoiceComponent = api;
 })(typeof window !== 'undefined' ? window : globalThis);

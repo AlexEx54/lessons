@@ -243,7 +243,31 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.content.stages[5].content[6].icon, 'check');
   assert.equal(created.content.stages[5].content[6].headingSize, 'large');
   assert.equal(created.content.stages[5].content[6].sections[1].headingSize, undefined);
-  assert.ok(created.content.stages.slice(6).every(stage => stage.content === null));
+  assert.equal(created.content.stages[6].id, 'grammar-focus');
+  assert.deepEqual(created.content.stages[6].content.map(component => component.id), [
+    'grammar-focus-teacher-note',
+    'grammar-focus-choose-the-correct-options',
+    'grammar-focus-answer-key',
+  ]);
+  assert.deepEqual(created.content.stages[6].content[0].blocks.map(block => block.id), [
+    'grammar-focus-transition-phrases',
+    'grammar-focus-struggle-tips',
+    'grammar-focus-correction-timing',
+    'grammar-focus-free-practice-success',
+  ]);
+  assert.equal(created.content.stages[6].content[1].choices.length, 8);
+  assert.equal(created.content.stages[6].content[1].accentColor, '#6545F5');
+  assert.match(created.content.stages[6].content[1].title, /^\*\*Task 1/);
+  assert.deepEqual(created.content.stages[6].content[1].choices.map(choice => choice.answer), [
+    'used to', 'get used to', 'got used to', 'am getting used to',
+    'use to', 'use to', 'get used to', 'used to',
+  ]);
+  assert.equal(created.content.stages[6].content[2].title, 'Answer Key & Explanations');
+  assert.deepEqual(created.content.stages[6].content[2].sections.map(section => section.id), [
+    'answers', 'short-explanations',
+  ]);
+  assert.equal(created.content.stages[6].content[2].studentVisibility, 'teacherOnly');
+  assert.ok(created.content.stages.slice(7).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: firstAdminCookie },
@@ -315,17 +339,37 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({
-      title: ' Updated dropdown ',
+      title: ' **Updated dropdown** ',
       instruction: ' Choose one. ',
-      text: 'One [[first-choice]].\nTwo [[second-choice]].',
+      text: '**1.** One [[first-choice]].\n**2.** Two [[second-choice]].',
       choices: [{ id: 'first-choice', options: ['used to', 'get used to'], answer: 'used to' },
         { id: 'second-choice', options: ['used to', 'get used to'], answer: 'used to' }],
     }),
   });
   assert.equal(dropdownChoiceUpdate.status, 200);
   const savedDropdownChoice = (await dropdownChoiceUpdate.json()).draft.content.stages[5].content[5];
-  assert.equal(savedDropdownChoice.title, 'Updated dropdown');
+  assert.equal(savedDropdownChoice.title, '**Updated dropdown**');
+  assert.match(savedDropdownChoice.text, /^\*\*1\.\*\* One/);
+  assert.equal(savedDropdownChoice.accentColor, '#17182D');
   assert.deepEqual(savedDropdownChoice.choices.map(choice => choice.answer), ['used to', 'used to']);
+
+  const grammarFocusDropdown = created.content.stages[6].content[1];
+  const grammarFocusDropdownEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/dropdown-choice/grammar-focus-choose-the-correct-options';
+  const grammarFocusDropdownUpdate = await fetch(grammarFocusDropdownEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: '**Task 1. Updated title.**',
+      instruction: grammarFocusDropdown.instruction,
+      text: grammarFocusDropdown.text,
+      choices: grammarFocusDropdown.choices,
+    }),
+  });
+  assert.equal(grammarFocusDropdownUpdate.status, 200);
+  const savedGrammarFocusDropdown = (await grammarFocusDropdownUpdate.json()).draft.content.stages[6].content[1];
+  assert.equal(savedGrammarFocusDropdown.title, '**Task 1. Updated title.**');
+  assert.equal(savedGrammarFocusDropdown.accentColor, '#6545F5');
   assert.equal((await fetch(dropdownChoiceEndpoint, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },

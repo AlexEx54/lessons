@@ -4,7 +4,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { getSelectionState, normalizeDropdownChoice, parseChoiceText } = require('../assets/components/dropdown-choice.js');
+const {
+  DEFAULT_ACCENT_COLOR,
+  getSelectionState,
+  normalizeDropdownChoice,
+  parseAccentMarkdown,
+  parseChoiceText,
+  stripAccentMarkdown,
+} = require('../assets/components/dropdown-choice.js');
 
 function component(overrides = {}) {
   return {
@@ -25,6 +32,7 @@ function component(overrides = {}) {
 test('dropdown choice normalizes marked text, choices, line breaks, and repeated answers', () => {
   const normalized = normalizeDropdownChoice(component());
   assert.equal(normalized.title, 'Task 2. Check the Rule');
+  assert.equal(normalized.accentColor, DEFAULT_ACCENT_COLOR);
   assert.match(normalized.text, /\n2\. I could not/);
   assert.deepEqual(parseChoiceText(normalized.text).filter(part => part.type === 'gap').map(part => part.token), [
     'past-routine', 'adaptation',
@@ -37,6 +45,18 @@ test('dropdown choice normalizes marked text, choices, line breaks, and repeated
     ],
   });
   assert.deepEqual(normalizeDropdownChoice(repeated).choices.map(choice => choice.answer), ['used to', 'used to']);
+
+  const accented = normalizeDropdownChoice(component({
+    title: ' **Task 2. Check the Rule** ',
+    text: '**1.** I [[past-routine]] finish early.\n**2.** I could not [[adaptation]] waking up early.',
+    accentColor: '#6545f5',
+  }));
+  assert.equal(accented.title, '**Task 2. Check the Rule**');
+  assert.equal(accented.accentColor, '#6545F5');
+  assert.deepEqual(parseAccentMarkdown('**1.** Sentence.'), [
+    { type: 'strong', value: '1.' }, { type: 'text', value: ' Sentence.' },
+  ]);
+  assert.equal(stripAccentMarkdown('**Task 2.** Check the Rule'), 'Task 2. Check the Rule');
 });
 
 test('dropdown choice rejects the removed segments format and malformed canonical data', () => {
@@ -58,7 +78,24 @@ test('dropdown choice rejects the removed segments format and malformed canonica
     { id: 'past-routine', options: ['one', 'two'], answer: 'three' },
     component().choices[1],
   ] }), /answer must match/);
-  assert.throws(() => normalizeDropdownChoice({ ...component(), text: '**Bold** [[past-routine]] and [[adaptation]].' }), /HTML or Markdown/);
+  assert.throws(() => normalizeDropdownChoice({ ...component(), accentColor: '#6545' }), /#RRGGBB/);
+  assert.throws(() => normalizeDropdownChoice({ ...component(), instruction: '**Choose.**' }), /HTML or Markdown/);
+  assert.throws(() => normalizeDropdownChoice({
+    ...component(),
+    choices: [
+      { id: 'past-routine', options: ['**used to**', 'get used to'], answer: '**used to**' },
+      component().choices[1],
+    ],
+  }), /HTML or Markdown/);
+  assert.throws(() => normalizeDropdownChoice({
+    ...component(), text: '*Italic* [[past-routine]] and [[adaptation]].',
+  }), /only \*\*bold\*\*/);
+  assert.throws(() => normalizeDropdownChoice({
+    ...component(), text: '**Broken [[past-routine]] and [[adaptation]].',
+  }), /unclosed bold/);
+  assert.throws(() => normalizeDropdownChoice({
+    ...component(), title: '[Task](https:\/\/example.com)',
+  }), /only \*\*bold\*\*/);
 });
 
 test('dropdown choice selection states allow retries and identify a correct answer', () => {
@@ -76,7 +113,11 @@ test('dropdown choice is registered with editing, persistence, and responsive st
   assert.match(source, /dropdown-choice__choices-editor/);
   assert.match(source, /settings\.onSave/);
   assert.match(css, /dropdown-choice__select--correct/);
+  assert.match(css, /--dropdown-choice-accent/);
+  assert.match(css, /dropdown-choice__accent/);
   assert.match(css, /dropdown-choice--editing/);
+  assert.match(source, /parseAccentMarkdown/);
+  assert.match(source, /title\.textContent = current\.title/);
   assert.match(css, /@media \(max-width: 560px\)/);
   assert.match(editor, /saveDropdownChoice/);
   assert.match(page, /components\/inline-gap-text\.js/);
