@@ -32,6 +32,7 @@ const {
   updateFillInBlanks,
   updateDragWordsInText,
   updateDropdownChoice,
+  updateGapFill,
   updateMarkdownCard,
   updateMatchWordsImage,
   updateCheckboxChoice,
@@ -409,6 +410,19 @@ function getDragWordsInTextRouteParams(pathname) {
 
 function getDropdownChoiceRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/dropdown-choice\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getGapFillRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/gap-fill\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -1063,6 +1077,7 @@ const server = http.createServer(async (req, res) => {
     const fillInBlanksRoute = getFillInBlanksRouteParams(pathname);
     const dragWordsInTextRoute = getDragWordsInTextRouteParams(pathname);
     const dropdownChoiceRoute = getDropdownChoiceRouteParams(pathname);
+    const gapFillRoute = getGapFillRouteParams(pathname);
     const multipleChoiceRoute = getMultipleChoiceRouteParams(pathname);
     const checkboxChoiceRoute = getCheckboxChoiceRouteParams(pathname);
     const personalizedQuestionsRoute = getPersonalizedQuestionsRouteParams(pathname);
@@ -1077,6 +1092,7 @@ const server = http.createServer(async (req, res) => {
       && (!fillInBlanksRoute || !fillInBlanksRoute.draftId || !fillInBlanksRoute.componentId)
       && (!dragWordsInTextRoute || !dragWordsInTextRoute.draftId || !dragWordsInTextRoute.componentId)
       && (!dropdownChoiceRoute || !dropdownChoiceRoute.draftId || !dropdownChoiceRoute.componentId)
+      && (!gapFillRoute || !gapFillRoute.draftId || !gapFillRoute.componentId)
       && (!multipleChoiceRoute || !multipleChoiceRoute.draftId || !multipleChoiceRoute.componentId)
       && (!checkboxChoiceRoute || !checkboxChoiceRoute.draftId || !checkboxChoiceRoute.componentId)
       && (!personalizedQuestionsRoute || !personalizedQuestionsRoute.draftId || !personalizedQuestionsRoute.componentId)
@@ -1151,6 +1167,16 @@ const server = http.createServer(async (req, res) => {
           instruction: body.instruction,
           text: body.text,
           choices: body.choices,
+        }, database);
+      } else if (gapFillRoute) {
+        draft = updateGapFill({
+          id: gapFillRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: gapFillRoute.componentId,
+          title: body.title,
+          instruction: body.instruction,
+          text: body.text,
+          gaps: body.gaps,
         }, database);
       } else if (multipleChoiceRoute) {
         draft = updateMultipleChoice({

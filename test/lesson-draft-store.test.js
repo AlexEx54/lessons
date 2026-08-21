@@ -17,6 +17,7 @@ const {
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateFillInBlanks,
+  updateGapFill,
   updateDragWordsInText,
   updateMarkdownCard,
   updateMatchWordsImage,
@@ -372,6 +373,69 @@ test('fill in the blanks items can be edited, added, removed, and reordered in r
   publishLessonDraft(ready.id, owner.id, database);
   assert.throws(() => updateFillInBlanks({
     id: ready.id, ownerAdminId: owner.id, componentId: 'target-fill', items,
+  }, database), /только черновик на проверке/);
+  database.close();
+});
+
+test('gap fill copy, answers, and examples can be updated only in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'gap-owner');
+  const outsider = admin(database, 'gap-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Gaps', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'gapFill',
+      id: 'complete-the-gaps',
+      title: '**Task 2.**',
+      instruction: 'Type the forms.',
+      text: 'I [[first-gap]] games.',
+      gaps: [{ id: 'first-gap', example: 'play', answer: 'used to play' }],
+      accentColor: '#6545F5',
+    }] }],
+  }, database);
+  const updated = updateGapFill({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'complete-the-gaps',
+    title: '**Task 2. Updated.**',
+    instruction: 'Type again.',
+    text: 'I [[first-gap]] games, and Max [[second-gap]] late.',
+    gaps: [
+      { id: 'first-gap', example: 'play', answer: 'used to play' },
+      { id: 'second-gap', answer: 'used to stay' },
+    ],
+  }, database);
+  assert.deepEqual(updated.content.stages[0].content[0], {
+    type: 'gapFill',
+    id: 'complete-the-gaps',
+    title: '**Task 2. Updated.**',
+    instruction: 'Type again.',
+    text: 'I [[first-gap]] games, and Max [[second-gap]] late.',
+    gaps: [
+      { id: 'first-gap', answer: 'used to play', example: 'play' },
+      { id: 'second-gap', answer: 'used to stay' },
+    ],
+    accentColor: '#6545F5',
+  });
+  assert.throws(() => updateGapFill({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'complete-the-gaps',
+    title: '**Task 2.**', instruction: 'Type.', text: 'No gap.', gaps: [],
+  }, database), /between 1 and 12/);
+  assert.throws(() => updateGapFill({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'complete-the-gaps',
+    title: '**Task 2.**', instruction: 'Type.', text: 'I [[first-gap]].',
+    gaps: [{ id: 'first-gap', answer: 'one' }],
+  }, database), /не найден/);
+  assert.throws(() => updateGapFill({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing',
+    title: '**Task 2.**', instruction: 'Type.', text: 'I [[first-gap]].',
+    gaps: [{ id: 'first-gap', answer: 'one' }],
+  }, database), /не найден/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateGapFill({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'complete-the-gaps',
+    title: '**Task 2.**', instruction: 'Type.', text: 'I [[first-gap]].',
+    gaps: [{ id: 'first-gap', answer: 'one' }],
   }, database), /только черновик на проверке/);
   database.close();
 });

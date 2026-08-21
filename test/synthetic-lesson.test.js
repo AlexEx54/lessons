@@ -375,7 +375,7 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.equal(grammarFocus.subtitle, 'Practice the Rule');
   assert.equal(grammarFocus.durationMinutes, 8);
   assert.deepEqual(grammarFocus.content.map(component => component.type), [
-    'teacherNote', 'dropdownChoice', 'markdownCard',
+    'teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard',
   ]);
   assert.equal(grammarFocus.content[0].id, 'grammar-focus-teacher-note');
   assert.deepEqual(grammarFocus.content[0].blocks.map(block => block.id), [
@@ -406,6 +406,25 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
     'answers', 'short-explanations',
   ]);
   assert.equal(grammarFocus.content[2].studentVisibility, 'teacherOnly');
+  assert.equal(grammarFocus.content[3].id, 'grammar-focus-complete-the-gaps');
+  assert.equal(grammarFocus.content[3].title, '**Task 2. Complete the gaps with the correct form of the verbs.**');
+  assert.equal(grammarFocus.content[3].accentColor, '#6545F5');
+  assert.equal(grammarFocus.content[3].gaps.length, 9);
+  assert.equal(grammarFocus.content[3].gaps.filter(gap => gap.example).length, 8);
+  assert.equal(grammarFocus.content[3].gaps[6].id, 'mia-did');
+  assert.equal(grammarFocus.content[3].gaps[6].example, undefined);
+  assert.deepEqual(grammarFocus.content[3].gaps.map(gap => gap.answer), [
+    'did you use to do', 'used to play', 'used to stay', 'couldn’t get used to',
+    'am getting used to', 'used to record', 'Did', 'use to help', 'am getting used to',
+  ]);
+  assert.match(grammarFocus.content[3].text, /^\*\*Mia:\*\* Hi, Leo!/);
+  assert.equal(grammarFocus.content[4].id, 'grammar-focus-complete-the-gaps-answer-key');
+  assert.equal(grammarFocus.content[4].title, 'Answer key');
+  assert.equal(grammarFocus.content[4].layout, 'columns');
+  assert.deepEqual(grammarFocus.content[4].sections.map(section => section.id), [
+    'answers-left', 'answers-right',
+  ]);
+  assert.equal(grammarFocus.content[4].studentVisibility, 'teacherOnly');
   assert.ok(lesson.stages.slice(7).every(stage => stage.content === null));
 });
 

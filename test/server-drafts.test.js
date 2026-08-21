@@ -248,6 +248,8 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'grammar-focus-teacher-note',
     'grammar-focus-choose-the-correct-options',
     'grammar-focus-answer-key',
+    'grammar-focus-complete-the-gaps',
+    'grammar-focus-complete-the-gaps-answer-key',
   ]);
   assert.deepEqual(created.content.stages[6].content[0].blocks.map(block => block.id), [
     'grammar-focus-transition-phrases',
@@ -267,6 +269,13 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'answers', 'short-explanations',
   ]);
   assert.equal(created.content.stages[6].content[2].studentVisibility, 'teacherOnly');
+  assert.equal(created.content.stages[6].content[3].gaps.length, 9);
+  assert.equal(created.content.stages[6].content[3].accentColor, '#6545F5');
+  assert.match(created.content.stages[6].content[3].title, /^\*\*Task 2/);
+  assert.equal(created.content.stages[6].content[4].title, 'Answer key');
+  assert.deepEqual(created.content.stages[6].content[4].sections.map(section => section.id), [
+    'answers-left', 'answers-right',
+  ]);
   assert.ok(created.content.stages.slice(7).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
@@ -370,6 +379,33 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   const savedGrammarFocusDropdown = (await grammarFocusDropdownUpdate.json()).draft.content.stages[6].content[1];
   assert.equal(savedGrammarFocusDropdown.title, '**Task 1. Updated title.**');
   assert.equal(savedGrammarFocusDropdown.accentColor, '#6545F5');
+
+  const grammarFocusGapFill = created.content.stages[6].content[3];
+  const grammarFocusGapFillEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/gap-fill/grammar-focus-complete-the-gaps';
+  const grammarFocusGapFillUpdate = await fetch(grammarFocusGapFillEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: '**Task 2. Updated title.**',
+      instruction: grammarFocusGapFill.instruction,
+      text: grammarFocusGapFill.text,
+      gaps: grammarFocusGapFill.gaps,
+    }),
+  });
+  assert.equal(grammarFocusGapFillUpdate.status, 200);
+  const savedGrammarFocusGapFill = (await grammarFocusGapFillUpdate.json()).draft.content.stages[6].content[3];
+  assert.equal(savedGrammarFocusGapFill.title, '**Task 2. Updated title.**');
+  assert.equal(savedGrammarFocusGapFill.accentColor, '#6545F5');
+  assert.equal(savedGrammarFocusGapFill.gaps.length, 9);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/gap-fill/missing-gap`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: 'Missing', instruction: 'Missing', text: '[[missing]]',
+      gaps: [{ id: 'missing', answer: 'one' }],
+    }),
+  })).status, 404);
   assert.equal((await fetch(dropdownChoiceEndpoint, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },

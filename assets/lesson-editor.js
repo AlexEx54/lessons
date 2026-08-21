@@ -54,6 +54,14 @@
       },
       onError: showToast,
     }),
+    gapFill: component => window.GapFillComponent.renderGapFill(component, {
+      onSave: state.draftStatus === 'review' ? saveGapFill : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
     fillInBlanks: component => window.FillInBlanksComponent.renderFillInBlanks(component, {
       viewerRole: 'teacher',
       onSave: state.draftStatus === 'review' ? saveFillInBlanks : undefined,
@@ -452,6 +460,15 @@
     for (const stage of lesson?.stages || []) {
       for (const component of stage.content || []) {
         if (component?.type === 'dropdownChoice' && component.id === componentId) return component;
+      }
+    }
+    return null;
+  }
+
+  function findGapFill(lesson, componentId) {
+    for (const stage of lesson?.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'gapFill' && component.id === componentId) return component;
       }
     }
     return null;
@@ -919,6 +936,31 @@
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить Dropdown Choice.');
+      throw error;
+    }
+  }
+
+  async function saveGapFill(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/gap-fill/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить Gap Fill.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findGapFill(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый Gap Fill не найден в черновике.');
+      showToast('Gap Fill сохранён.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить Gap Fill.');
       throw error;
     }
   }
