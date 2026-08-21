@@ -602,6 +602,53 @@ Answer Key в этот компонент не встроен. Если ключ
 показывается исходными маркерами `**`. Поля `type`, `id`, `accentColor`
 компонента и id существующих gaps неизменны.
 
+## Mini Situation
+
+`miniSituation` — свободная письменная практика. Ученик читает мини-ситуацию и
+пишет несколько предложений своими словами. Ответы не проверяются и не
+сохраняются в JSON; преподаватель смотрит их на занятии.
+
+```json
+{
+  "type": "miniSituation",
+  "id": "grammar-focus-mini-situation",
+  "title": "Task 3. Free Practice — Mini Situation",
+  "instruction": "Read the situation and write 3–5 sentences. Your answer will be checked by the teacher.",
+  "sentenceCount": 5,
+  "situation": {
+    "type": "illustratedTextPanel",
+    "id": "grammar-focus-mini-situation-prompt",
+    "text": "You are helping to prepare the AFK Summer camp stream. Describe what people are doing now, what they usually do at the camp, and what is different today. Explain what you still need for the stream.",
+    "backgroundColor": "#F4F0FF",
+    "leadingPicture": {
+      "imagePrompt": "Simple purple line-art camping tent with a small flag, no text, transparent background."
+    }
+  }
+}
+```
+
+Поля:
+
+- `type` — строго `miniSituation`.
+- `id` — обязательный уникальный lowercase kebab-case идентификатор.
+- `title` и `instruction` — обязательные непустые строки без HTML и Markdown.
+- `sentenceCount` — целое число от 3 до 8. Это число пустых полей для предложений,
+  а не правильный ответ.
+- `situation` — вложенный `illustratedTextPanel` со своим уникальным kebab-case
+  `id`. Для этого компонента обязателен `leadingPicture` с непустым английским
+  `imagePrompt`. `trailingPicture` не передавайте, если правая картинка не нужна.
+  Текст ситуации использует тот же Markdown subset, что `teacherNote`.
+  `backgroundColor` — обязательный `#RRGGBB`.
+
+Бейдж `Manual check` интерфейс добавляет сам. Не передавайте цвет заголовка,
+иконку проверки или тексты ученика.
+
+В review-редакторе администратор меняет заголовок и инструкцию на месте, а также
+добавляет и удаляет слоты в пределах 3–8. Текст ситуации, цвет фона и картинка
+редактируются карандашом вложенной панели так же, как обычный
+`illustratedTextPanel`; промт незагруженного слота виден только в режиме
+редактирования панели. Поля `type` и оба id после генерации неизменяемы.
+
 ## Fill in the Blanks
 
 `fillInBlanks` показывает нумерованные предложения с одним текстовым пропуском в

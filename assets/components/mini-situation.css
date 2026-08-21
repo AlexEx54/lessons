@@ -1,0 +1,208 @@
+.mini-situation {
+  padding: 20px 22px 18px;
+  border: 1px solid #e7e3f4;
+  border-radius: 16px;
+  color: #24222b;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(39, 32, 76, .035);
+}
+
+.mini-situation__header,
+.mini-situation__header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.mini-situation__header {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.mini-situation__header-actions { gap: 7px; }
+
+.mini-situation__title {
+  margin: 0;
+  color: #6545f5;
+  font-size: 20px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.mini-situation__instruction {
+  margin: 4px 0 0;
+  color: #656a80;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.mini-situation__edit,
+.mini-situation__cancel,
+.mini-situation__remove,
+.mini-situation__add {
+  border: 1px solid #dcd6e8;
+  border-radius: 7px;
+  color: #6545f5;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.mini-situation__edit {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 17px;
+}
+
+.mini-situation__cancel {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.mini-situation__cancel[hidden],
+.mini-situation__add[hidden] { display: none; }
+
+.mini-situation__situation { margin-top: 16px; }
+
+.mini-situation__slots {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mini-situation__slot {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.mini-situation--editing .mini-situation__slot {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+}
+
+.mini-situation__index {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  background: #6545f5;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mini-situation__input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid #e4e0ef;
+  border-radius: 10px;
+  background: #fff;
+  color: #292631;
+  font: 500 13px/1.4 Inter, sans-serif;
+  outline: none;
+}
+
+.mini-situation__input::placeholder {
+  color: #b0b3c4;
+  font-weight: 500;
+}
+
+.mini-situation__input:focus {
+  border-color: #8068f7;
+  box-shadow: 0 0 0 3px rgba(101, 69, 245, .12);
+}
+
+.mini-situation__remove {
+  min-height: 34px;
+  padding: 0 10px;
+  color: #b13b4a;
+  border-color: #efcbd3;
+  font-size: 12px;
+}
+
+.mini-situation__add {
+  width: fit-content;
+  margin-top: 12px;
+  padding: 7px 11px;
+  border-style: dashed;
+  font-size: 12px;
+}
+
+.mini-situation__edit:hover,
+.mini-situation__cancel:hover,
+.mini-situation__add:hover {
+  background: #f6f3ff;
+}
+
+.mini-situation__remove:hover { background: #fff5f6; }
+
+.mini-situation__remove:disabled,
+.mini-situation__add:disabled,
+.mini-situation__edit:disabled,
+.mini-situation__cancel:disabled {
+  cursor: default;
+  opacity: .45;
+}
+
+.mini-situation__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  color: #6f7388;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mini-situation__check-icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+}
+
+.mini-situation__check svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mini-situation--editing .mini-situation__title,
+.mini-situation--editing .mini-situation__instruction {
+  min-width: 80px;
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: #fff;
+  outline: 1px solid #6545f5;
+  box-shadow: 0 0 0 3px rgba(101, 69, 245, .1);
+}
+
+.mini-situation--editing [contenteditable="true"]:empty::before {
+  color: #9296a8;
+  content: attr(data-placeholder);
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.mini-situation--dirty .mini-situation__edit {
+  box-shadow: 0 0 0 3px rgba(101, 69, 245, .18);
+}
+
+.mini-situation--saving { opacity: .7; }
+
+@media (max-width: 700px) {
+  .mini-situation { padding: 16px 14px; }
+  .mini-situation__title { font-size: 18px; }
+}

@@ -250,6 +250,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'grammar-focus-answer-key',
     'grammar-focus-complete-the-gaps',
     'grammar-focus-complete-the-gaps-answer-key',
+    'grammar-focus-mini-situation',
   ]);
   assert.deepEqual(created.content.stages[6].content[0].blocks.map(block => block.id), [
     'grammar-focus-transition-phrases',
@@ -398,6 +399,60 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(savedGrammarFocusGapFill.title, '**Task 2. Updated title.**');
   assert.equal(savedGrammarFocusGapFill.accentColor, '#6545F5');
   assert.equal(savedGrammarFocusGapFill.gaps.length, 9);
+
+  const miniSituation = created.content.stages[6].content[5];
+  const miniSituationEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/mini-situation/grammar-focus-mini-situation';
+  const miniSituationUpdate = await fetch(miniSituationEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: 'Task 3. Updated Mini Situation',
+      instruction: miniSituation.instruction,
+      sentenceCount: 4,
+    }),
+  });
+  assert.equal(miniSituationUpdate.status, 200);
+  const savedMiniSituation = (await miniSituationUpdate.json()).draft.content.stages[6].content[5];
+  assert.equal(savedMiniSituation.title, 'Task 3. Updated Mini Situation');
+  assert.equal(savedMiniSituation.sentenceCount, 4);
+  assert.equal(savedMiniSituation.situation.id, 'grammar-focus-mini-situation-prompt');
+  assert.equal((await fetch(miniSituationEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: 'Too many slots',
+      instruction: miniSituation.instruction,
+      sentenceCount: 9,
+    }),
+  })).status, 400);
+
+  const nestedSituationEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/illustrated-text-panels/grammar-focus-mini-situation-prompt';
+  const nestedSituationUpdate = await fetch(nestedSituationEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ text: '**Updated camp prompt**', backgroundColor: '#ece6ff' }),
+  });
+  assert.equal(nestedSituationUpdate.status, 200);
+  const savedNestedSituation = (await nestedSituationUpdate.json()).draft.content.stages[6].content[5].situation;
+  assert.equal(savedNestedSituation.text, '**Updated camp prompt**');
+  assert.equal(savedNestedSituation.backgroundColor, '#ECE6FF');
+  const nestedPng = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    Buffer.from('test-image'),
+  ]);
+  const nestedImageResponse = await fetch(`${nestedSituationEndpoint}/pictures/leading/image`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie },
+    body: nestedPng,
+  });
+  assert.equal(nestedImageResponse.status, 200);
+  assert.match(
+    (await nestedImageResponse.json()).draft.content.stages[6].content[5].situation.leadingPicture.imageSrc,
+    new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`),
+  );
+
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/gap-fill/missing-gap`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },

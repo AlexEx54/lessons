@@ -113,6 +113,18 @@
       onDelete: state.draftStatus === 'review' ? deleteIllustratedTextPanelImage : undefined,
       onMessage: showToast,
     }),
+    miniSituation: component => window.MiniSituationComponent.renderMiniSituation(component, {
+      onSave: state.draftStatus === 'review' ? saveMiniSituation : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+      onSituationSave: state.draftStatus === 'review' ? saveIllustratedTextPanel : undefined,
+      onSituationUpload: state.draftStatus === 'review' ? uploadIllustratedTextPanelImage : undefined,
+      onSituationDelete: state.draftStatus === 'review' ? deleteIllustratedTextPanelImage : undefined,
+      onMessage: showToast,
+    }),
     multipleChoice: component => window.MultipleChoiceComponent.renderMultipleChoice(component, {
       viewerRole: 'teacher',
       onSave: state.draftStatus === 'review' ? saveMultipleChoice : undefined,
@@ -406,6 +418,18 @@
     for (const stage of lesson.stages || []) {
       for (const component of stage.content || []) {
         if (component?.type === 'illustratedTextPanel' && component.id === panelId) return component;
+        if (component?.type === 'miniSituation' && component.situation?.id === panelId) {
+          return component.situation;
+        }
+      }
+    }
+    return null;
+  }
+
+  function findMiniSituation(lesson, componentId) {
+    for (const stage of lesson.stages || []) {
+      for (const component of stage.content || []) {
+        if (component?.type === 'miniSituation' && component.id === componentId) return component;
       }
     }
     return null;
@@ -761,6 +785,31 @@
       return savedPanel;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить текстовую панель.');
+      throw error;
+    }
+  }
+
+  async function saveMiniSituation(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/mini-situation/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить Mini Situation.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findMiniSituation(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый Mini Situation не найден в черновике.');
+      showToast('Mini Situation сохранён.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить Mini Situation.');
       throw error;
     }
   }

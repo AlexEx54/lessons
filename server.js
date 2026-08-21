@@ -33,6 +33,7 @@ const {
   updateDragWordsInText,
   updateDropdownChoice,
   updateGapFill,
+  updateMiniSituation,
   updateMarkdownCard,
   updateMatchWordsImage,
   updateCheckboxChoice,
@@ -506,6 +507,19 @@ function getIllustratedTextPanelRouteParams(pathname) {
     return {
       draftId: decodeURIComponent(match[1]).trim(),
       panelId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getMiniSituationRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/mini-situation\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
     };
   } catch (_error) {
     return null;
@@ -1086,6 +1100,7 @@ const server = http.createServer(async (req, res) => {
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
     const textReadingRoute = getTextReadingRouteParams(pathname);
     const audioPlayerRoute = getAudioPlayerRouteParams(pathname);
+    const miniSituationRoute = getMiniSituationRouteParams(pathname);
     if ((!teacherNoteRoute || !teacherNoteRoute.draftId || !teacherNoteRoute.noteId)
       && (!taskPromptRoute || !taskPromptRoute.draftId || !taskPromptRoute.promptId)
       && (!markdownCardRoute || !markdownCardRoute.draftId || !markdownCardRoute.componentId)
@@ -1100,7 +1115,8 @@ const server = http.createServer(async (req, res) => {
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)
       && (!textReadingRoute || !textReadingRoute.draftId || !textReadingRoute.componentId)
-      && (!audioPlayerRoute || !audioPlayerRoute.draftId || !audioPlayerRoute.componentId)) {
+      && (!audioPlayerRoute || !audioPlayerRoute.draftId || !audioPlayerRoute.componentId)
+      && (!miniSituationRoute || !miniSituationRoute.draftId || !miniSituationRoute.componentId)) {
       json(res, 404, { error: 'Редактируемый компонент не найден.' });
       return;
     }
@@ -1240,6 +1256,15 @@ const server = http.createServer(async (req, res) => {
           ownerAdminId: user.id,
           componentId: audioPlayerRoute.componentId,
           title: body.title,
+        }, database);
+      } else if (miniSituationRoute) {
+        draft = updateMiniSituation({
+          id: miniSituationRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: miniSituationRoute.componentId,
+          title: body.title,
+          instruction: body.instruction,
+          sentenceCount: body.sentenceCount,
         }, database);
       } else {
         draft = updateIllustratedTextPanel({

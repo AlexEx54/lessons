@@ -16,6 +16,7 @@ const {
   updateDescribeAndGuess,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
+  updateMiniSituation,
   updateFillInBlanks,
   updateGapFill,
   updateDragWordsInText,
@@ -1129,6 +1130,92 @@ test('match words image URL can be added and removed only from an owned review d
   publishLessonDraft(ready.id, owner.id, database);
   assert.throws(() => updateMatchWordsImage({
     id: ready.id, ownerAdminId: owner.id, componentId: 'match-words', itemId: 'first-word', imageSrc: '/late.png',
+  }, database), /только черновик на проверке/);
+  database.close();
+});
+
+test('mini situation copy and slots update without clobbering the nested situation image', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'mini-situation-owner');
+  const outsider = admin(database, 'mini-situation-outsider');
+  const pending = createLessonDraft({
+    ownerAdminId: owner.id, topic: 'Mini situation', template: 'template-1',
+  }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'miniSituation',
+      id: 'grammar-focus-mini-situation',
+      title: 'Task 3',
+      instruction: 'Write sentences.',
+      sentenceCount: 5,
+      situation: {
+        type: 'illustratedTextPanel',
+        id: 'grammar-focus-mini-situation-prompt',
+        text: 'Original situation',
+        backgroundColor: '#F4F0FF',
+        leadingPicture: { imagePrompt: 'Tent', imageSrc: '/tent.png' },
+      },
+    }] }],
+  }, database);
+
+  const updated = updateMiniSituation({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'grammar-focus-mini-situation',
+    title: ' Task 3. Updated ',
+    instruction: ' Write 3 sentences. ',
+    sentenceCount: 3,
+  }, database).content.stages[0].content[0];
+  assert.equal(updated.title, 'Task 3. Updated');
+  assert.equal(updated.instruction, 'Write 3 sentences.');
+  assert.equal(updated.sentenceCount, 3);
+  assert.equal(updated.situation.text, 'Original situation');
+  assert.equal(updated.situation.leadingPicture.imageSrc, '/tent.png');
+
+  const situation = updateIllustratedTextPanel({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    panelId: 'grammar-focus-mini-situation-prompt',
+    text: 'Updated situation',
+    backgroundColor: '#ece6ff',
+  }, database).content.stages[0].content[0].situation;
+  assert.equal(situation.text, 'Updated situation');
+  assert.equal(situation.backgroundColor, '#ECE6FF');
+  assert.equal(situation.leadingPicture.imageSrc, '/tent.png');
+
+  const image = updateIllustratedTextPanelImage({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    panelId: 'grammar-focus-mini-situation-prompt',
+    side: 'leading',
+    imageSrc: '/tent-2.png',
+  }, database);
+  assert.equal(image.previousImageSrc, '/tent.png');
+  assert.equal(
+    image.draft.content.stages[0].content[0].situation.leadingPicture.imageSrc,
+    '/tent-2.png',
+  );
+
+  assert.throws(() => updateMiniSituation({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'grammar-focus-mini-situation',
+    title: 'Too few',
+    instruction: 'Write.',
+    sentenceCount: 2,
+  }, database), /between 3 and 8/);
+  assert.throws(() => updateMiniSituation({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'grammar-focus-mini-situation',
+    title: 'Task', instruction: 'Write.', sentenceCount: 4,
+  }, database), /не найден/);
+  assert.throws(() => updateMiniSituation({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing',
+    title: 'Task', instruction: 'Write.', sentenceCount: 4,
+  }, database), /не найден/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateMiniSituation({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'grammar-focus-mini-situation',
+    title: 'Late', instruction: 'Write.', sentenceCount: 4,
   }, database), /только черновик на проверке/);
   database.close();
 });
