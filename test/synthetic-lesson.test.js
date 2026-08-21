@@ -309,7 +309,7 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.equal(grammarPresentation.title, 'Grammar Presentation');
   assert.equal(grammarPresentation.durationMinutes, 5);
   assert.deepEqual(grammarPresentation.content.map(component => component.type), [
-    'teacherNote', 'textPanel', 'textPanel', 'dragWordsInText',
+    'teacherNote', 'textPanel', 'textPanel', 'dragWordsInText', 'markdownCard',
   ]);
   assert.deepEqual(grammarPresentation.content[0], {
     type: 'teacherNote',
@@ -339,6 +339,24 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
     instruction: 'Drag the correct words into the gaps.',
     words: ['past', 'base verb', 'comfortable', '-ing', 'future', 'infinitive with to'],
     text: 'used to + [[base verb]]. We use it for habits or states that were true in the [[past]] but are different now.\n\nget used to + noun / verb + [[-ing]]. It means to become [[comfortable]] with a new situation.',
+  });
+  assert.deepEqual(grammarPresentation.content[4], {
+    type: 'markdownCard',
+    id: 'grammar-presentation-quick-rule',
+    title: 'Quick Rule',
+    layout: 'columns',
+    sections: [{
+      id: 'used-to',
+      title: 'USED TO',
+      text: '- **past habit** / state that is different now\n- **form:** subject + used to + base verb\n- **negative:** didn’t use to + base verb\n- **question:** Did you use to ...?\n- **example:** “I used to finish school at 2:30.”',
+    }, {
+      id: 'get-used-to',
+      title: 'GET USED TO',
+      text: '- become comfortable with something new\n- **form:** get / got / am getting used to + noun / verb-ing\n- **after “to”:** use a noun or -ing, not a base verb\n- **example:** “I got used to the workload after a few weeks.”',
+    }],
+    icon: 'bulb',
+    accentColor: '#6545F5',
+    studentVisibility: 'always',
   });
   assert.ok(lesson.stages.slice(6).every(stage => stage.content === null));
 });

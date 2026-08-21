@@ -7,7 +7,8 @@
 
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const HEX_COLOR = /^#[0-9a-f]{6}$/i;
-  const ICONS = new Set(['book', 'check', 'chat']);
+  const ICONS = new Set(['book', 'check', 'chat', 'bulb']);
+  const LAYOUTS = new Set(['columns', 'stacked']);
   const STUDENT_VISIBILITIES = new Set(['always', 'controlled', 'teacherOnly']);
   const VIEWER_ROLES = new Set(['teacher', 'student']);
 
@@ -20,23 +21,50 @@
       throw new Error('MarkdownCard requires type "markdownCard" and a kebab-case id.');
     }
     const title = normalizeTitle(data.title);
-    const text = typeof data.text === 'string' ? data.text.trim() : '';
     const accentColor = typeof data.accentColor === 'string' ? data.accentColor.trim().toUpperCase() : '';
-    if (!title || !text) throw new Error('MarkdownCard requires non-empty title and text values.');
+    if (!title) throw new Error('MarkdownCard requires non-empty title and text values.');
     if (!ICONS.has(data.icon)) throw new Error('MarkdownCard requires a supported icon.');
     if (!HEX_COLOR.test(accentColor)) throw new Error('MarkdownCard requires accentColor in #RRGGBB format.');
     if (!STUDENT_VISIBILITIES.has(data.studentVisibility)) {
       throw new Error('MarkdownCard requires a supported studentVisibility.');
     }
-    return {
+    const hasText = data.text != null;
+    const hasSections = data.sections != null;
+    if (hasText === hasSections) {
+      throw new Error('MarkdownCard requires exactly one of text or sections.');
+    }
+
+    const normalized = {
       type: 'markdownCard',
       id: data.id,
       title,
-      text,
       icon: data.icon,
       accentColor,
       studentVisibility: data.studentVisibility,
     };
+    if (hasText) {
+      const text = typeof data.text === 'string' ? data.text.trim() : '';
+      if (!text) throw new Error('MarkdownCard requires non-empty title and text values.');
+      if (data.layout != null) throw new Error('MarkdownCard layout is supported only with sections.');
+      return { ...normalized, text };
+    }
+
+    if (!Array.isArray(data.sections) || data.sections.length < 1 || data.sections.length > 3) {
+      throw new Error('MarkdownCard requires between 1 and 3 sections.');
+    }
+    if (!LAYOUTS.has(data.layout)) throw new Error('MarkdownCard requires a supported layout with sections.');
+    const sectionIds = new Set();
+    const sections = data.sections.map((section) => {
+      const id = typeof section?.id === 'string' ? section.id.trim() : '';
+      const sectionTitle = normalizeTitle(section?.title);
+      const text = typeof section?.text === 'string' ? section.text.trim() : '';
+      if (!KEBAB_CASE.test(id)) throw new Error('MarkdownCard section requires a kebab-case id.');
+      if (sectionIds.has(id)) throw new Error('MarkdownCard section ids must be unique.');
+      if (!sectionTitle || !text) throw new Error('MarkdownCard sections require non-empty title and text values.');
+      sectionIds.add(id);
+      return { id, title: sectionTitle, text };
+    });
+    return { ...normalized, layout: data.layout, sections };
   }
 
   function shouldRenderMarkdownCard(studentVisibility, viewerRole, studentVisible) {
@@ -76,6 +104,11 @@
         ['path', { d: 'm8.2 12.1 2.4 2.4 5.4-5.5' }],
       ]);
     }
+    if (name === 'bulb') {
+      return createSvg(documentRef, [
+        ['path', { d: 'M9 17h6m-5 3h4m-7.2-8.6A5.3 5.3 0 1 1 17.2 13c-.8.8-1.5 1.7-1.7 2.8h-7C8.3 14 7.5 13.3 6.8 12.5a5.3 5.3 0 0 1 0-1.1Z' }],
+      ]);
+    }
     return createSvg(documentRef, [
       ['path', { d: 'M20 11.5a8 8 0 0 1-8.5 8L6 22l1.3-4A8 8 0 1 1 20 11.5Z' }],
       ['circle', { cx: '9', cy: '11', r: '.7' }],
@@ -108,6 +141,8 @@
     let editing = false;
     let saving = false;
     let initialSnapshot = '';
+    let activeEditor = null;
+    let sectionEditors = [];
 
     const card = doc.createElement('aside');
     card.className = 'markdown-card';
@@ -126,7 +161,11 @@
     const title = doc.createElement('span');
     title.className = 'markdown-card__title';
     title.dataset.placeholder = 'Введите заголовок';
-    heading.append(icon, title);
+    const titleError = doc.createElement('span');
+    titleError.className = 'markdown-card__title-error';
+    titleError.textContent = 'Введите заголовок карточки.';
+    titleError.hidden = true;
+    heading.append(icon, title, titleError);
 
     const actions = doc.createElement('div');
     actions.className = 'markdown-card__actions';
@@ -181,8 +220,8 @@
         button.setAttribute('aria-label', ariaLabel);
         button.addEventListener('mousedown', event => event.preventDefault());
         button.addEventListener('click', () => {
-          if (!editing || saving) return;
-          content.focus();
+          if (!editing || saving || !activeEditor) return;
+          activeEditor.focus();
           if (typeof doc.execCommand === 'function') doc.execCommand(command, false, null);
           updateDirty();
         });
@@ -197,8 +236,8 @@
       button.setAttribute('aria-label', `Размер текста ${size.toUpperCase()}`);
       button.addEventListener('mousedown', event => event.preventDefault());
       button.addEventListener('click', () => {
-        if (!editing || saving) return;
-        content.focus();
+        if (!editing || saving || !activeEditor) return;
+        activeEditor.focus();
         markdown.applyTextSize(doc, size);
         updateDirty();
       });
@@ -207,14 +246,145 @@
     });
 
     const content = doc.createElement('div');
-    content.className = 'markdown-card__body';
     content.dataset.placeholder = 'Введите текст';
 
-    function snapshot() {
-      return JSON.stringify({
-        title: normalizeTitle(title.textContent),
-        text: markdown.editorToMarkdown(content),
+    const editorFooter = doc.createElement('div');
+    editorFooter.className = 'markdown-card__editor-footer';
+    editorFooter.hidden = true;
+    const addSectionButton = doc.createElement('button');
+    addSectionButton.type = 'button';
+    addSectionButton.className = 'markdown-card__add-section';
+    addSectionButton.textContent = '+ Добавить секцию';
+    const footerActions = doc.createElement('div');
+    footerActions.className = 'markdown-card__footer-actions';
+    const cancelButton = doc.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'markdown-card__cancel';
+    cancelButton.textContent = 'Отмена';
+    const saveButton = doc.createElement('button');
+    saveButton.type = 'button';
+    saveButton.className = 'markdown-card__save';
+    saveButton.textContent = 'Сохранить';
+    footerActions.append(cancelButton, saveButton);
+    editorFooter.append(addSectionButton, footerActions);
+
+    function enableTextEditor(element, label, multiline) {
+      element.contentEditable = 'true';
+      element.setAttribute('role', 'textbox');
+      element.setAttribute('aria-label', label);
+      if (multiline) element.setAttribute('aria-multiline', 'true');
+      if (element.dataset.markdownCardEditorBound === 'true') return;
+      element.dataset.markdownCardEditorBound = 'true';
+      element.addEventListener('focus', () => { activeEditor = multiline ? element : null; });
+      element.addEventListener('input', () => { if (editing) updateDirty(); });
+      element.addEventListener('paste', (event) => {
+        if (!editing) return;
+        event.preventDefault();
+        const plainText = event.clipboardData?.getData('text/plain') || '';
+        if (typeof doc.execCommand === 'function') doc.execCommand('insertText', false, plainText);
       });
+      if (!multiline) {
+        element.addEventListener('keydown', (event) => {
+          if (editing && event.key === 'Enter') event.preventDefault();
+        });
+      }
+    }
+
+    function sectionValues() {
+      return sectionEditors.map(section => ({
+        id: section.id,
+        title: normalizeTitle(section.title.textContent),
+        text: markdown.editorToMarkdown(section.body),
+      }));
+    }
+
+    function freshSectionId(sections) {
+      const ids = new Set(sections.map(section => section.id));
+      let index = sections.length + 1;
+      while (ids.has(`section-${index}`)) index += 1;
+      return `section-${index}`;
+    }
+
+    function renderSections(sections, editable) {
+      sectionEditors = [];
+      content.replaceChildren();
+      sections.forEach((section, index) => {
+        const sectionElement = doc.createElement('section');
+        sectionElement.className = 'markdown-card__section';
+        sectionElement.dataset.sectionId = section.id;
+        const sectionHeader = doc.createElement('div');
+        sectionHeader.className = 'markdown-card__section-header';
+        const sectionTitle = doc.createElement('h3');
+        sectionTitle.className = 'markdown-card__section-title';
+        sectionTitle.dataset.placeholder = 'Введите заголовок секции';
+        sectionTitle.textContent = section.title;
+        const sectionActions = doc.createElement('div');
+        sectionActions.className = 'markdown-card__section-actions';
+        const up = doc.createElement('button');
+        up.type = 'button';
+        up.textContent = '↑';
+        up.setAttribute('aria-label', `Переместить секцию «${section.title || index + 1}» выше`);
+        up.disabled = index === 0;
+        const down = doc.createElement('button');
+        down.type = 'button';
+        down.textContent = '↓';
+        down.setAttribute('aria-label', `Переместить секцию «${section.title || index + 1}» ниже`);
+        down.disabled = index === sections.length - 1;
+        const remove = doc.createElement('button');
+        remove.type = 'button';
+        remove.className = 'markdown-card__remove-section';
+        remove.textContent = 'Удалить';
+        remove.disabled = sections.length === 1;
+        remove.setAttribute('aria-label', `Удалить секцию «${section.title || index + 1}»`);
+        sectionActions.append(up, down, remove);
+        sectionHeader.append(sectionTitle, sectionActions);
+
+        const sectionBody = doc.createElement('div');
+        sectionBody.className = 'markdown-card__section-body';
+        sectionBody.dataset.placeholder = 'Введите текст секции';
+        if (section.text) markdown.renderMarkdownInto(sectionBody, section.text, doc, 'markdown-card__spacer');
+        const sectionError = doc.createElement('p');
+        sectionError.className = 'markdown-card__section-error';
+        sectionError.textContent = 'Заполните заголовок и текст секции.';
+        sectionError.hidden = true;
+        sectionElement.append(sectionHeader, sectionBody, sectionError);
+        content.append(sectionElement);
+
+        const editor = { id: section.id, element: sectionElement, title: sectionTitle, body: sectionBody, error: sectionError };
+        sectionEditors.push(editor);
+        if (editable) {
+          enableTextEditor(sectionTitle, `Заголовок секции ${index + 1}`, false);
+          enableTextEditor(sectionBody, `Текст секции ${index + 1}`, true);
+          up.addEventListener('click', () => moveSection(index, -1));
+          down.addEventListener('click', () => moveSection(index, 1));
+          remove.addEventListener('click', () => removeSection(index));
+        }
+      });
+      addSectionButton.disabled = sections.length >= 3;
+    }
+
+    function moveSection(index, delta) {
+      const sections = sectionValues();
+      const target = index + delta;
+      if (target < 0 || target >= sections.length) return;
+      [sections[index], sections[target]] = [sections[target], sections[index]];
+      renderSections(sections, true);
+      updateDirty();
+    }
+
+    function removeSection(index) {
+      const sections = sectionValues();
+      if (sections.length === 1) return;
+      sections.splice(index, 1);
+      renderSections(sections, true);
+      updateDirty();
+    }
+
+    function snapshot() {
+      const value = { title: normalizeTitle(title.textContent) };
+      if (Array.isArray(current.sections)) value.sections = sectionValues();
+      else value.text = markdown.editorToMarkdown(content);
+      return JSON.stringify(value);
     }
 
     function setDirty(dirty) {
@@ -227,25 +397,72 @@
     function paint(value) {
       current = normalizeMarkdownCard({ ...current, ...value });
       title.textContent = current.title;
-      markdown.renderMarkdownInto(content, current.text, doc, 'markdown-card__spacer');
+      card.classList.toggle('markdown-card--sectioned', Array.isArray(current.sections));
+      card.dataset.layout = current.layout || '';
+      if (Array.isArray(current.sections)) {
+        content.className = `markdown-card__sections markdown-card__sections--${current.layout}`;
+        renderSections(current.sections, false);
+      } else {
+        sectionEditors = [];
+        content.className = 'markdown-card__body';
+        markdown.renderMarkdownInto(content, current.text, doc, 'markdown-card__spacer');
+      }
       if (current.studentVisibility === 'controlled') paintVisibility();
+    }
+
+    function clearValidation() {
+      title.classList.remove('markdown-card__field--invalid');
+      content.classList.remove('markdown-card__field--invalid');
+      titleError.hidden = true;
+      sectionEditors.forEach((section) => {
+        section.element.classList.remove('markdown-card__section--invalid');
+        section.error.hidden = true;
+      });
+    }
+
+    function validateEditing() {
+      clearValidation();
+      let valid = true;
+      if (!normalizeTitle(title.textContent)) {
+        title.classList.add('markdown-card__field--invalid');
+        titleError.hidden = false;
+        valid = false;
+      }
+      if (Array.isArray(current.sections)) {
+        sectionEditors.forEach((section) => {
+          if (!normalizeTitle(section.title.textContent) || !markdown.editorToMarkdown(section.body)) {
+            section.element.classList.add('markdown-card__section--invalid');
+            section.error.hidden = false;
+            valid = false;
+          }
+        });
+      } else if (!markdown.editorToMarkdown(content)) {
+        content.classList.add('markdown-card__field--invalid');
+        valid = false;
+      }
+      return valid;
     }
 
     function leaveEditMode() {
       editing = false;
       saving = false;
+      activeEditor = null;
       title.contentEditable = 'false';
+      title.removeAttribute('role');
+      title.removeAttribute('aria-label');
       content.contentEditable = 'false';
-      [title, content].forEach(element => {
-        element.removeAttribute('role');
-        element.removeAttribute('aria-label');
-      });
+      content.removeAttribute('role');
+      content.removeAttribute('aria-label');
+      content.removeAttribute('aria-multiline');
       card.classList.remove('markdown-card--editing', 'markdown-card--saving');
       toolbar.hidden = true;
+      editorFooter.hidden = true;
+      editButton.hidden = false;
       editButton.textContent = '✎';
       editButton.disabled = false;
       editButton.setAttribute('aria-label', 'Редактировать карточку');
-      formattingControls.forEach(control => { control.disabled = false; });
+      [...formattingControls, addSectionButton, cancelButton, saveButton].forEach(control => { control.disabled = false; });
+      clearValidation();
       setDirty(false);
     }
 
@@ -257,14 +474,19 @@
       title.contentEditable = 'true';
       title.setAttribute('role', 'textbox');
       title.setAttribute('aria-label', 'Заголовок карточки');
-      content.contentEditable = 'true';
-      content.setAttribute('role', 'textbox');
-      content.setAttribute('aria-label', 'Текст карточки');
-      content.setAttribute('aria-multiline', 'true');
       initialSnapshot = snapshot();
-      editButton.textContent = '✓';
-      editButton.setAttribute('aria-label', 'Сохранить карточку');
-      content.focus();
+      if (Array.isArray(current.sections)) {
+        renderSections(current.sections, true);
+        editorFooter.hidden = false;
+        editButton.hidden = true;
+        sectionEditors[0]?.body.focus();
+      } else {
+        enableTextEditor(content, 'Текст карточки', true);
+        editButton.textContent = '✓';
+        editButton.setAttribute('aria-label', 'Сохранить карточку');
+        activeEditor = content;
+        content.focus();
+      }
     }
 
     function cancelEditing() {
@@ -275,19 +497,19 @@
     }
 
     async function saveEditing() {
-      if (!editing || saving) return;
+      if (!editing || saving || !validateEditing()) return;
       let next;
       try {
         next = JSON.parse(snapshot());
         normalizeMarkdownCard({ ...current, ...next });
       } catch (_error) {
-        if (typeof settings.onError === 'function') settings.onError('Заголовок и текст карточки не могут быть пустыми.');
+        if (typeof settings.onError === 'function') settings.onError('Проверьте содержимое карточки.');
         return;
       }
       saving = true;
       card.classList.add('markdown-card--saving');
       editButton.disabled = true;
-      formattingControls.forEach(control => { control.disabled = true; });
+      [...formattingControls, addSectionButton, cancelButton, saveButton].forEach(control => { control.disabled = true; });
       try {
         const saved = await settings.onSave(next, current.id);
         paint(saved || next);
@@ -296,28 +518,34 @@
         saving = false;
         card.classList.remove('markdown-card--saving');
         editButton.disabled = false;
-        formattingControls.forEach(control => { control.disabled = false; });
-        content.focus();
+        [...formattingControls, addSectionButton, cancelButton, saveButton].forEach(control => { control.disabled = false; });
+        activeEditor?.focus();
       }
     }
 
+    addSectionButton.addEventListener('click', () => {
+      if (!editing || saving || !Array.isArray(current.sections)) return;
+      const sections = sectionValues();
+      if (sections.length >= 3) return;
+      sections.push({ id: freshSectionId(sections), title: '', text: '' });
+      renderSections(sections, true);
+      updateDirty();
+      sectionEditors.at(-1)?.title.focus();
+    });
+    cancelButton.addEventListener('click', cancelEditing);
+    saveButton.addEventListener('click', saveEditing);
     editButton.addEventListener('click', () => editing ? saveEditing() : enterEditMode());
-    [title, content].forEach((element) => {
-      element.addEventListener('input', () => { if (editing) updateDirty(); });
-      element.addEventListener('paste', (event) => {
-        if (!editing) return;
-        event.preventDefault();
-        const plainText = event.clipboardData?.getData('text/plain') || '';
-        if (typeof doc.execCommand === 'function') doc.execCommand('insertText', false, plainText);
-      });
-    });
-    title.addEventListener('keydown', (event) => {
-      if (editing && event.key === 'Enter') event.preventDefault();
-    });
+    enableTextEditor(title, 'Заголовок карточки', false);
+    title.contentEditable = 'false';
+    title.removeAttribute('role');
+    title.removeAttribute('aria-label');
     card.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
         cancelEditing();
+      } else if (editing && event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        saveEditing();
       }
     });
 
@@ -330,7 +558,7 @@
     }
     header.append(heading, actions);
     paint(current);
-    card.append(header, toolbar, content);
+    card.append(header, toolbar, content, editorFooter);
     return card;
   }
 

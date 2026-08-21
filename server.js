@@ -1107,6 +1107,7 @@ const server = http.createServer(async (req, res) => {
           componentId: markdownCardRoute.componentId,
           title: body.title,
           text: body.text,
+          sections: body.sections,
         }, database);
       } else if (fillInBlanksRoute) {
         draft = updateFillInBlanks({

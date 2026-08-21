@@ -288,6 +288,50 @@ test('markdown card title and text can be updated without changing presentation 
   database.close();
 });
 
+test('sectioned markdown cards can edit, add, remove, and reorder sections without changing presentation', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'sectioned-card-owner');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Rules', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'markdownCard', id: 'quick-rule', title: 'Quick Rule', layout: 'columns',
+      sections: [
+        { id: 'first-rule', title: 'FIRST', text: '- First rule' },
+        { id: 'second-rule', title: 'SECOND', text: '- Second rule' },
+      ],
+      icon: 'bulb', accentColor: '#6545F5', studentVisibility: 'always',
+    }] }],
+  }, database);
+
+  const updated = updateMarkdownCard({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'quick-rule',
+    title: ' Updated Rule ',
+    sections: [
+      { id: 'second-rule', title: ' SECOND UPDATED ', text: ' - Updated second ' },
+      { id: 'section-3', title: 'THIRD', text: '- Third rule' },
+    ],
+  }, database).content.stages[0].content[0];
+  assert.deepEqual(updated, {
+    type: 'markdownCard', id: 'quick-rule', title: 'Updated Rule', layout: 'columns',
+    sections: [
+      { id: 'second-rule', title: 'SECOND UPDATED', text: '- Updated second' },
+      { id: 'section-3', title: 'THIRD', text: '- Third rule' },
+    ],
+    icon: 'bulb', accentColor: '#6545F5', studentVisibility: 'always',
+  });
+  assert.throws(() => updateMarkdownCard({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'quick-rule', title: 'Rule', text: 'Wrong format',
+  }, database), /Формат содержимого/);
+  assert.throws(() => updateMarkdownCard({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'quick-rule', title: 'Rule', sections: [
+      { id: 'same', title: 'One', text: 'One' }, { id: 'same', title: 'Two', text: 'Two' },
+    ],
+  }, database), /не могут быть пустыми или некорректными/);
+  database.close();
+});
+
 test('fill in the blanks items can be edited, added, removed, and reordered in review', () => {
   const database = openDatabase(':memory:');
   const owner = admin(database, 'fill-owner');

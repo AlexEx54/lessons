@@ -211,9 +211,28 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'grammar-presentation-notice-rule',
     'grammar-presentation-concept-checking',
     'grammar-presentation-complete-the-rule',
+    'grammar-presentation-quick-rule',
   ]);
   assert.equal(created.content.stages[5].content[1].showBorder, false);
   assert.equal(created.content.stages[5].content[2].accentColor, '#20A85B');
+  assert.deepEqual(created.content.stages[5].content[4], {
+    type: 'markdownCard',
+    id: 'grammar-presentation-quick-rule',
+    title: 'Quick Rule',
+    layout: 'columns',
+    sections: [{
+      id: 'used-to',
+      title: 'USED TO',
+      text: '- **past habit** / state that is different now\n- **form:** subject + used to + base verb\n- **negative:** didn’t use to + base verb\n- **question:** Did you use to ...?\n- **example:** “I used to finish school at 2:30.”',
+    }, {
+      id: 'get-used-to',
+      title: 'GET USED TO',
+      text: '- become comfortable with something new\n- **form:** get / got / am getting used to + noun / verb-ing\n- **after “to”:** use a noun or -ing, not a base verb\n- **example:** “I got used to the workload after a few weeks.”',
+    }],
+    icon: 'bulb',
+    accentColor: '#6545F5',
+    studentVisibility: 'always',
+  });
   assert.ok(created.content.stages.slice(6).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
@@ -522,6 +541,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   )).status, 400);
 
   const markdownCardEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/markdown-cards/lead-in-suggested-answers-card`;
+  const quickRuleEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/markdown-cards/grammar-presentation-quick-rule`;
   assert.equal((await fetch(markdownCardEndpoint, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -566,6 +586,38 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ title: 'Missing', text: 'Missing' }),
   })).status, 404);
+
+  const quickRuleUpdate = await fetch(quickRuleEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: ' Quick Rule Updated ',
+      sections: [
+        { id: 'get-used-to', title: 'GET USED TO', text: '- Updated adaptation rule' },
+        { id: 'section-3', title: 'REMEMBER', text: '- A new section' },
+      ],
+      layout: 'stacked',
+      icon: 'check',
+      accentColor: '#000000',
+      studentVisibility: 'teacherOnly',
+    }),
+  });
+  assert.equal(quickRuleUpdate.status, 200);
+  const savedQuickRule = (await quickRuleUpdate.json()).draft.content.stages[5].content[4];
+  assert.deepEqual(savedQuickRule, {
+    type: 'markdownCard', id: 'grammar-presentation-quick-rule', title: 'Quick Rule Updated',
+    layout: 'columns',
+    sections: [
+      { id: 'get-used-to', title: 'GET USED TO', text: '- Updated adaptation rule' },
+      { id: 'section-3', title: 'REMEMBER', text: '- A new section' },
+    ],
+    icon: 'bulb', accentColor: '#6545F5', studentVisibility: 'always',
+  });
+  assert.equal((await fetch(quickRuleEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Wrong shape', text: 'Cannot replace sections' }),
+  })).status, 400);
 
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/task-prompts/warm-up-follow-up-prompt`, {
     method: 'PATCH',

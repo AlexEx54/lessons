@@ -82,9 +82,10 @@ Teacher’s Note содержит подсказки, инструкции и г
 
 ## Markdown Card
 
-`markdownCard` — нейтральная визуальная карточка с заголовком, иконкой и Markdown-текстом.
-Она используется для `Your turn!`, `Suggested answers`, `Vocabulary` и других
-одноколоночных блоков с таким же представлением.
+`markdownCard` — нейтральная визуальная карточка с заголовком, иконкой и Markdown-содержимым.
+Она используется для `Your turn!`, `Suggested answers`, `Vocabulary`, сравнений правил
+и других блоков с таким же представлением. Карточка содержит либо один `text`, либо
+от одной до трёх структурированных `sections`; смешивать два формата нельзя.
 
 ```json
 {
@@ -98,13 +99,41 @@ Teacher’s Note содержит подсказки, инструкции и г
 }
 ```
 
+Секционный вариант:
+
+```json
+{
+  "type": "markdownCard",
+  "id": "grammar-presentation-quick-rule",
+  "title": "Quick Rule",
+  "layout": "columns",
+  "sections": [{
+    "id": "used-to",
+    "title": "USED TO",
+    "text": "- **past habit** / state that is different now\n- **form:** subject + used to + base verb"
+  }, {
+    "id": "get-used-to",
+    "title": "GET USED TO",
+    "text": "- become comfortable with something new\n- **form:** get used to + noun / verb-ing"
+  }],
+  "icon": "bulb",
+  "accentColor": "#6545F5",
+  "studentVisibility": "always"
+}
+```
+
 Поля:
 
 - `type` — строго `markdownCard`.
 - `id` — обязательный уникальный lowercase kebab-case идентификатор.
 - `title` — обязательный непустой заголовок без Markdown.
-- `text` — обязательный непустой текст с тем же Markdown subset, что `teacherNote`.
-- `icon` — строго `book`, `check` или `chat`.
+- `text` — обязательный непустой текст с тем же Markdown subset, что `teacherNote`,
+  если карточка не использует `sections`.
+- `sections` — альтернатива `text`: массив от 1 до 3 секций с уникальными kebab-case
+  `id`, непустыми обычными `title` и Markdown-текстом в `text`.
+- `layout` — обязательное для секционной карточки значение `columns` или `stacked`.
+  В узком интерфейсе колонки автоматически складываются вертикально.
+- `icon` — строго `book`, `check`, `chat` или `bulb`.
 - `accentColor` — обязательный цвет заголовка, иконки и маркеров в формате `#RRGGBB`.
 - `studentVisibility` — строго `always`, `controlled` или `teacherOnly`.
 
@@ -114,9 +143,11 @@ Teacher’s Note содержит подсказки, инструкции и г
 для преподавателя. Реальная синхронизация со student screen в текущей версии не
 реализована.
 
-Администратор может редактировать только `title` и `text`. `type`, `id`, `icon`,
-`accentColor` и `studentVisibility` после генерации неизменяемы. Рамку и светлый фон
-интерфейс вычисляет из `accentColor`.
+Администратор может редактировать `title` и содержимое выбранного формата. В секционной
+карточке разрешено редактировать, добавлять, удалять и переставлять секции в пределах
+лимита; существующие id остаются стабильными, новые создаёт интерфейс. `type`, id
+карточки, `layout`, `icon`, `accentColor` и `studentVisibility` после генерации
+неизменяемы. Рамку и светлый фон интерфейс вычисляет из `accentColor`.
 
 ## Task Prompt
 
