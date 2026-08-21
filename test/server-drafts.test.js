@@ -151,7 +151,9 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   });
   const targetVocabularyDropdown = created.content.stages[2].content[4];
   assert.equal(targetVocabularyDropdown.id, 'target-vocabulary-context-dropdown');
-  assert.equal(targetVocabularyDropdown.segments.filter(segment => segment.type === 'choice').length, 8);
+  assert.equal(targetVocabularyDropdown.segments, undefined);
+  assert.equal(targetVocabularyDropdown.choices.length, 8);
+  assert.match(targetVocabularyDropdown.text, /\[\[hang-out-context\]\]/);
   assert.deepEqual(created.content.stages[2].content[5], {
     type: 'markdownCard',
     id: 'target-vocabulary-context-answer-key',
@@ -212,6 +214,8 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'grammar-presentation-concept-checking',
     'grammar-presentation-complete-the-rule',
     'grammar-presentation-quick-rule',
+    'grammar-presentation-check-the-rule',
+    'grammar-presentation-answer-key',
   ]);
   assert.equal(created.content.stages[5].content[1].showBorder, false);
   assert.equal(created.content.stages[5].content[2].accentColor, '#20A85B');
@@ -233,6 +237,12 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     accentColor: '#6545F5',
     studentVisibility: 'always',
   });
+  assert.deepEqual(created.content.stages[5].content[5].choices.map(choice => choice.answer), [
+    'used to', 'get used to', 'getting used to', 'used to', 'get used to',
+  ]);
+  assert.equal(created.content.stages[5].content[6].icon, 'check');
+  assert.equal(created.content.stages[5].content[6].headingSize, 'large');
+  assert.equal(created.content.stages[5].content[6].sections[1].headingSize, undefined);
   assert.ok(created.content.stages.slice(6).every(stage => stage.content === null));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
@@ -293,6 +303,45 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ title: 'Broken', instruction: 'Broken', words: ['only'], text: 'No gap.' }),
   })).status, 400);
+
+  const dropdownChoiceEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/dropdown-choice/grammar-presentation-check-the-rule';
+  assert.equal((await fetch(dropdownChoiceEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Guest', instruction: 'Guest', text: '[[one]]', choices: [] }),
+  })).status, 401);
+  const dropdownChoiceUpdate = await fetch(dropdownChoiceEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: ' Updated dropdown ',
+      instruction: ' Choose one. ',
+      text: 'One [[first-choice]].\nTwo [[second-choice]].',
+      choices: [{ id: 'first-choice', options: ['used to', 'get used to'], answer: 'used to' },
+        { id: 'second-choice', options: ['used to', 'get used to'], answer: 'used to' }],
+    }),
+  });
+  assert.equal(dropdownChoiceUpdate.status, 200);
+  const savedDropdownChoice = (await dropdownChoiceUpdate.json()).draft.content.stages[5].content[5];
+  assert.equal(savedDropdownChoice.title, 'Updated dropdown');
+  assert.deepEqual(savedDropdownChoice.choices.map(choice => choice.answer), ['used to', 'used to']);
+  assert.equal((await fetch(dropdownChoiceEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: 'Legacy', instruction: 'Legacy',
+      segments: [{ type: 'text', text: 'Old' }],
+    }),
+  })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/dropdown-choice/missing-choice`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: 'Missing', instruction: 'Missing', text: '[[missing]]',
+      choices: [{ id: 'missing', options: ['one', 'two'], answer: 'one' }],
+    }),
+  })).status, 404);
 
   const personalizedQuestionsEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
     + '/personalized-questions/target-vocabulary-personalized-questions';

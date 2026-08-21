@@ -4,109 +4,81 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  getSelectionState,
-  normalizeDropdownChoice,
-} = require('../assets/components/dropdown-choice.js');
+const { getSelectionState, normalizeDropdownChoice, parseChoiceText } = require('../assets/components/dropdown-choice.js');
 
 function component(overrides = {}) {
   return {
     type: 'dropdownChoice',
-    id: 'target-vocabulary-context-dropdown',
-    title: ' Task 2 · Vocabulary in Context — Dropdown ',
-    instruction: ' Fill in the blanks. ',
-    segments: [{ type: 'text', text: 'I wanted ' }, {
-      type: 'choice',
-      id: 'hang-out-context',
-      options: ['to get bored', 'to hang out (with friends)', 'to stay up late'],
-      answer: 'to hang out (with friends)',
-    }, { type: 'text', text: ' this summer.' }],
+    id: 'grammar-check-the-rule',
+    title: ' Task 2. Check the Rule ',
+    instruction: ' Choose the correct option. ',
+    text: '1. I [[past-routine]] finish early.\n2. I could not [[adaptation]] waking up early.',
+    choices: [{
+      id: 'past-routine', options: ['used to', 'get used to', 'getting used to'], answer: 'used to',
+    }, {
+      id: 'adaptation', options: ['used to', 'get used to', 'getting used to'], answer: 'get used to',
+    }],
     ...overrides,
   };
 }
 
-test('dropdown choice normalizes structured inline content', () => {
+test('dropdown choice normalizes marked text, choices, line breaks, and repeated answers', () => {
   const normalized = normalizeDropdownChoice(component());
-  assert.equal(normalized.title, 'Task 2 · Vocabulary in Context — Dropdown');
-  assert.equal(normalized.instruction, 'Fill in the blanks.');
-  assert.equal(normalized.segments[0].text, 'I wanted ');
-  assert.deepEqual(normalized.segments[1], {
-    type: 'choice',
-    id: 'hang-out-context',
-    options: ['to get bored', 'to hang out (with friends)', 'to stay up late'],
-    answer: 'to hang out (with friends)',
+  assert.equal(normalized.title, 'Task 2. Check the Rule');
+  assert.match(normalized.text, /\n2\. I could not/);
+  assert.deepEqual(parseChoiceText(normalized.text).filter(part => part.type === 'gap').map(part => part.token), [
+    'past-routine', 'adaptation',
+  ]);
+  const repeated = component({
+    text: 'One [[first]]. Two [[second]].',
+    choices: [
+      { id: 'first', options: ['used to', 'get used to'], answer: 'used to' },
+      { id: 'second', options: ['used to', 'get used to'], answer: 'used to' },
+    ],
   });
-
-  const twelveChoices = [];
-  for (let index = 1; index <= 12; index += 1) {
-    twelveChoices.push({ type: 'text', text: `Part ${index} ` });
-    twelveChoices.push({
-      type: 'choice', id: `choice-${index}`, options: ['first', 'second'], answer: 'first',
-    });
-  }
-  assert.equal(
-    normalizeDropdownChoice(component({ segments: twelveChoices })).segments.filter(segment => segment.type === 'choice').length,
-    12,
-  );
+  assert.deepEqual(normalizeDropdownChoice(repeated).choices.map(choice => choice.answer), ['used to', 'used to']);
 });
 
-test('dropdown choice rejects malformed segments, ids, options, answers, and markup', () => {
-  assert.throws(() => normalizeDropdownChoice(component({ type: 'other' })), /type.*kebab-case/);
-  assert.throws(() => normalizeDropdownChoice(component({ segments: [] })), /non-empty segments/);
-  assert.throws(() => normalizeDropdownChoice(component({
-    segments: [{ type: 'video', text: 'Unsupported' }],
-  })), /unsupported segment/);
-  assert.throws(() => normalizeDropdownChoice(component({
-    segments: [{ type: 'choice', id: 'Bad Id', options: ['one', 'two'], answer: 'one' }],
-  })), /unique kebab-case/);
-  assert.throws(() => normalizeDropdownChoice(component({
-    segments: [
-      { type: 'choice', id: 'same-id', options: ['one', 'two'], answer: 'one' },
-      { type: 'choice', id: 'same-id', options: ['one', 'two'], answer: 'one' },
-    ],
-  })), /unique kebab-case/);
-  assert.throws(() => normalizeDropdownChoice(component({
-    segments: [{ type: 'choice', id: 'few-options', options: ['one'], answer: 'one' }],
-  })), /at least two options/);
-  assert.throws(() => normalizeDropdownChoice(component({
-    segments: [{ type: 'choice', id: 'duplicate-options', options: ['one', ' one '], answer: 'one' }],
-  })), /options must be unique/);
-  assert.throws(() => normalizeDropdownChoice(component({
-    segments: [{ type: 'choice', id: 'missing-answer', options: ['one', 'two'], answer: 'three' }],
-  })), /answer must match/);
-  assert.throws(() => normalizeDropdownChoice(component({
-    segments: [{ type: 'text', text: '**Markdown**' }, {
-      type: 'choice', id: 'choice-one', options: ['one', 'two'], answer: 'one',
-    }],
-  })), /HTML or Markdown/);
-  assert.throws(() => normalizeDropdownChoice(component({
-    segments: [{ type: 'text', text: '<strong>HTML</strong>' }, {
-      type: 'choice', id: 'choice-one', options: ['one', 'two'], answer: 'one',
-    }],
-  })), /HTML or Markdown/);
-  const thirteen = Array.from({ length: 13 }, (_, index) => ({
-    type: 'choice', id: `choice-${index + 1}`, options: ['one', 'two'], answer: 'one',
-  }));
-  assert.throws(() => normalizeDropdownChoice(component({ segments: thirteen })), /between 1 and 12/);
+test('dropdown choice rejects the removed segments format and malformed canonical data', () => {
+  assert.throws(() => normalizeDropdownChoice({ ...component(), segments: [] }), /unsupported fields/);
+  assert.throws(() => normalizeDropdownChoice({ ...component(), type: 'other' }), /type.*kebab-case/);
+  assert.throws(() => normalizeDropdownChoice({ ...component(), text: 'No gap.' }), /between 1 and 12 gaps/);
+  assert.throws(() => normalizeDropdownChoice({ ...component(), text: '[[Bad Id]]', choices: component().choices }), /kebab-case/);
+  assert.throws(() => normalizeDropdownChoice({ ...component(), text: '[[past-routine]] only' }), /must match exactly/);
+  assert.throws(() => normalizeDropdownChoice({ ...component(), text: '[[past-routine]] and [[past-routine]]' }), /markers must be unique/);
+  assert.throws(() => normalizeDropdownChoice({ ...component(), choices: [
+    { id: 'past-routine', options: ['one'], answer: 'one' },
+    component().choices[1],
+  ] }), /between 2 and 12 options/);
+  assert.throws(() => normalizeDropdownChoice({ ...component(), choices: [
+    { id: 'past-routine', options: ['one', ' one '], answer: 'one' },
+    component().choices[1],
+  ] }), /options must be unique/);
+  assert.throws(() => normalizeDropdownChoice({ ...component(), choices: [
+    { id: 'past-routine', options: ['one', 'two'], answer: 'three' },
+    component().choices[1],
+  ] }), /answer must match/);
+  assert.throws(() => normalizeDropdownChoice({ ...component(), text: '**Bold** [[past-routine]] and [[adaptation]].' }), /HTML or Markdown/);
 });
 
 test('dropdown choice selection states allow retries and identify a correct answer', () => {
   assert.equal(getSelectionState('', 'answer'), 'empty');
   assert.equal(getSelectionState('wrong', 'answer'), 'wrong');
   assert.equal(getSelectionState('answer', 'answer'), 'correct');
-  assert.equal(getSelectionState('wrong', 'answer'), 'wrong');
-  assert.equal(getSelectionState('answer', 'answer'), 'correct');
 });
 
-test('dropdown choice is registered with correct, wrong, and responsive presentation states', () => {
+test('dropdown choice is registered with editing, persistence, and responsive states', () => {
   const root = path.join(__dirname, '..');
+  const source = fs.readFileSync(path.join(root, 'assets', 'components', 'dropdown-choice.js'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'assets', 'components', 'dropdown-choice.css'), 'utf8');
   const editor = fs.readFileSync(path.join(root, 'assets', 'lesson-editor.js'), 'utf8');
   const page = fs.readFileSync(path.join(root, 'lesson-editor.html'), 'utf8');
+  assert.match(source, /dropdown-choice__choices-editor/);
+  assert.match(source, /settings\.onSave/);
   assert.match(css, /dropdown-choice__select--correct/);
-  assert.match(css, /dropdown-choice__select--wrong/);
+  assert.match(css, /dropdown-choice--editing/);
   assert.match(css, /@media \(max-width: 560px\)/);
-  assert.match(editor, /dropdownChoice: component/);
+  assert.match(editor, /saveDropdownChoice/);
+  assert.match(page, /components\/inline-gap-text\.js/);
   assert.match(page, /components\/dropdown-choice\.js/);
-  assert.match(page, /components\/dropdown-choice\.css/);
 });

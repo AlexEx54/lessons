@@ -121,7 +121,9 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   });
   const dropdown = lesson.stages[2].content[4];
   assert.equal(dropdown.id, 'target-vocabulary-context-dropdown');
-  const choices = dropdown.segments.filter(segment => segment.type === 'choice');
+  assert.equal(dropdown.segments, undefined);
+  assert.match(dropdown.text, /\[\[hang-out-context\]\]/);
+  const choices = dropdown.choices;
   assert.equal(choices.length, 8);
   assert.deepEqual(choices.map(choice => choice.answer), [
     'to hang out (with friends)',
@@ -309,7 +311,7 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.equal(grammarPresentation.title, 'Grammar Presentation');
   assert.equal(grammarPresentation.durationMinutes, 5);
   assert.deepEqual(grammarPresentation.content.map(component => component.type), [
-    'teacherNote', 'textPanel', 'textPanel', 'dragWordsInText', 'markdownCard',
+    'teacherNote', 'textPanel', 'textPanel', 'dragWordsInText', 'markdownCard', 'dropdownChoice', 'markdownCard',
   ]);
   assert.deepEqual(grammarPresentation.content[0], {
     type: 'teacherNote',
@@ -319,7 +321,7 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.deepEqual(grammarPresentation.content[1], {
     type: 'textPanel',
     id: 'grammar-presentation-notice-rule',
-    text: '{l}**Notice the Rule**{/l}\n\n{s}Look at the examples. What grammar structure is used here?{/s}\n\n1. I **used to** think an exchange year would feel like one long adventure.\n2. I **used to** finish school at 2:30.\n3. I couldn’t **get used to** eating lunch at 11:15.\n4. I **got used to** the workload after a few weeks.\n5. I’m finally **getting used to** asking teachers for help.',
+    text: '{l}**Notice the Rule**{/l}\n\n{muted}{s}Look at the examples. What grammar structure is used here?{/s}{/muted}\n\n1. I **used to** think an exchange year would feel like one long adventure.\n2. I **used to** finish school at 2:30.\n3. I couldn’t **get used to** eating lunch at 11:15.\n4. I **got used to** the workload after a few weeks.\n5. I’m finally **getting used to** asking teachers for help.',
     backgroundColor: '#FFFFFF',
     accentColor: '#6545F5',
     showBorder: false,
@@ -358,6 +360,16 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
     accentColor: '#6545F5',
     studentVisibility: 'always',
   });
+  assert.deepEqual(grammarPresentation.content[5].choices.map(choice => choice.answer), [
+    'used to', 'get used to', 'getting used to', 'used to', 'get used to',
+  ]);
+  assert.match(grammarPresentation.content[5].text, /^1\. Before the exchange/);
+  assert.equal(grammarPresentation.content[6].icon, 'check');
+  assert.equal(grammarPresentation.content[6].headingSize, 'large');
+  assert.equal(grammarPresentation.content[6].studentVisibility, 'teacherOnly');
+  assert.equal(grammarPresentation.content[6].sections[0].title, '');
+  assert.equal(grammarPresentation.content[6].sections[1].title, 'Short explanations:');
+  assert.equal(grammarPresentation.content[6].sections[1].headingSize, undefined);
   assert.ok(lesson.stages.slice(6).every(stage => stage.content === null));
 });
 

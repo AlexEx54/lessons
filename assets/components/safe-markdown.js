@@ -4,6 +4,8 @@
   const TEXT_SIZES = ['s', 'm', 'l', 'xl'];
   const TEXT_SIZE_SET = new Set(TEXT_SIZES);
   const SIZE_OPEN = /^\{(xl|[sml])\}/;
+  const MUTED_OPEN = '{muted}';
+  const MUTED_CLOSE = '{/muted}';
 
   function appendTextToken(tokens, value) {
     if (!value) return;
@@ -30,6 +32,18 @@
             children: parseInlineMarkdown(source.slice(index + open.length, closing)),
           });
           index = closing + close.length;
+          continue;
+        }
+      }
+      if (source.startsWith(MUTED_OPEN, index)) {
+        const closing = source.indexOf(MUTED_CLOSE, index + MUTED_OPEN.length);
+        if (closing > index + MUTED_OPEN.length) {
+          tokens.push({
+            type: 'tone',
+            tone: 'muted',
+            children: parseInlineMarkdown(source.slice(index + MUTED_OPEN.length, closing)),
+          });
+          index = closing + MUTED_CLOSE.length;
           continue;
         }
       }
@@ -108,6 +122,15 @@
     return '';
   }
 
+  function readMdTone(node) {
+    if (!node) return '';
+    if (node.dataset && typeof node.dataset.mdTone === 'string') return node.dataset.mdTone;
+    if (typeof node.getAttribute === 'function') {
+      return node.getAttribute('data-md-tone') || '';
+    }
+    return '';
+  }
+
   function isSizeSpan(node) {
     return Boolean(
       node
@@ -130,6 +153,13 @@
         parent.append(span);
         return;
       }
+      if (token.type === 'tone' && token.tone === 'muted') {
+        const span = documentRef.createElement('span');
+        span.setAttribute('data-md-tone', 'muted');
+        appendInlineTokens(span, token.children, documentRef);
+        parent.append(span);
+        return;
+      }
       if (token.type === 'strongEmphasis') {
         const strong = documentRef.createElement('strong');
         const emphasis = documentRef.createElement('em');
@@ -148,6 +178,9 @@
     return tokens.map((token) => {
       if (token.type === 'text') return token.value;
       if (token.type === 'size') return `{${token.size}}${serializeInlineTokens(token.children)}{/${token.size}}`;
+      if (token.type === 'tone' && token.tone === 'muted') {
+        return `${MUTED_OPEN}${serializeInlineTokens(token.children)}${MUTED_CLOSE}`;
+      }
       if (token.type === 'strong') return `**${serializeInlineTokens(token.children)}**`;
       if (token.type === 'emphasis') return `*${serializeInlineTokens(token.children)}*`;
       if (token.type === 'strongEmphasis') return `***${serializeInlineTokens(token.children)}***`;
@@ -192,6 +225,8 @@
     if (tag === 'strong' || tag === 'b') return value ? `**${value}**` : '';
     if (tag === 'em' || tag === 'i') return value ? `*${value}*` : '';
     if (tag === 'span') {
+      const tone = readMdTone(node);
+      if (tone === 'muted' && value) return `${MUTED_OPEN}${value}${MUTED_CLOSE}`;
       const size = readMdSize(node);
       if (TEXT_SIZE_SET.has(size) && value) return `{${size}}${value}{/${size}}`;
     }

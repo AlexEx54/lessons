@@ -43,12 +43,13 @@ test('markdown card normalizes its stable JSON contract', () => {
     accentColor: '#20A85B',
     studentVisibility: 'controlled',
   });
-  for (const icon of ['book', 'check', 'chat', 'bulb']) {
+  for (const icon of ['book', 'check', 'chat', 'bulb', 'key']) {
     assert.equal(normalizeMarkdownCard({ ...example, icon }).icon, icon);
   }
   for (const studentVisibility of ['always', 'controlled', 'teacherOnly']) {
     assert.equal(normalizeMarkdownCard({ ...example, studentVisibility }).studentVisibility, studentVisibility);
   }
+  assert.equal(normalizeMarkdownCard({ ...example, headingSize: 'large' }).headingSize, 'large');
 });
 
 test('markdown card normalizes sectioned content without changing the legacy contract', () => {
@@ -76,6 +77,7 @@ test('markdown card rejects incomplete and unsupported presentation fields', () 
   assert.throws(() => normalizeMarkdownCard({ ...example, icon: 'star' }), /supported icon/);
   assert.throws(() => normalizeMarkdownCard({ ...example, accentColor: '#fff' }), /#RRGGBB/);
   assert.throws(() => normalizeMarkdownCard({ ...example, studentVisibility: 'sometimes' }), /studentVisibility/);
+  assert.throws(() => normalizeMarkdownCard({ ...example, headingSize: 'huge' }), /headingSize/);
   assert.throws(() => normalizeMarkdownCard({ ...example, sections: sectionedExample.sections, layout: 'columns' }), /exactly one/);
   assert.throws(() => normalizeMarkdownCard({ ...example, text: undefined }), /exactly one/);
   assert.throws(() => normalizeMarkdownCard({ ...example, layout: 'columns' }), /only with sections/);
@@ -90,9 +92,12 @@ test('markdown card rejects incomplete and unsupported presentation fields', () 
   assert.throws(() => normalizeMarkdownCard({ ...sectionedExample, sections: [
     { ...sectionedExample.sections[0], id: 'Wrong ID' },
   ] }), /kebab-case/);
-  assert.throws(() => normalizeMarkdownCard({ ...sectionedExample, sections: [
+  assert.equal(normalizeMarkdownCard({ ...sectionedExample, sections: [
     { ...sectionedExample.sections[0], title: ' ' },
-  ] }), /non-empty title and text/);
+  ] }).sections[0].title, '');
+  assert.throws(() => normalizeMarkdownCard({ ...sectionedExample, sections: [
+    { ...sectionedExample.sections[0], text: ' ' },
+  ] }), /non-empty text/);
 });
 
 test('markdown card visibility separates teacher and student views', () => {
@@ -121,6 +126,8 @@ test('markdown card renderer exposes configurable visuals, markdown editing, and
   assert.match(source, /TEXT_SIZES/);
   assert.match(css, /markdown-card__format--size/);
   assert.match(css, /markdown-card__sections--columns/);
+  assert.match(css, /data-heading-size="large"[^}]*markdown-card__heading[^}]*font-size:\s*16px/);
+  assert.match(css, /data-heading-size="large"[^}]*markdown-card__section-title[^}]*font-size:\s*14px/);
   assert.match(css, /markdown-card__section \+ \.markdown-card__section/);
   assert.match(css, /markdown-card__editor-footer/);
   assert.match(source, /name === 'bulb'/);

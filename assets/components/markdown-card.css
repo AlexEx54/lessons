@@ -102,6 +102,9 @@
 }
 .markdown-card__section-header { display: flex; align-items: flex-start; justify-content: space-between; min-height: 21px; gap: 10px; }
 .markdown-card__section-title { margin: 0 0 5px; color: var(--markdown-card-accent); font-size: 12px; font-weight: 800; line-height: 1.35; }
+.markdown-card[data-heading-size="large"] .markdown-card__heading { font-size: 16px; }
+.markdown-card[data-heading-size="large"] .markdown-card__section-title { font-size: 14px; }
+.markdown-card:not(.markdown-card--editing) .markdown-card__section-header:has(.markdown-card__section-title:empty) { display: none; }
 .markdown-card__section-actions { display: none; flex: 0 0 auto; align-items: center; gap: 4px; }
 .markdown-card__section-actions button {
   min-width: 28px;

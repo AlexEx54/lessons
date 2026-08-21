@@ -7,9 +7,10 @@
 
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const HEX_COLOR = /^#[0-9a-f]{6}$/i;
-  const ICONS = new Set(['book', 'check', 'chat', 'bulb']);
+  const ICONS = new Set(['book', 'check', 'chat', 'bulb', 'key']);
   const LAYOUTS = new Set(['columns', 'stacked']);
   const STUDENT_VISIBILITIES = new Set(['always', 'controlled', 'teacherOnly']);
+  const HEADING_SIZES = new Set(['default', 'large']);
   const VIEWER_ROLES = new Set(['teacher', 'student']);
 
   function normalizeTitle(value) {
@@ -28,6 +29,9 @@
     if (!STUDENT_VISIBILITIES.has(data.studentVisibility)) {
       throw new Error('MarkdownCard requires a supported studentVisibility.');
     }
+    if (data.headingSize != null && !HEADING_SIZES.has(data.headingSize)) {
+      throw new Error('MarkdownCard requires a supported headingSize.');
+    }
     const hasText = data.text != null;
     const hasSections = data.sections != null;
     if (hasText === hasSections) {
@@ -42,6 +46,7 @@
       accentColor,
       studentVisibility: data.studentVisibility,
     };
+    if (data.headingSize != null) normalized.headingSize = data.headingSize;
     if (hasText) {
       const text = typeof data.text === 'string' ? data.text.trim() : '';
       if (!text) throw new Error('MarkdownCard requires non-empty title and text values.');
@@ -60,7 +65,7 @@
       const text = typeof section?.text === 'string' ? section.text.trim() : '';
       if (!KEBAB_CASE.test(id)) throw new Error('MarkdownCard section requires a kebab-case id.');
       if (sectionIds.has(id)) throw new Error('MarkdownCard section ids must be unique.');
-      if (!sectionTitle || !text) throw new Error('MarkdownCard sections require non-empty title and text values.');
+      if (!text) throw new Error('MarkdownCard sections require non-empty text values.');
       sectionIds.add(id);
       return { id, title: sectionTitle, text };
     });
@@ -98,7 +103,7 @@
         ['path', { d: 'M20 5.2c-2.9 0-5.8.6-8 2.1v12c2.2-1.5 5.1-2.1 8-2.1z' }],
       ]);
     }
-    if (name === 'check') {
+    if (name === 'check' || name === 'key') {
       return createSvg(documentRef, [
         ['circle', { cx: '12', cy: '12', r: '9' }],
         ['path', { d: 'm8.2 12.1 2.4 2.4 5.4-5.5' }],
@@ -149,6 +154,7 @@
     card.dataset.componentId = current.id;
     card.dataset.icon = current.icon;
     card.dataset.studentVisibility = current.studentVisibility;
+    card.dataset.headingSize = current.headingSize || 'default';
     card.style.setProperty('--markdown-card-accent', current.accentColor);
 
     const header = doc.createElement('div');
@@ -345,7 +351,7 @@
         if (section.text) markdown.renderMarkdownInto(sectionBody, section.text, doc, 'markdown-card__spacer');
         const sectionError = doc.createElement('p');
         sectionError.className = 'markdown-card__section-error';
-        sectionError.textContent = 'Заполните заголовок и текст секции.';
+        sectionError.textContent = 'Заполните текст секции.';
         sectionError.hidden = true;
         sectionElement.append(sectionHeader, sectionBody, sectionError);
         content.append(sectionElement);
@@ -430,7 +436,7 @@
       }
       if (Array.isArray(current.sections)) {
         sectionEditors.forEach((section) => {
-          if (!normalizeTitle(section.title.textContent) || !markdown.editorToMarkdown(section.body)) {
+          if (!markdown.editorToMarkdown(section.body)) {
             section.element.classList.add('markdown-card__section--invalid');
             section.error.hidden = false;
             valid = false;

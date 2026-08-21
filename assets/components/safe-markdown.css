@@ -2,3 +2,4 @@
 [data-md-size="m"] { font-size: 1em; }
 [data-md-size="l"] { font-size: 1.25em; }
 [data-md-size="xl"] { font-size: 1.5em; }
+[data-md-tone="muted"] { color: #656a80; }

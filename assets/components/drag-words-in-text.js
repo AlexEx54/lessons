@@ -1,6 +1,10 @@
 (function initDragWordsInTextComponent(root) {
   'use strict';
 
+  const inlineGapText = root.InlineGapText
+    || (typeof require === 'function' ? require('./inline-gap-text.js') : null);
+  if (!inlineGapText) throw new Error('DragWordsInText requires InlineGapText.');
+
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s|^\s*(?:[-*+]\s|\d+\.\s)/m;
   const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'words', 'text'];
@@ -17,27 +21,9 @@
   }
 
   function parseMarkedText(value) {
-    const source = typeof value === 'string' ? value.replace(/\r\n/g, '\n').trim() : '';
-    if (!source) throw new Error('DragWordsInText requires text.');
-    const parts = [];
-    let lastIndex = 0;
-    for (const match of source.matchAll(/\[\[([\s\S]*?)\]\]/g)) {
-      if (match.index > lastIndex) {
-        parts.push({ type: 'text', text: source.slice(lastIndex, match.index) });
-      }
-      const inner = match[1];
-      if (!inner.trim()) throw new Error('DragWordsInText does not allow empty gaps.');
-      if (/[\[\]\n\r]/.test(inner)) {
-        throw new Error('DragWordsInText gaps cannot contain brackets or line breaks.');
-      }
-      parts.push({ type: 'gap', answer: inner.trim().replace(/\s+/g, ' ') });
-      lastIndex = match.index + match[0].length;
-    }
-    if (lastIndex < source.length) parts.push({ type: 'text', text: source.slice(lastIndex) });
-    const gapCount = parts.filter(part => part.type === 'gap').length;
-    if (gapCount < 1 || gapCount > 8) {
-      throw new Error('DragWordsInText requires between 1 and 8 gaps.');
-    }
+    const parts = inlineGapText.parseMarkedText(value, {
+      label: 'DragWordsInText', minimum: 1, maximum: 8,
+    }).map(part => (part.type === 'gap' ? { type: 'gap', answer: part.token } : part));
     parts.forEach((part) => {
       if (part.type !== 'text') return;
       if (/\[\[|\]\]/.test(part.text)) throw new Error('DragWordsInText text has unmatched gap markers.');
@@ -49,10 +35,9 @@
   }
 
   function serializeMarkedText(parts) {
-    return parts
-      .map(part => (part.type === 'gap' ? `[[${part.answer}]]` : part.text))
-      .join('')
-      .replace(/^\s+|\s+$/g, '');
+    return inlineGapText.serializeMarkedText(parts.map(part => (
+      part.type === 'gap' ? { type: 'gap', token: part.answer } : part
+    )));
   }
 
   function compactParts(parts) {
@@ -264,14 +249,6 @@
       }
     }
 
-    function appendPlayText(container, text) {
-      const lines = text.split('\n');
-      lines.forEach((line, index) => {
-        if (index > 0) container.append(doc.createElement('br'));
-        if (line) container.append(doc.createTextNode(line));
-      });
-    }
-
     function bindPlayChip(chip, word) {
       chip.addEventListener('pointerdown', (event) => {
         if (editing || saving || event.button) return;
@@ -374,17 +351,7 @@
     }
 
     function paintPlayPassage() {
-      const paragraphs = [[]];
-      parts().forEach((part) => {
-        if (part.type === 'gap') {
-          paragraphs[paragraphs.length - 1].push(part);
-          return;
-        }
-        part.text.split('\n\n').forEach((chunk, index) => {
-          if (index > 0) paragraphs.push([]);
-          if (chunk) paragraphs[paragraphs.length - 1].push({ type: 'text', text: chunk });
-        });
-      });
+      const paragraphs = inlineGapText.splitParagraphs(parts());
       let gapIndex = 0;
       const nodes = [];
       paragraphs.forEach((paragraphParts) => {
@@ -393,7 +360,7 @@
         paragraph.className = 'drag-words-in-text__paragraph';
         paragraphParts.forEach((part) => {
           if (part.type === 'text') {
-            appendPlayText(paragraph, part.text);
+            inlineGapText.appendTextWithBreaks(paragraph, part.text, doc);
             return;
           }
           paragraph.append(createPlayGap(part.answer, gapIndex));

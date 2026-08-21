@@ -96,6 +96,7 @@ test('text panel CSS keeps pictures beside text and defines no phantom slot colu
   assert.match(css, /\.text-panel__text ol/);
   assert.match(css, /\.text-panel__text \{[^}]*font-size: 14px;[^}]*line-height: 1\.6;/s);
   assert.match(css, /\.text-panel--plain \.text-panel__text > p:first-child \[data-md-size="l"\] \{[^}]*font-size: 18px;/s);
+  assert.doesNotMatch(css, /\[data-md-size="s"\][^{]*\{[^}]*color:/s);
   assert.match(css, /\.text-panel--plain \.text-panel__text li \+ li \{ margin-top: 12px; \}/);
   assert.match(css, /\.text-panel--plain/);
   assert.match(css, /\.text-panel--plain\.text-panel--frameless \{[^}]*padding: 0;[^}]*border-color: transparent;[^}]*border-radius: 0;[^}]*box-shadow: none;/s);

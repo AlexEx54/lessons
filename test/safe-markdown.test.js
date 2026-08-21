@@ -35,6 +35,21 @@ test('safe markdown parses nested size markers with bold', () => {
   }]);
 });
 
+test('safe markdown parses muted tone with nested size and bold markers', () => {
+  assert.deepEqual(parseInlineMarkdown('{muted}{s}Quiet **hint**{/s}{/muted}'), [{
+    type: 'tone',
+    tone: 'muted',
+    children: [{
+      type: 'size',
+      size: 's',
+      children: [
+        { type: 'text', value: 'Quiet ' },
+        { type: 'strong', children: [{ type: 'text', value: 'hint' }] },
+      ],
+    }],
+  }]);
+});
+
 test('safe markdown leaves unclosed size markers as plain text', () => {
   assert.deepEqual(parseInlineMarkdown('{l}open and {s}small{/s}'), [
     { type: 'text', value: '{l}open and ' },
@@ -42,9 +57,18 @@ test('safe markdown leaves unclosed size markers as plain text', () => {
   ]);
 });
 
+test('safe markdown leaves unclosed and unknown tone markers as plain text', () => {
+  assert.deepEqual(parseInlineMarkdown('{muted}open'), [
+    { type: 'text', value: '{muted}open' },
+  ]);
+  assert.deepEqual(parseInlineMarkdown('{unknown}plain{/unknown}'), [
+    { type: 'text', value: '{unknown}plain{/unknown}' },
+  ]);
+});
+
 test('safe markdown round-trips size markers through blocks', () => {
   const markdown = [
-    'Start {s}small{/s} and {xl}**huge**{/xl}.',
+    'Start {s}small{/s} and {muted}{xl}**quiet**{/xl}{/muted}.',
     '',
     '- {m}medium{/m} item',
     '- {l}large{/l} item',
@@ -52,7 +76,7 @@ test('safe markdown round-trips size markers through blocks', () => {
   assert.equal(serializeMarkdownBlocks(parseMarkdown(markdown)), markdown);
 });
 
-test('editor serialization preserves data-md-size spans', () => {
+test('editor serialization preserves data-md-size and data-md-tone spans', () => {
   const text = value => ({ nodeType: 3, nodeValue: value });
   const element = (tagName, childNodes = [], attributes = {}) => ({
     nodeType: 1,
@@ -64,7 +88,9 @@ test('editor serialization preserves data-md-size spans', () => {
   const editor = element('div', [
     element('p', [
       text('Say '),
-      element('span', [text('loud')], { 'data-md-size': 'l' }),
+      element('span', [
+        element('span', [text('quiet')], { 'data-md-size': 'l' }),
+      ], { 'data-md-tone': 'muted' }),
       text(' please'),
     ]),
     element('ul', [
@@ -75,7 +101,7 @@ test('editor serialization preserves data-md-size spans', () => {
   ]);
 
   assert.equal(editorToMarkdown(editor), [
-    'Say {l}loud{/l} please',
+    'Say {muted}{l}quiet{/l}{/muted} please',
     '',
     '- {xl}**Big**{/xl}',
   ].join('\n'));
@@ -87,9 +113,11 @@ test('safe markdown CSS defines relative size presets', () => {
   assert.match(css, /\[data-md-size="m"\]/);
   assert.match(css, /\[data-md-size="l"\]/);
   assert.match(css, /\[data-md-size="xl"\]/);
+  assert.match(css, /\[data-md-tone="muted"\] \{ color: #656a80; \}/);
+  assert.doesNotMatch(css, /\[data-md-size="s"\][^{]*\{[^}]*color:/s);
 });
 
-test('renderMarkdownInto emits whitelist data-md-size spans', () => {
+test('renderMarkdownInto emits whitelist data-md-size and data-md-tone spans', () => {
   const { renderMarkdownInto } = require('../assets/components/safe-markdown.js');
   function createNode(tagName) {
     const node = {
@@ -117,14 +145,17 @@ test('renderMarkdownInto emits whitelist data-md-size spans', () => {
     createTextNode: value => ({ nodeType: 3, nodeValue: value }),
   };
   const container = createNode('div');
-  renderMarkdownInto(container, 'Hello {l}large{/l} world', documentRef);
+  renderMarkdownInto(container, 'Hello {muted}{l}quiet{/l}{/muted} world', documentRef);
   assert.equal(container.childNodes.length, 1);
   const paragraph = container.childNodes[0];
   assert.equal(paragraph.tagName, 'P');
-  const sizeSpan = paragraph.childNodes.find(child => child.tagName === 'SPAN');
+  const toneSpan = paragraph.childNodes.find(child => child.tagName === 'SPAN');
+  assert.ok(toneSpan);
+  assert.equal(toneSpan.getAttribute('data-md-tone'), 'muted');
+  const sizeSpan = toneSpan.childNodes.find(child => child.tagName === 'SPAN');
   assert.ok(sizeSpan);
   assert.equal(sizeSpan.getAttribute('data-md-size'), 'l');
-  assert.equal(sizeSpan.childNodes[0].nodeValue, 'large');
+  assert.equal(sizeSpan.childNodes[0].nodeValue, 'quiet');
 });
 
 test('lesson editor loads shared safe-markdown styles', () => {

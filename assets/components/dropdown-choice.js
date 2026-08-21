@@ -1,69 +1,84 @@
 (function initDropdownChoiceComponent(root) {
   'use strict';
 
-  const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
-  const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s|^\s*(?:[-*+]\s|\d+\.\s)/m;
+  const inlineGapText = root.InlineGapText
+    || (typeof require === 'function' ? require('./inline-gap-text.js') : null);
+  if (!inlineGapText) throw new Error('DropdownChoice requires InlineGapText.');
 
-  function plainText(value, field, preserveWhitespace = false) {
-    const source = typeof value === 'string' ? value : '';
-    const normalized = preserveWhitespace ? source : source.trim().replace(/\s+/g, ' ');
-    if (!normalized.trim()) throw new Error(`DropdownChoice requires ${field}.`);
+  const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+  const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s/m;
+  const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'text', 'choices'];
+
+  function normalizeSpace(value) {
+    return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
+  }
+
+  function plainText(value, field) {
+    const normalized = normalizeSpace(value);
+    if (!normalized) throw new Error(`DropdownChoice requires ${field}.`);
     if (MARKUP.test(normalized)) throw new Error(`DropdownChoice does not allow HTML or Markdown in ${field}.`);
     return normalized;
+  }
+
+  function parseChoiceText(value) {
+    const parts = inlineGapText.parseMarkedText(value, {
+      label: 'DropdownChoice', minimum: 1, maximum: 12,
+    });
+    parts.forEach((part) => {
+      if (part.type === 'text' && MARKUP.test(part.text)) {
+        throw new Error('DropdownChoice does not allow HTML or Markdown in text.');
+      }
+      if (part.type === 'gap' && !KEBAB_CASE.test(part.token)) {
+        throw new Error('DropdownChoice gap markers must contain kebab-case choice ids.');
+      }
+    });
+    return parts;
   }
 
   function normalizeDropdownChoice(data) {
     if (!data || data.type !== 'dropdownChoice' || !KEBAB_CASE.test(String(data.id || ''))) {
       throw new Error('DropdownChoice requires type "dropdownChoice" and a kebab-case id.');
     }
-    if (!Array.isArray(data.segments) || data.segments.length === 0) {
-      throw new Error('DropdownChoice requires a non-empty segments array.');
+    if (Object.keys(data).some(key => !COMPONENT_KEYS.includes(key))) {
+      throw new Error('DropdownChoice contains unsupported fields.');
     }
-
-    const ids = new Set([data.id]);
-    let choiceCount = 0;
-    const segments = data.segments.map((segment) => {
-      if (!segment || segment.type === 'text') {
-        if (!segment || Object.keys(segment).some(key => !['type', 'text'].includes(key))) {
-          throw new Error('DropdownChoice text segments only support type and text.');
-        }
-        return { type: 'text', text: plainText(segment.text, 'segment text', true) };
-      }
-      if (segment.type !== 'choice') {
-        throw new Error(`DropdownChoice has unsupported segment type "${segment.type}".`);
-      }
-      if (Object.keys(segment).some(key => !['type', 'id', 'options', 'answer'].includes(key))) {
-        throw new Error('DropdownChoice choice segments contain unsupported fields.');
-      }
-      if (!KEBAB_CASE.test(String(segment.id || '')) || ids.has(segment.id)) {
+    const parts = parseChoiceText(data.text);
+    if (!Array.isArray(data.choices) || data.choices.length < 1 || data.choices.length > 12) {
+      throw new Error('DropdownChoice requires between 1 and 12 choices.');
+    }
+    const ids = new Set();
+    const choices = data.choices.map((choice) => {
+      const id = typeof choice?.id === 'string' ? choice.id.trim() : '';
+      if (!KEBAB_CASE.test(id) || ids.has(id)) {
         throw new Error('DropdownChoice choice ids must be unique kebab-case values.');
       }
-      ids.add(segment.id);
-      choiceCount += 1;
-      if (!Array.isArray(segment.options) || segment.options.length < 2) {
-        throw new Error('DropdownChoice choices require at least two options.');
+      if (Object.keys(choice || {}).some(key => !['id', 'options', 'answer'].includes(key))) {
+        throw new Error('DropdownChoice choices contain unsupported fields.');
       }
-      const options = segment.options.map(option => plainText(option, 'an option'));
+      if (!Array.isArray(choice.options) || choice.options.length < 2 || choice.options.length > 12) {
+        throw new Error('DropdownChoice choices require between 2 and 12 options.');
+      }
+      const options = choice.options.map(option => plainText(option, 'an option'));
       if (new Set(options).size !== options.length) {
         throw new Error('DropdownChoice options must be unique within each choice.');
       }
-      const answer = plainText(segment.answer, 'an answer');
-      if (!options.includes(answer)) {
-        throw new Error('DropdownChoice answer must match one of its options.');
-      }
-      return { type: 'choice', id: segment.id, options, answer };
+      const answer = plainText(choice.answer, 'an answer');
+      if (!options.includes(answer)) throw new Error('DropdownChoice answer must match one of its options.');
+      ids.add(id);
+      return { id, options, answer };
     });
-
-    if (choiceCount < 1 || choiceCount > 12) {
-      throw new Error('DropdownChoice requires between 1 and 12 choices.');
+    const markers = parts.filter(part => part.type === 'gap').map(part => part.token);
+    if (new Set(markers).size !== markers.length) {
+      throw new Error('DropdownChoice choice markers must be unique in text.');
     }
-
+    if (markers.length !== choices.length || markers.some(id => !ids.has(id)) || choices.some(choice => !markers.includes(choice.id))) {
+      throw new Error('DropdownChoice text markers and choices must match exactly.');
+    }
     return {
-      type: 'dropdownChoice',
-      id: data.id,
+      type: 'dropdownChoice', id: data.id,
       title: plainText(data.title, 'a title'),
       instruction: plainText(data.instruction, 'an instruction'),
-      segments,
+      text: inlineGapText.serializeMarkedText(parts), choices,
     };
   }
 
@@ -72,99 +87,379 @@
     return value === answer ? 'correct' : 'wrong';
   }
 
+  function slug(value) {
+    const base = String(value || '').toLowerCase().normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return base || 'choice';
+  }
+
   function renderDropdownChoice(data, options, documentRef) {
     let settings = options || {};
     let doc = documentRef || root.document;
-    if (options && typeof options.createElement === 'function') {
-      doc = options;
-      settings = {};
-    }
+    if (options && typeof options.createElement === 'function') { doc = options; settings = {}; }
     if (!doc) throw new Error('DropdownChoice requires a document.');
 
-    const current = normalizeDropdownChoice(data);
-    const choices = current.segments.filter(segment => segment.type === 'choice');
-    let correctCount = 0;
+    let current = normalizeDropdownChoice(data);
+    let editing = false;
+    let saving = false;
+    let initialSnapshot = '';
+    let editorChoices = [];
+    const correct = new Set();
 
     const section = doc.createElement('section');
     section.className = 'dropdown-choice';
     section.dataset.componentId = current.id;
     section.setAttribute('aria-label', current.title);
-
+    const header = doc.createElement('div');
+    header.className = 'dropdown-choice__header';
     const title = doc.createElement('h2');
     title.className = 'dropdown-choice__title';
-    title.textContent = current.title;
+    title.dataset.placeholder = 'Введите заголовок';
+    const editButton = doc.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'dropdown-choice__edit';
+    editButton.textContent = '✎';
+    editButton.setAttribute('aria-label', 'Редактировать Dropdown Choice');
+    const headerActions = doc.createElement('div');
+    headerActions.className = 'dropdown-choice__header-actions';
+    const cancelButton = doc.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'dropdown-choice__cancel';
+    cancelButton.textContent = 'Отмена';
+    cancelButton.hidden = true;
+    header.append(title);
+    if (typeof settings.onSave === 'function') {
+      headerActions.append(cancelButton, editButton);
+      header.append(headerActions);
+    }
     const instruction = doc.createElement('p');
     instruction.className = 'dropdown-choice__instruction';
-    instruction.textContent = current.instruction;
+    instruction.dataset.placeholder = 'Введите инструкцию';
+    const toolbar = doc.createElement('div');
+    toolbar.className = 'dropdown-choice__toolbar';
+    toolbar.hidden = true;
+    const gapTool = doc.createElement('button');
+    gapTool.type = 'button';
+    gapTool.className = 'dropdown-choice__tool';
+    gapTool.textContent = 'Dropdown';
+    gapTool.setAttribute('aria-label', 'Сделать выделенный текст выпадающим списком');
+    toolbar.append(gapTool);
     const passage = doc.createElement('div');
     passage.className = 'dropdown-choice__passage';
+    const choiceEditor = doc.createElement('div');
+    choiceEditor.className = 'dropdown-choice__choices-editor';
+    choiceEditor.hidden = true;
     const status = doc.createElement('p');
     status.className = 'dropdown-choice__status';
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
-    status.textContent = `0 из ${choices.length} ответов верны.`;
 
-    let choiceNumber = 0;
-    current.segments.forEach((segment) => {
-      if (segment.type === 'text') {
-        passage.append(doc.createTextNode(segment.text));
-        return;
-      }
+    function parts() { return parseChoiceText(current.text); }
+    function choiceById(id) { return current.choices.find(choice => choice.id === id); }
+    function editorChoiceById(id) { return editorChoices.find(choice => choice.id === id); }
+    function setDirty(dirty) {
+      section.classList.toggle('dropdown-choice--dirty', dirty);
+      if (typeof settings.onDirtyChange === 'function') settings.onDirtyChange(dirty, current.id);
+    }
 
-      choiceNumber += 1;
-      const number = choiceNumber;
-      const field = doc.createElement('span');
-      field.className = 'dropdown-choice__field';
-      const marker = doc.createElement('span');
-      marker.className = 'dropdown-choice__number';
-      marker.textContent = `(${number})`;
-      marker.setAttribute('aria-hidden', 'true');
+    function makePlaySelect(choice) {
       const select = doc.createElement('select');
       select.className = 'dropdown-choice__select';
-      select.dataset.choiceId = segment.id;
+      select.dataset.choiceId = choice.id;
       select.dataset.state = 'empty';
-      select.setAttribute('aria-label', `Пропуск ${number}: выберите правильный вариант`);
+      select.setAttribute('aria-label', `Выберите вариант для ${choice.id}`);
       const placeholder = doc.createElement('option');
       placeholder.value = '';
       placeholder.textContent = 'Choose…';
       select.append(placeholder);
-      segment.options.forEach((option) => {
+      choice.options.forEach((option) => {
         const element = doc.createElement('option');
         element.value = option;
         element.textContent = option;
         select.append(element);
       });
-
       select.addEventListener('change', () => {
-        const previousState = select.dataset.state;
-        const state = getSelectionState(select.value, segment.answer);
+        const state = getSelectionState(select.value, choice.answer);
         select.dataset.state = state;
         select.classList.toggle('dropdown-choice__select--correct', state === 'correct');
         select.classList.toggle('dropdown-choice__select--wrong', state === 'wrong');
         select.setAttribute('aria-invalid', String(state === 'wrong'));
         if (state === 'correct') {
-          if (previousState !== 'correct') correctCount += 1;
+          correct.add(choice.id);
           select.disabled = true;
-          status.textContent = correctCount === choices.length
-            ? 'Все ответы верны.'
-            : `Верно. ${correctCount} из ${choices.length}.`;
-        } else if (state === 'wrong') {
-          status.textContent = `Неверный вариант в пропуске ${number}. Попробуйте ещё раз.`;
-        } else {
-          status.textContent = `${correctCount} из ${choices.length} ответов верны.`;
-        }
-        if (typeof settings.onActivity === 'function') settings.onActivity(current.id, segment.id, state);
+          status.textContent = correct.size === current.choices.length
+            ? 'Все ответы верны.' : `Верно. ${correct.size} из ${current.choices.length}.`;
+        } else if (state === 'wrong') status.textContent = 'Неверный вариант. Попробуйте ещё раз.';
+        else status.textContent = `${correct.size} из ${current.choices.length} ответов верны.`;
+        if (typeof settings.onActivity === 'function') settings.onActivity(current.id, choice.id, state);
       });
+      return select;
+    }
 
-      field.append(marker, select);
-      passage.append(field);
-    });
+    function paintPlay() {
+      title.textContent = current.title;
+      instruction.textContent = current.instruction;
+      title.contentEditable = 'false';
+      instruction.contentEditable = 'false';
+      passage.replaceChildren(...inlineGapText.splitParagraphs(parts()).map((paragraphParts) => {
+        const paragraph = doc.createElement('p');
+        paragraph.className = 'dropdown-choice__paragraph';
+        paragraphParts.forEach((part) => {
+          if (part.type === 'text') inlineGapText.appendTextWithBreaks(paragraph, part.text, doc);
+          else paragraph.append(makePlaySelect(choiceById(part.token)));
+        });
+        return paragraph;
+      }));
+      correct.clear();
+      status.textContent = `0 из ${current.choices.length} ответов верны.`;
+    }
 
-    section.append(title, instruction, passage, status);
+    function makeTextSpan(text) {
+      const span = doc.createElement('span');
+      span.className = 'dropdown-choice__text';
+      span.contentEditable = 'true';
+      span.textContent = text;
+      span.addEventListener('input', updateDirty);
+      return span;
+    }
+
+    function makeEditorGap(id) {
+      const gap = doc.createElement('span');
+      gap.className = 'dropdown-choice__gap-editor';
+      gap.dataset.choiceId = id;
+      const label = doc.createElement('span');
+      label.className = 'dropdown-choice__gap-label';
+      label.textContent = editorChoiceById(id)?.answer || id;
+      const remove = doc.createElement('button');
+      remove.type = 'button';
+      remove.textContent = '×';
+      remove.setAttribute('aria-label', `Убрать dropdown ${id}`);
+      remove.addEventListener('click', () => unwrapGap(gap));
+      gap.append(label, remove);
+      return gap;
+    }
+
+    function editorParts() {
+      return [...passage.children].map((node) => {
+        if (node.classList.contains('dropdown-choice__text')) return { type: 'text', text: node.textContent };
+        if (node.classList.contains('dropdown-choice__gap-editor')) return { type: 'gap', token: node.dataset.choiceId };
+        return null;
+      }).filter(Boolean);
+    }
+
+    function paintEditorPassage(sourceParts) {
+      const prepared = sourceParts.slice();
+      if (!prepared.length || prepared[0].type === 'gap') prepared.unshift({ type: 'text', text: '' });
+      const withCarets = [];
+      prepared.forEach((part) => {
+        if (part.type === 'gap' && withCarets.at(-1)?.type === 'gap') withCarets.push({ type: 'text', text: '' });
+        withCarets.push(part);
+      });
+      if (withCarets.at(-1)?.type === 'gap') withCarets.push({ type: 'text', text: '' });
+      passage.replaceChildren(...withCarets.map(part => (
+        part.type === 'gap' ? makeEditorGap(part.token) : makeTextSpan(part.text)
+      )));
+    }
+
+    function uniqueChoiceId(answer) {
+      const used = new Set(editorChoices.map(choice => choice.id));
+      const base = slug(answer);
+      let candidate = base;
+      let index = 2;
+      while (used.has(candidate)) { candidate = `${base}-${index}`; index += 1; }
+      return candidate;
+    }
+
+    function paintChoiceEditors() {
+      choiceEditor.replaceChildren(...editorChoices.map((choice) => {
+        const card = doc.createElement('fieldset');
+        card.className = 'dropdown-choice__choice-editor';
+        const legend = doc.createElement('legend');
+        legend.textContent = choice.id;
+        const rows = doc.createElement('div');
+        rows.className = 'dropdown-choice__option-rows';
+        choice.options.forEach((option, optionIndex) => {
+          const row = doc.createElement('div');
+          row.className = 'dropdown-choice__option-row';
+          const radio = doc.createElement('input');
+          radio.type = 'radio';
+          radio.name = `answer-${current.id}-${choice.id}`;
+          radio.checked = option === choice.answer;
+          radio.setAttribute('aria-label', 'Правильный вариант');
+          radio.addEventListener('change', () => {
+            choice.answer = choice.options[optionIndex];
+            const label = passage.querySelector(`[data-choice-id="${choice.id}"] .dropdown-choice__gap-label`);
+            if (label) label.textContent = choice.answer || choice.id;
+            updateDirty();
+          });
+          const input = doc.createElement('input');
+          input.type = 'text';
+          input.value = option;
+          input.placeholder = 'Вариант';
+          input.addEventListener('input', () => {
+            const wasAnswer = choice.answer === choice.options[optionIndex];
+            choice.options[optionIndex] = input.value;
+            if (wasAnswer) choice.answer = input.value;
+            const label = passage.querySelector(`[data-choice-id="${choice.id}"] .dropdown-choice__gap-label`);
+            if (label && wasAnswer) label.textContent = input.value || choice.id;
+            updateDirty();
+          });
+          const remove = doc.createElement('button');
+          remove.type = 'button';
+          remove.textContent = '×';
+          remove.disabled = choice.options.length <= 2;
+          remove.setAttribute('aria-label', 'Удалить вариант');
+          remove.addEventListener('click', () => {
+            const removed = choice.options.splice(optionIndex, 1)[0];
+            if (choice.answer === removed) choice.answer = choice.options[0] || '';
+            paintChoiceEditors();
+            updateDirty();
+          });
+          row.append(radio, input, remove);
+          rows.append(row);
+        });
+        const add = doc.createElement('button');
+        add.type = 'button';
+        add.className = 'dropdown-choice__add-option';
+        add.textContent = '+ вариант';
+        add.disabled = choice.options.length >= 12;
+        add.addEventListener('click', () => {
+          choice.options.push('');
+          paintChoiceEditors();
+          updateDirty();
+          const inputs = choiceEditor.querySelectorAll('input[type="text"]');
+          inputs[inputs.length - 1]?.focus();
+        });
+        card.append(legend, rows, add);
+        return card;
+      }));
+    }
+
+    function editorSnapshot() {
+      return JSON.stringify({ title: title.textContent, instruction: instruction.textContent,
+        text: inlineGapText.serializeMarkedText(inlineGapText.compactParts(editorParts())), choices: editorChoices });
+    }
+    function updateDirty() { if (editing && !saving) setDirty(editorSnapshot() !== initialSnapshot); }
+
+    function selectionInTextSpan() {
+      const selection = doc.getSelection ? doc.getSelection() : root.getSelection?.();
+      if (!selection || selection.rangeCount === 0) return null;
+      const range = selection.getRangeAt(0);
+      const start = range.startContainer.nodeType === 3 ? range.startContainer.parentElement : range.startContainer;
+      const end = range.endContainer.nodeType === 3 ? range.endContainer.parentElement : range.endContainer;
+      if (!start || start !== end || !start.classList?.contains('dropdown-choice__text') || !passage.contains(start)) return null;
+      const prefix = doc.createRange();
+      prefix.selectNodeContents(start);
+      prefix.setEnd(range.startContainer, range.startOffset);
+      const from = prefix.toString().length;
+      prefix.setEnd(range.endContainer, range.endOffset);
+      const to = prefix.toString().length;
+      return { span: start, start: Math.min(from, to), end: Math.max(from, to) };
+    }
+
+    function insertGap() {
+      const selection = selectionInTextSpan();
+      if (!selection || editorChoices.length >= 12) return;
+      const source = editorParts();
+      const index = [...passage.children].indexOf(selection.span);
+      const value = selection.span.textContent;
+      const answer = normalizeSpace(value.slice(selection.start, selection.end));
+      if (!answer) return;
+      const id = uniqueChoiceId(answer);
+      const next = [...source.slice(0, index),
+        ...(value.slice(0, selection.start) ? [{ type: 'text', text: value.slice(0, selection.start) }] : []),
+        { type: 'gap', token: id },
+        ...(value.slice(selection.end) ? [{ type: 'text', text: value.slice(selection.end) }] : []),
+        ...source.slice(index + 1)];
+      editorChoices.push({ id, options: [answer, ''], answer });
+      paintEditorPassage(next);
+      paintChoiceEditors();
+      updateDirty();
+    }
+
+    function unwrapGap(gap) {
+      const source = editorParts();
+      const index = [...passage.children].indexOf(gap);
+      const id = gap.dataset.choiceId;
+      const answer = editorChoiceById(id)?.answer || '';
+      editorChoices = editorChoices.filter(choice => choice.id !== id);
+      const replacement = source.slice();
+      replacement.splice(index, 1, { type: 'text', text: answer });
+      paintEditorPassage(inlineGapText.compactParts(replacement));
+      paintChoiceEditors();
+      updateDirty();
+    }
+
+    function enterEditMode() {
+      editing = true;
+      correct.clear();
+      editorChoices = current.choices.map(choice => ({ ...choice, options: choice.options.slice() }));
+      section.classList.add('dropdown-choice--editing');
+      toolbar.hidden = false;
+      choiceEditor.hidden = false;
+      title.contentEditable = 'true';
+      instruction.contentEditable = 'true';
+      editButton.textContent = '✓';
+      editButton.setAttribute('aria-label', 'Сохранить Dropdown Choice');
+      cancelButton.hidden = false;
+      paintEditorPassage(parts());
+      paintChoiceEditors();
+      initialSnapshot = editorSnapshot();
+      title.focus();
+    }
+
+    function leaveEditMode() {
+      editing = false;
+      saving = false;
+      toolbar.hidden = true;
+      choiceEditor.hidden = true;
+      section.classList.remove('dropdown-choice--editing', 'dropdown-choice--saving');
+      editButton.textContent = '✎';
+      editButton.disabled = false;
+      editButton.setAttribute('aria-label', 'Редактировать Dropdown Choice');
+      cancelButton.hidden = true;
+      setDirty(false);
+      paintPlay();
+    }
+
+    async function saveEditing() {
+      const candidate = { type: 'dropdownChoice', id: current.id,
+        title: title.textContent, instruction: instruction.textContent,
+        text: inlineGapText.serializeMarkedText(inlineGapText.compactParts(editorParts())), choices: editorChoices };
+      try { normalizeDropdownChoice(candidate); } catch (error) {
+        if (typeof settings.onError === 'function') settings.onError(error.message);
+        return;
+      }
+      saving = true;
+      section.classList.add('dropdown-choice--saving');
+      editButton.disabled = true;
+      try {
+        const saved = await settings.onSave({ title: candidate.title, instruction: candidate.instruction,
+          text: candidate.text, choices: candidate.choices }, current.id);
+        current = normalizeDropdownChoice(saved || candidate);
+        leaveEditMode();
+      } catch (_error) {
+        saving = false;
+        section.classList.remove('dropdown-choice--saving');
+        editButton.disabled = false;
+      }
+    }
+
+    editButton.addEventListener('click', () => (editing ? saveEditing() : enterEditMode()));
+    cancelButton.addEventListener('click', () => { if (editing && !saving) leaveEditMode(); });
+    gapTool.addEventListener('mousedown', event => event.preventDefault());
+    gapTool.addEventListener('click', insertGap);
+    title.addEventListener('input', updateDirty);
+    instruction.addEventListener('input', updateDirty);
+    title.addEventListener('keydown', (event) => { if (event.key === 'Enter') event.preventDefault(); });
+    instruction.addEventListener('keydown', (event) => { if (event.key === 'Enter') event.preventDefault(); });
+
+    section.append(header, instruction, toolbar, passage, choiceEditor, status);
+    paintPlay();
     return section;
   }
 
-  const api = { getSelectionState, normalizeDropdownChoice, renderDropdownChoice };
+  const api = { getSelectionState, normalizeDropdownChoice, parseChoiceText, renderDropdownChoice };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.DropdownChoiceComponent = api;
 })(typeof window !== 'undefined' ? window : globalThis);
