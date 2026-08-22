@@ -7,6 +7,14 @@
     throw new Error('MiniSituation requires IllustratedTextPanel.');
   }
 
+  const componentTree = root.ComponentTree
+    || (typeof require === 'function' ? require('./component-tree.js') : null);
+  if (componentTree && typeof componentTree.registerChildSlots === 'function') {
+    componentTree.registerChildSlots('miniSituation', component => (
+      component && component.situation ? [component.situation] : []
+    ));
+  }
+
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s|^\s*(?:[-*+]\s|\d+\.\s)/m;
   const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'sentenceCount', 'situation'];

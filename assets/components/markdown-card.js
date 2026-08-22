@@ -7,7 +7,7 @@
 
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const HEX_COLOR = /^#[0-9a-f]{6}$/i;
-  const ICONS = new Set(['book', 'check', 'chat', 'bulb', 'key']);
+  const ICONS = new Set(['book', 'check', 'chat', 'bulb', 'key', 'pencil', 'lifeRing', 'trophy']);
   const LAYOUTS = new Set(['columns', 'stacked']);
   const STUDENT_VISIBILITIES = new Set(['always', 'controlled', 'teacherOnly']);
   const HEADING_SIZES = new Set(['default', 'large']);
@@ -112,6 +112,33 @@
     if (name === 'bulb') {
       return createSvg(documentRef, [
         ['path', { d: 'M9 17h6m-5 3h4m-7.2-8.6A5.3 5.3 0 1 1 17.2 13c-.8.8-1.5 1.7-1.7 2.8h-7C8.3 14 7.5 13.3 6.8 12.5a5.3 5.3 0 0 1 0-1.1Z' }],
+      ]);
+    }
+    if (name === 'pencil') {
+      return createSvg(documentRef, [
+        ['path', { d: 'm13.2 5.2 5.6 5.6' }],
+        ['path', { d: 'M4 20.1 5.7 14.4 16.2 3.9a2 2 0 0 1 2.8 0l1.1 1.1a2 2 0 0 1 0 2.8L9.6 18.3z' }],
+        ['path', { d: 'M4 20.1 8.4 18.8' }],
+      ]);
+    }
+    if (name === 'lifeRing') {
+      return createSvg(documentRef, [
+        ['circle', { cx: '12', cy: '12', r: '9' }],
+        ['circle', { cx: '12', cy: '12', r: '3.8' }],
+        ['path', { d: 'M9.3 9.3 5.7 5.7' }],
+        ['path', { d: 'm14.7 9.3 3.6-3.6' }],
+        ['path', { d: 'm14.7 14.7 3.6 3.6' }],
+        ['path', { d: 'M9.3 14.7 5.7 18.3' }],
+      ]);
+    }
+    if (name === 'trophy') {
+      return createSvg(documentRef, [
+        ['path', { d: 'M8 4h8v5.2a4 4 0 0 1-8 0z' }],
+        ['path', { d: 'M8 5.4H4.9a3.2 3.2 0 0 0 3.3 3.8' }],
+        ['path', { d: 'M16 5.4h3.1a3.2 3.2 0 0 1-3.3 3.8' }],
+        ['path', { d: 'M12 13.2v3.3' }],
+        ['path', { d: 'M9.5 16.5h5' }],
+        ['path', { d: 'M8.4 20h7.2' }],
       ]);
     }
     return createSvg(documentRef, [

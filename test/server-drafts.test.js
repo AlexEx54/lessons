@@ -251,6 +251,12 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'grammar-focus-complete-the-gaps',
     'grammar-focus-complete-the-gaps-answer-key',
     'grammar-focus-mini-situation',
+    'grammar-focus-practice-support-row',
+  ]);
+  assert.deepEqual(created.content.stages[6].content[6].items.map(item => item.id), [
+    'grammar-focus-writing-support',
+    'grammar-focus-support',
+    'grammar-focus-challenge',
   ]);
   assert.deepEqual(created.content.stages[6].content[0].blocks.map(block => block.id), [
     'grammar-focus-transition-phrases',
@@ -452,6 +458,30 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     (await nestedImageResponse.json()).draft.content.stages[6].content[5].situation.leadingPicture.imageSrc,
     new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`),
   );
+
+  // Карточка внутри cardRow правится существующим эндпоинтом: обходчик
+  // находит вложенного ребёнка без отдельного маршрута для ряда.
+  const nestedCardEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/markdown-cards/grammar-focus-challenge';
+  assert.equal((await fetch(nestedCardEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Challenge', text: '- Updated.' }),
+  })).status, 401);
+  const nestedCardUpdate = await fetch(nestedCardEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      title: ' Challenge ',
+      text: '- Use a negative sentence.\n- Link ideas with *because*, *but* or *so*.',
+    }),
+  });
+  assert.equal(nestedCardUpdate.status, 200);
+  const savedRow = (await nestedCardUpdate.json()).draft.content.stages[6].content[6];
+  assert.equal(savedRow.id, 'grammar-focus-practice-support-row');
+  const savedChallenge = savedRow.items.find(item => item.id === 'grammar-focus-challenge');
+  assert.equal(savedChallenge.title, 'Challenge');
+  assert.match(savedChallenge.text, /Link ideas with \*because\*, \*but\* or \*so\*/);
 
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/gap-fill/missing-gap`, {
     method: 'PATCH',

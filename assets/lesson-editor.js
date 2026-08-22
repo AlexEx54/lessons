@@ -173,6 +173,16 @@
       },
       onError: showToast,
     }),
+    cardRow: component => window.CardRowComponent.renderCardRow(component, {
+      viewerRole: 'teacher',
+      studentVisible: false,
+      onSave: state.draftStatus === 'review' ? saveMarkdownCard : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
   };
 
   const svgNS = 'http://www.w3.org/2000/svg';
@@ -369,169 +379,84 @@
     selectStage(0);
   }
 
+  // Единая точка поиска компонентов: вложенные дети (например панель внутри
+  // miniSituation или карточки внутри cardRow) находит общий обходчик,
+  // потому что сами компоненты регистрируют свои слоты в ComponentTree.
+  function findComponent(lesson, type, componentId) {
+    const [match] = window.ComponentTree.findComponentMatches(lesson?.stages || [], type, componentId);
+    return match || null;
+  }
+
   function findTeacherNote(lesson, noteId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'teacherNote' && component.id === noteId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'teacherNote', noteId);
   }
 
   function findTaskPrompt(lesson, promptId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'taskPrompt' && component.id === promptId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'taskPrompt', promptId);
   }
 
   function findThisOrThat(lesson, componentId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'thisOrThat' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'thisOrThat', componentId);
   }
 
   function findMatchWords(lesson, componentId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'matchWords' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'matchWords', componentId);
   }
 
   function findTextPanel(lesson, panelId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'textPanel' && component.id === panelId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'textPanel', panelId);
   }
 
   function findIllustratedTextPanel(lesson, panelId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'illustratedTextPanel' && component.id === panelId) return component;
-        if (component?.type === 'miniSituation' && component.situation?.id === panelId) {
-          return component.situation;
-        }
-      }
-    }
-    return null;
+    return findComponent(lesson, 'illustratedTextPanel', panelId);
   }
 
   function findMiniSituation(lesson, componentId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'miniSituation' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'miniSituation', componentId);
   }
 
   function findTextReading(lesson, componentId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'textReading' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'textReading', componentId);
   }
 
   function findAudioPlayer(lesson, componentId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'audioPlayer' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'audioPlayer', componentId);
   }
 
   function findMarkdownCard(lesson, componentId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'markdownCard' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'markdownCard', componentId);
   }
 
   function findFillInBlanks(lesson, componentId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'fillInBlanks' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'fillInBlanks', componentId);
   }
 
   function findDragWordsInText(lesson, componentId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'dragWordsInText' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'dragWordsInText', componentId);
   }
 
   function findDropdownChoice(lesson, componentId) {
-    for (const stage of lesson?.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'dropdownChoice' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'dropdownChoice', componentId);
   }
 
   function findGapFill(lesson, componentId) {
-    for (const stage of lesson?.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'gapFill' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'gapFill', componentId);
   }
 
   function findPersonalizedQuestions(lesson, componentId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'personalizedQuestions' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'personalizedQuestions', componentId);
   }
 
   function findMultipleChoice(lesson, componentId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'multipleChoice' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'multipleChoice', componentId);
   }
 
   function findCheckboxChoice(lesson, componentId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'checkboxChoice' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'checkboxChoice', componentId);
   }
 
   function findDescribeAndGuess(lesson, componentId) {
-    for (const stage of lesson.stages || []) {
-      for (const component of stage.content || []) {
-        if (component?.type === 'describeAndGuess' && component.id === componentId) return component;
-      }
-    }
-    return null;
+    return findComponent(lesson, 'describeAndGuess', componentId);
   }
 
   function thisOrThatImageUrl(componentId, itemId, optionId) {

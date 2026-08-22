@@ -134,7 +134,7 @@ Teacher’s Note содержит подсказки, инструкции и г
   `id`, опциональными обычными `title` и непустым Markdown-текстом в `text`.
 - `layout` — обязательное для секционной карточки значение `columns` или `stacked`.
   В узком интерфейсе колонки автоматически складываются вертикально.
-- `icon` — строго `book`, `check`, `chat`, `bulb` или `key`.
+- `icon` — строго `book`, `check`, `chat`, `bulb`, `key`, `pencil`, `lifeRing` или `trophy`.
 - `headingSize` — опционально `default` или `large`. Режим `large` увеличивает
   основной заголовок до 16px, а заголовки секций до 14px, сохраняя визуальную
   иерархию. Значение задаётся в JSON и не редактируется администратором.
@@ -648,6 +648,60 @@ Answer Key в этот компонент не встроен. Если ключ
 редактируются карандашом вложенной панели так же, как обычный
 `illustratedTextPanel`; промт незагруженного слота виден только в режиме
 редактирования панели. Поля `type` и оба id после генерации неизменяемы.
+
+## Card Row
+
+`cardRow` — ряд из двух-трёх нейтральных карточек `markdownCard`, стоящих рядом.
+Используется для опор и дифференциации свободной практики: например
+Writing Support, Support и Challenge рядом с miniSituation. На узком экране
+карточки переносятся сеткой сами: 3 → 2+1 → одна колонка.
+
+```json
+{
+  "type": "cardRow",
+  "id": "grammar-focus-practice-support-row",
+  "items": [{
+    "type": "markdownCard",
+    "id": "grammar-focus-writing-support",
+    "title": "Writing Support",
+    "icon": "pencil",
+    "accentColor": "#20A85B",
+    "studentVisibility": "always",
+    "text": "1. Right now, ...\n2. Usually, ..."
+  }, {
+    "type": "markdownCard",
+    "id": "grammar-focus-support",
+    "title": "Support",
+    "icon": "lifeRing",
+    "accentColor": "#20A85B",
+    "studentVisibility": "always",
+    "text": "- **Word bank:** stream, camp area, map\n- **Model sentence:** “Right now, Leo is building a new bridge.”"
+  }, {
+    "type": "markdownCard",
+    "id": "grammar-focus-challenge",
+    "title": "Challenge",
+    "icon": "trophy",
+    "accentColor": "#6545F5",
+    "studentVisibility": "always",
+    "text": "- Use a negative sentence.\n- Link ideas with *because*, *but* or *so*."
+  }]
+}
+```
+
+Поля:
+
+- `type` — строго `cardRow`.
+- `id` — обязательный уникальный lowercase kebab-case идентификатор.
+- `items` — от 2 до 3 объектов и только типа `markdownCard` (каждый со всеми
+  своими обязательными полями). Вложенный `cardRow` и любые другие типы запрещены.
+- id элементов `items` не должны повторяться внутри ряда.
+
+Состав ряда после генерации неизменяем: интерфейс не добавляет и не удаляет
+карточки. Каждая карточка ряда остаётся обычной `markdownCard`: администратор
+редактирует её карандашом, а сервер находит её по id внутри ряда через общий
+обход компонентов. Не кладите в ряд интерактивные задания — только статичные
+карточки. Не используйте ряд для простого перечисления: если содержимое — один
+блок текста, достаточно одной `markdownCard` с `sections` и `layout: "columns"`.
 
 ## Fill in the Blanks
 

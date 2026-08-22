@@ -375,7 +375,7 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.equal(grammarFocus.subtitle, 'Practice the Rule');
   assert.equal(grammarFocus.durationMinutes, 8);
   assert.deepEqual(grammarFocus.content.map(component => component.type), [
-    'teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard', 'miniSituation',
+    'teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard', 'miniSituation', 'cardRow',
   ]);
   assert.equal(grammarFocus.content[0].id, 'grammar-focus-teacher-note');
   assert.deepEqual(grammarFocus.content[0].blocks.map(block => block.id), [
@@ -430,6 +430,15 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.equal(grammarFocus.content[5].situation.id, 'grammar-focus-mini-situation-prompt');
   assert.ok(grammarFocus.content[5].situation.leadingPicture.imagePrompt);
   assert.equal(grammarFocus.content[5].situation.trailingPicture, undefined);
+  assert.equal(grammarFocus.content[6].type, 'cardRow');
+  assert.equal(grammarFocus.content[6].id, 'grammar-focus-practice-support-row');
+  assert.deepEqual(grammarFocus.content[6].items.map(item => item.id), [
+    'grammar-focus-writing-support',
+    'grammar-focus-support',
+    'grammar-focus-challenge',
+  ]);
+  assert.deepEqual(grammarFocus.content[6].items.map(item => item.icon), ['pencil', 'lifeRing', 'trophy']);
+  assert.ok(grammarFocus.content[6].items.every(item => item.studentVisibility === 'always'));
   assert.ok(lesson.stages.slice(7).every(stage => stage.content === null));
 });
 

@@ -1,0 +1,14 @@
+.card-row {
+  display: grid;
+  gap: 14px;
+  align-items: start;
+  /* Ряд равных колонок с переносом невлезающих карточек:
+     на узком экране сетка сама складывается в 2+1 и далее в одну колонку. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+}
+
+.card-row .markdown-card { min-width: 0; }
+
+@media (max-width: 720px) {
+  .card-row { gap: 12px; }
+}

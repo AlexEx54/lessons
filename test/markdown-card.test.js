@@ -43,7 +43,7 @@ test('markdown card normalizes its stable JSON contract', () => {
     accentColor: '#20A85B',
     studentVisibility: 'controlled',
   });
-  for (const icon of ['book', 'check', 'chat', 'bulb', 'key']) {
+  for (const icon of ['book', 'check', 'chat', 'bulb', 'key', 'pencil', 'lifeRing', 'trophy']) {
     assert.equal(normalizeMarkdownCard({ ...example, icon }).icon, icon);
   }
   for (const studentVisibility of ['always', 'controlled', 'teacherOnly']) {
