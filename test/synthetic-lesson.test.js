@@ -444,7 +444,7 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.equal(guidedSpeaking.subtitle, 'Plan Together');
   assert.equal(guidedSpeaking.durationMinutes, 8);
   assert.deepEqual(guidedSpeaking.content.map(component => component.type), [
-    'teacherNote', 'textPanel', 'howToPlay', 'guidedRoleCards', 'speakingSupport',
+    'teacherNote', 'textPanel', 'howToPlay', 'guidedRoleCards', 'speakingSupport', 'markdownCard',
   ]);
   assert.equal(guidedSpeaking.content[0].id, 'guided-speaking-teacher-note');
   assert.match(guidedSpeaking.content[0].text, /\*\*Start:\*\*/);
@@ -499,6 +499,16 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
     'reacting', 'followUpQuestions', 'clarification',
     'suggestions', 'agreeingDisagreeing', 'decision',
   ]);
+  assert.deepEqual(guidedSpeaking.content[5], {
+    type: 'markdownCard',
+    id: 'guided-speaking-example-dialogue',
+    title: 'Example Dialogue',
+    icon: 'chat',
+    headingSize: 'large',
+    accentColor: '#3563D4',
+    studentVisibility: 'always',
+    text: '**Teacher:** What would you like to do on our offline summer day?\n\n**Student:** I’d like to go swimming because it’s fun and relaxing.\n\n**Teacher:** That sounds nice, but I’m not sure. What about having a picnic instead?\n\n**Student:** Why do you think a picnic is better?\n\n**Teacher:** Because it’s cheaper, and we can spend more time outdoors.\n\n**Student:** I see. That makes sense. Let’s choose the picnic, then.\n\n**Teacher:** Great. Do you agree with that plan?\n\n**Student:** Yes, I do. I think it’s the best option for both of us.',
+  });
   assert.equal(lesson.stages[8].content, null);
 });
 

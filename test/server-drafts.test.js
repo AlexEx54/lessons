@@ -284,9 +284,10 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'answers-left', 'answers-right',
   ]);
   assert.deepEqual(created.content.stages[7].content.map(component => component.type), [
-    'teacherNote', 'textPanel', 'howToPlay', 'guidedRoleCards', 'speakingSupport',
+    'teacherNote', 'textPanel', 'howToPlay', 'guidedRoleCards', 'speakingSupport', 'markdownCard',
   ]);
   assert.equal(created.content.stages[7].content[2].id, 'guided-speaking-how-to-play');
+  assert.equal(created.content.stages[7].content[5].id, 'guided-speaking-example-dialogue');
   assert.equal(created.content.stages[8].content, null);
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
