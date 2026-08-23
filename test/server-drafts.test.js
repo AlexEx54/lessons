@@ -284,7 +284,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'answers-left', 'answers-right',
   ]);
   assert.deepEqual(created.content.stages[7].content.map(component => component.type), [
-    'teacherNote', 'textPanel', 'howToPlay',
+    'teacherNote', 'textPanel', 'howToPlay', 'guidedRoleCards',
   ]);
   assert.equal(created.content.stages[7].content[2].id, 'guided-speaking-how-to-play');
   assert.equal(created.content.stages[8].content, null);
@@ -615,6 +615,43 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ title: 'Rules', steps: [], tip: undefined }),
+  })).status, 400);
+  const roleCardsEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/guided-role-cards/guided-speaking-role-cards';
+  const roleCards = {
+    student: {
+      title: 'Learner',
+      sections: {
+        want: '- Swim', avoid: '- Long walks', secret: '- £15', mission: '- Ask a question', goal: '- Decide together',
+      },
+    },
+    teacher: {
+      title: 'Teacher',
+      sections: {
+        want: '- Cycle', avoid: '- Shopping', secret: '- Home at 5', mission: '- Suggest an idea', goal: '- Decide together',
+      },
+    },
+  };
+  assert.equal((await fetch(roleCardsEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roles: roleCards }),
+  })).status, 401);
+  const roleCardsUpdate = await fetch(roleCardsEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ id: 'attempted-id-change', roles: roleCards }),
+  });
+  assert.equal(roleCardsUpdate.status, 200);
+  const savedRoleCards = (await roleCardsUpdate.json()).draft.content.stages[7].content[3];
+  assert.equal(savedRoleCards.id, 'guided-speaking-role-cards');
+  assert.deepEqual(savedRoleCards.roles, roleCards);
+  const invalidRoles = JSON.parse(JSON.stringify(roleCards));
+  delete invalidRoles.teacher.sections.goal;
+  assert.equal((await fetch(roleCardsEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ roles: invalidRoles }),
   })).status, 400);
   const multipleChoiceEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/multiple-choice/reading-gist-quiz`;
   assert.equal((await fetch(multipleChoiceEndpoint, {

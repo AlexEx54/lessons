@@ -318,6 +318,52 @@ follow-up репликой для каждого пункта.
 менять заголовок, шаги и tip, а также добавлять, удалять и переставлять шаги.
 Поля `type` и id после генерации неизменяемы.
 
+## Guided Role Cards
+
+`guidedRoleCards` — пара секретных ролевых карточек для Guided Communication.
+Каждая карточка впервые показывается тыльной стороной и открывается по нажатию или
+клавишам Enter/Space. Teacher view получает обе роли; student view получает только
+`student`, причём данные роли `teacher` не создаются в DOM.
+
+```json
+{
+  "type": "guidedRoleCards",
+  "id": "guided-speaking-role-cards",
+  "roles": {
+    "student": {
+      "title": "Student",
+      "sections": {
+        "want": "- Go swimming\n- Have a picnic",
+        "avoid": "- Long walks",
+        "secret": "- You have £15.\n- Swimming costs £8.",
+        "mission": "- Ask 1 question.\n- Say 1 idea.",
+        "goal": "- Choose the final plan together."
+      }
+    },
+    "teacher": {
+      "title": "Teacher",
+      "sections": {
+        "want": "- Go for a bike ride\n- Spend time outside",
+        "avoid": "- Go shopping",
+        "secret": "- Be home by 5:00 p.m.\n- Bike rental closes at 3:00 p.m.",
+        "mission": "- Suggest another idea.\n- Ask: Do you agree?",
+        "goal": "- Choose the final plan together."
+      }
+    }
+  }
+}
+```
+
+Поля `type`, `id`, ключи ролей и набор разделов неизменяемы. Для каждой роли
+обязательны непустой обычный `title` и ровно пять Markdown-полей в `sections`:
+`want`, `avoid`, `secret`, `mission`, `goal`. Интерфейс самостоятельно подставляет
+фиксированные подписи разделов, цвет роли и прозрачные ImageGen-иконки.
+
+В review-редакторе можно менять названия ролей и содержимое всех десяти разделов.
+Доступны жирный и курсивный текст, маркированные и нумерованные списки, а также
+отмена и сохранение с dirty-state. Открытое/закрытое состояние локальное и в JSON
+не сохраняется.
+
 ## Text Panel
 
 `textPanel` показывает простой текстовый блок с настраиваемыми цветами фона и

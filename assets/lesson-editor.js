@@ -103,6 +103,15 @@
       },
       onError: showToast,
     }),
+    guidedRoleCards: component => window.GuidedRoleCardsComponent.renderGuidedRoleCards(component, {
+      viewerRole: 'teacher',
+      onSave: state.draftStatus === 'review' ? saveGuidedRoleCards : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
     textPanel: component => window.TextPanelComponent.renderTextPanel(component, {
       onSave: state.draftStatus === 'review' ? saveTextPanel : undefined,
       onDirtyChange: (dirty, panelId) => {
@@ -469,6 +478,10 @@
 
   function findHowToPlay(lesson, componentId) {
     return findComponent(lesson, 'howToPlay', componentId);
+  }
+
+  function findGuidedRoleCards(lesson, componentId) {
+    return findComponent(lesson, 'guidedRoleCards', componentId);
   }
 
   function thisOrThatImageUrl(componentId, itemId, optionId) {
@@ -1072,6 +1085,31 @@
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить How to Play.');
+      throw error;
+    }
+  }
+
+  async function saveGuidedRoleCards(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/guided-role-cards/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить role cards.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findGuidedRoleCards(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённые role cards не найдены в черновике.');
+      showToast('Role cards сохранены.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить role cards.');
       throw error;
     }
   }

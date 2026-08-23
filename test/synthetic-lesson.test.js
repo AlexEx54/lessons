@@ -444,7 +444,7 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.equal(guidedSpeaking.subtitle, 'Plan Together');
   assert.equal(guidedSpeaking.durationMinutes, 8);
   assert.deepEqual(guidedSpeaking.content.map(component => component.type), [
-    'teacherNote', 'textPanel', 'howToPlay',
+    'teacherNote', 'textPanel', 'howToPlay', 'guidedRoleCards',
   ]);
   assert.equal(guidedSpeaking.content[0].id, 'guided-speaking-teacher-note');
   assert.match(guidedSpeaking.content[0].text, /\*\*Start:\*\*/);
@@ -466,6 +466,32 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
       'Talk to your partner. Listen, answer and complete your secret mission.',
       'Decide together. Complete the Shared Outcome.',
     ],
+  });
+  assert.deepEqual(guidedSpeaking.content[3], {
+    type: 'guidedRoleCards',
+    id: 'guided-speaking-role-cards',
+    roles: {
+      student: {
+        title: 'Student',
+        sections: {
+          want: '- Go swimming\n- Have a picnic',
+          avoid: '- Long walks',
+          secret: '- You have £15.\n- Swimming costs £8.',
+          mission: '- Ask 1 question.\n- Say 1 idea.',
+          goal: '- Choose the final plan together.',
+        },
+      },
+      teacher: {
+        title: 'Teacher',
+        sections: {
+          want: '- Go for a bike ride\n- Spend time outside',
+          avoid: '- Go shopping',
+          secret: '- Be home by 5:00 p.m.\n- Bike rental closes at 3:00 p.m.',
+          mission: '- Suggest another idea.\n- Ask: Do you agree?',
+          goal: '- Choose the final plan together.',
+        },
+      },
+    },
   });
   assert.equal(lesson.stages[8].content, null);
 });

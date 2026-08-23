@@ -15,6 +15,7 @@ const {
   updateAudioPlayerAudio,
   updateDescribeAndGuess,
   updateHowToPlay,
+  updateGuidedRoleCards,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateMiniSituation,
@@ -814,6 +815,43 @@ test('How to Play title, steps, and tip can be updated only in an owned review d
     id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-guide',
     title: 'Rules', steps: ['Play.'], tip: undefined,
   }, database), /несколько/);
+  database.close();
+});
+
+test('guided role cards update copy but preserve the fixed schema', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'role-cards-owner');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Roles', template: 'template-1' }, database);
+  const roles = {
+    student: {
+      title: 'Student',
+      sections: { want: '- Swim', avoid: '- Shop', secret: '- £15', mission: '- Ask', goal: '- Decide' },
+    },
+    teacher: {
+      title: 'Teacher',
+      sections: { want: '- Cycle', avoid: '- Shop', secret: '- Home at 5', mission: '- Suggest', goal: '- Decide' },
+    },
+  };
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{ type: 'guidedRoleCards', id: 'guided-speaking-role-cards', roles }] }],
+  }, database);
+  const changed = JSON.parse(JSON.stringify(roles));
+  changed.student.title = ' Learner ';
+  changed.student.sections.want = ' - Have a picnic ';
+  const updated = updateGuidedRoleCards({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'guided-speaking-role-cards', roles: changed,
+  }, database);
+  assert.equal(updated.content.stages[0].content[0].roles.student.title, 'Learner');
+  assert.equal(updated.content.stages[0].content[0].roles.student.sections.want, '- Have a picnic');
+
+  const damaged = JSON.parse(JSON.stringify(changed));
+  delete damaged.teacher.sections.goal;
+  assert.throws(() => updateGuidedRoleCards({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'guided-speaking-role-cards', roles: damaged,
+  }, database), /fixed section set/);
+  assert.throws(() => updateGuidedRoleCards({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing-role-cards', roles: changed,
+  }, database), /не найдены/);
   database.close();
 });
 
