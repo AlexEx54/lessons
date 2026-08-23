@@ -203,4 +203,6 @@ test('component renders the guide card with gamepad, steps, and dialogue imagery
   assert.match(script, /normalized\.tip/);
   assert.match(styles, /background:\s*#39aa5e/);
   assert.match(styles, /border:\s*1px solid #a9d6b5/);
+  assert.match(styles, /guided-speaking-how-to-play[^}]+font-size:\s*20px/);
+  assert.match(styles, /guided-speaking-how-to-play[^}]+how-to-play__steps li,[\s\S]+font-size:\s*14px/);
 });
