@@ -93,6 +93,7 @@ function fakeDocument() {
       },
       setAttribute(name, value) { this.attributes[name] = String(value); },
       getAttribute(name) { return Object.hasOwn(this.attributes, name) ? this.attributes[name] : null; },
+      removeAttribute(name) { delete this.attributes[name]; },
       append(...children) {
         children.forEach((child) => {
           if (child == null) return;
@@ -132,8 +133,27 @@ test('student render never creates teacher content and starts face-down', () => 
   assert.equal(flipper.getAttribute('aria-expanded'), 'false');
   assert.equal(cards[0].classList.contains('guided-role-card--open'), false);
   flipper.click();
-  const openedCard = descendants(rendered).find(node => node.classList?.contains('guided-role-card'));
-  assert.equal(openedCard.classList.contains('guided-role-card--open'), true);
+  assert.equal(descendants(rendered).find(node => node.classList?.contains('guided-role-card__flipper')), flipper);
+  assert.equal(cards[0].classList.contains('guided-role-card--open'), true);
+  assert.equal(flipper.getAttribute('aria-expanded'), 'true');
+  flipper.click();
+  assert.equal(cards[0].classList.contains('guided-role-card--open'), false);
+  assert.equal(flipper.getAttribute('aria-expanded'), 'false');
+});
+
+test('flipping one teacher-view card does not remount or open the other', () => {
+  const rendered = renderGuidedRoleCards(component(), { viewerRole: 'teacher' }, fakeDocument());
+  const cards = descendants(rendered).filter(node => node.classList?.contains('guided-role-card'));
+  assert.equal(cards.length, 2);
+  const student = cards.find(card => card.dataset.role === 'student');
+  const teacher = cards.find(card => card.dataset.role === 'teacher');
+  const studentFlipper = descendants(student).find(node => node.classList?.contains('guided-role-card__flipper'));
+  studentFlipper.click();
+  const after = descendants(rendered).filter(node => node.classList?.contains('guided-role-card'));
+  assert.equal(after.find(card => card.dataset.role === 'student'), student);
+  assert.equal(after.find(card => card.dataset.role === 'teacher'), teacher);
+  assert.equal(student.classList.contains('guided-role-card--open'), true);
+  assert.equal(teacher.classList.contains('guided-role-card--open'), false);
 });
 
 test('review render exposes markdown-style edit controls', () => {

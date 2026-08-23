@@ -127,36 +127,33 @@
       }
     }
 
+    function syncOpenState(shell, flipper, back, front, role, isOpen, interactive) {
+      shell.classList.toggle('guided-role-card--open', isOpen);
+      if (interactive) {
+        flipper.setAttribute('aria-expanded', String(isOpen));
+        flipper.setAttribute('aria-label', `${isOpen ? 'Скрыть' : 'Открыть'} карточку ${role.title}`);
+      }
+      back.setAttribute('aria-hidden', String(isOpen));
+      front.setAttribute('aria-hidden', String(!isOpen));
+      if (isOpen) {
+        back.setAttribute('inert', '');
+        front.removeAttribute('inert');
+      } else {
+        front.setAttribute('inert', '');
+        back.removeAttribute('inert');
+      }
+    }
+
     function roleCard(roleKey, role, editable) {
       const shell = doc.createElement('article');
       shell.className = `guided-role-card guided-role-card--${roleKey}`;
       shell.dataset.role = roleKey;
-      shell.classList.toggle('guided-role-card--open', editable || openRoles.has(roleKey));
 
       const flipper = doc.createElement('div');
       flipper.className = 'guided-role-card__flipper';
-      if (!editable) {
-        flipper.tabIndex = 0;
-        flipper.setAttribute('role', 'button');
-        flipper.setAttribute('aria-expanded', String(openRoles.has(roleKey)));
-        flipper.setAttribute('aria-label', `${openRoles.has(roleKey) ? 'Скрыть' : 'Открыть'} карточку ${role.title}`);
-        const toggle = () => {
-          if (openRoles.has(roleKey)) openRoles.delete(roleKey);
-          else openRoles.add(roleKey);
-          render();
-        };
-        flipper.addEventListener('click', toggle);
-        flipper.addEventListener('keydown', (event) => {
-          if (event.key !== 'Enter' && event.key !== ' ') return;
-          event.preventDefault();
-          toggle();
-        });
-      }
 
       const back = doc.createElement('div');
       back.className = 'guided-role-card__face guided-role-card__back';
-      back.setAttribute('aria-hidden', String(editable || openRoles.has(roleKey)));
-      if (editable || openRoles.has(roleKey)) back.setAttribute('inert', '');
       back.append(
         image(`${roleKey}.png`, 'guided-role-card__back-avatar'),
         Object.assign(doc.createElement('strong'), { textContent: role.title }),
@@ -166,8 +163,6 @@
 
       const front = doc.createElement('div');
       front.className = 'guided-role-card__face guided-role-card__front';
-      front.setAttribute('aria-hidden', String(!editable && !openRoles.has(roleKey)));
-      if (!editable && !openRoles.has(roleKey)) front.setAttribute('inert', '');
       const header = doc.createElement('header');
       header.className = 'guided-role-card__header';
       header.append(image(`${roleKey}.png`, 'guided-role-card__avatar'));
@@ -199,6 +194,22 @@
       editors.set(roleKey, roleEditors);
       flipper.append(back, front);
       shell.append(flipper);
+      syncOpenState(shell, flipper, back, front, role, editable || openRoles.has(roleKey), !editable);
+      if (!editable) {
+        flipper.tabIndex = 0;
+        flipper.setAttribute('role', 'button');
+        const toggle = () => {
+          if (openRoles.has(roleKey)) openRoles.delete(roleKey);
+          else openRoles.add(roleKey);
+          syncOpenState(shell, flipper, back, front, role, openRoles.has(roleKey), true);
+        };
+        flipper.addEventListener('click', toggle);
+        flipper.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          toggle();
+        });
+      }
       return shell;
     }
 
