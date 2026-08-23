@@ -14,6 +14,7 @@ const {
   updateAudioPlayer,
   updateAudioPlayerAudio,
   updateDescribeAndGuess,
+  updateHowToPlay,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateMiniSituation,
@@ -747,6 +748,72 @@ test('Describe and Guess copy, words, and rules can be updated only in an owned 
     items: [{ id: 'word-one', text: 'word' }],
     howToPlay: { title: 'Rules', steps: ['Play.'], tip: 'Try.' },
   }, database), /только черновик на проверке/);
+  database.close();
+});
+
+test('How to Play title, steps, and tip can be updated only in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'how-to-play-owner');
+  const outsider = admin(database, 'how-to-play-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Guided speaking', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'howToPlay', id: 'guided-speaking-how-to-play', title: 'How to Play',
+      steps: ['Read your role.', 'Talk to your partner.'],
+      tip: 'Keep your card secret.',
+    }] }],
+  }, database);
+  const updated = updateHowToPlay({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'guided-speaking-how-to-play',
+    title: ' Rules ',
+    steps: [' Explain it. ', ' Guess it. ', ' Decide together. '],
+    tip: ' Use examples. ',
+  }, database);
+  assert.deepEqual(updated.content.stages[0].content[0], {
+    type: 'howToPlay', id: 'guided-speaking-how-to-play', title: 'Rules',
+    steps: ['Explain it.', 'Guess it.', 'Decide together.'],
+    tip: 'Use examples.',
+  });
+  const withoutTip = updateHowToPlay({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'guided-speaking-how-to-play',
+    title: 'Rules',
+    steps: ['Explain it.'],
+    tip: undefined,
+  }, database);
+  assert.equal(withoutTip.content.stages[0].content[0].tip, undefined);
+  assert.throws(() => updateHowToPlay({
+    id: ready.id, ownerAdminId: outsider.id, componentId: 'guided-speaking-how-to-play',
+    title: 'Rules', steps: ['Play.'], tip: undefined,
+  }, database), /не найден/);
+  assert.throws(() => updateHowToPlay({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing-guide',
+    title: 'Rules', steps: ['Play.'], tip: undefined,
+  }, database), /не найден/);
+  assert.throws(() => updateHowToPlay({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'guided-speaking-how-to-play',
+    title: 'Rules', steps: [], tip: undefined,
+  }, database), /between 1 and 8/);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => updateHowToPlay({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'guided-speaking-how-to-play',
+    title: 'Late', steps: ['Play.'], tip: undefined,
+  }, database), /только черновик на проверке/);
+
+  const duplicatePending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Duplicate how to play', template: 'template-1' }, database);
+  const duplicate = completeLessonDraft(duplicatePending.id, owner.id, {
+    stages: [
+      { content: [{ type: 'howToPlay', id: 'same-guide', title: 'One', steps: ['One'] }] },
+      { content: [{ type: 'howToPlay', id: 'same-guide', title: 'Two', steps: ['Two'] }] },
+    ],
+  }, database);
+  assert.throws(() => updateHowToPlay({
+    id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-guide',
+    title: 'Rules', steps: ['Play.'], tip: undefined,
+  }, database), /несколько/);
   database.close();
 });
 

@@ -90,6 +90,7 @@ check_files=(
   assets/lesson-editor.js
   assets/components/this-or-that.js
   assets/components/audio-player.js
+  assets/components/how-to-play.js
   lib/app-shell.js
   lib/auth.js
   lib/db.js

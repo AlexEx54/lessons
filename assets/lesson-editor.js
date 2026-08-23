@@ -95,6 +95,14 @@
       },
       onError: showToast,
     }),
+    howToPlay: component => window.HowToPlayComponent.renderHowToPlay(component, {
+      onSave: state.draftStatus === 'review' ? saveHowToPlay : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
     textPanel: component => window.TextPanelComponent.renderTextPanel(component, {
       onSave: state.draftStatus === 'review' ? saveTextPanel : undefined,
       onDirtyChange: (dirty, panelId) => {
@@ -457,6 +465,10 @@
 
   function findDescribeAndGuess(lesson, componentId) {
     return findComponent(lesson, 'describeAndGuess', componentId);
+  }
+
+  function findHowToPlay(lesson, componentId) {
+    return findComponent(lesson, 'howToPlay', componentId);
   }
 
   function thisOrThatImageUrl(componentId, itemId, optionId) {
@@ -1035,6 +1047,31 @@
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить Describe and Guess.');
+      throw error;
+    }
+  }
+
+  async function saveHowToPlay(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/how-to-play/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить How to Play.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findHowToPlay(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый How to Play не найден в черновике.');
+      showToast('How to Play сохранён.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить How to Play.');
       throw error;
     }
   }

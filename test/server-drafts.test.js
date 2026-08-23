@@ -283,7 +283,11 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.deepEqual(created.content.stages[6].content[4].sections.map(section => section.id), [
     'answers-left', 'answers-right',
   ]);
-  assert.ok(created.content.stages.slice(7).every(stage => stage.content === null));
+  assert.deepEqual(created.content.stages[7].content.map(component => component.type), [
+    'teacherNote', 'textPanel', 'howToPlay',
+  ]);
+  assert.equal(created.content.stages[7].content[2].id, 'guided-speaking-how-to-play');
+  assert.equal(created.content.stages[8].content, null);
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: firstAdminCookie },
@@ -570,6 +574,48 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     items: [{ id: 'describe-level-up', text: 'level up' }],
     howToPlay: { title: 'Game rules', steps: ['Pick a word.', 'Explain it.'], tip: 'Use examples.' },
   });
+  const howToPlayEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/how-to-play/guided-speaking-how-to-play';
+  assert.equal((await fetch(howToPlayEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Rules', steps: ['Play.'], tip: 'Try.' }),
+  })).status, 401);
+  assert.equal((await fetch(howToPlayEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: teacherCookie },
+    body: JSON.stringify({ title: 'Rules', steps: ['Play.'], tip: 'Try.' }),
+  })).status, 403);
+  const howToPlayUpdate = await fetch(howToPlayEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      type: 'howToPlay',
+      id: 'attempted-id-change',
+      title: ' Updated rules ',
+      steps: [' Read your role. ', ' Decide together. '],
+      tip: ' Keep your card secret. ',
+    }),
+  });
+  assert.equal(howToPlayUpdate.status, 200);
+  const savedHowToPlay = (await howToPlayUpdate.json()).draft.content.stages[7].content[2];
+  assert.deepEqual(savedHowToPlay, {
+    type: 'howToPlay',
+    id: 'guided-speaking-how-to-play',
+    title: 'Updated rules',
+    steps: ['Read your role.', 'Decide together.'],
+    tip: 'Keep your card secret.',
+  });
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/how-to-play/missing-guide`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Rules', steps: ['Play.'], tip: undefined }),
+  })).status, 404);
+  assert.equal((await fetch(howToPlayEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Rules', steps: [], tip: undefined }),
+  })).status, 400);
   const multipleChoiceEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/multiple-choice/reading-gist-quiz`;
   assert.equal((await fetch(multipleChoiceEndpoint, {
     method: 'PATCH',

@@ -2,3 +2,5 @@
 .env.*
 !.env.example
 data/
+tmp/
+.freebuff/

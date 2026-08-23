@@ -29,6 +29,7 @@ const {
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateDescribeAndGuess,
+  updateHowToPlay,
   updateFillInBlanks,
   updateDragWordsInText,
   updateDropdownChoice,
@@ -476,6 +477,19 @@ function getPersonalizedQuestionsRouteParams(pathname) {
 
 function getDescribeAndGuessRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/describe-and-guess\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getHowToPlayRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/how-to-play\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -1096,6 +1110,7 @@ const server = http.createServer(async (req, res) => {
     const checkboxChoiceRoute = getCheckboxChoiceRouteParams(pathname);
     const personalizedQuestionsRoute = getPersonalizedQuestionsRouteParams(pathname);
     const describeAndGuessRoute = getDescribeAndGuessRouteParams(pathname);
+    const howToPlayRoute = getHowToPlayRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
     const textReadingRoute = getTextReadingRouteParams(pathname);
@@ -1112,6 +1127,7 @@ const server = http.createServer(async (req, res) => {
       && (!checkboxChoiceRoute || !checkboxChoiceRoute.draftId || !checkboxChoiceRoute.componentId)
       && (!personalizedQuestionsRoute || !personalizedQuestionsRoute.draftId || !personalizedQuestionsRoute.componentId)
       && (!describeAndGuessRoute || !describeAndGuessRoute.draftId || !describeAndGuessRoute.componentId)
+      && (!howToPlayRoute || !howToPlayRoute.draftId || !howToPlayRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)
       && (!textReadingRoute || !textReadingRoute.draftId || !textReadingRoute.componentId)
@@ -1230,6 +1246,15 @@ const server = http.createServer(async (req, res) => {
           instruction: body.instruction,
           items: body.items,
           howToPlay: body.howToPlay,
+        }, database);
+      } else if (howToPlayRoute) {
+        draft = updateHowToPlay({
+          id: howToPlayRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: howToPlayRoute.componentId,
+          title: body.title,
+          steps: body.steps,
+          tip: body.tip,
         }, database);
       } else if (textPanelRoute) {
         draft = updateTextPanel({

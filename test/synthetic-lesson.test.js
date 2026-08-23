@@ -439,7 +439,35 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   ]);
   assert.deepEqual(grammarFocus.content[6].items.map(item => item.icon), ['pencil', 'lifeRing', 'trophy']);
   assert.ok(grammarFocus.content[6].items.every(item => item.studentVisibility === 'always'));
-  assert.ok(lesson.stages.slice(7).every(stage => stage.content === null));
+  const guidedSpeaking = lesson.stages[7];
+  assert.equal(guidedSpeaking.title, 'Guided Speaking');
+  assert.equal(guidedSpeaking.subtitle, 'Plan Together');
+  assert.equal(guidedSpeaking.durationMinutes, 8);
+  assert.deepEqual(guidedSpeaking.content.map(component => component.type), [
+    'teacherNote', 'textPanel', 'howToPlay',
+  ]);
+  assert.equal(guidedSpeaking.content[0].id, 'guided-speaking-teacher-note');
+  assert.match(guidedSpeaking.content[0].text, /\*\*Start:\*\*/);
+  assert.match(guidedSpeaking.content[0].text, /used to \/ get used to/);
+  assert.deepEqual(guidedSpeaking.content[1], {
+    type: 'textPanel',
+    id: 'guided-speaking-read-instructions',
+    text: '{l}**Read the instructions.**{/l}',
+    backgroundColor: '#FFFFFF',
+    accentColor: '#20243B',
+    showBorder: false,
+  });
+  assert.deepEqual(guidedSpeaking.content[2], {
+    type: 'howToPlay',
+    id: 'guided-speaking-how-to-play',
+    title: 'How to Play',
+    steps: [
+      'Read your role. Keep your card secret.',
+      'Talk to your partner. Listen, answer and complete your secret mission.',
+      'Decide together. Complete the Shared Outcome.',
+    ],
+  });
+  assert.equal(lesson.stages[8].content, null);
 });
 
 test('synthetic warm-up component copy does not depend on the user topic', () => {

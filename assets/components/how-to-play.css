@@ -1,0 +1,37 @@
+.how-to-play, .how-to-play * { box-sizing: border-box; }
+.how-to-play { position: relative; width: 100%; }
+.how-to-play__guide { display: grid; grid-template-columns: minmax(0, 1fr) 310px; align-items: start; padding: 16px 23px 15px; border: 1px solid #a9d6b5; border-radius: 11px; background: #f3fbf4; }
+.how-to-play__guide-heading { display: flex; align-items: center; gap: 10px; color: #179b46; }
+.how-to-play__gamepad { width: 36px; height: 36px; flex: 0 0 auto; object-fit: contain; }
+.how-to-play__guide-heading h3 { margin: 0; font-size: 15px; font-weight: 800; }
+.how-to-play__steps { margin: 11px 0 0; padding: 0; list-style: none; counter-reset: how-to-play-step; }
+.how-to-play__steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; min-height: 25px; gap: 9px; color: #323749; font-size: 12px; line-height: 1.55; counter-increment: how-to-play-step; }
+.how-to-play__steps li::before { display: grid; place-items: center; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; color: #fff; background: #39aa5e; content: counter(how-to-play-step); font-size: 10px; font-weight: 800; }
+.how-to-play__dialogue { justify-self: center; align-self: end; width: 280px; max-height: 230px; object-fit: contain; }
+.how-to-play__tip { max-width: 630px; margin: 11px 0 0 54px; padding: 8px 12px; border: 1px solid #b9dac1; border-radius: 7px; color: #303c36; background: #f8fff9; font-size: 11px; line-height: 1.5; }
+.how-to-play__tip > span { display: inline-grid; place-items: center; margin-right: 7px; color: #1ca14c; vertical-align: middle; }
+.how-to-play__tip > span svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.how-to-play__tip strong { color: #179b46; }
+.how-to-play__edit { position: absolute; top: -14px; right: 10px; z-index: 5; display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid #ded9f7; border-radius: 8px; color: #6545f5; background: #fff; font-weight: 800; box-shadow: 0 5px 16px rgba(63, 46, 132, .12); }
+.how-to-play__edit:hover { background: #f6f3ff; }
+.how-to-play__editor { display: grid; gap: 12px; }
+.how-to-play__editor h3 { margin: 8px 0 0; color: #6545f5; font-size: 14px; }
+.how-to-play__field { display: grid; gap: 5px; color: #55596c; font-size: 11px; font-weight: 700; }
+.how-to-play__field input, .how-to-play__field textarea, .how-to-play__editor-row input { width: 100%; padding: 9px 10px; border: 1px solid #d8d9e2; border-radius: 7px; color: #242842; background: #fff; font: inherit; font-size: 13px; }
+.how-to-play__field textarea { min-height: 64px; resize: vertical; }
+.how-to-play__editor-list { display: grid; gap: 8px; }
+.how-to-play__editor-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.how-to-play__row-actions, .how-to-play__editor-actions { display: flex; align-items: center; gap: 6px; }
+.how-to-play__small-button, .how-to-play__add, .how-to-play__save { min-height: 34px; padding: 0 10px; border: 1px solid #d3c9fb; border-radius: 7px; color: #6545f5; background: #fff; font-size: 12px; font-weight: 700; }
+.how-to-play__remove { color: #a34458; border-color: #efcbd3; }
+.how-to-play__add { width: fit-content; }
+.how-to-play__editor-actions { justify-content: flex-end; margin-top: 5px; }
+.how-to-play__save { color: #fff; background: #6545f5; }
+.how-to-play--saving { opacity: .7; }
+@media (max-width: 760px) {
+  .how-to-play__guide { grid-template-columns: 1fr; padding: 15px; }
+  .how-to-play__dialogue { display: none; }
+  .how-to-play__tip { margin-left: 0; }
+  .how-to-play__editor-row { grid-template-columns: 1fr; }
+  .how-to-play__row-actions { justify-content: flex-end; }
+}
