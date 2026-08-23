@@ -111,3 +111,9 @@ test('text panel CSS keeps pictures beside text and defines no phantom slot colu
   assert.match(source, /text-panel__format--list/);
   assert.match(css, /\.text-panel__format--list \{[^}]*width: 40px;[^}]*white-space: nowrap;/s);
 });
+
+test('lesson editor loads text-panel as its own closed script tag', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'lesson-editor.html'), 'utf8');
+  assert.match(page, /<script src="\/assets\/components\/text-panel\.js" defer><\/script>/);
+  assert.match(page, /<link rel="stylesheet" href="\/assets\/components\/text-panel\.css" \/>/);
+});

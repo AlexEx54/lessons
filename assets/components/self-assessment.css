@@ -1,0 +1,121 @@
+.self-assessment, .self-assessment * { box-sizing: border-box; }
+.self-assessment {
+  position: relative;
+  width: 100%;
+  padding: 22px 28px 26px;
+  border: 1px solid #e6e7ee;
+  border-radius: 16px;
+  color: #242842;
+  background: #fff;
+}
+.self-assessment__header {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  margin: 0 0 14px;
+  padding-right: 44px;
+  gap: 10px;
+}
+.self-assessment__icon {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: #6545f5;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.self-assessment__header h3 {
+  margin: 0;
+  color: #242842;
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+.self-assessment__options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.self-assessment__option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 76px;
+  padding: 14px 36px 14px 14px;
+  gap: 12px;
+  border: 1.5px solid #e4e6ee;
+  border-radius: 14px;
+  color: #242842;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.self-assessment__option:hover { background: #fafbff; }
+.self-assessment__option--selected {
+  border-color: #6545f5;
+  box-shadow: 0 0 0 1px #6545f5;
+  background: #fcfbff;
+}
+.self-assessment__option:disabled { cursor: default; opacity: .72; }
+.self-assessment__face { width: 40px; height: 40px; flex: 0 0 auto; }
+.self-assessment__caption { font-size: 13px; font-weight: 650; line-height: 1.35; }
+.self-assessment__check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  color: #6545f5;
+}
+.self-assessment__edit {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #ded9f7;
+  border-radius: 8px;
+  color: #6545f5;
+  background: #fff;
+  font-weight: 800;
+  box-shadow: 0 5px 16px rgba(63, 46, 132, .12);
+}
+.self-assessment__edit:hover { background: #f6f3ff; }
+.self-assessment--editing .self-assessment__header { padding-right: 0; }
+.self-assessment--editing h3 {
+  min-width: 40px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #fff;
+  outline: 1px solid #a99af1;
+  box-shadow: 0 0 0 3px rgba(101, 69, 245, .08);
+}
+.self-assessment--editing h3:empty::before {
+  color: #9497a6;
+  content: attr(data-placeholder);
+  font-weight: 500;
+  pointer-events: none;
+}
+.self-assessment__editor-actions { display: flex; justify-content: flex-end; margin-top: 12px; gap: 8px; }
+.self-assessment__editor-actions button {
+  min-height: 31px;
+  padding: 0 9px;
+  border: 1px solid #ddd8f5;
+  border-radius: 6px;
+  color: #6545f5;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 750;
+}
+.self-assessment__editor-actions .self-assessment__save { color: #fff; background: #6545f5; }
+.self-assessment--saving { opacity: .66; pointer-events: none; }
+@media (max-width: 760px) {
+  .self-assessment { padding: 18px 16px 20px; }
+  .self-assessment__options { grid-template-columns: 1fr; }
+  .self-assessment__header h3 { font-size: 15px; }
+}

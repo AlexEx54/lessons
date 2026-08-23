@@ -17,6 +17,8 @@ const {
   updateHowToPlay,
   updateGuidedRoleCards,
   updateSpeakingSupport,
+  updateThreeTwoOne,
+  updateSelfAssessment,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateMiniSituation,
@@ -913,6 +915,81 @@ test('speaking support updates editable copy but preserves its identity and fixe
     id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-support',
     title: 'Support', sections: changed,
   }, database), /несколько/);
+  database.close();
+});
+
+test('3-2-1 updates editable copy but preserves identity and the fixed step set', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'three-two-one-owner');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Wrap-up', template: 'template-1' }, database);
+  const steps = {
+    three: { prompt: 'Name three words.' },
+    two: { prompt: 'Write two sentences.', text: '1. I used to...' },
+    one: { label: 'Can-do question', prompt: 'Would you recommend it?' },
+  };
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{ type: 'threeTwoOne', id: 'wrap-up-three-two-one', steps }] }],
+  }, database);
+  const updated = updateThreeTwoOne({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'wrap-up-three-two-one',
+    steps: {
+      three: { prompt: ' Name three phrases. ' },
+      two: { prompt: ' Write two examples. ' },
+      one: { prompt: ' Give one recommendation. ' },
+    },
+  }, database);
+  const saved = updated.content.stages[0].content[0];
+  assert.equal(saved.type, 'threeTwoOne');
+  assert.equal(saved.id, 'wrap-up-three-two-one');
+  assert.deepEqual(saved.steps, {
+    three: { prompt: 'Name three phrases.' },
+    two: { prompt: 'Write two examples.' },
+    one: { prompt: 'Give one recommendation.' },
+  });
+  assert.equal(saved.steps.one.label, undefined);
+  assert.equal(saved.steps.two.text, undefined);
+
+  const damaged = JSON.parse(JSON.stringify(steps));
+  delete damaged.one;
+  assert.throws(() => updateThreeTwoOne({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'wrap-up-three-two-one', steps: damaged,
+  }, database), /fixed 3-2-1/);
+  assert.throws(() => updateThreeTwoOne({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing-321', steps,
+  }, database), /не найден/);
+  database.close();
+});
+
+test('self-assessment updates the title but keeps the scale in the UI', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'self-assessment-owner');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Wrap-up', template: 'template-1' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'selfAssessment',
+      id: 'wrap-up-self-assessment',
+      title: 'Self-assessment: How do you feel about today’s lesson?',
+    }] }],
+  }, database);
+  const updated = updateSelfAssessment({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'wrap-up-self-assessment',
+    title: ' How did today’s grammar go? ',
+  }, database);
+  const saved = updated.content.stages[0].content[0];
+  assert.equal(saved.type, 'selfAssessment');
+  assert.equal(saved.id, 'wrap-up-self-assessment');
+  assert.equal(saved.title, 'How did today’s grammar go?');
+  assert.equal(saved.options, undefined);
+  assert.throws(() => updateSelfAssessment({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'wrap-up-self-assessment', title: ' ',
+  }, database), /requires a title/);
+  assert.throws(() => updateSelfAssessment({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing-scale', title: 'How do you feel?',
+  }, database), /не найден/);
   database.close();
 });
 

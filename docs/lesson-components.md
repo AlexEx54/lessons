@@ -393,6 +393,76 @@ follow-up репликой для каждого пункта.
 все шесть заголовков секций и их содержимое, но не может добавлять, удалять или
 переставлять секции. Цвета, иконку и адаптивную раскладку интерфейс добавляет сам.
 
+## 3–2–1
+
+`threeTwoOne` — устная рефлексия в конце урока. Три карточки всегда идут в порядке
+3 → 2 → 1; цифры и цвета кружков рисует интерфейс.
+
+```json
+{
+  "type": "threeTwoOne",
+  "id": "wrap-up-three-two-one",
+  "steps": {
+    "three": {
+      "prompt": "Name three words or phrases you remember from the lesson."
+    },
+    "two": {
+      "prompt": "Create two sentences with the target grammar.",
+      "text": "1. Say something you *used to* think about high-school exchange programs.\n2. Say something a student may need to *get used to* during an exchange."
+    },
+    "one": {
+      "label": "Can-do question",
+      "prompt": "Would you recommend doing a high-school exchange? Give one expectation, one real difficulty, and one thing students can get used to."
+    }
+  }
+}
+```
+
+Поля:
+
+- `type` — строго `threeTwoOne`.
+- `id` — обязательный уникальный lowercase kebab-case идентификатор.
+- `steps` — объект ровно с ключами `three`, `two` и `one` в этом составе.
+- `prompt` — обязательный непустой текст шага с тем же Markdown subset, что `teacherNote`.
+- `text` — опциональный непустой Markdown с деталями или примерами. Пустое значение
+  не передавайте: поле должно отсутствовать целиком.
+- `label` — опциональная непустая однострочная подпись без HTML и Markdown, например
+  `Can-do question`. Пустое значение не передавайте.
+
+Карточки не содержат полей ввода: ученик отвечает устно. Цвета кружков, номера и
+раскладку интерфейс добавляет сам. В review-редакторе администратор может менять
+`prompt`, `text` и `label`, но не может добавлять, удалять или переставлять шаги.
+Поля `type`, `id` и набор ключей `steps` после генерации неизменяемы.
+
+## Self-assessment
+
+`selfAssessment` — шкала «как прошло занятие» из трёх фиксированных вариантов.
+Варианты, эмодзи и выбор не хранятся в JSON: выбор локальный и сбрасывается после
+повторной отрисовки.
+
+```json
+{
+  "type": "selfAssessment",
+  "id": "wrap-up-self-assessment",
+  "title": "Self-assessment: How do you feel about today’s lesson?"
+}
+```
+
+Поля:
+
+- `type` — строго `selfAssessment`.
+- `id` — обязательный уникальный lowercase kebab-case идентификатор.
+- `title` — обязательная непустая однострочная строка без HTML. Интерфейс сам
+  рисует иконку человека и три варианта: `I can do it independently.`,
+  `I can do it with some help.`, `I need more practice.`
+
+Не передавайте варианты, цвета, выбранный ответ или `studentVisibility`. В
+review-редакторе администратор может менять только заголовок. Поля `type` и `id`
+неизменяемы.
+
+Для стадии Wrap-Up типичный порядок такой: `teacherNote`, `threeTwoOne`,
+`selfAssessment`, затем `markdownCard` с `Possible language:`.
+
 ## Text Panel
 
 `textPanel` показывает простой текстовый блок с настраиваемыми цветами фона и

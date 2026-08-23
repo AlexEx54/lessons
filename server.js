@@ -32,6 +32,8 @@ const {
   updateHowToPlay,
   updateGuidedRoleCards,
   updateSpeakingSupport,
+  updateThreeTwoOne,
+  updateSelfAssessment,
   updateFillInBlanks,
   updateDragWordsInText,
   updateDropdownChoice,
@@ -518,6 +520,32 @@ function getGuidedRoleCardsRouteParams(pathname) {
 
 function getSpeakingSupportRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/speaking-support\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getThreeTwoOneRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/three-two-one\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getSelfAssessmentRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/self-assessment\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -1141,6 +1169,8 @@ const server = http.createServer(async (req, res) => {
     const howToPlayRoute = getHowToPlayRouteParams(pathname);
     const guidedRoleCardsRoute = getGuidedRoleCardsRouteParams(pathname);
     const speakingSupportRoute = getSpeakingSupportRouteParams(pathname);
+    const threeTwoOneRoute = getThreeTwoOneRouteParams(pathname);
+    const selfAssessmentRoute = getSelfAssessmentRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
     const textReadingRoute = getTextReadingRouteParams(pathname);
@@ -1160,6 +1190,8 @@ const server = http.createServer(async (req, res) => {
       && (!howToPlayRoute || !howToPlayRoute.draftId || !howToPlayRoute.componentId)
       && (!guidedRoleCardsRoute || !guidedRoleCardsRoute.draftId || !guidedRoleCardsRoute.componentId)
       && (!speakingSupportRoute || !speakingSupportRoute.draftId || !speakingSupportRoute.componentId)
+      && (!threeTwoOneRoute || !threeTwoOneRoute.draftId || !threeTwoOneRoute.componentId)
+      && (!selfAssessmentRoute || !selfAssessmentRoute.draftId || !selfAssessmentRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)
       && (!textReadingRoute || !textReadingRoute.draftId || !textReadingRoute.componentId)
@@ -1302,6 +1334,20 @@ const server = http.createServer(async (req, res) => {
           componentId: speakingSupportRoute.componentId,
           title: body.title,
           sections: body.sections,
+        }, database);
+      } else if (threeTwoOneRoute) {
+        draft = updateThreeTwoOne({
+          id: threeTwoOneRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: threeTwoOneRoute.componentId,
+          steps: body.steps,
+        }, database);
+      } else if (selfAssessmentRoute) {
+        draft = updateSelfAssessment({
+          id: selfAssessmentRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: selfAssessmentRoute.componentId,
+          title: body.title,
         }, database);
       } else if (textPanelRoute) {
         draft = updateTextPanel({

@@ -120,6 +120,22 @@
       },
       onError: showToast,
     }),
+    threeTwoOne: component => window.ThreeTwoOneComponent.renderThreeTwoOne(component, {
+      onSave: state.draftStatus === 'review' ? saveThreeTwoOne : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
+    selfAssessment: component => window.SelfAssessmentComponent.renderSelfAssessment(component, {
+      onSave: state.draftStatus === 'review' ? saveSelfAssessment : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
     textPanel: component => window.TextPanelComponent.renderTextPanel(component, {
       onSave: state.draftStatus === 'review' ? saveTextPanel : undefined,
       onDirtyChange: (dirty, panelId) => {
@@ -494,6 +510,14 @@
 
   function findSpeakingSupport(lesson, componentId) {
     return findComponent(lesson, 'speakingSupport', componentId);
+  }
+
+  function findThreeTwoOne(lesson, componentId) {
+    return findComponent(lesson, 'threeTwoOne', componentId);
+  }
+
+  function findSelfAssessment(lesson, componentId) {
+    return findComponent(lesson, 'selfAssessment', componentId);
   }
 
   function thisOrThatImageUrl(componentId, itemId, optionId) {
@@ -1147,6 +1171,56 @@
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить Speaking Support.');
+      throw error;
+    }
+  }
+
+  async function saveThreeTwoOne(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/three-two-one/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить 3–2–1.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findThreeTwoOne(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый 3–2–1 не найден в черновике.');
+      showToast('3–2–1 сохранён.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить 3–2–1.');
+      throw error;
+    }
+  }
+
+  async function saveSelfAssessment(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/self-assessment/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить Self-assessment.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findSelfAssessment(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый Self-assessment не найден в черновике.');
+      showToast('Self-assessment сохранён.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить Self-assessment.');
       throw error;
     }
   }

@@ -288,7 +288,12 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   ]);
   assert.equal(created.content.stages[7].content[2].id, 'guided-speaking-how-to-play');
   assert.equal(created.content.stages[7].content[5].id, 'guided-speaking-example-dialogue');
-  assert.equal(created.content.stages[8].content, null);
+  assert.deepEqual(created.content.stages[8].content.map(component => component.type), [
+    'teacherNote', 'threeTwoOne', 'selfAssessment', 'markdownCard',
+  ]);
+  assert.equal(created.content.stages[8].content[1].id, 'wrap-up-three-two-one');
+  assert.equal(created.content.stages[8].content[2].id, 'wrap-up-self-assessment');
+  assert.equal(created.content.stages[8].subtitle, '3–2–1');
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: firstAdminCookie },
@@ -696,6 +701,75 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ title: 'Support', sections: speakingSupportSections }),
+  })).status, 404);
+  const threeTwoOneEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/three-two-one/wrap-up-three-two-one';
+  const threeTwoOneSteps = {
+    three: { prompt: 'Name three new phrases.' },
+    two: { prompt: 'Write two sentences.', text: '1. I used to...\n2. I got used to...' },
+    one: { label: 'Can-do question', prompt: 'Would you recommend it?' },
+  };
+  assert.equal((await fetch(threeTwoOneEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ steps: threeTwoOneSteps }),
+  })).status, 401);
+  const threeTwoOneUpdate = await fetch(threeTwoOneEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      type: 'markdownCard',
+      id: 'attempted-id-change',
+      steps: threeTwoOneSteps,
+    }),
+  });
+  assert.equal(threeTwoOneUpdate.status, 200);
+  const savedThreeTwoOne = (await threeTwoOneUpdate.json()).draft.content.stages[8].content[1];
+  assert.equal(savedThreeTwoOne.type, 'threeTwoOne');
+  assert.equal(savedThreeTwoOne.id, 'wrap-up-three-two-one');
+  assert.deepEqual(savedThreeTwoOne.steps, threeTwoOneSteps);
+  const invalidSteps = JSON.parse(JSON.stringify(threeTwoOneSteps));
+  delete invalidSteps.one;
+  assert.equal((await fetch(threeTwoOneEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ steps: invalidSteps }),
+  })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/three-two-one/missing-321`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ steps: threeTwoOneSteps }),
+  })).status, 404);
+  const selfAssessmentEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/self-assessment/wrap-up-self-assessment';
+  assert.equal((await fetch(selfAssessmentEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'How do you feel?' }),
+  })).status, 401);
+  const selfAssessmentUpdate = await fetch(selfAssessmentEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      type: 'markdownCard',
+      id: 'attempted-id-change',
+      title: ' Self-assessment: How was grammar today? ',
+    }),
+  });
+  assert.equal(selfAssessmentUpdate.status, 200);
+  const savedSelfAssessment = (await selfAssessmentUpdate.json()).draft.content.stages[8].content[2];
+  assert.equal(savedSelfAssessment.type, 'selfAssessment');
+  assert.equal(savedSelfAssessment.id, 'wrap-up-self-assessment');
+  assert.equal(savedSelfAssessment.title, 'Self-assessment: How was grammar today?');
+  assert.equal((await fetch(selfAssessmentEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: ' ' }),
+  })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/self-assessment/missing-scale`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'How do you feel?' }),
   })).status, 404);
   const multipleChoiceEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/multiple-choice/reading-gist-quiz`;
   assert.equal((await fetch(multipleChoiceEndpoint, {

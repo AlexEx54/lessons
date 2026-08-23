@@ -509,7 +509,46 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
     studentVisibility: 'always',
     text: '**Teacher:** What would you like to do on our offline summer day?\n\n**Student:** I’d like to go swimming because it’s fun and relaxing.\n\n**Teacher:** That sounds nice, but I’m not sure. What about having a picnic instead?\n\n**Student:** Why do you think a picnic is better?\n\n**Teacher:** Because it’s cheaper, and we can spend more time outdoors.\n\n**Student:** I see. That makes sense. Let’s choose the picnic, then.\n\n**Teacher:** Great. Do you agree with that plan?\n\n**Student:** Yes, I do. I think it’s the best option for both of us.',
   });
-  assert.equal(lesson.stages[8].content, null);
+  const wrapUp = lesson.stages[8];
+  assert.equal(wrapUp.title, 'Wrap-Up');
+  assert.equal(wrapUp.subtitle, '3–2–1');
+  assert.equal(wrapUp.durationMinutes, 3);
+  assert.deepEqual(wrapUp.content.map(component => component.type), [
+    'teacherNote', 'threeTwoOne', 'selfAssessment', 'markdownCard',
+  ]);
+  assert.equal(wrapUp.content[0].id, 'wrap-up-teacher-note');
+  assert.match(wrapUp.content[0].text, /\*\*Signs of success:\*\*/);
+  assert.deepEqual(wrapUp.content[1], {
+    type: 'threeTwoOne',
+    id: 'wrap-up-three-two-one',
+    steps: {
+      three: {
+        prompt: 'Name three words or phrases you remember from the lesson.',
+      },
+      two: {
+        prompt: 'Create two sentences with the target grammar.',
+        text: '1. Say something you *used to* think about high-school exchange programs.\n2. Say something a student may need to *get used to* during an exchange.',
+      },
+      one: {
+        label: 'Can-do question',
+        prompt: 'Would you recommend doing a high-school exchange? Give one expectation, one real difficulty, and one thing students can get used to.',
+      },
+    },
+  });
+  assert.deepEqual(wrapUp.content[2], {
+    type: 'selfAssessment',
+    id: 'wrap-up-self-assessment',
+    title: 'Self-assessment: How do you feel about today’s lesson?',
+  });
+  assert.deepEqual(wrapUp.content[3], {
+    type: 'markdownCard',
+    id: 'wrap-up-possible-language',
+    title: 'Possible language:',
+    text: 'I used to think... / You may need to get used to... / I’d recommend it because...',
+    icon: 'chat',
+    accentColor: '#6545F5',
+    studentVisibility: 'always',
+  });
 });
 
 test('synthetic warm-up component copy does not depend on the user topic', () => {
@@ -539,5 +578,11 @@ test('synthetic reading content does not depend on the user topic', () => {
 test('synthetic listening teacher notes do not depend on the user topic', () => {
   const first = createSyntheticLesson('Space travel').stages[4].content;
   const second = createSyntheticLesson('Healthy habits').stages[4].content;
+  assert.deepEqual(first, second);
+});
+
+test('synthetic wrap-up content does not depend on the user topic', () => {
+  const first = createSyntheticLesson('Space travel').stages[8].content;
+  const second = createSyntheticLesson('Healthy habits').stages[8].content;
   assert.deepEqual(first, second);
 });
