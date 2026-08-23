@@ -364,6 +364,35 @@ follow-up репликой для каждого пункта.
 отмена и сохранение с dirty-state. Открытое/закрытое состояние локальное и в JSON
 не сохраняется.
 
+## Speaking Support
+
+`speakingSupport` — общая языковая опора после секретных ролевых карточек. Компонент
+содержит общий заголовок и ровно шесть секций, которые интерфейс показывает в
+фиксированном порядке сеткой 2×3. На узком экране секции складываются в одну колонку.
+
+```json
+{
+  "type": "speakingSupport",
+  "id": "guided-speaking-support",
+  "title": "Speaking Support",
+  "sections": {
+    "reacting": { "title": "Reacting", "text": "- Really?\n- That sounds fun.\n- I see." },
+    "followUpQuestions": { "title": "Follow-up questions", "text": "- Why?\n- What about swimming?" },
+    "clarification": { "title": "Clarification", "text": "- What do you mean?\n- Could you explain?" },
+    "suggestions": { "title": "Suggestions", "text": "- How about...?\n- We could..." },
+    "agreeingDisagreeing": { "title": "Agreeing / Disagreeing", "text": "- I agree.\n- I see your point, but..." },
+    "decision": { "title": "Decision", "text": "- So, we agree on...\n- Let’s choose..." }
+  }
+}
+```
+
+Поля `type`, `id`, ключи, количество и порядок секций неизменяемы. Общий `title`,
+а также `title` и `text` каждой секции обязательны и не могут быть пустыми. Тексты
+секций используют общий Markdown subset: жирный, курсив, маркированные и
+нумерованные списки. В review-редакторе администратор может менять общий заголовок,
+все шесть заголовков секций и их содержимое, но не может добавлять, удалять или
+переставлять секции. Цвета, иконку и адаптивную раскладку интерфейс добавляет сам.
+
 ## Text Panel
 
 `textPanel` показывает простой текстовый блок с настраиваемыми цветами фона и

@@ -444,7 +444,7 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.equal(guidedSpeaking.subtitle, 'Plan Together');
   assert.equal(guidedSpeaking.durationMinutes, 8);
   assert.deepEqual(guidedSpeaking.content.map(component => component.type), [
-    'teacherNote', 'textPanel', 'howToPlay', 'guidedRoleCards',
+    'teacherNote', 'textPanel', 'howToPlay', 'guidedRoleCards', 'speakingSupport',
   ]);
   assert.equal(guidedSpeaking.content[0].id, 'guided-speaking-teacher-note');
   assert.match(guidedSpeaking.content[0].text, /\*\*Start:\*\*/);
@@ -493,6 +493,12 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
       },
     },
   });
+  assert.equal(guidedSpeaking.content[4].type, 'speakingSupport');
+  assert.equal(guidedSpeaking.content[4].id, 'guided-speaking-support');
+  assert.deepEqual(Object.keys(guidedSpeaking.content[4].sections), [
+    'reacting', 'followUpQuestions', 'clarification',
+    'suggestions', 'agreeingDisagreeing', 'decision',
+  ]);
   assert.equal(lesson.stages[8].content, null);
 });
 

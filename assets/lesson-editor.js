@@ -112,6 +112,14 @@
       },
       onError: showToast,
     }),
+    speakingSupport: component => window.SpeakingSupportComponent.renderSpeakingSupport(component, {
+      onSave: state.draftStatus === 'review' ? saveSpeakingSupport : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
     textPanel: component => window.TextPanelComponent.renderTextPanel(component, {
       onSave: state.draftStatus === 'review' ? saveTextPanel : undefined,
       onDirtyChange: (dirty, panelId) => {
@@ -482,6 +490,10 @@
 
   function findGuidedRoleCards(lesson, componentId) {
     return findComponent(lesson, 'guidedRoleCards', componentId);
+  }
+
+  function findSpeakingSupport(lesson, componentId) {
+    return findComponent(lesson, 'speakingSupport', componentId);
   }
 
   function thisOrThatImageUrl(componentId, itemId, optionId) {
@@ -1110,6 +1122,31 @@
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить role cards.');
+      throw error;
+    }
+  }
+
+  async function saveSpeakingSupport(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/speaking-support/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить Speaking Support.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findSpeakingSupport(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённый Speaking Support не найден в черновике.');
+      showToast('Speaking Support сохранён.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить Speaking Support.');
       throw error;
     }
   }

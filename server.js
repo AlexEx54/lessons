@@ -31,6 +31,7 @@ const {
   updateDescribeAndGuess,
   updateHowToPlay,
   updateGuidedRoleCards,
+  updateSpeakingSupport,
   updateFillInBlanks,
   updateDragWordsInText,
   updateDropdownChoice,
@@ -504,6 +505,19 @@ function getHowToPlayRouteParams(pathname) {
 
 function getGuidedRoleCardsRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/guided-role-cards\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getSpeakingSupportRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/speaking-support\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -1126,6 +1140,7 @@ const server = http.createServer(async (req, res) => {
     const describeAndGuessRoute = getDescribeAndGuessRouteParams(pathname);
     const howToPlayRoute = getHowToPlayRouteParams(pathname);
     const guidedRoleCardsRoute = getGuidedRoleCardsRouteParams(pathname);
+    const speakingSupportRoute = getSpeakingSupportRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
     const textReadingRoute = getTextReadingRouteParams(pathname);
@@ -1144,6 +1159,7 @@ const server = http.createServer(async (req, res) => {
       && (!describeAndGuessRoute || !describeAndGuessRoute.draftId || !describeAndGuessRoute.componentId)
       && (!howToPlayRoute || !howToPlayRoute.draftId || !howToPlayRoute.componentId)
       && (!guidedRoleCardsRoute || !guidedRoleCardsRoute.draftId || !guidedRoleCardsRoute.componentId)
+      && (!speakingSupportRoute || !speakingSupportRoute.draftId || !speakingSupportRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)
       && (!textReadingRoute || !textReadingRoute.draftId || !textReadingRoute.componentId)
@@ -1278,6 +1294,14 @@ const server = http.createServer(async (req, res) => {
           ownerAdminId: user.id,
           componentId: guidedRoleCardsRoute.componentId,
           roles: body.roles,
+        }, database);
+      } else if (speakingSupportRoute) {
+        draft = updateSpeakingSupport({
+          id: speakingSupportRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: speakingSupportRoute.componentId,
+          title: body.title,
+          sections: body.sections,
         }, database);
       } else if (textPanelRoute) {
         draft = updateTextPanel({

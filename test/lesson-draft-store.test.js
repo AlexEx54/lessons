@@ -16,6 +16,7 @@ const {
   updateDescribeAndGuess,
   updateHowToPlay,
   updateGuidedRoleCards,
+  updateSpeakingSupport,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateMiniSituation,
@@ -852,6 +853,66 @@ test('guided role cards update copy but preserve the fixed schema', () => {
   assert.throws(() => updateGuidedRoleCards({
     id: ready.id, ownerAdminId: owner.id, componentId: 'missing-role-cards', roles: changed,
   }, database), /не найдены/);
+  database.close();
+});
+
+test('speaking support updates editable copy but preserves its identity and fixed sections', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'speaking-support-owner');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Support', template: 'template-1' }, database);
+  const sections = {
+    reacting: { title: 'Reacting', text: '- Really?' },
+    followUpQuestions: { title: 'Follow-up questions', text: '- Why?' },
+    clarification: { title: 'Clarification', text: '- What do you mean?' },
+    suggestions: { title: 'Suggestions', text: '- How about...?' },
+    agreeingDisagreeing: { title: 'Agreeing / Disagreeing', text: '- I agree.' },
+    decision: { title: 'Decision', text: '- Let’s choose...' },
+  };
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{
+      type: 'speakingSupport', id: 'guided-speaking-support', title: 'Speaking Support', sections,
+    }] }],
+  }, database);
+  const changed = JSON.parse(JSON.stringify(sections));
+  changed.reacting.title = ' Quick reactions ';
+  changed.reacting.text = ' - No way! ';
+  const updated = updateSpeakingSupport({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'guided-speaking-support',
+    title: ' Language Support ',
+    sections: changed,
+  }, database);
+  const saved = updated.content.stages[0].content[0];
+  assert.equal(saved.type, 'speakingSupport');
+  assert.equal(saved.id, 'guided-speaking-support');
+  assert.equal(saved.title, 'Language Support');
+  assert.deepEqual(saved.sections.reacting, { title: 'Quick reactions', text: '- No way!' });
+
+  const damaged = JSON.parse(JSON.stringify(changed));
+  delete damaged.decision;
+  assert.throws(() => updateSpeakingSupport({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'guided-speaking-support',
+    title: 'Support', sections: damaged,
+  }, database), /fixed section set/);
+  assert.throws(() => updateSpeakingSupport({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'missing-support',
+    title: 'Support', sections: changed,
+  }, database), /не найден/);
+
+  const duplicatePending = createLessonDraft({
+    ownerAdminId: owner.id, topic: 'Duplicate support', template: 'template-1',
+  }, database);
+  const duplicate = completeLessonDraft(duplicatePending.id, owner.id, {
+    stages: [
+      { content: [{ type: 'speakingSupport', id: 'same-support', title: 'One', sections }] },
+      { content: [{ type: 'speakingSupport', id: 'same-support', title: 'Two', sections }] },
+    ],
+  }, database);
+  assert.throws(() => updateSpeakingSupport({
+    id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-support',
+    title: 'Support', sections: changed,
+  }, database), /несколько/);
   database.close();
 });
 

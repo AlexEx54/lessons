@@ -284,7 +284,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'answers-left', 'answers-right',
   ]);
   assert.deepEqual(created.content.stages[7].content.map(component => component.type), [
-    'teacherNote', 'textPanel', 'howToPlay', 'guidedRoleCards',
+    'teacherNote', 'textPanel', 'howToPlay', 'guidedRoleCards', 'speakingSupport',
   ]);
   assert.equal(created.content.stages[7].content[2].id, 'guided-speaking-how-to-play');
   assert.equal(created.content.stages[8].content, null);
@@ -653,6 +653,49 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ roles: invalidRoles }),
   })).status, 400);
+  const speakingSupportEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}`
+    + '/speaking-support/guided-speaking-support';
+  const speakingSupportSections = {
+    reacting: { title: 'Quick reactions', text: '- Really?\n- No way!' },
+    followUpQuestions: { title: 'Follow-up questions', text: '- Why?' },
+    clarification: { title: 'Clarification', text: '- What do you mean?' },
+    suggestions: { title: 'Suggestions', text: '- How about...?' },
+    agreeingDisagreeing: { title: 'Agreeing / Disagreeing', text: '- I agree.' },
+    decision: { title: 'Decision', text: '- Let’s choose...' },
+  };
+  assert.equal((await fetch(speakingSupportEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Support', sections: speakingSupportSections }),
+  })).status, 401);
+  const speakingSupportUpdate = await fetch(speakingSupportEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({
+      type: 'markdownCard',
+      id: 'attempted-id-change',
+      title: ' Language Support ',
+      sections: speakingSupportSections,
+    }),
+  });
+  assert.equal(speakingSupportUpdate.status, 200);
+  const savedSpeakingSupport = (await speakingSupportUpdate.json()).draft.content.stages[7].content[4];
+  assert.equal(savedSpeakingSupport.type, 'speakingSupport');
+  assert.equal(savedSpeakingSupport.id, 'guided-speaking-support');
+  assert.equal(savedSpeakingSupport.title, 'Language Support');
+  assert.deepEqual(savedSpeakingSupport.sections, speakingSupportSections);
+  const invalidSupportSections = JSON.parse(JSON.stringify(speakingSupportSections));
+  delete invalidSupportSections.decision;
+  assert.equal((await fetch(speakingSupportEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Support', sections: invalidSupportSections }),
+  })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/speaking-support/missing-support`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Support', sections: speakingSupportSections }),
+  })).status, 404);
   const multipleChoiceEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/multiple-choice/reading-gist-quiz`;
   assert.equal((await fetch(multipleChoiceEndpoint, {
     method: 'PATCH',
@@ -1275,6 +1318,11 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ text: 'Published edit' }),
+  })).status, 409);
+  assert.equal((await fetch(speakingSupportEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Published', sections: speakingSupportSections }),
   })).status, 409);
   assert.equal((await fetch(personalizedQuestionsEndpoint, {
     method: 'PATCH',
