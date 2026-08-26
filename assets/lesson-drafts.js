@@ -14,7 +14,16 @@
   const empty = document.getElementById('draft-empty');
   const errorState = document.getElementById('draft-error');
   const errorMessage = document.getElementById('draft-error-message');
+  const generationLog = document.getElementById('generation-log');
+  const generationLogDialog = generationLog?.querySelector('.generation-log__dialog');
+  const generationLogTitle = document.getElementById('generation-log-title');
+  const generationLogStatus = document.getElementById('generation-log-status');
+  const generationLogReasoning = document.getElementById('generation-log-reasoning');
+  const generationLogOutput = document.getElementById('generation-log-output');
   let pollTimer = null;
+  let progressTimer = null;
+  let generationSource = null;
+  let generationLogReturnFocus = null;
 
   function formatDate(value) {
     if (!value) return 'Дата неизвестна';
@@ -38,6 +47,38 @@
     button.setAttribute('aria-disabled', 'true');
     button.addEventListener('click', () => window.AppShell.showToast(message));
     return button;
+  }
+
+  function formatCost(draft) {
+    const cost = draft.generation?.costUsd;
+    if (Number.isFinite(cost)) return `Стоимость: $${cost.toFixed(4)}`;
+    if (draft.status === 'generating') return 'Стоимость: рассчитывается';
+    return 'Стоимость: недоступна';
+  }
+
+  function generationProgress(draft) {
+    const startedAt = Date.parse(draft.generation?.startedAt || draft.createdAt || '');
+    if (!Number.isFinite(startedAt)) return 0;
+    return Math.max(0, Math.min(99, ((Date.now() - startedAt) / 180000) * 100));
+  }
+
+  function updateProgressBars() {
+    document.querySelectorAll('[data-generation-started-at]').forEach(progress => {
+      const startedAt = Date.parse(progress.dataset.generationStartedAt || '');
+      const value = Number.isFinite(startedAt)
+        ? Math.max(0, Math.min(99, ((Date.now() - startedAt) / 180000) * 100))
+        : 0;
+      progress.setAttribute('aria-valuenow', String(Math.round(value)));
+      progress.querySelector('.draft-card__progress-value')?.style.setProperty('width', `${value}%`);
+    });
+  }
+
+  function scheduleProgressUpdates() {
+    window.clearInterval(progressTimer);
+    progressTimer = null;
+    if (state.drafts.some(draft => draft.status === 'generating')) {
+      progressTimer = window.setInterval(updateProgressBars, 1000);
+    }
   }
 
   function editorLink(draft) {
@@ -75,6 +116,103 @@
     return button;
   }
 
+  function closeGenerationLog() {
+    generationSource?.close();
+    generationSource = null;
+    if (!generationLog || generationLog.hidden) return;
+    generationLog.hidden = true;
+    document.body.classList.remove('generation-log-open');
+    generationLogReturnFocus?.focus();
+    generationLogReturnFocus = null;
+  }
+
+  function setGenerationStatus(text, stateName = '') {
+    generationLogStatus.textContent = text;
+    generationLogStatus.dataset.state = stateName;
+  }
+
+  function parseGenerationEvent(event) {
+    try {
+      return JSON.parse(event.data);
+    } catch (_error) {
+      return {};
+    }
+  }
+
+  function openGenerationLog(draft, trigger) {
+    if (!generationLog) return;
+    generationSource?.close();
+    generationLogReturnFocus = trigger;
+    generationLog.hidden = false;
+    document.body.classList.add('generation-log-open');
+    generationLogTitle.textContent = draft.topic;
+    generationLogReasoning.textContent = 'Ожидаем данные…';
+    generationLogOutput.textContent = 'Ожидаем результат…';
+    setGenerationStatus(draft.status === 'generating' ? 'Подключаемся к генерации…' : 'Загружаем сохранённый журнал…');
+    window.requestAnimationFrame(() => generationLogDialog?.querySelector('.generation-log__close')?.focus());
+
+    const source = new EventSource(`/api/lesson-drafts/${encodeURIComponent(draft.id)}/generation-stream`);
+    generationSource = source;
+    source.addEventListener('snapshot', event => {
+      const snapshot = parseGenerationEvent(event);
+      generationLogReasoning.textContent = snapshot.reasoning || (snapshot.mode === 'synthetic'
+        ? 'Синтетический урок создан без обращения к нейросети.'
+        : 'Модель пока не передала рассуждения.');
+      generationLogOutput.textContent = snapshot.output || 'Модель пока не передала результат.';
+      const cost = Number.isFinite(snapshot.costUsd) ? ` · $${snapshot.costUsd.toFixed(4)}` : '';
+      setGenerationStatus(snapshot.status === 'running' ? `Генерация продолжается${cost}` : `Журнал сохранён${cost}`, snapshot.status);
+    });
+    source.addEventListener('reasoning', event => {
+      const payload = parseGenerationEvent(event);
+      if (generationLogReasoning.textContent === 'Модель пока не передала рассуждения.'
+        || generationLogReasoning.textContent === 'Ожидаем данные…') generationLogReasoning.textContent = '';
+      generationLogReasoning.textContent += payload.delta || '';
+      generationLogReasoning.scrollTop = generationLogReasoning.scrollHeight;
+    });
+    source.addEventListener('output', event => {
+      const payload = parseGenerationEvent(event);
+      if (generationLogOutput.textContent === 'Модель пока не передала результат.'
+        || generationLogOutput.textContent === 'Ожидаем результат…') generationLogOutput.textContent = '';
+      generationLogOutput.textContent += payload.delta || '';
+      generationLogOutput.scrollTop = generationLogOutput.scrollHeight;
+    });
+    source.addEventListener('usage', event => {
+      const payload = parseGenerationEvent(event);
+      if (Number.isFinite(payload.costUsd)) setGenerationStatus(`Генерация продолжается · $${payload.costUsd.toFixed(4)}`, 'running');
+    });
+    source.addEventListener('done', event => {
+      const payload = parseGenerationEvent(event);
+      const cost = Number.isFinite(payload.costUsd) ? ` · $${payload.costUsd.toFixed(4)}` : '';
+      setGenerationStatus(`Генерация завершена${cost}`, 'completed');
+      source.close();
+      if (generationSource === source) generationSource = null;
+      loadDrafts({ background: true });
+    });
+    source.addEventListener('generation-error', event => {
+      const payload = parseGenerationEvent(event);
+      const cost = Number.isFinite(payload.costUsd) ? ` · $${payload.costUsd.toFixed(4)}` : '';
+      setGenerationStatus(`${payload.message || 'Генерация завершилась с ошибкой.'}${cost}`, 'failed');
+      source.close();
+      if (generationSource === source) generationSource = null;
+      loadDrafts({ background: true });
+    });
+    source.onerror = () => {
+      if (generationSource !== source) return;
+      setGenerationStatus('Соединение с журналом прервано. EventSource попробует подключиться снова.', 'failed');
+    };
+  }
+
+  function generationLogButton(draft) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'draft-card__generation-log';
+    button.title = 'Журнал генерации';
+    button.setAttribute('aria-label', `Открыть журнал генерации урока «${draft.topic}»`);
+    button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5zM8 9h8M8 12h8M8 15h5" /></svg>';
+    button.addEventListener('click', () => openGenerationLog(draft, button));
+    return button;
+  }
+
   function draftCard(draft) {
     const card = document.createElement('article');
     card.className = 'draft-card';
@@ -89,14 +227,24 @@
     meta.className = 'draft-card__meta';
     addText(meta, 'span', '', draft.template === 'template-1' ? 'Шаблон 1' : draft.template);
     addText(meta, 'span', '', `Обновлён ${formatDate(draft.updatedAt)}`);
+    addText(meta, 'span', 'draft-card__cost', formatCost(draft));
     card.append(meta);
 
     if (draft.status === 'generating') {
       const progress = document.createElement('div');
       progress.className = 'draft-card__progress';
-      progress.setAttribute('aria-hidden', 'true');
+      progress.dataset.generationStartedAt = draft.generation?.startedAt || draft.createdAt || '';
+      progress.setAttribute('role', 'progressbar');
+      progress.setAttribute('aria-label', 'Оценочный прогресс генерации');
+      progress.setAttribute('aria-valuemin', '0');
+      progress.setAttribute('aria-valuemax', '100');
+      progress.setAttribute('aria-valuenow', String(Math.round(generationProgress(draft))));
+      const progressValue = document.createElement('span');
+      progressValue.className = 'draft-card__progress-value';
+      progressValue.style.width = `${generationProgress(draft)}%`;
+      progress.append(progressValue);
       card.append(progress);
-      addText(card, 'p', 'draft-card__hint', 'Нейросеть готовит структуру и материалы урока. Статус обновится автоматически.');
+      addText(card, 'p', 'draft-card__hint', 'Нейросеть готовит Warm-Up. Обычно это занимает около трёх минут.');
     }
 
     if (draft.status === 'failed') {
@@ -122,7 +270,10 @@
         futureAction('Добавить в библиотеку', 'Публикация будет доступна после подключения редактора.'),
       );
     }
-    actions.append(deleteButton(draft));
+    const managementActions = document.createElement('div');
+    managementActions.className = 'draft-card__management-actions';
+    managementActions.append(generationLogButton(draft), deleteButton(draft));
+    actions.append(managementActions);
     card.append(actions);
     return card;
   }
@@ -144,6 +295,7 @@
     empty.hidden = state.loading || Boolean(state.error) || visible.length > 0;
     grid.hidden = state.loading || Boolean(state.error) || visible.length === 0;
     grid.replaceChildren(...visible.map(draftCard));
+    scheduleProgressUpdates();
     schedulePolling();
   }
 
@@ -176,6 +328,32 @@
     render();
   });
   document.getElementById('draft-retry-load').addEventListener('click', () => loadDrafts());
-  window.addEventListener('pagehide', () => window.clearTimeout(pollTimer));
+  generationLog?.querySelectorAll('[data-close-generation-log]').forEach(button => {
+    button.addEventListener('click', closeGenerationLog);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Tab' && generationLog && !generationLog.hidden && generationLogDialog) {
+      const focusable = [...generationLogDialog.querySelectorAll('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')];
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (first && last && event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (first && last && !event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+      return;
+    }
+    if (event.key === 'Escape' && generationLog && !generationLog.hidden) {
+      event.preventDefault();
+      closeGenerationLog();
+    }
+  });
+  window.addEventListener('pagehide', () => {
+    window.clearTimeout(pollTimer);
+    window.clearInterval(progressTimer);
+    generationSource?.close();
+  });
   loadDrafts();
 })();

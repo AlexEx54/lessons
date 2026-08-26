@@ -22,6 +22,7 @@ const {
   completeLessonDraft,
   createLessonDraft,
   deleteLessonDraft,
+  failLessonDraft,
   findLessonDraft,
   listLessonDrafts,
   updateAudioPlayer,
@@ -52,12 +53,34 @@ const {
   updateThisOrThatImage,
 } = require('./lib/lesson-draft-store.js');
 const { createSyntheticLesson } = require('./lib/synthetic-lesson.js');
+const {
+  completeLessonGeneration,
+  createLessonGeneration,
+  failInterruptedLessonGenerations,
+  failLessonGeneration,
+  findLessonGeneration,
+  updateLessonGenerationStream,
+} = require('./lib/lesson-generation-store.js');
+const {
+  OPENROUTER_BASE_URL,
+  OPENROUTER_MODEL,
+  applyWarmUpToSkeleton,
+  createLessonSkeleton,
+  generateWarmUp,
+} = require('./lib/ai-lesson-generator.js');
 
 const PORT = process.env.PORT || 8787;
 const HOST = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
 const ROOT = __dirname;
 const DRAFT_ASSETS_DIR = path.resolve(process.env.DRAFT_ASSETS_DIR || path.join(ROOT, 'data', 'draft-assets'));
 const database = getDatabase();
+const generationControllers = new Map();
+const generationSubscribers = new Map();
+
+const interruptedGenerationIds = failInterruptedLessonGenerations(database);
+if (interruptedGenerationIds.length > 0) {
+  console.warn(`Marked ${interruptedGenerationIds.length} interrupted lesson generation(s) as failed.`);
+}
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_DISPLAY_NAME_LENGTH = 80;
@@ -117,6 +140,132 @@ const DRAFT_AUDIO_TYPES = Object.freeze({
       && ['M4A ', 'M4B ', 'mp41', 'mp42', 'isom', 'MSNV'].includes(buffer.toString('ascii', 8, 12)),
   },
 });
+
+function writeGenerationEvent(res, event, payload) {
+  if (res.writableEnded || res.destroyed) return;
+  res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
+}
+
+function publishGenerationEvent(draftId, event, payload) {
+  const subscribers = generationSubscribers.get(draftId);
+  if (!subscribers) return;
+  subscribers.forEach(res => writeGenerationEvent(res, event, payload));
+}
+
+function finishGenerationStreams(draftId, event, payload) {
+  const subscribers = generationSubscribers.get(draftId);
+  if (!subscribers) return;
+  subscribers.forEach(res => {
+    writeGenerationEvent(res, event, payload);
+    res.end();
+  });
+  generationSubscribers.delete(draftId);
+}
+
+function publicGenerationSnapshot(generation) {
+  return {
+    mode: generation.mode,
+    model: generation.model,
+    status: generation.status,
+    reasoning: generation.reasoning,
+    output: generation.output,
+    costUsd: generation.costUsd,
+    promptTokens: generation.promptTokens,
+    completionTokens: generation.completionTokens,
+    reasoningTokens: generation.reasoningTokens,
+    startedAt: generation.startedAt,
+    completedAt: generation.completedAt,
+    errorMessage: generation.errorMessage,
+  };
+}
+
+async function runAiLessonGeneration({ draftId, ownerAdminId, topic, skeleton }) {
+  const controller = new AbortController();
+  generationControllers.set(draftId, controller);
+  let reasoning = '';
+  let output = '';
+  let usage = {};
+  let providerGenerationId = '';
+  let flushTimer = null;
+
+  function flushStream() {
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    updateLessonGenerationStream({ draftId, reasoning, output, providerGenerationId }, database);
+  }
+
+  function scheduleFlush() {
+    if (flushTimer) return;
+    flushTimer = setTimeout(flushStream, 500);
+  }
+
+  try {
+    const result = await generateWarmUp({
+      topic,
+      apiKey: process.env.OPENROUTER_API_KEY,
+      baseUrl: process.env.OPENROUTER_BASE_URL || OPENROUTER_BASE_URL,
+      signal: controller.signal,
+      onDelta: delta => {
+        reasoning = delta.reasoning;
+        output = delta.output;
+        usage = delta.usage;
+        providerGenerationId = delta.providerGenerationId;
+        if (delta.reasoningDelta) {
+          publishGenerationEvent(draftId, 'reasoning', { delta: delta.reasoningDelta });
+        }
+        if (delta.outputDelta) {
+          publishGenerationEvent(draftId, 'output', { delta: delta.outputDelta });
+        }
+        if (Number.isFinite(delta.usage?.cost)) {
+          publishGenerationEvent(draftId, 'usage', { costUsd: delta.usage.cost });
+        }
+        scheduleFlush();
+      },
+    });
+    reasoning = result.reasoning;
+    output = result.output;
+    usage = result.usage;
+    providerGenerationId = result.providerGenerationId;
+    flushStream();
+    const lesson = applyWarmUpToSkeleton(skeleton, result.generated);
+    database.exec('BEGIN IMMEDIATE');
+    try {
+      completeLessonDraft(draftId, ownerAdminId, lesson, database);
+      completeLessonGeneration({
+        draftId, reasoning, output, usage, providerGenerationId,
+      }, database);
+      database.exec('COMMIT');
+    } catch (error) {
+      database.exec('ROLLBACK');
+      throw error;
+    }
+    finishGenerationStreams(draftId, 'done', { status: 'completed', costUsd: usage.cost ?? null });
+  } catch (error) {
+    if (flushTimer) clearTimeout(flushTimer);
+    if (!findLessonDraft(draftId, ownerAdminId, database)) return;
+    const message = error?.name === 'TimeoutError'
+      ? 'Генерация Warm-Up превысила лимит в пять минут.'
+      : error.message || 'Не удалось сгенерировать Warm-Up.';
+    try {
+      database.exec('BEGIN IMMEDIATE');
+      failLessonDraft(draftId, ownerAdminId, message, database);
+      failLessonGeneration({
+        draftId, reasoning, output, usage, providerGenerationId, errorMessage: message,
+      }, database);
+      database.exec('COMMIT');
+    } catch (storeError) {
+      database.exec('ROLLBACK');
+      console.error('Cannot persist failed lesson generation:', storeError);
+    }
+    finishGenerationStreams(draftId, 'generation-error', { status: 'failed', message, costUsd: usage.cost ?? null });
+    console.error(`Cannot generate Warm-Up for draft ${draftId}:`, error);
+  } finally {
+    if (flushTimer) clearTimeout(flushTimer);
+    if (generationControllers.get(draftId) === controller) generationControllers.delete(draftId);
+  }
+}
 
 // Временный серверный источник лент главной. Контракт можно сохранить при
 // подключении CMS/БД: клиент уже получает и главную ленту, и рекомендации шага 2 по API.
@@ -985,6 +1134,7 @@ const server = http.createServer(async (req, res) => {
 
     const topic = typeof body.topic === 'string' ? body.topic.trim() : '';
     const template = typeof body.template === 'string' ? body.template.trim() : '';
+    const synthetic = body.synthetic === true;
     if (!topic || topic.length > 120) {
       json(res, 400, { error: 'Тема должна содержать от 1 до 120 символов.' });
       return;
@@ -993,12 +1143,59 @@ const server = http.createServer(async (req, res) => {
       json(res, 400, { error: 'Выбран неизвестный шаблон урока.' });
       return;
     }
+    if (body.synthetic !== undefined && typeof body.synthetic !== 'boolean') {
+      json(res, 400, { error: 'Режим синтетического урока должен быть логическим значением.' });
+      return;
+    }
+    if (!synthetic && !process.env.OPENROUTER_API_KEY) {
+      json(res, 503, { error: 'Нейрогенерация временно недоступна: OPENROUTER_API_KEY не настроен.' });
+      return;
+    }
 
     try {
-      const pendingDraft = createLessonDraft({ ownerAdminId: user.id, topic, template }, database);
-      const lesson = createSyntheticLesson(topic);
-      const draft = completeLessonDraft(pendingDraft.id, user.id, lesson, database);
+      let draft;
+      let pendingDraft;
+      let lesson;
+      database.exec('BEGIN IMMEDIATE');
+      try {
+        lesson = synthetic ? createSyntheticLesson(topic) : createLessonSkeleton(topic);
+        pendingDraft = createLessonDraft({
+          ownerAdminId: user.id,
+          topic,
+          template,
+          content: synthetic ? undefined : lesson,
+        }, database);
+        createLessonGeneration({
+          draftId: pendingDraft.id,
+          mode: synthetic ? 'synthetic' : 'ai',
+          model: synthetic ? null : OPENROUTER_MODEL,
+        }, database);
+        if (synthetic) {
+          completeLessonDraft(pendingDraft.id, user.id, lesson, database);
+          completeLessonGeneration({
+            draftId: pendingDraft.id,
+            reasoning: 'Синтетический урок создан по локальному шаблону без обращения к нейросети.',
+            output: JSON.stringify(lesson, null, 2),
+            usage: { cost: 0, promptTokens: 0, completionTokens: 0, reasoningTokens: 0 },
+          }, database);
+        }
+        database.exec('COMMIT');
+      } catch (error) {
+        database.exec('ROLLBACK');
+        throw error;
+      }
+      draft = findLessonDraft(pendingDraft.id, user.id, database);
       json(res, 201, { draft, lessonUrl: `/lesson-drafts/${encodeURIComponent(draft.id)}/edit` });
+      if (!synthetic) {
+        setImmediate(() => {
+          runAiLessonGeneration({
+            draftId: draft.id,
+            ownerAdminId: user.id,
+            topic,
+            skeleton: lesson,
+          });
+        });
+      }
     } catch (error) {
       console.error('Cannot create lesson draft:', error);
       json(res, 500, { error: 'Не удалось создать черновик урока.' });
@@ -1010,6 +1207,52 @@ const server = http.createServer(async (req, res) => {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     json(res, 200, { drafts: listLessonDrafts(user.id, database) });
+    return;
+  }
+
+  if (req.method === 'GET'
+    && /^\/api\/lesson-drafts\/[^/]+\/generation-stream$/.test(pathname)) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    const draftId = getLessonIdFromPath(pathname, '/api/lesson-drafts/', '/generation-stream');
+    const draft = findLessonDraft(draftId, user.id, database);
+    if (!draft) {
+      json(res, 404, { error: 'Черновик урока не найден.' });
+      return;
+    }
+    const generation = findLessonGeneration(draftId, database);
+    if (!generation) {
+      json(res, 404, { error: 'Журнал генерации не найден.' });
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-store',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    res.write(': connected\n\n');
+    writeGenerationEvent(res, 'snapshot', publicGenerationSnapshot(generation));
+    if (generation.status !== 'running') {
+      writeGenerationEvent(res, generation.status === 'completed' ? 'done' : 'generation-error', {
+        status: generation.status,
+        message: generation.errorMessage,
+        costUsd: generation.costUsd,
+      });
+      res.end();
+      return;
+    }
+    if (!generationSubscribers.has(draftId)) generationSubscribers.set(draftId, new Set());
+    generationSubscribers.get(draftId).add(res);
+    const heartbeat = setInterval(() => {
+      if (!res.writableEnded && !res.destroyed) res.write(': heartbeat\n\n');
+    }, 15000);
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      const subscribers = generationSubscribers.get(draftId);
+      subscribers?.delete(res);
+      if (subscribers?.size === 0) generationSubscribers.delete(draftId);
+    });
     return;
   }
 
@@ -1406,6 +1649,10 @@ const server = http.createServer(async (req, res) => {
     const draftId = getLessonIdFromPath(pathname, '/api/lesson-drafts/');
     try {
       deleteLessonDraft(draftId, user.id, database);
+      generationControllers.get(draftId)?.abort();
+      finishGenerationStreams(draftId, 'generation-error', {
+        status: 'failed', message: 'Черновик и его журнал были удалены.', costUsd: null,
+      });
       if (/^[a-f0-9-]{36}$/i.test(draftId)) {
         fs.rmSync(path.join(DRAFT_ASSETS_DIR, draftId), { recursive: true, force: true });
       }

@@ -39,6 +39,9 @@ Set these environment variables in the production `.env` on the VPS:
 
 - `APP_DB_PATH`: SQLite database path. Use `/var/lib/teach_platform/app.sqlite` in production.
 - `DRAFT_ASSETS_DIR`: images and audio uploaded to lesson drafts. Use `/var/lib/teach_platform/draft-assets` in production.
+- `OPENROUTER_API_KEY`: server-side OpenRouter key used for AI lesson generation.
+- `OPENROUTER_BASE_URL`: optional API base URL; defaults to `https://openrouter.ai/api/v1`.
+- `OPENROUTER_SITE_URL` and `OPENROUTER_APP_NAME`: optional attribution headers sent to OpenRouter.
 
 The server requires Node.js 24.15 or newer. Open `/` for the public landing and `/app`
 for the authenticated teacher dashboard.

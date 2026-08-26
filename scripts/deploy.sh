@@ -98,6 +98,8 @@ check_files=(
   lib/session-store.js
   lib/user-store.js
   lib/lesson-draft-store.js
+  lib/lesson-generation-store.js
+  lib/ai-lesson-generator.js
   lib/synthetic-lesson.js
   scripts/create-user.js
 )

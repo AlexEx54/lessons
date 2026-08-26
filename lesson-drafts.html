@@ -39,3 +39,27 @@
 
   <div class="draft-grid" id="draft-grid" aria-live="polite"></div>
 </section>
+
+<div class="generation-log" id="generation-log" hidden>
+  <button class="generation-log__backdrop" type="button" data-close-generation-log aria-label="Закрыть журнал генерации"></button>
+  <section class="generation-log__dialog" role="dialog" aria-modal="true" aria-labelledby="generation-log-title">
+    <header class="generation-log__header">
+      <div>
+        <p>Журнал генерации</p>
+        <h2 id="generation-log-title">Генерация урока</h2>
+      </div>
+      <button class="generation-log__close" type="button" data-close-generation-log aria-label="Закрыть">×</button>
+    </header>
+    <p class="generation-log__status" id="generation-log-status" role="status"></p>
+    <div class="generation-log__panels">
+      <section aria-labelledby="generation-reasoning-title">
+        <h3 id="generation-reasoning-title">Рассуждения</h3>
+        <pre id="generation-log-reasoning"></pre>
+      </section>
+      <section aria-labelledby="generation-output-title">
+        <h3 id="generation-output-title">Результат</h3>
+        <pre id="generation-log-output"></pre>
+      </section>
+    </div>
+  </section>
+</div>

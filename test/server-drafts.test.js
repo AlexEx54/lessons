@@ -113,6 +113,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     body: JSON.stringify({
       topic: '  Travel English  ',
       template: 'template-1',
+      synthetic: true,
       ownerAdminId: 'attempted-owner-override',
     }),
   });

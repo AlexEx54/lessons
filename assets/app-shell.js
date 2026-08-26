@@ -17,6 +17,7 @@
   const newLessonModal = document.getElementById('new-lesson-modal');
   const newLessonDialog = newLessonModal?.querySelector('.new-lesson-dialog');
   const newLessonTopic = document.getElementById('new-lesson-topic');
+  const newLessonSynthetic = document.getElementById('new-lesson-synthetic');
   const createLessonDraftButton = newLessonModal?.querySelector('[data-create-lesson-draft]');
   const newLessonSelect = newLessonModal?.querySelector('[data-new-lesson-select]');
   const newLessonSelectTrigger = newLessonSelect?.querySelector('.new-lesson-select__trigger');
@@ -191,7 +192,11 @@
       const response = await fetch('/api/lesson-drafts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, template: newLessonSelectInput.value }),
+        body: JSON.stringify({
+          topic,
+          template: newLessonSelectInput.value,
+          synthetic: Boolean(newLessonSynthetic?.checked),
+        }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Не удалось создать черновик.');
