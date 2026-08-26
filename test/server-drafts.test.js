@@ -98,6 +98,8 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     { topic: '   ', template: 'template-1' },
     { topic: 'Topic', template: 'template-unknown' },
     { topic: 'x'.repeat(121), template: 'template-1' },
+    { topic: 'Topic', warmUpTopic: 42, template: 'template-1' },
+    { topic: 'Topic', warmUpTopic: 'x'.repeat(121), template: 'template-1' },
   ]) {
     const invalid = await fetch(`${baseUrl}/api/lesson-drafts`, {
       method: 'POST',
@@ -121,7 +123,10 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   const created = (await createdResponse.json()).draft;
   assert.equal(created.ownerAdminId, firstAdmin.id);
   assert.equal(created.topic, 'Travel English');
+  assert.equal(created.warmUpTopic, 'Travel English');
   assert.equal(created.status, 'review');
+  assert.equal(created.imageGeneration.status, 'pending');
+  assert.equal(created.imageGeneration.total, 23);
   assert.equal(created.content.schemaVersion, 'lesson-draft-v1');
   assert.equal(created.content.meta.topic, 'Travel English');
   assert.equal(created.content.meta.durationMinutes, 50);

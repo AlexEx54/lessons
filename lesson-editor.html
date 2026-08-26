@@ -63,6 +63,18 @@
       </div>
     </header>
 
+    <section class="image-generation-banner" id="image-generation-banner" hidden aria-live="polite">
+      <div>
+        <strong id="image-generation-title">Генерация изображений</strong>
+        <span class="image-generation-banner__progress" id="image-generation-progress" hidden>
+          <i id="image-generation-progress-value"></i>
+        </span>
+        <small id="image-generation-message"></small>
+      </div>
+      <button id="image-generation-stop" type="button" hidden>Остановить</button>
+      <button id="image-generation-start" type="button" hidden>Продолжить</button>
+    </section>
+
     <div class="lesson-layout">
       <aside class="lesson-plan" id="lesson-plan">
         <div class="lesson-plan__heading">

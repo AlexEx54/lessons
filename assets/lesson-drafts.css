@@ -221,6 +221,56 @@
 .draft-card__actions .draft-card__delete:hover { border-color: #dd7880; background: #fff0f1; }
 .draft-card__actions .draft-card__delete:disabled { opacity: .55; cursor: wait; }
 
+.draft-card__image-generation {
+  margin-top: 13px;
+  padding: 11px 12px;
+  border: 1px solid #e1dcf6;
+  border-radius: 11px;
+  color: #544b78;
+  background: #f8f6ff;
+  font-size: 11px;
+}
+
+.draft-card__image-generation--completed { color: #197044; border-color: #cfeadb; background: #f0faf4; }
+.draft-card__image-generation--failed,
+.draft-card__image-generation--unavailable { color: #94323a; border-color: #f0d7d9; background: #fff5f6; }
+
+.draft-card__image-generation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.draft-card__image-action {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid currentColor;
+  border-radius: 7px;
+  color: inherit;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.draft-card__image-progress {
+  height: 5px;
+  overflow: hidden;
+  margin-top: 9px;
+  border-radius: 99px;
+  background: #e4dff5;
+}
+
+.draft-card__image-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--purple);
+  transition: width 180ms ease;
+}
+
+.draft-card__image-generation p { margin-top: 7px; line-height: 1.4; }
+
 body.generation-log-open { overflow: hidden; }
 
 .generation-log {

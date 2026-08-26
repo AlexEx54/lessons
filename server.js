@@ -61,6 +61,8 @@ const {
   findLessonGeneration,
   updateLessonGenerationStream,
 } = require('./lib/lesson-generation-store.js');
+const { stopInterruptedLessonImageGenerations } = require('./lib/lesson-image-generation-store.js');
+const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
 const {
   OPENROUTER_BASE_URL,
   OPENROUTER_MODEL,
@@ -74,12 +76,20 @@ const HOST = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0
 const ROOT = __dirname;
 const DRAFT_ASSETS_DIR = path.resolve(process.env.DRAFT_ASSETS_DIR || path.join(ROOT, 'data', 'draft-assets'));
 const database = getDatabase();
+const lessonImageGenerator = new LessonImageGenerator({
+  database,
+  assetsDirectory: DRAFT_ASSETS_DIR,
+});
 const generationControllers = new Map();
 const generationSubscribers = new Map();
 
 const interruptedGenerationIds = failInterruptedLessonGenerations(database);
 if (interruptedGenerationIds.length > 0) {
   console.warn(`Marked ${interruptedGenerationIds.length} interrupted lesson generation(s) as failed.`);
+}
+const interruptedImageGenerationIds = stopInterruptedLessonImageGenerations(database);
+if (interruptedImageGenerationIds.length > 0) {
+  console.warn(`Stopped ${interruptedImageGenerationIds.length} interrupted image generation(s).`);
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -179,7 +189,7 @@ function publicGenerationSnapshot(generation) {
   };
 }
 
-async function runAiLessonGeneration({ draftId, ownerAdminId, topic, skeleton }) {
+async function runAiLessonGeneration({ draftId, ownerAdminId, warmUpTopic, skeleton }) {
   const controller = new AbortController();
   generationControllers.set(draftId, controller);
   let reasoning = '';
@@ -203,7 +213,7 @@ async function runAiLessonGeneration({ draftId, ownerAdminId, topic, skeleton })
 
   try {
     const result = await generateWarmUp({
-      topic,
+      topic: warmUpTopic,
       apiKey: process.env.OPENROUTER_API_KEY,
       baseUrl: process.env.OPENROUTER_BASE_URL || OPENROUTER_BASE_URL,
       signal: controller.signal,
@@ -236,11 +246,13 @@ async function runAiLessonGeneration({ draftId, ownerAdminId, topic, skeleton })
       completeLessonGeneration({
         draftId, reasoning, output, usage, providerGenerationId,
       }, database);
+      lessonImageGenerator.initialize(draftId, lesson);
       database.exec('COMMIT');
     } catch (error) {
       database.exec('ROLLBACK');
       throw error;
     }
+    lessonImageGenerator.enqueue(draftId, ownerAdminId);
     finishGenerationStreams(draftId, 'done', { status: 'completed', costUsd: usage.cost ?? null });
   } catch (error) {
     if (flushTimer) clearTimeout(flushTimer);
@@ -1133,10 +1145,20 @@ const server = http.createServer(async (req, res) => {
     }
 
     const topic = typeof body.topic === 'string' ? body.topic.trim() : '';
+    const requestedWarmUpTopic = typeof body.warmUpTopic === 'string' ? body.warmUpTopic.trim() : '';
+    const warmUpTopic = requestedWarmUpTopic || topic;
     const template = typeof body.template === 'string' ? body.template.trim() : '';
     const synthetic = body.synthetic === true;
     if (!topic || topic.length > 120) {
       json(res, 400, { error: 'Тема должна содержать от 1 до 120 символов.' });
+      return;
+    }
+    if (body.warmUpTopic !== undefined && typeof body.warmUpTopic !== 'string') {
+      json(res, 400, { error: 'Тема Warm-Up должна быть строкой.' });
+      return;
+    }
+    if (warmUpTopic.length > 120) {
+      json(res, 400, { error: 'Тема Warm-Up должна содержать не более 120 символов.' });
       return;
     }
     if (template !== 'template-1') {
@@ -1162,6 +1184,7 @@ const server = http.createServer(async (req, res) => {
         pendingDraft = createLessonDraft({
           ownerAdminId: user.id,
           topic,
+          warmUpTopic,
           template,
           content: synthetic ? undefined : lesson,
         }, database);
@@ -1178,6 +1201,7 @@ const server = http.createServer(async (req, res) => {
             output: JSON.stringify(lesson, null, 2),
             usage: { cost: 0, promptTokens: 0, completionTokens: 0, reasoningTokens: 0 },
           }, database);
+          lessonImageGenerator.initialize(pendingDraft.id, lesson);
         }
         database.exec('COMMIT');
       } catch (error) {
@@ -1186,12 +1210,14 @@ const server = http.createServer(async (req, res) => {
       }
       draft = findLessonDraft(pendingDraft.id, user.id, database);
       json(res, 201, { draft, lessonUrl: `/lesson-drafts/${encodeURIComponent(draft.id)}/edit` });
-      if (!synthetic) {
+      if (synthetic) {
+        lessonImageGenerator.enqueue(draft.id, user.id);
+      } else {
         setImmediate(() => {
           runAiLessonGeneration({
             draftId: draft.id,
             ownerAdminId: user.id,
-            topic,
+            warmUpTopic,
             skeleton: lesson,
           });
         });
@@ -1253,6 +1279,28 @@ const server = http.createServer(async (req, res) => {
       subscribers?.delete(res);
       if (subscribers?.size === 0) generationSubscribers.delete(draftId);
     });
+    return;
+  }
+
+  const imageGenerationAction = pathname.match(
+    /^\/api\/lesson-drafts\/([^/]+)\/image-generation\/(start|stop)$/,
+  );
+  if (req.method === 'POST' && imageGenerationAction) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    let draftId = '';
+    try {
+      draftId = decodeURIComponent(imageGenerationAction[1]);
+      const action = imageGenerationAction[2];
+      const draft = action === 'start'
+        ? lessonImageGenerator.restart(draftId, user.id)
+        : lessonImageGenerator.stop(draftId, user.id);
+      json(res, 202, { draft });
+    } catch (error) {
+      json(res, error.statusCode || 500, {
+        error: error.message || 'Не удалось изменить генерацию изображений.',
+      });
+    }
     return;
   }
 
@@ -1648,6 +1696,7 @@ const server = http.createServer(async (req, res) => {
     if (!user) return;
     const draftId = getLessonIdFromPath(pathname, '/api/lesson-drafts/');
     try {
+      lessonImageGenerator.remove(draftId);
       deleteLessonDraft(draftId, user.id, database);
       generationControllers.get(draftId)?.abort();
       finishGenerationStreams(draftId, 'generation-error', {

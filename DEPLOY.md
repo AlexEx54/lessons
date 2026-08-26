@@ -46,6 +46,15 @@ Set these environment variables in the production `.env` on the VPS:
 - `OPENROUTER_API_KEY`: server-side OpenRouter key used for AI lesson generation.
 - `OPENROUTER_BASE_URL`: optional API base URL; defaults to `https://openrouter.ai/api/v1`.
 - `OPENROUTER_SITE_URL` and `OPENROUTER_APP_NAME`: optional attribution headers sent to OpenRouter.
+- `DRAWTHINGS_GRPC_ADDRESS`: Draw Things gRPC endpoint; production tunnel default is `127.0.0.1:17859`.
+- `DRAWTHINGS_CONNECT_TIMEOUT_MS`: fast availability-check deadline; defaults to 2000 ms.
+- `DRAWTHINGS_MODEL`, `DRAWTHINGS_LORA`, and `DRAWTHINGS_LORA_WEIGHT`: exact installed Qwen Image 2512/Lightning filenames and weight.
+- `DRAWTHINGS_CONFIG_JSON`: optional generation-config overrides. Output size and batch size are always forced to one `512×512` PNG.
+- `DRAWTHINGS_NEGATIVE_PROMPT`: optional negative prompt override.
+
+The Draw Things client is pinned to a reviewed GitHub commit because its documented
+`dt-grpc-ts` npm package is not currently published. Deployment installs the lockfile
+with `npm ci`; keep `package-lock.json` in sync whenever the pinned commit changes.
 
 The server requires Node.js 24.15 or newer. Open `/` for the public landing and `/app`
 for the authenticated teacher dashboard.

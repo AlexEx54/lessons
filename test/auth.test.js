@@ -15,9 +15,12 @@ test('auth migrations are repeatable and create the expected tables', () => {
   const database = openDatabase(':memory:');
   assert.deepEqual(
     database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(row => row.name),
-    ['lesson_draft_generations', 'lesson_drafts', 'schema_migrations', 'sessions', 'users'],
+    [
+      'lesson_draft_generations', 'lesson_draft_image_generations', 'lesson_drafts',
+      'schema_migrations', 'sessions', 'users',
+    ],
   );
-  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 4);
+  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 5);
   assert.deepEqual(database.prepare('PRAGMA foreign_key_check').all(), []);
   database.close();
 });

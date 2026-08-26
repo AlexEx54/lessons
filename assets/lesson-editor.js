@@ -9,6 +9,8 @@
     elapsedSeconds: 0,
     timer: null,
     dirtyComponents: new Set(),
+    imageGeneration: null,
+    imagePollTimer: null,
   };
   const byId = id => document.getElementById(id);
   const plan = byId('lesson-plan');
@@ -18,6 +20,97 @@
   const errorBox = byId('lesson-error');
   const toast = byId('lesson-toast');
   let toastTimer;
+  const imageBanner = byId('image-generation-banner');
+  const imageGenerationStop = byId('image-generation-stop');
+  const imageGenerationStart = byId('image-generation-start');
+
+  function updateImageGenerationBanner() {
+    const generation = state.imageGeneration;
+    imageBanner.hidden = !generation;
+    if (!generation) return;
+    const labels = {
+      pending: 'Изображения ожидают запуска',
+      running: `Готовим изображения: ${generation.completed} из ${generation.total}`,
+      completed: generation.total > 0 ? 'Все изображения готовы' : 'В уроке нет изображений для генерации',
+      stopped: `Генерация остановлена: ${generation.completed} из ${generation.total}`,
+      unavailable: 'Draw Things сейчас недоступен',
+      failed: 'Не удалось завершить генерацию изображений',
+    };
+    byId('image-generation-title').textContent = labels[generation.status] || 'Генерация изображений';
+    byId('image-generation-message').textContent = generation.errorMessage
+      || (['pending', 'running'].includes(generation.status)
+        ? 'Черновик можно просматривать и редактировать во время генерации.'
+        : '');
+    const progress = byId('image-generation-progress');
+    progress.hidden = generation.total <= 0;
+    byId('image-generation-progress-value').style.width = generation.total > 0
+      ? `${Math.min(100, (generation.completed / generation.total) * 100)}%`
+      : '0%';
+    imageGenerationStop.hidden = !['pending', 'running'].includes(generation.status);
+    imageGenerationStart.hidden = !['stopped', 'unavailable', 'failed'].includes(generation.status);
+  }
+
+  function mergeGeneratedImages(target, fresh) {
+    if (!target || !fresh || typeof target !== 'object' || typeof fresh !== 'object') return;
+    if (!Array.isArray(target) && !Array.isArray(fresh)
+      && typeof target.imagePrompt === 'string'
+      && target.imagePrompt.trim() === String(fresh.imagePrompt || '').trim()
+      && typeof fresh.imageSrc === 'string' && fresh.imageSrc.trim()) {
+      target.imageSrc = fresh.imageSrc;
+    }
+    if (Array.isArray(target) && Array.isArray(fresh)) {
+      target.forEach((item, index) => mergeGeneratedImages(item, fresh[index]));
+      return;
+    }
+    if (!Array.isArray(target) && !Array.isArray(fresh)) {
+      Object.keys(target).forEach(key => mergeGeneratedImages(target[key], fresh[key]));
+    }
+  }
+
+  function scheduleImageGenerationPoll() {
+    window.clearTimeout(state.imagePollTimer);
+    state.imagePollTimer = null;
+    if (['pending', 'running'].includes(state.imageGeneration?.status)) {
+      state.imagePollTimer = window.setTimeout(refreshImageGeneration, 2000);
+    }
+  }
+
+  async function refreshImageGeneration() {
+    try {
+      const response = await fetch(`/api/lesson-drafts/${encodeURIComponent(state.draftId)}`, { cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.draft) throw new Error(payload.error || 'Не удалось обновить изображения.');
+      state.imageGeneration = payload.draft.imageGeneration;
+      if (state.lesson && payload.draft.content) {
+        mergeGeneratedImages(state.lesson, payload.draft.content);
+        if (state.dirtyComponents.size === 0) renderStageContent(state.lesson.stages[state.activeIndex]);
+      }
+      updateImageGenerationBanner();
+    } catch (_error) {
+      // The next scheduled refresh or a page reload can recover a transient polling failure.
+    } finally {
+      scheduleImageGenerationPoll();
+    }
+  }
+
+  async function changeImageGeneration(action, button) {
+    button.disabled = true;
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/image-generation/${action}`,
+        { method: 'POST' },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.draft) throw new Error(payload.error || 'Не удалось изменить генерацию изображений.');
+      state.imageGeneration = payload.draft.imageGeneration;
+      updateImageGenerationBanner();
+      scheduleImageGenerationPoll();
+    } catch (error) {
+      showToast(error.message || 'Не удалось изменить генерацию изображений.');
+    } finally {
+      button.disabled = false;
+    }
+  }
 
   const componentRenderers = {
     teacherNote: component => window.TeacherNoteComponent.renderTeacherNote(component, {
@@ -1242,7 +1335,10 @@
       if (!payload.draft?.content?.stages?.length) throw new Error('В черновике пока нет структуры урока.');
       state.draftId = payload.draft.id;
       state.draftStatus = payload.draft.status;
+      state.imageGeneration = payload.draft.imageGeneration;
       render(payload.draft.content);
+      updateImageGenerationBanner();
+      scheduleImageGenerationPoll();
     } catch (error) {
       showError(error.message || 'Не удалось загрузить структуру урока.');
     }
@@ -1260,6 +1356,8 @@
   byId('previous-stage').addEventListener('click', () => selectStage(state.activeIndex - 1));
   byId('next-stage').addEventListener('click', () => selectStage(state.activeIndex + 1));
   byId('teacher-screen').addEventListener('click', () => showToast('Экран преподавателя уже открыт.'));
+  imageGenerationStop.addEventListener('click', () => changeImageGeneration('stop', imageGenerationStop));
+  imageGenerationStart.addEventListener('click', () => changeImageGeneration('start', imageGenerationStart));
   byId('lesson-timer').addEventListener('click', () => {
     if (state.timer) {
       window.clearInterval(state.timer);
@@ -1273,7 +1371,10 @@
       byId('elapsed-time').textContent = formatTime(state.elapsedSeconds);
     }, 1000);
   });
-  window.addEventListener('pagehide', () => window.clearInterval(state.timer));
+  window.addEventListener('pagehide', () => {
+    window.clearInterval(state.timer);
+    window.clearTimeout(state.imagePollTimer);
+  });
   window.addEventListener('beforeunload', (event) => {
     if (state.dirtyComponents.size === 0) return;
     event.preventDefault();

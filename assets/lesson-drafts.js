@@ -89,6 +89,73 @@
     return link;
   }
 
+  async function changeImageGeneration(draft, action, button) {
+    button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = action === 'stop' ? 'Останавливаем…' : 'Запускаем…';
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(draft.id)}/image-generation/${action}`,
+        { method: 'POST' },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось изменить генерацию изображений.');
+      const index = state.drafts.findIndex(item => item.id === draft.id);
+      if (index >= 0 && payload.draft) state.drafts[index] = payload.draft;
+      render();
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = originalText;
+      window.AppShell.showToast(error.message || 'Не удалось изменить генерацию изображений.');
+    }
+  }
+
+  function imageGenerationPanel(draft) {
+    const generation = draft.imageGeneration;
+    if (!generation) return null;
+    const panel = document.createElement('div');
+    panel.className = `draft-card__image-generation draft-card__image-generation--${generation.status}`;
+    const row = document.createElement('div');
+    row.className = 'draft-card__image-generation-row';
+    const labels = {
+      pending: 'Изображения ожидают запуска',
+      running: `Изображения ${generation.completed} из ${generation.total}`,
+      completed: generation.total > 0
+        ? `Все изображения готовы · ${generation.completed} из ${generation.total}`
+        : 'В уроке нет изображений для генерации',
+      stopped: `Генерация остановлена · ${generation.completed} из ${generation.total}`,
+      unavailable: `Draw Things недоступен · ${generation.completed} из ${generation.total}`,
+      failed: `Ошибка изображений · ${generation.completed} из ${generation.total}`,
+    };
+    addText(row, 'strong', '', labels[generation.status] || 'Генерация изображений');
+    if (['pending', 'running'].includes(generation.status)) {
+      const button = addText(row, 'button', 'draft-card__image-action', 'Остановить');
+      button.type = 'button';
+      button.addEventListener('click', () => changeImageGeneration(draft, 'stop', button));
+    } else if (['stopped', 'unavailable', 'failed'].includes(generation.status)) {
+      const button = addText(row, 'button', 'draft-card__image-action', 'Продолжить');
+      button.type = 'button';
+      button.addEventListener('click', () => changeImageGeneration(draft, 'start', button));
+    }
+    panel.append(row);
+    if (generation.total > 0) {
+      const progress = document.createElement('div');
+      progress.className = 'draft-card__image-progress';
+      progress.setAttribute('role', 'progressbar');
+      progress.setAttribute('aria-valuemin', '0');
+      progress.setAttribute('aria-valuemax', String(generation.total));
+      progress.setAttribute('aria-valuenow', String(generation.completed));
+      const value = document.createElement('span');
+      value.style.width = `${Math.min(100, (generation.completed / generation.total) * 100)}%`;
+      progress.append(value);
+      panel.append(progress);
+    }
+    if (generation.errorMessage && ['unavailable', 'failed'].includes(generation.status)) {
+      addText(panel, 'p', '', generation.errorMessage);
+    }
+    return panel;
+  }
+
   function deleteButton(draft) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -253,6 +320,8 @@
 
     if (draft.status === 'review') {
       addText(card, 'p', 'draft-card__hint', 'Контент сгенерирован и готов к проверке и редактированию.');
+      const imagePanel = imageGenerationPanel(draft);
+      if (imagePanel) card.append(imagePanel);
     }
 
     if (draft.status === 'published') {
@@ -280,7 +349,8 @@
 
   function schedulePolling() {
     window.clearTimeout(pollTimer);
-    if (state.drafts.some(draft => draft.status === 'generating')) {
+    if (state.drafts.some(draft => draft.status === 'generating'
+      || ['pending', 'running'].includes(draft.imageGeneration?.status))) {
       pollTimer = window.setTimeout(() => loadDrafts({ background: true }), POLL_INTERVAL_MS);
     }
   }

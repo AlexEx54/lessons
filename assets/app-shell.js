@@ -17,6 +17,7 @@
   const newLessonModal = document.getElementById('new-lesson-modal');
   const newLessonDialog = newLessonModal?.querySelector('.new-lesson-dialog');
   const newLessonTopic = document.getElementById('new-lesson-topic');
+  const newLessonWarmUpTopic = document.getElementById('new-lesson-warm-up-topic');
   const newLessonSynthetic = document.getElementById('new-lesson-synthetic');
   const createLessonDraftButton = newLessonModal?.querySelector('[data-create-lesson-draft]');
   const newLessonSelect = newLessonModal?.querySelector('[data-new-lesson-select]');
@@ -194,6 +195,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic,
+          warmUpTopic: newLessonWarmUpTopic?.value.trim() || '',
           template: newLessonSelectInput.value,
           synthetic: Boolean(newLessonSynthetic?.checked),
         }),

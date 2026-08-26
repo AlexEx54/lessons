@@ -48,6 +48,7 @@ rsync -az --delete \
   -e "ssh -p ${SERVER_PORT} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10" \
   --exclude='.git/' \
   --exclude='.env' \
+  --exclude='node_modules/' \
   --exclude='data/' \
   --exclude='tmp/' \
   --exclude='.DS_Store' \
@@ -64,10 +65,15 @@ APP_DATA_DIR=$3
 SERVICE_NAME=$4
 BACKUP_RETENTION=$5
 NODE=/usr/bin/node
+NPM=/usr/bin/npm
 BACKUP_DIR=/root/deploy-backups
 
 if [[ ! -x "$NODE" ]]; then
   echo "Node.js не найден: $NODE" >&2
+  exit 1
+fi
+if [[ ! -x "$NPM" ]]; then
+  echo "npm не найден: $NPM" >&2
   exit 1
 fi
 
@@ -80,6 +86,7 @@ fi
 
 chown -R teachplatform:teachplatform "$STAGING_DIR"
 cd "$STAGING_DIR"
+"$NPM" ci --omit=dev --ignore-scripts
 
 check_files=(
   server.js
@@ -99,6 +106,10 @@ check_files=(
   lib/user-store.js
   lib/lesson-draft-store.js
   lib/lesson-generation-store.js
+  lib/lesson-image-generation-store.js
+  lib/lesson-image-slots.js
+  lib/lesson-image-generator.js
+  lib/drawthings-image-client.js
   lib/ai-lesson-generator.js
   lib/synthetic-lesson.js
   scripts/create-user.js

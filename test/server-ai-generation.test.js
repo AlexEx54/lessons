@@ -72,6 +72,7 @@ test('AI draft streams Warm-Up, trace, and exact OpenRouter cost into review', a
       const payload = JSON.parse(body);
       assert.equal(payload.model, 'google/gemini-3.7-flash');
       assert.equal(payload.reasoning.effort, 'high');
+      assert.equal(payload.messages[1].content, 'Lesson topic: City transport');
       res.writeHead(200, { 'Content-Type': 'text/event-stream' });
       res.write(`data: ${JSON.stringify({ id: 'gen-integration', choices: [{ delta: { reasoning: 'Planning the A2 activity.' } }] })}\n\n`);
       res.write(`data: ${JSON.stringify({ id: 'gen-integration', choices: [{ delta: { content: JSON.stringify(WARM_UP) } }] })}\n\n`);
@@ -127,11 +128,14 @@ test('AI draft streams Warm-Up, trace, and exact OpenRouter cost into review', a
   const createdResponse = await fetch(`${baseUrl}/api/lesson-drafts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: cookie },
-    body: JSON.stringify({ topic: 'Travel choices', template: 'template-1', synthetic: false }),
+    body: JSON.stringify({
+      topic: 'Travel choices', warmUpTopic: '  City transport  ', template: 'template-1', synthetic: false,
+    }),
   });
   assert.equal(createdResponse.status, 201);
   const created = (await createdResponse.json()).draft;
   assert.equal(created.status, 'generating');
+  assert.equal(created.warmUpTopic, 'City transport');
   assert.equal(created.generation.mode, 'ai');
   assert.equal(created.generation.model, 'google/gemini-3.7-flash');
   assert.equal(created.content.stages.length, 9);
@@ -148,6 +152,10 @@ test('AI draft streams Warm-Up, trace, and exact OpenRouter cost into review', a
   assert.equal(ready.status, 'review');
   assert.equal(ready.generation.status, 'completed');
   assert.equal(ready.generation.costUsd, 0.023456);
+  assert.equal(ready.content.meta.topic, 'Travel choices');
+  assert.equal(ready.content.meta.title, 'Travel choices');
+  assert.ok(['pending', 'running', 'unavailable'].includes(ready.imageGeneration.status));
+  assert.equal(ready.imageGeneration.total, 8);
   assert.deepEqual(ready.content.stages[0].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'thisOrThat', 'taskPrompt',
   ]);
