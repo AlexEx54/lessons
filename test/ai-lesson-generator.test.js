@@ -9,6 +9,7 @@ const {
   createLessonSkeleton,
   generateWarmUp,
   parseOpenRouterStream,
+  warmUpMessages,
 } = require('../lib/ai-lesson-generator.js');
 
 const GENERATED_WARM_UP = Object.freeze({
@@ -67,6 +68,22 @@ test('generated Warm-Up rejects a damaged This or That shape', () => {
   const damaged = JSON.parse(JSON.stringify(GENERATED_WARM_UP));
   damaged.choices[0].options.pop();
   assert.throws(() => buildWarmUpContent(damaged), /exactly two options/);
+});
+
+test('Warm-Up prompt requires four ordered reusable teacher-note bullets', () => {
+  const messages = warmUpMessages('Space travel');
+  const systemPrompt = messages.find(message => message.role === 'system').content;
+  assert.match(systemPrompt, /exactly four Markdown bullet points in this order/);
+  assert.match(systemPrompt, /briefly explain the purpose of the lead-in question/);
+  assert.match(systemPrompt, /exact question for the learner in natural A2 English/);
+  assert.match(systemPrompt, /summarize the main Warm-Up topic/);
+  assert.match(systemPrompt, /one word or short phrases/);
+  assert.match(systemPrompt, /what kind of answer the teacher should accept/);
+  assert.match(systemPrompt, /ready-to-say opening phrase in natural A2 English/);
+  assert.match(systemPrompt, /introduced with \*\*Say:\*\*/);
+  assert.match(systemPrompt, /without presenting its topic as the topic of the whole lesson/);
+  assert.match(systemPrompt, /Today we will talk about/);
+  assert.doesNotMatch(systemPrompt, /summer\/gaming/);
 });
 
 test('OpenRouter SSE parser joins split reasoning, output, id, and usage chunks', async () => {

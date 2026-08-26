@@ -94,7 +94,7 @@
         for (let count = 1; count < blankLines; count += 1) blocks.push({ type: 'spacer' });
       }
       blankLines = 0;
-      const unorderedMatch = line.match(/^\s*-\s+(.+)$/);
+      const unorderedMatch = line.match(/^\s*[-*]\s+(.+)$/);
       const orderedMatch = line.match(/^\s*\d+\.\s+(.+)$/);
       const listMatch = unorderedMatch || orderedMatch;
       if (listMatch) {
