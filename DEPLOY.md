@@ -1,5 +1,9 @@
 # Deploy
 
+Draw Things image generation from the VPS uses a localhost-only reverse SSH tunnel.
+Setup, usage, and troubleshooting are documented in
+[`docs/drawthings-grpc-tunnel.md`](docs/drawthings-grpc-tunnel.md).
+
 ## VPS
 
 The production VPS uses SSH key authentication. To deploy the current committed version:
