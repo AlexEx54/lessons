@@ -49,7 +49,7 @@ rsync -az --delete \
   --exclude='.git/' \
   --exclude='.env' \
   --exclude='node_modules/' \
-  --exclude='data/' \
+  --exclude='/data/' \
   --exclude='tmp/' \
   --exclude='.DS_Store' \
   ./ "${SSH_TARGET}:${STAGING_DIR}/"
@@ -118,6 +118,11 @@ check_files=(
 for file in "${check_files[@]}"; do
   "$NODE" --check "$file"
 done
+"$NODE" - <<'NODE'
+const { createDrawThingsImageClient } = require('./lib/drawthings-image-client');
+const client = createDrawThingsImageClient();
+client.close();
+NODE
 "$NODE" --test test/app-shell.test.js
 
 env HOST=127.0.0.1 PORT=8788 "$NODE" server.js >/tmp/teach-platform-next.log 2>&1 &
@@ -159,10 +164,6 @@ PREVIOUS_DIR="${APP_DIR}.previous"
 rm -rf "$PREVIOUS_DIR"
 cp -a "$APP_DIR" "$PREVIOUS_DIR"
 
-rsync -a --delete --exclude=.env --exclude=data/ "$STAGING_DIR/" "$APP_DIR/"
-chown -R teachplatform:teachplatform "$APP_DIR"
-chmod 600 "$APP_DIR/.env"
-
 rollback() {
   echo "Проверка новой версии не прошла, выполняется откат" >&2
   systemctl stop "$SERVICE_NAME" || true
@@ -170,6 +171,21 @@ rollback() {
   mv "$PREVIOUS_DIR" "$APP_DIR"
   systemctl start "$SERVICE_NAME"
 }
+
+rsync -a --delete --exclude=.env --exclude=/data/ "$STAGING_DIR/" "$APP_DIR/"
+chown -R teachplatform:teachplatform "$APP_DIR"
+chmod 600 "$APP_DIR/.env"
+
+cd "$APP_DIR"
+if ! "$NODE" - <<'NODE'
+const { createDrawThingsImageClient } = require('./lib/drawthings-image-client');
+const client = createDrawThingsImageClient();
+client.close();
+NODE
+then
+  rollback
+  exit 1
+fi
 
 systemctl restart "$SERVICE_NAME"
 
