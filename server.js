@@ -66,8 +66,10 @@ const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
 const {
   OPENROUTER_BASE_URL,
   OPENROUTER_MODEL,
+  applyLeadInToSkeleton,
   applyWarmUpToSkeleton,
   createLessonSkeleton,
+  generateLeadIn,
   generateWarmUp,
 } = require('./lib/ai-lesson-generator.js');
 
@@ -189,14 +191,32 @@ function publicGenerationSnapshot(generation) {
   };
 }
 
-async function runAiLessonGeneration({ draftId, ownerAdminId, warmUpTopic, skeleton }) {
+function aggregateGenerationUsage(first = {}, second = {}) {
+  function sumFinite(field, integer = false) {
+    const values = [first[field], second[field]].filter(value => (
+      integer ? Number.isInteger(value) : Number.isFinite(value)
+    ));
+    return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) : null;
+  }
+
+  return {
+    cost: sumFinite('cost'),
+    promptTokens: sumFinite('promptTokens', true),
+    completionTokens: sumFinite('completionTokens', true),
+    reasoningTokens: sumFinite('reasoningTokens', true),
+  };
+}
+
+async function runAiLessonGeneration({ draftId, ownerAdminId, topic, warmUpTopic, skeleton }) {
   const controller = new AbortController();
   generationControllers.set(draftId, controller);
   let reasoning = '';
   let output = '';
   let usage = {};
+  let completedUsage = {};
   let providerGenerationId = '';
   let flushTimer = null;
+  let activeSection = 'Warm-Up';
 
   function flushStream() {
     if (flushTimer) {
@@ -211,35 +231,50 @@ async function runAiLessonGeneration({ draftId, ownerAdminId, warmUpTopic, skele
     flushTimer = setTimeout(flushStream, 500);
   }
 
-  try {
-    const result = await generateWarmUp({
-      topic: warmUpTopic,
+  async function generateSection(sectionName, sectionTopic, generator) {
+    activeSection = sectionName;
+    const reasoningHeader = `${reasoning ? '\n\n' : ''}=== ${sectionName} ===\n`;
+    const outputHeader = `${output ? '\n\n' : ''}=== ${sectionName} ===\n`;
+    reasoning += reasoningHeader;
+    output += outputHeader;
+    publishGenerationEvent(draftId, 'reasoning', { delta: reasoningHeader });
+    publishGenerationEvent(draftId, 'output', { delta: outputHeader });
+    scheduleFlush();
+
+    const result = await generator({
+      topic: sectionTopic,
       apiKey: process.env.OPENROUTER_API_KEY,
       baseUrl: process.env.OPENROUTER_BASE_URL || OPENROUTER_BASE_URL,
       signal: controller.signal,
       onDelta: delta => {
-        reasoning = delta.reasoning;
-        output = delta.output;
-        usage = delta.usage;
-        providerGenerationId = delta.providerGenerationId;
+        reasoning += delta.reasoningDelta || '';
+        output += delta.outputDelta || '';
+        usage = aggregateGenerationUsage(completedUsage, delta.usage);
+        if (delta.providerGenerationId) providerGenerationId = delta.providerGenerationId;
         if (delta.reasoningDelta) {
           publishGenerationEvent(draftId, 'reasoning', { delta: delta.reasoningDelta });
         }
         if (delta.outputDelta) {
           publishGenerationEvent(draftId, 'output', { delta: delta.outputDelta });
         }
-        if (Number.isFinite(delta.usage?.cost)) {
-          publishGenerationEvent(draftId, 'usage', { costUsd: delta.usage.cost });
+        if (Number.isFinite(usage.cost)) {
+          publishGenerationEvent(draftId, 'usage', { costUsd: usage.cost });
         }
         scheduleFlush();
       },
     });
-    reasoning = result.reasoning;
-    output = result.output;
-    usage = result.usage;
-    providerGenerationId = result.providerGenerationId;
+    completedUsage = aggregateGenerationUsage(completedUsage, result.usage);
+    usage = completedUsage;
+    if (result.providerGenerationId) providerGenerationId = result.providerGenerationId;
     flushStream();
-    const lesson = applyWarmUpToSkeleton(skeleton, result.generated);
+    return result;
+  }
+
+  try {
+    const warmUpResult = await generateSection('Warm-Up', warmUpTopic, generateWarmUp);
+    const leadInResult = await generateSection('Lead-In', topic, generateLeadIn);
+    const lessonWithWarmUp = applyWarmUpToSkeleton(skeleton, warmUpResult.generated);
+    const lesson = applyLeadInToSkeleton(lessonWithWarmUp, leadInResult.generated);
     database.exec('BEGIN IMMEDIATE');
     try {
       completeLessonDraft(draftId, ownerAdminId, lesson, database);
@@ -258,8 +293,8 @@ async function runAiLessonGeneration({ draftId, ownerAdminId, warmUpTopic, skele
     if (flushTimer) clearTimeout(flushTimer);
     if (!findLessonDraft(draftId, ownerAdminId, database)) return;
     const message = error?.name === 'TimeoutError'
-      ? 'Генерация Warm-Up превысила лимит в пять минут.'
-      : error.message || 'Не удалось сгенерировать Warm-Up.';
+      ? `Генерация ${activeSection} превысила лимит в пять минут.`
+      : error.message || `Не удалось сгенерировать ${activeSection}.`;
     try {
       database.exec('BEGIN IMMEDIATE');
       failLessonDraft(draftId, ownerAdminId, message, database);
@@ -272,7 +307,7 @@ async function runAiLessonGeneration({ draftId, ownerAdminId, warmUpTopic, skele
       console.error('Cannot persist failed lesson generation:', storeError);
     }
     finishGenerationStreams(draftId, 'generation-error', { status: 'failed', message, costUsd: usage.cost ?? null });
-    console.error(`Cannot generate Warm-Up for draft ${draftId}:`, error);
+    console.error(`Cannot generate ${activeSection} for draft ${draftId}:`, error);
   } finally {
     if (flushTimer) clearTimeout(flushTimer);
     if (generationControllers.get(draftId) === controller) generationControllers.delete(draftId);
@@ -1217,6 +1252,7 @@ const server = http.createServer(async (req, res) => {
           runAiLessonGeneration({
             draftId: draft.id,
             ownerAdminId: user.id,
+            topic,
             warmUpTopic,
             skeleton: lesson,
           });
