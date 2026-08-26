@@ -70,17 +70,19 @@ test('generated Warm-Up rejects a damaged This or That shape', () => {
   assert.throws(() => buildWarmUpContent(damaged), /exactly two options/);
 });
 
-test('Warm-Up prompt requires four ordered reusable teacher-note bullets', () => {
+test('Warm-Up prompt requires three teacher-note bullets and a separate Say paragraph', () => {
   const messages = warmUpMessages('Space travel');
   const systemPrompt = messages.find(message => message.role === 'system').content;
-  assert.match(systemPrompt, /exactly four Markdown bullet points in this order/);
+  assert.match(systemPrompt, /exactly three Markdown bullet points followed by a separate Say paragraph/);
   assert.match(systemPrompt, /briefly explain the purpose of the lead-in question/);
   assert.match(systemPrompt, /exact question for the learner in natural A2 English/);
   assert.match(systemPrompt, /summarize the main Warm-Up topic/);
   assert.match(systemPrompt, /one word or short phrases/);
   assert.match(systemPrompt, /what kind of answer the teacher should accept/);
   assert.match(systemPrompt, /ready-to-say opening phrase in natural A2 English/);
-  assert.match(systemPrompt, /introduced with \*\*Say:\*\*/);
+  assert.match(systemPrompt, /\*\*Say:\*\* \*English opening phrase\*/);
+  assert.match(systemPrompt, /Say paragraph must not be a bullet point/);
+  assert.match(systemPrompt, /only the English opening phrase after \*\*Say:\*\* must be italic/);
   assert.match(systemPrompt, /without presenting its topic as the topic of the whole lesson/);
   assert.match(systemPrompt, /Today we will talk about/);
   assert.doesNotMatch(systemPrompt, /summer\/gaming/);
