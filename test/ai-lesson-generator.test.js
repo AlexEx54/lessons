@@ -199,7 +199,9 @@ test('Target Vocabulary keeps teacher notes static, Russian, and topic-neutral',
   assert.deepEqual(first[0], second[0]);
   assert.match(first[0].blocks[0].text, /Используйте эти онлайн-словари/);
   assert.match(first[0].blocks[0].tip.text, /Обратите внимание на ударение/);
-  assert.match(first[0].blocks[1].text, /Используйте эти фразы/);
+  assert.match(first[0].blocks[1].text, /\*\*Task 1:\*\* say "We are going to do some matching/);
+  assert.match(first[0].blocks[1].text, /Words That Need Extra Explanation/);
+  assert.match(first[0].blocks[1].text, /\*\*Extra Task:\*\* "To finish our lesson, let's play a guessing game!/);
   assert.doesNotMatch(JSON.stringify(first[0]), /of-FLINE|lev-EL up|out-DOORS/);
 });
 

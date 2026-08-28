@@ -94,6 +94,9 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.deepEqual(lesson.stages[2].content[0].blocks.map(block => block.icon), ['audio', 'chat', 'chatDots']);
   assert.match(lesson.stages[2].content[0].blocks[0].text, /Используйте эти онлайн-словари/);
   assert.match(lesson.stages[2].content[0].blocks[0].tip.text, /Обратите внимание на ударение/);
+  assert.match(lesson.stages[2].content[0].blocks[1].text, /\*\*Task 1:\*\* say "We are going to do some matching/);
+  assert.match(lesson.stages[2].content[0].blocks[1].text, /Words That Need Extra Explanation/);
+  assert.match(lesson.stages[2].content[0].blocks[1].text, /\*\*Extra Task:\*\* "To finish our lesson, let's play a guessing game!/);
   assert.doesNotMatch(
     JSON.stringify(lesson.stages[2].content[0]),
     /of-FLINE|lev-EL up|out-DOORS/,
