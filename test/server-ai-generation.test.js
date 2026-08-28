@@ -10,6 +10,9 @@ const test = require('node:test');
 const { openDatabase } = require('../lib/db.js');
 const { hashPassword } = require('../lib/password.js');
 const { createUser } = require('../lib/user-store.js');
+const {
+  GENERATED_TARGET_VOCABULARY,
+} = require('./fixtures/generated-target-vocabulary.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -84,7 +87,7 @@ async function login(baseUrl, email, password) {
   return response.headers.get('set-cookie').split(';')[0];
 }
 
-test('AI draft sequentially streams Warm-Up and Lead-In with aggregate usage into review', async t => {
+test('AI draft sequentially streams three generated sections with aggregate usage into review', async t => {
   let openRouterRequestCount = 0;
   const openRouter = http.createServer((req, res) => {
     assert.equal(req.method, 'POST');
@@ -99,26 +102,29 @@ test('AI draft sequentially streams Warm-Up and Lead-In with aggregate usage int
       openRouterRequestCount += 1;
       assert.equal(payload.model, 'google/gemini-3.7-flash');
       assert.equal(payload.reasoning.effort, 'high');
-      const generated = requestIndex === 0 ? WARM_UP : LEAD_IN;
-      const usage = requestIndex === 0
-        ? {
+      const generated = [WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY][requestIndex];
+      const usage = [{
           prompt_tokens: 220,
           completion_tokens: 140,
           completion_tokens_details: { reasoning_tokens: 60 },
           cost: 0.023456,
-        }
-        : {
+        }, {
           prompt_tokens: 120,
           completion_tokens: 80,
           completion_tokens_details: { reasoning_tokens: 30 },
           cost: 0.01,
-        };
+        }, {
+          prompt_tokens: 300,
+          completion_tokens: 200,
+          completion_tokens_details: { reasoning_tokens: 70 },
+          cost: 0.03,
+        }][requestIndex];
       assert.equal(payload.messages[1].content, requestIndex === 0
         ? 'Lesson topic: City transport'
         : 'Lesson topic: Travel choices');
-      assert.equal(payload.response_format.json_schema.name, requestIndex === 0
-        ? 'easyclass_warm_up'
-        : 'easyclass_lead_in');
+      assert.equal(payload.response_format.json_schema.name, [
+        'easyclass_warm_up', 'easyclass_lead_in', 'easyclass_target_vocabulary',
+      ][requestIndex]);
       res.writeHead(200, { 'Content-Type': 'text/event-stream' });
       res.write(`data: ${JSON.stringify({ id: `gen-integration-${requestIndex}`, choices: [{ delta: { reasoning: `Planning section ${requestIndex + 1}.` } }] })}\n\n`);
       res.write(`data: ${JSON.stringify({ id: `gen-integration-${requestIndex}`, choices: [{ delta: { content: JSON.stringify(generated) } }] })}\n\n`);
@@ -191,13 +197,13 @@ test('AI draft sequentially streams Warm-Up and Lead-In with aggregate usage int
     await new Promise(resolve => setTimeout(resolve, 30));
   }
   assert.equal(ready.status, 'review');
-  assert.equal(openRouterRequestCount, 2);
+  assert.equal(openRouterRequestCount, 3);
   assert.equal(ready.generation.status, 'completed');
-  assert.equal(ready.generation.costUsd, 0.033456);
+  assert.equal(ready.generation.costUsd, 0.063456);
   assert.equal(ready.content.meta.topic, 'Travel choices');
   assert.equal(ready.content.meta.title, 'Travel choices');
   assert.ok(['pending', 'running', 'unavailable'].includes(ready.imageGeneration.status));
-  assert.equal(ready.imageGeneration.total, 10);
+  assert.equal(ready.imageGeneration.total, 20);
   assert.deepEqual(ready.content.stages[0].content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'thisOrThat', 'taskPrompt',
   ]);
@@ -206,7 +212,13 @@ test('AI draft sequentially streams Warm-Up and Lead-In with aggregate usage int
   ]);
   assert.equal(ready.content.stages[1].content[0].text, LEAD_IN.teacherNotes);
   assert.equal(ready.content.stages[1].content[3].text.split('\n').length, 3);
-  assert.ok(ready.content.stages.slice(2).every(stage => stage.content.length === 0));
+  assert.deepEqual(ready.content.stages[2].content.map(component => component.type), [
+    'teacherNote', 'markdownCard', 'matchWords', 'markdownCard', 'dropdownChoice',
+    'markdownCard', 'fillInBlanks', 'personalizedQuestions', 'markdownCard', 'describeAndGuess',
+  ]);
+  assert.equal(ready.content.stages[2].content[2].items.length, 10);
+  assert.match(ready.content.stages[2].content[0].blocks[0].text, /Используйте эти онлайн-словари/);
+  assert.ok(ready.content.stages.slice(3).every(stage => stage.content.length === 0));
 
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/generation-stream`)).status, 401);
   const traceResponse = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/generation-stream`, {
@@ -217,17 +229,20 @@ test('AI draft sequentially streams Warm-Up and Lead-In with aggregate usage int
   assert.match(trace, /event: snapshot/);
   assert.match(trace, /=== Warm-Up ===/);
   assert.match(trace, /=== Lead-In ===/);
+  assert.match(trace, /=== Target Vocabulary ===/);
   assert.match(trace, /Planning section 1/);
   assert.match(trace, /Planning section 2/);
+  assert.match(trace, /Planning section 3/);
   assert.match(trace, /on the go/);
-  assert.match(trace, /0\.033456/);
-  assert.match(trace, /"promptTokens":340/);
-  assert.match(trace, /"completionTokens":220/);
-  assert.match(trace, /"reasoningTokens":90/);
+  assert.match(trace, /book a ticket/);
+  assert.match(trace, /0\.063456/);
+  assert.match(trace, /"promptTokens":640/);
+  assert.match(trace, /"completionTokens":420/);
+  assert.match(trace, /"reasoningTokens":160/);
   assert.match(trace, /event: done/);
 });
 
-test('Lead-In failure keeps the AI draft atomic and marks the whole generation failed', async t => {
+test('Target Vocabulary failure keeps the AI draft atomic and marks the whole generation failed', async t => {
   let openRouterRequestCount = 0;
   const openRouter = http.createServer((req, res) => {
     let body = '';
@@ -237,18 +252,25 @@ test('Lead-In failure keeps the AI draft atomic and marks the whole generation f
       const payload = JSON.parse(body);
       const requestIndex = openRouterRequestCount;
       openRouterRequestCount += 1;
-      if (requestIndex === 0) {
-        assert.equal(payload.messages[1].content, 'Lesson topic: Warm-up transport');
+      if (requestIndex < 2) {
+        assert.equal(payload.messages[1].content, requestIndex === 0
+          ? 'Lesson topic: Warm-up transport'
+          : 'Lesson topic: Travel choices');
+        assert.equal(payload.response_format.json_schema.name, requestIndex === 0
+          ? 'easyclass_warm_up'
+          : 'easyclass_lead_in');
+        const generated = requestIndex === 0 ? WARM_UP : LEAD_IN;
         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-        res.write(`data: ${JSON.stringify({ id: 'gen-warm-up', choices: [{ delta: { reasoning: 'Warm-Up complete.' } }] })}\n\n`);
-        res.write(`data: ${JSON.stringify({ id: 'gen-warm-up', choices: [{ delta: { content: JSON.stringify(WARM_UP) } }] })}\n\n`);
-        res.write(`data: ${JSON.stringify({ id: 'gen-warm-up', choices: [{ delta: {} }], usage: { cost: 0.005 } })}\n\n`);
+        res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: { reasoning: `Section ${requestIndex + 1} complete.` } }] })}\n\n`);
+        res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: { content: JSON.stringify(generated) } }] })}\n\n`);
+        res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: {} }], usage: { cost: requestIndex === 0 ? 0.005 : 0.006 } })}\n\n`);
         res.end('data: [DONE]\n\n');
         return;
       }
       assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices');
+      assert.equal(payload.response_format.json_schema.name, 'easyclass_target_vocabulary');
       res.writeHead(502, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: { message: 'Lead-In provider failed.' } }));
+      res.end(JSON.stringify({ error: { message: 'Target Vocabulary provider failed.' } }));
     });
   });
   const openRouterPort = await listen(openRouter);
@@ -304,11 +326,11 @@ test('Lead-In failure keeps the AI draft atomic and marks the whole generation f
     if (failed.status !== 'generating') break;
     await new Promise(resolve => setTimeout(resolve, 30));
   }
-  assert.equal(openRouterRequestCount, 2);
+  assert.equal(openRouterRequestCount, 3);
   assert.equal(failed.status, 'failed');
   assert.equal(failed.generation.status, 'failed');
-  assert.equal(failed.generation.costUsd, 0.005);
-  assert.match(failed.errorMessage, /Lead-In provider failed/);
+  assert.equal(failed.generation.costUsd, 0.011);
+  assert.match(failed.errorMessage, /Target Vocabulary provider failed/);
   assert.ok(failed.content.stages.every(stage => stage.content.length === 0));
   assert.equal(failed.imageGeneration, null);
 
@@ -319,6 +341,7 @@ test('Lead-In failure keeps the AI draft atomic and marks the whole generation f
   const trace = await traceResponse.text();
   assert.match(trace, /=== Warm-Up ===/);
   assert.match(trace, /=== Lead-In ===/);
-  assert.match(trace, /Lead-In provider failed/);
+  assert.match(trace, /=== Target Vocabulary ===/);
+  assert.match(trace, /Target Vocabulary provider failed/);
   assert.match(trace, /event: generation-error/);
 });

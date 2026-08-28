@@ -111,6 +111,7 @@ check_files=(
   lib/lesson-image-generator.js
   lib/drawthings-image-client.js
   lib/ai-lesson-generator.js
+  lib/target-vocabulary-static.js
   lib/synthetic-lesson.js
   scripts/create-user.js
 )

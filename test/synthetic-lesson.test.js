@@ -92,7 +92,12 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.equal(lesson.stages[2].subtitle, 'Summer + Gaming Words');
   assert.equal(lesson.stages[2].content[0].text, undefined);
   assert.deepEqual(lesson.stages[2].content[0].blocks.map(block => block.icon), ['audio', 'chat', 'chatDots']);
-  assert.equal(lesson.stages[2].content[0].blocks[0].tip.text.includes('stress'), true);
+  assert.match(lesson.stages[2].content[0].blocks[0].text, /Используйте эти онлайн-словари/);
+  assert.match(lesson.stages[2].content[0].blocks[0].tip.text, /Обратите внимание на ударение/);
+  assert.doesNotMatch(
+    JSON.stringify(lesson.stages[2].content[0]),
+    /of-FLINE|lev-EL up|out-DOORS/,
+  );
   assert.deepEqual(lesson.stages[2].content[1], {
     type: 'markdownCard',
     id: 'target-vocabulary-card',
