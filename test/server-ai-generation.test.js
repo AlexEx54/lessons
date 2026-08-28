@@ -187,7 +187,12 @@ test('AI draft sequentially streams three generated sections with aggregate usag
   assert.equal(created.generation.model, 'google/gemini-3.7-flash');
   assert.equal(created.content.stages.length, 9);
   assert.ok(created.content.stages.every(stage => stage.content.length === 0));
-  assert.ok(created.content.stages.slice(1).every(stage => stage.subtitle === undefined));
+  assert.deepEqual(created.content.stages.slice(0, 3).map(stage => stage.subtitle), [
+    'This or That?',
+    'Explore the Topic',
+    'Learn New Words',
+  ]);
+  assert.ok(created.content.stages.slice(3).every(stage => stage.subtitle === undefined));
 
   let ready;
   for (let attempt = 0; attempt < 80; attempt += 1) {

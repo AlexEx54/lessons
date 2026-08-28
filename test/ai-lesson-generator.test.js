@@ -78,14 +78,18 @@ function streamingResponse(events) {
   }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
 }
 
-test('AI lesson skeleton keeps nine stages and hides future topic-specific subtitles', () => {
+test('AI lesson skeleton gives generated stages purpose-specific subtitles', () => {
   const lesson = createLessonSkeleton('  Space travel  ');
   assert.equal(lesson.meta.topic, 'Space travel');
   assert.equal(lesson.meta.generatedBy, `openrouter:${OPENROUTER_MODEL}`);
   assert.equal(lesson.stages.length, 9);
   assert.ok(lesson.stages.every(stage => Array.isArray(stage.content) && stage.content.length === 0));
-  assert.equal(lesson.stages[0].subtitle, 'This or That?');
-  assert.ok(lesson.stages.slice(1).every(stage => stage.subtitle === undefined));
+  assert.deepEqual(lesson.stages.slice(0, 3).map(stage => stage.subtitle), [
+    'This or That?',
+    'Explore the Topic',
+    'Learn New Words',
+  ]);
+  assert.ok(lesson.stages.slice(3).every(stage => stage.subtitle === undefined));
 });
 
 test('generated Warm-Up is mapped onto fixed compatible components', () => {
@@ -177,7 +181,7 @@ test('generated Target Vocabulary is mapped onto the fixed synthetic component s
     createLessonSkeleton('Air travel'), GENERATED_TARGET_VOCABULARY,
   );
   assert.equal(lesson.stages[2].content.length, 10);
-  assert.equal(lesson.stages[2].subtitle, undefined);
+  assert.equal(lesson.stages[2].subtitle, 'Learn New Words');
   assert.ok(lesson.stages.filter(stage => stage.id !== 'target-vocabulary')
     .every(stage => stage.content.length === 0));
 });
