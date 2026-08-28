@@ -10,6 +10,7 @@ const {
   normalizeDropdownChoice,
   parseAccentMarkdown,
   parseChoiceText,
+  renderDropdownChoice,
   stripAccentMarkdown,
 } = require('../assets/components/dropdown-choice.js');
 
@@ -27,6 +28,67 @@ function component(overrides = {}) {
     }],
     ...overrides,
   };
+}
+
+function createFakeDocument() {
+  function textNode(value) {
+    return { nodeType: 3, textContent: String(value), childNodes: [] };
+  }
+  function element(tag) {
+    const el = {
+      nodeType: 1,
+      tagName: String(tag).toUpperCase(),
+      childNodes: [],
+      attributes: {},
+      dataset: {},
+      listeners: {},
+      style: { setProperty() {} },
+      _className: '',
+      _text: '',
+      get className() { return this._className; },
+      set className(value) { this._className = String(value || ''); },
+      append(...nodes) {
+        nodes.forEach((node) => {
+          if (node != null) this.childNodes.push(node);
+        });
+      },
+      replaceChildren(...nodes) {
+        this.childNodes = [];
+        this.append(...nodes);
+      },
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+      getAttribute(name) { return this.attributes[name] || null; },
+      addEventListener(type, handler) {
+        this.listeners[type] = this.listeners[type] || [];
+        this.listeners[type].push(handler);
+      },
+      get textContent() {
+        if (this.childNodes.length === 0) return this._text;
+        return this.childNodes.map(node => node.textContent || '').join('');
+      },
+      set textContent(value) {
+        this.childNodes = [];
+        this._text = String(value);
+      },
+    };
+    return el;
+  }
+  return {
+    createElement: tag => element(tag),
+    createTextNode: value => textNode(value),
+  };
+}
+
+function descendants(node, found = []) {
+  for (const child of node.childNodes || []) {
+    found.push(child);
+    descendants(child, found);
+  }
+  return found;
+}
+
+function byClass(root, name) {
+  return descendants(root).filter(node => node.className?.split(/\s+/).includes(name));
 }
 
 test('dropdown choice normalizes marked text, choices, line breaks, and repeated answers', () => {
@@ -104,6 +166,20 @@ test('dropdown choice selection states allow retries and identify a correct answ
   assert.equal(getSelectionState('answer', 'answer'), 'correct');
 });
 
+test('dropdown choice numbers each field by its position in the text', () => {
+  const reordered = component({
+    text: 'First [[adaptation]]. Then [[past-routine]].',
+  });
+  const section = renderDropdownChoice(reordered, {}, createFakeDocument());
+  const numbers = byClass(section, 'dropdown-choice__number');
+  const selects = descendants(section).filter(node => node.tagName === 'SELECT');
+
+  assert.deepEqual(numbers.map(number => number.textContent), ['(1)', '(2)']);
+  assert.deepEqual(selects.map(select => select.dataset.choiceId), ['adaptation', 'past-routine']);
+  assert.equal(selects[0].getAttribute('aria-label'), 'Выбор 1. Выберите вариант для adaptation');
+  assert.equal(normalizeDropdownChoice(reordered).text, 'First [[adaptation]]. Then [[past-routine]].');
+});
+
 test('dropdown choice is registered with editing, persistence, and responsive states', () => {
   const root = path.join(__dirname, '..');
   const source = fs.readFileSync(path.join(root, 'assets', 'components', 'dropdown-choice.js'), 'utf8');
@@ -111,8 +187,10 @@ test('dropdown choice is registered with editing, persistence, and responsive st
   const editor = fs.readFileSync(path.join(root, 'assets', 'lesson-editor.js'), 'utf8');
   const page = fs.readFileSync(path.join(root, 'lesson-editor.html'), 'utf8');
   assert.match(source, /dropdown-choice__choices-editor/);
+  assert.match(source, /dropdown-choice__number/);
   assert.match(source, /settings\.onSave/);
   assert.match(css, /dropdown-choice__select--correct/);
+  assert.match(css, /dropdown-choice__number/);
   assert.match(css, /--dropdown-choice-accent/);
   assert.match(css, /dropdown-choice__accent/);
   assert.match(css, /dropdown-choice--editing/);

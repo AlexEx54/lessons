@@ -668,13 +668,17 @@ preview отображаются только загруженные файлы.
 Компонент подходит для контекстных заданий, в которых ученик выбирает правильное
 слово или фразу для каждого пропуска.
 
+Перед каждым dropdown компонент автоматически показывает его номер в порядке
+появления в тексте: `(1)`, `(2)` и так далее. Номер является только визуальной
+подписью: он не входит в `text`, варианты `options` или `answer`.
+
 ```json
 {
   "type": "dropdownChoice",
   "id": "target-vocabulary-context-dropdown",
   "title": "**Task 2 · Vocabulary in Context — Dropdown**",
   "instruction": "Fill in the blanks with the correct words from the dropdown lists.",
-  "text": "**1.** This summer, I wanted [[hang-out-context]] and spend less time at home.",
+  "text": "This summer, I wanted [[hang-out-context]] and spend less time at home.",
   "accentColor": "#6545F5",
   "choices": [{
     "id": "hang-out-context",

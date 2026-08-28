@@ -154,6 +154,14 @@
     });
   }
 
+  function makeChoiceNumberLabel(number, documentRef) {
+    const label = documentRef.createElement('span');
+    label.className = 'dropdown-choice__number';
+    label.textContent = `(${number})`;
+    label.setAttribute('aria-hidden', 'true');
+    return label;
+  }
+
   function renderDropdownChoice(data, options, documentRef) {
     let settings = options || {};
     let doc = documentRef || root.document;
@@ -224,12 +232,14 @@
       if (typeof settings.onDirtyChange === 'function') settings.onDirtyChange(dirty, current.id);
     }
 
-    function makePlaySelect(choice) {
+    function makePlaySelect(choice, number) {
+      const field = doc.createElement('span');
+      field.className = 'dropdown-choice__field';
       const select = doc.createElement('select');
       select.className = 'dropdown-choice__select';
       select.dataset.choiceId = choice.id;
       select.dataset.state = 'empty';
-      select.setAttribute('aria-label', `Выберите вариант для ${choice.id}`);
+      select.setAttribute('aria-label', `Выбор ${number}. Выберите вариант для ${choice.id}`);
       const placeholder = doc.createElement('option');
       placeholder.value = '';
       placeholder.textContent = 'Choose…';
@@ -255,7 +265,8 @@
         else status.textContent = `${correct.size} из ${current.choices.length} ответов верны.`;
         if (typeof settings.onActivity === 'function') settings.onActivity(current.id, choice.id, state);
       });
-      return select;
+      field.append(makeChoiceNumberLabel(number, doc), select);
+      return field;
     }
 
     function paintPlay() {
@@ -266,12 +277,16 @@
       instruction.textContent = current.instruction;
       title.contentEditable = 'false';
       instruction.contentEditable = 'false';
+      let choiceNumber = 0;
       passage.replaceChildren(...inlineGapText.splitParagraphs(parts()).map((paragraphParts) => {
         const paragraph = doc.createElement('p');
         paragraph.className = 'dropdown-choice__paragraph';
         paragraphParts.forEach((part) => {
           if (part.type === 'text') appendAccentMarkdown(paragraph, part.text, doc, true);
-          else paragraph.append(makePlaySelect(choiceById(part.token)));
+          else {
+            choiceNumber += 1;
+            paragraph.append(makePlaySelect(choiceById(part.token), choiceNumber));
+          }
         });
         return paragraph;
       }));
@@ -288,7 +303,7 @@
       return span;
     }
 
-    function makeEditorGap(id) {
+    function makeEditorGap(id, number) {
       const gap = doc.createElement('span');
       gap.className = 'dropdown-choice__gap-editor';
       gap.dataset.choiceId = id;
@@ -300,7 +315,7 @@
       remove.textContent = '×';
       remove.setAttribute('aria-label', `Убрать dropdown ${id}`);
       remove.addEventListener('click', () => unwrapGap(gap));
-      gap.append(label, remove);
+      gap.append(makeChoiceNumberLabel(number, doc), label, remove);
       return gap;
     }
 
@@ -321,9 +336,12 @@
         withCarets.push(part);
       });
       if (withCarets.at(-1)?.type === 'gap') withCarets.push({ type: 'text', text: '' });
-      passage.replaceChildren(...withCarets.map(part => (
-        part.type === 'gap' ? makeEditorGap(part.token) : makeTextSpan(part.text)
-      )));
+      let choiceNumber = 0;
+      passage.replaceChildren(...withCarets.map(part => {
+        if (part.type !== 'gap') return makeTextSpan(part.text);
+        choiceNumber += 1;
+        return makeEditorGap(part.token, choiceNumber);
+      }));
     }
 
     function uniqueChoiceId(answer) {
