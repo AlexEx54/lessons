@@ -6,6 +6,8 @@
   const SIZE_OPEN = /^\{(xl|[sml])\}/;
   const MUTED_OPEN = '{muted}';
   const MUTED_CLOSE = '{/muted}';
+  const AUTO_LINK = /(?:https?:\/\/|www\.)[^\s<>]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}(?:\/[^\s<>]*)?/gi;
+  const TRAILING_LINK_PUNCTUATION = /[.,!?;:)}\]»”"']+$/;
 
   function appendTextToken(tokens, value) {
     if (!value) return;
@@ -140,36 +142,69 @@
     );
   }
 
-  function appendInlineTokens(parent, tokens, documentRef) {
+  function appendAutoLinkedText(parent, value, documentRef) {
+    let cursor = 0;
+    AUTO_LINK.lastIndex = 0;
+    for (const match of value.matchAll(AUTO_LINK)) {
+      const start = match.index;
+      const previous = start > 0 ? value[start - 1] : '';
+      if (previous && /[\w@.-]/.test(previous)) continue;
+
+      const matched = match[0];
+      const visible = matched.replace(TRAILING_LINK_PUNCTUATION, '');
+      if (!visible) continue;
+      const href = /^https?:\/\//i.test(visible) ? visible : `https://${visible}`;
+      let parsed;
+      try {
+        parsed = new URL(href);
+      } catch (_error) {
+        continue;
+      }
+      if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname.includes('.')) continue;
+
+      if (start > cursor) parent.append(documentRef.createTextNode(value.slice(cursor, start)));
+      const link = documentRef.createElement('a');
+      link.href = href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = visible;
+      parent.append(link);
+      cursor = start + visible.length;
+    }
+    if (cursor < value.length) parent.append(documentRef.createTextNode(value.slice(cursor)));
+  }
+
+  function appendInlineTokens(parent, tokens, documentRef, options = {}) {
     tokens.forEach((token) => {
       if (token.type === 'text') {
-        parent.append(documentRef.createTextNode(token.value));
+        if (options.linkify) appendAutoLinkedText(parent, token.value, documentRef);
+        else parent.append(documentRef.createTextNode(token.value));
         return;
       }
       if (token.type === 'size') {
         const span = documentRef.createElement('span');
         span.setAttribute('data-md-size', token.size);
-        appendInlineTokens(span, token.children, documentRef);
+        appendInlineTokens(span, token.children, documentRef, options);
         parent.append(span);
         return;
       }
       if (token.type === 'tone' && token.tone === 'muted') {
         const span = documentRef.createElement('span');
         span.setAttribute('data-md-tone', 'muted');
-        appendInlineTokens(span, token.children, documentRef);
+        appendInlineTokens(span, token.children, documentRef, options);
         parent.append(span);
         return;
       }
       if (token.type === 'strongEmphasis') {
         const strong = documentRef.createElement('strong');
         const emphasis = documentRef.createElement('em');
-        appendInlineTokens(emphasis, token.children, documentRef);
+        appendInlineTokens(emphasis, token.children, documentRef, options);
         strong.append(emphasis);
         parent.append(strong);
         return;
       }
       const element = documentRef.createElement(token.type === 'strong' ? 'strong' : 'em');
-      appendInlineTokens(element, token.children, documentRef);
+      appendInlineTokens(element, token.children, documentRef, options);
       parent.append(element);
     });
   }
@@ -272,7 +307,7 @@
     return joinMarkdownBlocks(blocksFromChildren(editor));
   }
 
-  function renderMarkdownInto(container, value, documentRef, spacerClass = 'markdown-spacer') {
+  function renderMarkdownInto(container, value, documentRef, spacerClass = 'markdown-spacer', options = {}) {
     const rendered = parseMarkdown(value).map((block) => {
       if (block.type === 'spacer') {
         const spacer = documentRef.createElement('div');
@@ -284,13 +319,13 @@
         const list = documentRef.createElement(block.ordered ? 'ol' : 'ul');
         block.items.forEach((tokens) => {
           const item = documentRef.createElement('li');
-          appendInlineTokens(item, tokens, documentRef);
+          appendInlineTokens(item, tokens, documentRef, options);
           list.append(item);
         });
         return list;
       }
       const paragraph = documentRef.createElement('p');
-      appendInlineTokens(paragraph, block.children, documentRef);
+      appendInlineTokens(paragraph, block.children, documentRef, options);
       return paragraph;
     });
     container.replaceChildren(...rendered);

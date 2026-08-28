@@ -166,6 +166,8 @@
 .teacher-note__text strong,
 .teacher-note__text b { color: #173b7a; font-weight: 750; }
 .teacher-note__text em { font-style: italic; }
+.teacher-note__text a { color: #3159b8; text-decoration: underline; text-underline-offset: 2px; }
+.teacher-note--editing .teacher-note__text a { pointer-events: none; }
 
 @media (max-width: 700px) {
   .teacher-note { padding: 16px; }

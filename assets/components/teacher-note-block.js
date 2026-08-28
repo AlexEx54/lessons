@@ -103,7 +103,7 @@
 
     const body = doc.createElement('div');
     body.className = 'teacher-note-block__body';
-    markdown.renderMarkdownInto(body, block.text, doc, 'teacher-note-block__spacer');
+    markdown.renderMarkdownInto(body, block.text, doc, 'teacher-note-block__spacer', { linkify: true });
     card.append(header, body);
 
     if (block.tip) {
@@ -118,7 +118,7 @@
       tipLabel.textContent = 'Tip:';
       const tipText = doc.createElement('div');
       tipText.className = 'teacher-note-block__tip-text';
-      markdown.renderMarkdownInto(tipText, block.tip.text, doc, 'teacher-note-block__spacer');
+      markdown.renderMarkdownInto(tipText, block.tip.text, doc, 'teacher-note-block__spacer', { linkify: true });
       tipContent.append(tipLabel, tipText);
       tip.append(tipIcon, tipContent);
       card.append(tip);

@@ -224,6 +224,67 @@ test('renderMarkdownInto renders asterisk bullets as an unordered list', () => {
   assert.deepEqual(container.childNodes[0].childNodes.map(item => item.tagName), ['LI', 'LI']);
 });
 
+test('renderMarkdownInto optionally turns explicit web addresses into safe external links', () => {
+  const { renderMarkdownInto } = require('../assets/components/safe-markdown.js');
+  function createNode(tagName) {
+    return {
+      nodeType: tagName ? 1 : 3,
+      tagName: tagName ? tagName.toUpperCase() : undefined,
+      childNodes: [],
+      append(...children) { this.childNodes.push(...children); },
+      setAttribute() {},
+      replaceChildren(...children) { this.childNodes = children; },
+    };
+  }
+  const documentRef = {
+    createElement: tag => createNode(tag),
+    createTextNode: value => ({ nodeType: 3, nodeValue: value }),
+  };
+  const container = createNode('div');
+
+  renderMarkdownInto(
+    container,
+    'Словари: cambridge.org/dictionary, https://merriam-webster.com.',
+    documentRef,
+    'markdown-spacer',
+    { linkify: true },
+  );
+
+  const links = container.childNodes[0].childNodes.filter(node => node.tagName === 'A');
+  assert.equal(links.length, 2);
+  assert.equal(links[0].textContent, 'cambridge.org/dictionary');
+  assert.equal(links[0].href, 'https://cambridge.org/dictionary');
+  assert.equal(links[1].textContent, 'https://merriam-webster.com');
+  assert.equal(links[1].href, 'https://merriam-webster.com');
+  assert.ok(links.every(link => link.target === '_blank'));
+  assert.ok(links.every(link => link.rel === 'noopener noreferrer'));
+  assert.equal(container.childNodes[0].childNodes.at(-1).nodeValue, '.');
+});
+
+test('renderMarkdownInto leaves addresses as text unless linkify is enabled', () => {
+  const { renderMarkdownInto } = require('../assets/components/safe-markdown.js');
+  function createNode(tagName) {
+    return {
+      nodeType: tagName ? 1 : 3,
+      tagName: tagName ? tagName.toUpperCase() : undefined,
+      childNodes: [],
+      append(...children) { this.childNodes.push(...children); },
+      setAttribute() {},
+      replaceChildren(...children) { this.childNodes = children; },
+    };
+  }
+  const documentRef = {
+    createElement: tag => createNode(tag),
+    createTextNode: value => ({ nodeType: 3, nodeValue: value }),
+  };
+  const container = createNode('div');
+
+  renderMarkdownInto(container, 'cambridge.org/dictionary', documentRef);
+
+  assert.equal(container.childNodes[0].childNodes.length, 1);
+  assert.equal(container.childNodes[0].childNodes[0].nodeValue, 'cambridge.org/dictionary');
+});
+
 test('lesson editor loads shared safe-markdown styles', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'lesson-editor.html'), 'utf8');
   assert.match(html, /href="\/assets\/components\/safe-markdown\.css"/);

@@ -64,6 +64,12 @@
 .teacher-note-block__tip-text ul,
 .teacher-note-block__tip-text ol { margin: 8px 0 0; padding-left: 19px; }
 .teacher-note-block__body li + li { margin-top: 4px; }
+.teacher-note-block__body a,
+.teacher-note-block__tip-text a {
+  color: #3159b8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .teacher-note-block__spacer { height: 9px; }
 
 .teacher-note-block__tip {

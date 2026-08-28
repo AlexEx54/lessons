@@ -15,7 +15,7 @@
   } = markdown;
   const { normalizeTeacherNoteBlock, renderTeacherNoteBlock } = blockComponent;
   const renderMarkdownInto = (container, value, documentRef) => (
-    markdown.renderMarkdownInto(container, value, documentRef, 'teacher-note__spacer')
+    markdown.renderMarkdownInto(container, value, documentRef, 'teacher-note__spacer', { linkify: true })
   );
 
   function normalizeTeacherNote(data) {
