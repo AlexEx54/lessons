@@ -27,6 +27,36 @@
   font-size: 12px;
 }
 
+.fill-in-blanks__word-bank {
+  margin: 0 0 16px;
+  padding: 11px 13px;
+  border: 1px solid #e3dcff;
+  border-radius: 9px;
+  background: #faf8ff;
+  color: #40394d;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.fill-in-blanks__word-bank-label {
+  margin-right: 7px;
+  color: #6545f5;
+  font-weight: 750;
+}
+
+.fill-in-blanks__word-bank-terms {
+  overflow-wrap: anywhere;
+}
+
+.fill-in-blanks__word-bank-term {
+  font-weight: 600;
+}
+
+.fill-in-blanks__word-bank-separator {
+  margin: 0 7px;
+  color: #9b8ce5;
+}
+
 .fill-in-blanks__edit {
   width: 34px;
   height: 34px;
@@ -291,6 +321,10 @@
 @media (max-width: 760px) {
   .fill-in-blanks {
     padding: 15px 12px;
+  }
+
+  .fill-in-blanks__word-bank {
+    padding: 10px 11px;
   }
 
   .fill-in-blanks__editor-item {

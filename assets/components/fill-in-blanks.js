@@ -60,6 +60,15 @@
     return Boolean(comparableAnswer(value)) && comparableAnswer(value) === comparableAnswer(answer);
   }
 
+  function shuffleWords(words, random = Math.random) {
+    const shuffled = [...words];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(random() * (index + 1));
+      [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+    }
+    return shuffled;
+  }
+
   function shouldShowAnswerKey(viewerRole) {
     if (!['teacher', 'student'].includes(viewerRole)) throw new Error('FillInBlanks requires a supported viewer role.');
     return viewerRole === 'teacher';
@@ -136,6 +145,29 @@
     }
 
     function paintView() {
+      const wordBank = doc.createElement('div');
+      wordBank.className = 'fill-in-blanks__word-bank';
+      wordBank.setAttribute('aria-label', 'Words and phrases to use');
+      const wordBankLabel = doc.createElement('strong');
+      wordBankLabel.className = 'fill-in-blanks__word-bank-label';
+      wordBankLabel.textContent = 'Words / phrases:';
+      const wordBankTerms = doc.createElement('span');
+      wordBankTerms.className = 'fill-in-blanks__word-bank-terms';
+      shuffleWords(current.items.map(item => item.answer)).forEach((answer, index) => {
+        if (index > 0) {
+          const separator = doc.createElement('span');
+          separator.className = 'fill-in-blanks__word-bank-separator';
+          separator.setAttribute('aria-hidden', 'true');
+          separator.textContent = '•';
+          wordBankTerms.append(separator);
+        }
+        const term = doc.createElement('span');
+        term.className = 'fill-in-blanks__word-bank-term';
+        term.textContent = answer;
+        wordBankTerms.append(term);
+      });
+      wordBank.append(wordBankLabel, wordBankTerms);
+
       const list = doc.createElement('ol');
       list.className = 'fill-in-blanks__items';
       current.items.forEach((item, index) => {
@@ -173,7 +205,7 @@
         row.append(sentence);
         list.append(row);
       });
-      const children = [list];
+      const children = [wordBank, list];
       if (shouldShowAnswerKey(viewerRole)) {
         const key = doc.createElement('aside');
         key.className = 'fill-in-blanks__answer-key';
@@ -355,6 +387,7 @@
     normalizeFillInBlanks,
     normalizeItems,
     renderFillInBlanks,
+    shuffleWords,
     shouldShowAnswerKey,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
