@@ -15,6 +15,8 @@
   gap: 14px;
 }
 
+.teacher-note-block__actions { display: inline-flex; flex: 0 0 auto; gap: 6px; }
+
 .teacher-note-block__title {
   display: flex;
   align-items: center;
@@ -106,6 +108,42 @@
   font-weight: 700;
 }
 .teacher-note-block__remove:hover { background: #ffedef; }
+
+.teacher-note-block__edit {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #dcd5fa;
+  border-radius: 6px;
+  color: #6545f5;
+  background: #fff;
+  font-size: 15px;
+  font-weight: 800;
+}
+.teacher-note-block__edit:hover { background: #f3f0ff; }
+.teacher-note-block__edit:disabled { opacity: .5; cursor: wait; }
+
+.teacher-note-block--editing .teacher-note-block__body,
+.teacher-note-block--editing .teacher-note-block__tip-text,
+.teacher-note-block__title-input {
+  border: 1px solid #a493f5;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(101, 69, 245, .1);
+  outline: none;
+}
+.teacher-note-block--editing .teacher-note-block__body,
+.teacher-note-block--editing .teacher-note-block__tip-text { padding: 8px 9px; }
+.teacher-note-block__title-input {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 7px;
+  color: inherit;
+  font: inherit;
+}
+.teacher-note-block--saving { opacity: .7; }
 
 @media (max-width: 700px) {
   .teacher-note-block { padding: 13px; }

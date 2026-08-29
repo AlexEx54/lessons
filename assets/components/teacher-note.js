@@ -182,6 +182,12 @@
     function paintBlocks() {
       const rendered = workingBlocks.map(block => renderTeacherNoteBlock(block, {
         removable: editing,
+        editable: !editing && typeof settings.onSave === 'function',
+        onSave: async (nextBlock) => {
+          const saved = await settings.onSave({ blocks: [nextBlock] }, data.id);
+          return (saved.blocks || []).find(item => item.id === nextBlock.id) || nextBlock;
+        },
+        onError: settings.onError,
         onRemove: (blockId) => {
           if (!editing || saving) return;
           workingBlocks = workingBlocks.filter(item => item.id !== blockId);

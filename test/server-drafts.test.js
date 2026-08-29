@@ -952,6 +952,38 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     'target-vocabulary-extra-phrases',
   ]);
 
+  const blockUpdateResponse = await fetch(
+    `${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/target-vocabulary-teacher-note`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+      body: JSON.stringify({
+        blocks: [{
+          id: 'target-vocabulary-pronunciation-check',
+          title: 'Updated title',
+          text: 'Updated text',
+          tip: { text: 'Updated tip' },
+        }],
+      }),
+    },
+  );
+  assert.equal(blockUpdateResponse.status, 200);
+  const updatedBlock = (await blockUpdateResponse.json()).draft.content.stages[2].content[0].blocks[0];
+  assert.deepEqual(
+    { title: updatedBlock.title, text: updatedBlock.text, tip: updatedBlock.tip },
+    { title: 'Updated title', text: 'Updated text', tip: { text: 'Updated tip' } },
+  );
+  assert.equal((await fetch(
+    `${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/target-vocabulary-teacher-note`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+      body: JSON.stringify({
+        blocks: [{ id: 'target-vocabulary-pronunciation-check', title: '', text: 'Tamper' }],
+      }),
+    },
+  )).status, 400);
+
   assert.equal((await fetch(
     `${baseUrl}/api/lesson-drafts/${created.id}/teacher-notes/target-vocabulary-teacher-note`,
     {

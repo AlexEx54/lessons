@@ -4,6 +4,7 @@
   const markdown = root.SafeMarkdown
     || (typeof require === 'function' ? require('./safe-markdown.js') : null);
   if (!markdown) throw new Error('TeacherNoteBlock requires SafeMarkdown.');
+  const { editorToMarkdown } = markdown;
 
   const ICONS = new Set(['audio', 'chat', 'chatDots']);
   const HEX_COLOR = /^#[0-9A-F]{6}$/;
@@ -91,6 +92,9 @@
     heading.append(icon, label);
     header.append(heading);
 
+    const actions = doc.createElement('div');
+    actions.className = 'teacher-note-block__actions';
+
     if (settings.removable && typeof settings.onRemove === 'function') {
       const remove = doc.createElement('button');
       remove.type = 'button';
@@ -98,12 +102,101 @@
       remove.textContent = 'Удалить';
       remove.setAttribute('aria-label', `Удалить подблок «${block.title}»`);
       remove.addEventListener('click', () => settings.onRemove(block.id));
-      header.append(remove);
+      actions.append(remove);
     }
 
     const body = doc.createElement('div');
     body.className = 'teacher-note-block__body';
     markdown.renderMarkdownInto(body, block.text, doc, 'teacher-note-block__spacer', { linkify: true });
+
+    let editing = false;
+    let saving = false;
+    let titleInput;
+    let tipText;
+
+    function cancelEditing() {
+      if (!editing || saving) return;
+      editing = false;
+      card.classList.remove('teacher-note-block--editing');
+      edit.textContent = '✎';
+      edit.setAttribute('aria-label', `Редактировать подблок «${block.title}»`);
+      edit.disabled = false;
+      heading.replaceChildren(icon, label);
+      body.contentEditable = 'false';
+      body.removeAttribute('role');
+      body.removeAttribute('aria-label');
+      markdown.renderMarkdownInto(body, block.text, doc, 'teacher-note-block__spacer', { linkify: true });
+      if (tipText) {
+        tipText.contentEditable = 'false';
+        tipText.removeAttribute('role');
+        tipText.removeAttribute('aria-label');
+        markdown.renderMarkdownInto(tipText, block.tip.text, doc, 'teacher-note-block__spacer', { linkify: true });
+      }
+    }
+
+    async function saveEditing() {
+      const next = {
+        id: block.id,
+        title: titleInput.value,
+        text: editorToMarkdown(body),
+      };
+      if (tipText) next.tip = { text: editorToMarkdown(tipText) };
+      if (!next.title.trim() || !next.text.trim() || (next.tip && !next.tip.text.trim())) {
+        if (typeof settings.onError === 'function') settings.onError('Заполните заголовок, текст и Tip.');
+        return;
+      }
+      saving = true;
+      card.classList.add('teacher-note-block--saving');
+      edit.disabled = true;
+      try {
+        const saved = await settings.onSave(next);
+        Object.assign(block, normalizeTeacherNoteBlock(saved));
+        label.textContent = block.title;
+        saving = false;
+        card.classList.remove('teacher-note-block--saving');
+        cancelEditing();
+      } catch (_error) {
+        saving = false;
+        card.classList.remove('teacher-note-block--saving');
+        edit.disabled = false;
+        body.focus();
+      }
+    }
+
+    function enterEditing() {
+      editing = true;
+      card.classList.add('teacher-note-block--editing');
+      titleInput = doc.createElement('input');
+      titleInput.type = 'text';
+      titleInput.className = 'teacher-note-block__title-input';
+      titleInput.value = block.title;
+      titleInput.setAttribute('aria-label', 'Заголовок подблока');
+      heading.replaceChildren(icon, titleInput);
+      body.contentEditable = 'true';
+      body.setAttribute('role', 'textbox');
+      body.setAttribute('aria-label', 'Текст подблока');
+      if (tipText) {
+        tipText.contentEditable = 'true';
+        tipText.setAttribute('role', 'textbox');
+        tipText.setAttribute('aria-label', 'Текст Tip');
+      }
+      edit.textContent = '✓';
+      edit.setAttribute('aria-label', `Сохранить подблок «${block.title}»`);
+      titleInput.focus();
+    }
+
+    let edit;
+    if (settings.editable && typeof settings.onSave === 'function') {
+      edit = doc.createElement('button');
+      edit.type = 'button';
+      edit.className = 'teacher-note-block__edit';
+      edit.textContent = '✎';
+      edit.setAttribute('aria-label', `Редактировать подблок «${block.title}»`);
+      edit.addEventListener('click', () => editing ? saveEditing() : enterEditing());
+      actions.append(edit);
+    }
+    if (actions.childNodes.length) header.append(actions);
+
     card.append(header, body);
 
     if (block.tip) {
@@ -116,13 +209,19 @@
       tipContent.className = 'teacher-note-block__tip-content';
       const tipLabel = doc.createElement('strong');
       tipLabel.textContent = 'Tip:';
-      const tipText = doc.createElement('div');
+      tipText = doc.createElement('div');
       tipText.className = 'teacher-note-block__tip-text';
       markdown.renderMarkdownInto(tipText, block.tip.text, doc, 'teacher-note-block__spacer', { linkify: true });
       tipContent.append(tipLabel, tipText);
       tip.append(tipIcon, tipContent);
       card.append(tip);
     }
+    card.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelEditing();
+      }
+    });
     return card;
   }
 
