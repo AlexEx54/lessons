@@ -331,7 +331,13 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.deepEqual(grammarPresentation.content[0], {
     type: 'teacherNote',
     id: 'grammar-presentation-teacher-note',
-    text: '- **Notice pattern:** “used to” = past habit/state that is different now; “get used to” = become accustomed to something new.\n- **CCQs to ask orally:** “Was it true in the past or is it true now?” “Was it easy at first?” “Are we talking about a past habit or a new situation?” “After ‘to’, do we use a base verb or -ing here?”\n- **Explain simply:** “used to” talks about before; “get used to” talks about adaptation over time.\n- **Typical mistakes:** “get used to + base verb” instead of “-ing”; confusing “used to” with past simple; writing “use to” in affirmative sentences.',
+    text: `In this section, we use a **Guided Discovery** approach. Please, do not explain the grammar rules right away. Let the student analyze the examples, answer the Concept-Checking Questions (CCQs), and figure out the patterns themselves. Task 2 is just a quick check to see if they grasp the basic concept before moving to deeper practice.
+
+**Task 1:** say "Now we are going to look at some new grammar structures. Please, read the example sentences carefully. Pay attention to the highlighted words and think about what they might mean." *Note for teacher: After reading the examples, go through the Concept-Checking Questions (CCQs) together. Help the student understand the logic without giving direct answers.*
+
+**Before looking at the grammar rule:** "Great! Now let's try to build the rule ourselves. Based on the examples and our discussion, drag the correct words into the gaps to complete the rule." *Note for teacher: Once the rule is completed, draw the student's attention to the 'Quick Rule' box to summarize and consolidate the information.*
+
+**Task 2:** say "Let's check how well you've understood the new rule. Please, read the sentences and choose the correct option from the drop-down list for each gap." *Note for teacher: Ask the student to explain **why** they chose a specific option (e.g., "Why did you choose this form here?"). Use the 'Short explanations' in the Answer Key if the student gets stuck or makes a mistake.*`,
   });
   assert.deepEqual(grammarPresentation.content[1], {
     type: 'textPanel',
