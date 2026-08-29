@@ -1216,6 +1216,7 @@ const server = http.createServer(async (req, res) => {
     const topic = typeof body.topic === 'string' ? body.topic.trim() : '';
     const requestedWarmUpTopic = typeof body.warmUpTopic === 'string' ? body.warmUpTopic.trim() : '';
     const warmUpTopic = requestedWarmUpTopic || topic;
+    const grammarTopic = typeof body.grammarTopic === 'string' ? body.grammarTopic.trim() : '';
     const template = typeof body.template === 'string' ? body.template.trim() : '';
     const synthetic = body.synthetic === true;
     if (!topic || topic.length > 120) {
@@ -1228,6 +1229,10 @@ const server = http.createServer(async (req, res) => {
     }
     if (warmUpTopic.length > 120) {
       json(res, 400, { error: 'Тема Warm-Up должна содержать не более 120 символов.' });
+      return;
+    }
+    if (!grammarTopic || grammarTopic.length > 120) {
+      json(res, 400, { error: 'Тема Grammar должна содержать от 1 до 120 символов.' });
       return;
     }
     if (template !== 'template-1') {
@@ -1254,6 +1259,7 @@ const server = http.createServer(async (req, res) => {
           ownerAdminId: user.id,
           topic,
           warmUpTopic,
+          grammarTopic,
           template,
           content: synthetic ? undefined : lesson,
         }, database);

@@ -50,6 +50,7 @@ test('admin sees lesson creation and drafts links in both profile menus', async 
   assert.match(html, /placeholder="Напр\. Luca Cartoon"/);
   assert.match(html, /name="warmUpTopic"/);
   assert.match(html, /placeholder="Необязательно — по умолчанию тема урока"/);
+  assert.match(html, /id="new-lesson-grammar-topic"[^>]*name="grammarTopic"[^>]*required/);
   assert.equal((html.match(/data-value="template-1"[^>]*>Шаблон 1<\/li>/g) || []).length, 1);
   assert.match(html, /data-new-lesson-select/);
   assert.match(html, /name="template" value="template-1"/);

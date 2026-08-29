@@ -95,11 +95,14 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.match(await adminPage.text(), /Черновики уроков/);
 
   for (const body of [
-    { topic: '   ', template: 'template-1' },
-    { topic: 'Topic', template: 'template-unknown' },
-    { topic: 'x'.repeat(121), template: 'template-1' },
-    { topic: 'Topic', warmUpTopic: 42, template: 'template-1' },
-    { topic: 'Topic', warmUpTopic: 'x'.repeat(121), template: 'template-1' },
+    { topic: '   ', grammarTopic: 'Past Simple', template: 'template-1' },
+    { topic: 'Topic', grammarTopic: 'Past Simple', template: 'template-unknown' },
+    { topic: 'x'.repeat(121), grammarTopic: 'Past Simple', template: 'template-1' },
+    { topic: 'Topic', warmUpTopic: 42, grammarTopic: 'Past Simple', template: 'template-1' },
+    { topic: 'Topic', warmUpTopic: 'x'.repeat(121), grammarTopic: 'Past Simple', template: 'template-1' },
+    { topic: 'Topic', template: 'template-1' },
+    { topic: 'Topic', grammarTopic: '   ', template: 'template-1' },
+    { topic: 'Topic', grammarTopic: 'x'.repeat(121), template: 'template-1' },
   ]) {
     const invalid = await fetch(`${baseUrl}/api/lesson-drafts`, {
       method: 'POST',
@@ -114,6 +117,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({
       topic: '  Travel English  ',
+      grammarTopic: '  Past Simple  ',
       template: 'template-1',
       synthetic: true,
       ownerAdminId: 'attempted-owner-override',
@@ -124,6 +128,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.ownerAdminId, firstAdmin.id);
   assert.equal(created.topic, 'Travel English');
   assert.equal(created.warmUpTopic, 'Travel English');
+  assert.equal(created.grammarTopic, 'Past Simple');
   assert.equal(created.status, 'review');
   assert.equal(created.imageGeneration.status, 'pending');
   assert.equal(created.imageGeneration.total, 23);

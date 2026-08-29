@@ -196,7 +196,7 @@ test('AI draft sequentially streams five generated sections with aggregate usage
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: cookie },
     body: JSON.stringify({
-      topic: 'Travel choices', warmUpTopic: '  City transport  ', template: 'template-1', synthetic: false,
+      topic: 'Travel choices', warmUpTopic: '  City transport  ', grammarTopic: 'Past Simple', template: 'template-1', synthetic: false,
     }),
   });
   assert.equal(createdResponse.status, 201);
@@ -357,7 +357,7 @@ test('Listening failure keeps the AI draft atomic and marks the whole generation
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: cookie },
     body: JSON.stringify({
-      topic: 'Travel choices', warmUpTopic: 'Warm-up transport', template: 'template-1', synthetic: false,
+      topic: 'Travel choices', warmUpTopic: 'Warm-up transport', grammarTopic: 'Past Simple', template: 'template-1', synthetic: false,
     }),
   });
   assert.equal(createdResponse.status, 201);

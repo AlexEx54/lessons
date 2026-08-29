@@ -18,6 +18,7 @@
   const newLessonDialog = newLessonModal?.querySelector('.new-lesson-dialog');
   const newLessonTopic = document.getElementById('new-lesson-topic');
   const newLessonWarmUpTopic = document.getElementById('new-lesson-warm-up-topic');
+  const newLessonGrammarTopic = document.getElementById('new-lesson-grammar-topic');
   const newLessonSynthetic = document.getElementById('new-lesson-synthetic');
   const createLessonDraftButton = newLessonModal?.querySelector('[data-create-lesson-draft]');
   const newLessonSelect = newLessonModal?.querySelector('[data-new-lesson-select]');
@@ -178,11 +179,17 @@
   }
 
   async function createLessonDraft() {
-    if (!createLessonDraftButton || !newLessonTopic || !newLessonSelectInput) return;
+    if (!createLessonDraftButton || !newLessonTopic || !newLessonGrammarTopic || !newLessonSelectInput) return;
     const topic = newLessonTopic.value.trim();
     if (!topic) {
       showToast('Укажите тему урока.');
       newLessonTopic.focus();
+      return;
+    }
+    const grammarTopic = newLessonGrammarTopic.value.trim();
+    if (!grammarTopic) {
+      showToast('Укажите тему Grammar.');
+      newLessonGrammarTopic.focus();
       return;
     }
 
@@ -196,6 +203,7 @@
         body: JSON.stringify({
           topic,
           warmUpTopic: newLessonWarmUpTopic?.value.trim() || '',
+          grammarTopic,
           template: newLessonSelectInput.value,
           synthetic: Boolean(newLessonSynthetic?.checked),
         }),
