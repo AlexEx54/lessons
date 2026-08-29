@@ -42,7 +42,7 @@ const { READING_TEACHER_NOTE_TEXT } = require('../lib/reading-static.js');
 const { LISTENING_TEACHER_NOTE_TEXT } = require('../lib/synthetic-lesson.js');
 
 const GENERATED_WARM_UP = Object.freeze({
-  teacherNotes: '- Покажите варианты и попросите коротко объяснить выбор.\n\n**Say:** “Which space trip would you choose?”',
+  teacherNotes: '- Show the options and ask the learner to briefly explain their choice.\n\n**Say:** “Which space trip would you choose?”',
   yourTurnInstruction: 'Choose one option in each pair and explain your choice.',
   choices: Array.from({ length: 4 }, (_value, index) => ({
     options: [{
@@ -59,10 +59,10 @@ const GENERATED_WARM_UP = Object.freeze({
 
 const GENERATED_LEAD_IN = Object.freeze({
   teacherNotes: [
-    'Прочитайте текст вместе с учеником и предложите ему ответить на вопросы.',
-    '- Объясните фразу **low-key** — немного или в некоторой степени.',
-    '- Если третий ответ короткий, попросите развить мысль: *Why do you think so?*',
-    '- После ответов спросите: *Can you guess what our lesson is about?*',
+    'Read the text together with the learner and invite them to answer the questions.',
+    '- Explain that **low-key** means slightly or to some extent.',
+    '- If the third answer is short, encourage the learner to explain: *Why do you think so?*',
+    '- After the answers, ask: *Can you guess what our lesson is about?*',
     '',
     '**Say:** *We are going to talk about space travel.*',
   ].join('\n'),
@@ -363,6 +363,9 @@ test('Warm-Up prompt requires three teacher-note bullets and a separate Say para
   const messages = warmUpMessages('Space travel');
   const systemPrompt = messages.find(message => message.role === 'system').content;
   assert.match(systemPrompt, /exactly three Markdown bullet points followed by a separate Say paragraph/);
+  assert.match(systemPrompt, /every part of teacherNotes in English/);
+  assert.match(systemPrompt, /including instructions and direct address to the teacher/);
+  assert.doesNotMatch(systemPrompt, /In Russian/);
   assert.match(systemPrompt, /briefly explain the purpose of the lead-in question/);
   assert.match(systemPrompt, /exact question for the learner in natural A2 English/);
   assert.match(systemPrompt, /summarize the main Warm-Up topic/);
@@ -381,9 +384,10 @@ test('Lead-In prompt keeps Teacher’s Notes in one field and defines all conten
   const messages = leadInMessages('Space travel and Past Simple');
   const systemPrompt = messages.find(message => message.role === 'system').content;
   assert.match(systemPrompt, /teacherNotes as one Markdown string/);
-  assert.match(systemPrompt, /Прочитайте текст вместе с учеником и предложите ему ответить на вопросы/);
-  assert.doesNotMatch(systemPrompt, /Read the text together and encourage a student/);
-  assert.match(systemPrompt, /In Russian, list the one or two modern English phrases/);
+  assert.match(systemPrompt, /Read the text together with the learner and invite them to answer the questions/);
+  assert.match(systemPrompt, /every part of teacherNotes in English/);
+  assert.match(systemPrompt, /including instructions and direct address to the teacher/);
+  assert.doesNotMatch(systemPrompt, /In Russian|Russian is allowed/);
   assert.match(systemPrompt, /one-word or very short answer to question 3/);
   assert.match(systemPrompt, /Why do you think so/);
   assert.match(systemPrompt, /whether the learner can guess the lesson topic/);
@@ -398,6 +402,17 @@ test('Lead-In prompt keeps Teacher’s Notes in one field and defines all conten
   ]);
   assert.equal(LEAD_IN_RESPONSE_SCHEMA.properties.questions.minItems, 3);
   assert.equal(LEAD_IN_RESPONSE_SCHEMA.properties.questions.maxItems, 3);
+});
+
+test('generated Teacher’s Notes reject Cyrillic text', () => {
+  assert.throws(() => buildWarmUpContent({
+    ...GENERATED_WARM_UP,
+    teacherNotes: '- Попросите ученика объяснить выбор.',
+  }), /полностью на английском языке/);
+  assert.throws(() => buildLeadInContent({
+    ...GENERATED_LEAD_IN,
+    teacherNotes: 'Обратитесь к учителю напрямую.',
+  }), /полностью на английском языке/);
 });
 
 test('Target Vocabulary prompt and schema keep static copy out of the model response', () => {

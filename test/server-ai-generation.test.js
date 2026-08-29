@@ -19,7 +19,7 @@ const { GENERATED_LISTENING } = require('./fixtures/generated-listening.js');
 const ROOT = path.join(__dirname, '..');
 
 const WARM_UP = {
-  teacherNotes: '- Попросите ученика выбрать вариант и назвать причину.\n\n**Say:** “Which journey would you choose?”',
+  teacherNotes: '- Ask the learner to choose an option and give a reason.\n\n**Say:** “Which journey would you choose?”',
   yourTurnInstruction: 'Choose one option and explain your answer.',
   choices: Array.from({ length: 4 }, (_value, index) => ({
     options: [{
@@ -36,10 +36,10 @@ const WARM_UP = {
 
 const LEAD_IN = {
   teacherNotes: [
-    'Прочитайте текст вместе с учеником и предложите ему ответить на вопросы.',
-    '- Объясните фразу **on the go** — в дороге или во время движения.',
-    '- Если ответ на третий вопрос короткий, спросите: *Why do you think so?*',
-    '- После ответов спросите: *Can you guess what our lesson is about?*',
+    'Read the text together with the learner and invite them to answer the questions.',
+    '- Explain that **on the go** means busy or moving from place to place.',
+    '- If the answer to question 3 is short, ask: *Why do you think so?*',
+    '- After the answers, ask: *Can you guess what our lesson is about?*',
     '',
     '**Say:** *We are going to talk about travel choices.*',
   ].join('\n'),
