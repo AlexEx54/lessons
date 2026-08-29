@@ -128,6 +128,20 @@
     return svg;
   }
 
+  function createEyeIcon(doc) {
+    const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    const eye = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
+    eye.setAttribute('d', 'M2.7 12s3.4-6 9.3-6 9.3 6 9.3 6-3.4 6-9.3 6-9.3-6-9.3-6Z');
+    const pupil = doc.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    pupil.setAttribute('cx', '12');
+    pupil.setAttribute('cy', '12');
+    pupil.setAttribute('r', '2.6');
+    svg.append(eye, pupil);
+    return svg;
+  }
+
   function renderAudioPlayer(data, options, documentRef) {
     let settings = options || {};
     let doc = documentRef || root.document;
@@ -164,7 +178,6 @@
     editButton.className = 'audio-player__edit';
     editButton.textContent = '✎';
     editButton.setAttribute('aria-label', 'Редактировать аудио');
-    actions.append(editButton);
     header.append(title, actions);
 
     const slot = doc.createElement('div');
@@ -438,6 +451,40 @@
       return controls;
     }
 
+    function renderScriptBox(full, includeFileControls = false) {
+      const scriptBox = doc.createElement('div');
+      scriptBox.className = full
+        ? 'audio-player__script audio-player__script--full'
+        : 'audio-player__script audio-player__script--preview';
+      const icon = doc.createElement('span');
+      icon.className = 'audio-player__script-icon';
+      icon.append(createAudioIcon(doc));
+      const scriptText = doc.createElement('pre');
+      scriptText.className = 'audio-player__script-text';
+      scriptText.textContent = full ? current.script : previewScript(current.script);
+      const scriptActions = doc.createElement('div');
+      scriptActions.className = 'audio-player__script-actions';
+      const showTranscriptButton = doc.createElement('button');
+      showTranscriptButton.type = 'button';
+      showTranscriptButton.className = 'audio-player__show';
+      showTranscriptButton.dataset.studentVisibilityControl = '';
+      showTranscriptButton.append(createEyeIcon(doc), doc.createTextNode('Показать'));
+      showTranscriptButton.setAttribute('aria-label', 'Показать транскрипцию ученику');
+      const copy = doc.createElement('button');
+      copy.type = 'button';
+      copy.className = 'audio-player__copy';
+      copy.textContent = '⧉';
+      copy.title = 'Скопировать текст для озвучки';
+      copy.setAttribute('aria-label', 'Скопировать текст для озвучки');
+      copy.addEventListener('click', () => copyScript(copy));
+      scriptActions.append(copy, showTranscriptButton);
+      scriptBox.append(icon, scriptText, scriptActions);
+      if (includeFileControls && typeof settings.onUpload === 'function') {
+        scriptBox.append(fileControls(false));
+      }
+      return scriptBox;
+    }
+
     function renderSlot() {
       const canUpload = typeof settings.onUpload === 'function';
       const mode = slotRenderMode(current, editing, canUpload);
@@ -454,34 +501,12 @@
         applyPlaybackRate();
         paintPlayButton(false);
         paintProgress();
-        slot.append(player, audio);
+        slot.append(player, audio, renderScriptBox(true));
         if (editing && canUpload) slot.append(fileControls(true));
         return;
       }
 
-      const scriptBox = doc.createElement('div');
-      scriptBox.className = editing
-        ? 'audio-player__script audio-player__script--full'
-        : 'audio-player__script audio-player__script--preview';
-      const icon = doc.createElement('span');
-      icon.className = 'audio-player__script-icon';
-      icon.append(createAudioIcon(doc));
-      const scriptText = doc.createElement('pre');
-      scriptText.className = 'audio-player__script-text';
-      scriptText.textContent = editing ? current.script : previewScript(current.script);
-      const scriptActions = doc.createElement('div');
-      scriptActions.className = 'audio-player__script-actions';
-      const copy = doc.createElement('button');
-      copy.type = 'button';
-      copy.className = 'audio-player__copy';
-      copy.textContent = '⧉';
-      copy.title = 'Скопировать текст для озвучки';
-      copy.setAttribute('aria-label', 'Скопировать текст для озвучки');
-      copy.addEventListener('click', () => copyScript(copy));
-      scriptActions.append(copy);
-      scriptBox.append(icon, scriptText, scriptActions);
-      if (editing && canUpload) scriptBox.append(fileControls(false));
-      slot.append(scriptBox);
+      slot.append(renderScriptBox(editing, editing && canUpload));
     }
 
     function paint(value, replaceCurrent = false) {
@@ -571,7 +596,7 @@
     });
 
     paint(current);
-    if (typeof settings.onSave !== 'function') actions.replaceChildren();
+    if (typeof settings.onSave === 'function') actions.append(editButton);
     section.append(header, slot);
     return section;
   }

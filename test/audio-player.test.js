@@ -191,13 +191,28 @@ test('audioPlayer preview shows two script lines, an audio icon, and copies the 
 });
 
 test('audioPlayer shows a player when audioSrc is present', () => {
-  const section = renderAudioPlayer(player({ audioSrc: '/audio.mp3' }), {}, createFakeDocument());
+  const script = 'Alex: Hello.\nMia: Hi.\nAlex: Are you ready?';
+  const section = renderAudioPlayer(
+    player({ script, audioSrc: '/audio.mp3' }),
+    {},
+    createFakeDocument(),
+  );
   assert.equal(byClass(section, 'audio-player__slot')[0].hidden, false);
   assert.equal(byClass(section, 'audio-player__controls').length, 1);
   assert.equal(byClass(section, 'audio-player__ticks').length, 1);
   assert.equal(byClass(section, 'audio-player__time')[0].textContent, '00:00');
   assert.equal(byClass(section, 'audio-player__speed')[0].textContent, '1x');
-  assert.equal(byClass(section, 'audio-player__script-text').length, 0);
+  assert.equal(byClass(section, 'audio-player__script-text')[0].textContent, script);
+  assert.ok(byClass(section, 'audio-player__script')[0].className.includes('audio-player__script--full'));
+  assert.equal(byClass(section, 'audio-player__show').length, 1);
+  const showTranscriptButton = byClass(section, 'audio-player__show')[0];
+  assert.equal(showTranscriptButton.textContent, 'Показать');
+  assert.ok(descendants(byClass(section, 'audio-player__script')[0]).includes(showTranscriptButton));
+  assert.equal(byClass(section, 'audio-player__script-actions')[0].childNodes[1], showTranscriptButton);
+  assert.equal(
+    showTranscriptButton.getAttribute('aria-label'),
+    'Показать транскрипцию ученику',
+  );
 });
 
 test('audioPlayer CSS draws a card background and tick marks instead of a solid seek line', () => {
@@ -206,5 +221,9 @@ test('audioPlayer CSS draws a card background and tick marks instead of a solid 
   assert.match(css, /\.audio-player__ticks/);
   assert.match(css, /repeating-linear-gradient\(to right/);
   assert.match(css, /-webkit-line-clamp:\s*2/);
+  assert.match(css, /\.audio-player__show/);
+  assert.match(css, /\.audio-player__script--full \.audio-player__script-text[^{]*\{[^}]*max-height:\s*none/);
+  assert.match(css, /\.audio-player__script--full \.audio-player__script-text[^{]*\{[^}]*overflow:\s*visible/);
+  assert.match(css, /\.audio-player__script--full \.audio-player__script-actions[^{]*\{[^}]*justify-content:\s*space-between/);
   assert.doesNotMatch(css, /\.audio-player__slider[^{]*\{[^}]*height:\s*4px/);
 });

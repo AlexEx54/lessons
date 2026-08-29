@@ -31,7 +31,7 @@
   box-shadow: inset 0 -1px 0 #d8d3ee;
 }
 
-.audio-player__actions { flex: 0 0 auto; }
+.audio-player__actions { display: flex; flex: 0 0 auto; gap: 7px; }
 .audio-player__edit {
   display: grid;
   place-items: center;
@@ -44,6 +44,28 @@
   font-size: 17px;
 }
 .audio-player__edit:disabled { opacity: .5; cursor: wait; }
+.audio-player__show {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 11px;
+  gap: 6px;
+  border: 1px solid #e4e1f3;
+  border-radius: 8px;
+  color: #6545f5;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.audio-player__show svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+.audio-player__show:hover { background: #f6f3ff; }
 
 .audio-player__slot { margin-top: 12px; }
 .audio-player__controls {
@@ -189,11 +211,12 @@
   -webkit-line-clamp: 2;
 }
 .audio-player__script--full .audio-player__script-text {
-  max-height: 280px;
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
 }
 .audio-player__script-actions {
   flex: 0 0 auto;
+  gap: 7px;
 }
 .audio-player__script--full .audio-player__script-actions,
 .audio-player__script .audio-player__file-actions {
@@ -201,7 +224,11 @@
   right: 10px;
   bottom: 10px;
 }
-.audio-player__script--full .audio-player__script-actions { left: 10px; right: auto; }
+.audio-player__script--full .audio-player__script-actions {
+  left: 10px;
+  right: 10px;
+  justify-content: space-between;
+}
 .audio-player__copy,
 .audio-player__file-action {
   min-height: 31px;
@@ -222,7 +249,8 @@
 }
 .audio-player__copy--done { color: #15983d; border-color: #a8ddb5; }
 .audio-player__file-actions { gap: 8px; }
-.audio-player__controls + .audio-player__file-actions { margin-top: 12px; }
+.audio-player__controls + .audio-player__file-actions,
+.audio-player__script + .audio-player__file-actions { margin-top: 12px; }
 .audio-player__file-action--remove { color: #d53f4b; }
 
 .audio-player--busy { opacity: .72; pointer-events: none; }
@@ -231,5 +259,5 @@
   .audio-player__controls { gap: 8px; padding-right: 12px; }
   .audio-player__play { width: 36px; height: 36px; }
   .audio-player__title { font-size: 16px; }
-  .audio-player__script-text { max-height: 220px; font-size: 12px; }
+  .audio-player__script-text { font-size: 12px; }
 }
