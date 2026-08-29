@@ -1736,6 +1736,7 @@ const server = http.createServer(async (req, res) => {
           ownerAdminId: user.id,
           componentId: audioPlayerRoute.componentId,
           title: body.title,
+          script: body.script,
         }, database);
       } else if (miniSituationRoute) {
         draft = updateMiniSituation({

@@ -172,7 +172,7 @@
   padding: 10px 12px;
 }
 .audio-player__script--full {
-  padding: 14px 16px 52px;
+  padding: 14px 120px 52px 16px;
 }
 .audio-player__script-icon {
   display: grid;
@@ -204,6 +204,11 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.audio-player--editing .audio-player__script-text {
+  outline: none;
+  border-radius: 6px;
+  box-shadow: inset 0 -1px 0 #d8d3ee;
+}
 .audio-player__script--preview .audio-player__script-text {
   display: -webkit-box;
   overflow: hidden;
@@ -226,8 +231,12 @@
 }
 .audio-player__script--full .audio-player__script-actions {
   left: 10px;
+  right: auto;
+}
+.audio-player__script--full .audio-player__show {
+  position: absolute;
+  top: 10px;
   right: 10px;
-  justify-content: space-between;
 }
 .audio-player__copy,
 .audio-player__file-action {
@@ -260,4 +269,5 @@
   .audio-player__play { width: 36px; height: 36px; }
   .audio-player__title { font-size: 16px; }
   .audio-player__script-text { font-size: 12px; }
+  .audio-player__script--full { padding: 56px 12px 52px; }
 }

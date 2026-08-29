@@ -1263,12 +1263,26 @@ test('audio player title and audio slot can be updated only in an owned review d
     script: 'Alex: Hello.\nMia: Hi.',
   });
 
+  const transcriptUpdated = updateAudioPlayer({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'listening-audio',
+    title: '  Play the updated dialogue  ',
+    script: '  Alex: Updated.\nMia: Saved.  ',
+  }, database);
+  assert.deepEqual(transcriptUpdated.content.stages[0].content[0], {
+    type: 'audioPlayer',
+    id: 'listening-audio',
+    title: 'Play the updated dialogue',
+    script: 'Alex: Updated.\nMia: Saved.',
+  });
+
   const added = updateAudioPlayerAudio({
     id: ready.id, ownerAdminId: owner.id, componentId: 'listening-audio', audioSrc: '/audio.mp3',
   }, database);
   assert.equal(added.previousAudioSrc, null);
   assert.equal(added.draft.content.stages[0].content[0].audioSrc, '/audio.mp3');
-  assert.equal(added.draft.content.stages[0].content[0].script, 'Alex: Hello.\nMia: Hi.');
+  assert.equal(added.draft.content.stages[0].content[0].script, 'Alex: Updated.\nMia: Saved.');
   const removed = updateAudioPlayerAudio({
     id: ready.id, ownerAdminId: owner.id, componentId: 'listening-audio', audioSrc: null,
   }, database);
@@ -1278,6 +1292,12 @@ test('audio player title and audio slot can be updated only in an owned review d
   assert.throws(() => updateAudioPlayer({
     id: ready.id, ownerAdminId: owner.id, componentId: 'listening-audio', title: '',
   }, database), /requires title/);
+  assert.throws(() => updateAudioPlayer({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'listening-audio', script: '  ',
+  }, database), /requires script/);
+  assert.throws(() => updateAudioPlayer({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'listening-audio', script: '**Markup**',
+  }, database), /HTML or Markdown in script/);
   assert.throws(() => updateAudioPlayer({
     id: ready.id, ownerAdminId: outsider.id, componentId: 'listening-audio', title: 'Title',
   }, database), /Черновик урока не найден/);

@@ -24,10 +24,18 @@
   const imageGenerationStop = byId('image-generation-stop');
   const imageGenerationStart = byId('image-generation-start');
 
+  function syncImageGenerationBannerHeight() {
+    const height = imageBanner.hidden ? 0 : imageBanner.getBoundingClientRect().height;
+    document.documentElement.style.setProperty('--image-generation-banner-height', `${height}px`);
+  }
+
   function updateImageGenerationBanner() {
     const generation = state.imageGeneration;
     imageBanner.hidden = !generation;
-    if (!generation) return;
+    if (!generation) {
+      syncImageGenerationBannerHeight();
+      return;
+    }
     const labels = {
       pending: 'Изображения ожидают запуска',
       running: `Готовим изображения: ${generation.completed} из ${generation.total}`,
@@ -48,6 +56,7 @@
       : '0%';
     imageGenerationStop.hidden = !['pending', 'running'].includes(generation.status);
     imageGenerationStart.hidden = !['stopped', 'unavailable', 'failed'].includes(generation.status);
+    syncImageGenerationBannerHeight();
   }
 
   function mergeGeneratedImages(target, fresh) {
@@ -1358,6 +1367,7 @@
   byId('teacher-screen').addEventListener('click', () => showToast('Экран преподавателя уже открыт.'));
   imageGenerationStop.addEventListener('click', () => changeImageGeneration('stop', imageGenerationStop));
   imageGenerationStart.addEventListener('click', () => changeImageGeneration('start', imageGenerationStart));
+  window.addEventListener('resize', syncImageGenerationBannerHeight);
   byId('lesson-timer').addEventListener('click', () => {
     if (state.timer) {
       window.clearInterval(state.timer);

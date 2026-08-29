@@ -1322,17 +1322,34 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   const audioPlayerUpdateResponse = await fetch(audioPlayerEndpoint, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
-    body: JSON.stringify({ title: 'Play the dialogue' }),
+    body: JSON.stringify({
+      title: 'Play the dialogue',
+      script: 'Alex: Updated transcript.\nMia: Saved transcript.',
+    }),
   });
   assert.equal(audioPlayerUpdateResponse.status, 200);
   const savedAudioPlayer = (await audioPlayerUpdateResponse.json()).draft.content.stages[4].content[1];
   assert.equal(savedAudioPlayer.title, 'Play the dialogue');
-  assert.ok(savedAudioPlayer.script.includes('AFK Summer'));
+  assert.equal(savedAudioPlayer.script, 'Alex: Updated transcript.\nMia: Saved transcript.');
   assert.equal(savedAudioPlayer.audioSrc, undefined);
+  const titleOnlyResponse = await fetch(audioPlayerEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ title: 'Listen again' }),
+  });
+  assert.equal(titleOnlyResponse.status, 200);
+  const titleOnlyAudioPlayer = (await titleOnlyResponse.json()).draft.content.stages[4].content[1];
+  assert.equal(titleOnlyAudioPlayer.title, 'Listen again');
+  assert.equal(titleOnlyAudioPlayer.script, 'Alex: Updated transcript.\nMia: Saved transcript.');
   assert.equal((await fetch(audioPlayerEndpoint, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({ title: '' }),
+  })).status, 400);
+  assert.equal((await fetch(audioPlayerEndpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
+    body: JSON.stringify({ script: '**Markup**' }),
   })).status, 400);
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/audio-player/missing-audio`, {
     method: 'PATCH',

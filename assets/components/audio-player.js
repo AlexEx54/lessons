@@ -161,6 +161,7 @@
     let objectUrl = '';
     let objectUrlFor = '';
     let sourcePromise = null;
+    let scriptText = null;
 
     const section = doc.createElement('section');
     section.className = 'audio-player';
@@ -240,7 +241,10 @@
     }
 
     function snapshot() {
-      return JSON.stringify({ title: normalizeTitle(title.textContent || '') });
+      return JSON.stringify({
+        title: normalizeTitle(title.textContent || ''),
+        script: normalizeScript(scriptText ? scriptText.textContent : current.script),
+      });
     }
 
     function setDirty(dirty) {
@@ -377,7 +381,7 @@
       try {
         const clipboard = root.navigator && root.navigator.clipboard;
         if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('Clipboard unavailable');
-        await clipboard.writeText(current.script);
+        await clipboard.writeText(editing && scriptText ? scriptText.textContent : current.script);
         button.classList.add('audio-player__copy--done');
         notify('Текст для озвучки скопирован.');
         root.setTimeout(() => button.classList.remove('audio-player__copy--done'), 900);
@@ -388,12 +392,21 @@
 
     async function uploadAudio(file) {
       if (!file || audioBusy || typeof settings.onUpload !== 'function') return;
+      const editorDraft = editing ? {
+        title: title.textContent,
+        script: scriptText ? scriptText.textContent : current.script,
+      } : null;
       audioBusy = true;
       section.classList.add('audio-player--busy');
       try {
         const saved = await settings.onUpload(file, current.id);
         current = normalizeAudioPlayer(saved);
         renderSlot();
+        if (editorDraft) {
+          title.textContent = editorDraft.title;
+          scriptText.textContent = editorDraft.script;
+          updateDirty();
+        }
       } catch (_error) {
         // The parent renderer owns the visible error toast.
       } finally {
@@ -404,9 +417,13 @@
 
     async function deleteAudio() {
       if (audioBusy || typeof settings.onDelete !== 'function') return;
-      if (typeof root.confirm === 'function' && !root.confirm('Удалить аудио и снова показать текст для озвучки?')) {
+      if (typeof root.confirm === 'function' && !root.confirm('Удалить аудиофайл?')) {
         return;
       }
+      const editorDraft = editing ? {
+        title: title.textContent,
+        script: scriptText ? scriptText.textContent : current.script,
+      } : null;
       audioBusy = true;
       section.classList.add('audio-player--busy');
       try {
@@ -414,6 +431,11 @@
         current = normalizeAudioPlayer(saved);
         resetAudioElement();
         renderSlot();
+        if (editorDraft) {
+          title.textContent = editorDraft.title;
+          scriptText.textContent = editorDraft.script;
+          updateDirty();
+        }
       } catch (_error) {
         // The parent renderer owns the visible error toast.
       } finally {
@@ -451,7 +473,7 @@
       return controls;
     }
 
-    function renderScriptBox(full, includeFileControls = false) {
+    function renderScriptBox(full, includeFileControls = false, hasAudio = false) {
       const scriptBox = doc.createElement('div');
       scriptBox.className = full
         ? 'audio-player__script audio-player__script--full'
@@ -459,9 +481,22 @@
       const icon = doc.createElement('span');
       icon.className = 'audio-player__script-icon';
       icon.append(createAudioIcon(doc));
-      const scriptText = doc.createElement('pre');
+      scriptText = doc.createElement('pre');
       scriptText.className = 'audio-player__script-text';
-      scriptText.textContent = full ? current.script : previewScript(current.script);
+      scriptText.textContent = current.script;
+      scriptText.contentEditable = editing ? 'true' : 'false';
+      if (editing) {
+        scriptText.setAttribute('role', 'textbox');
+        scriptText.setAttribute('aria-label', 'Транскрипция аудио');
+        scriptText.setAttribute('aria-multiline', 'true');
+      }
+      scriptText.addEventListener('input', () => { if (editing) updateDirty(); });
+      scriptText.addEventListener('paste', (event) => {
+        if (!editing) return;
+        event.preventDefault();
+        const plainText = event.clipboardData?.getData('text/plain') || '';
+        if (typeof doc.execCommand === 'function') doc.execCommand('insertText', false, plainText);
+      });
       const scriptActions = doc.createElement('div');
       scriptActions.className = 'audio-player__script-actions';
       const showTranscriptButton = doc.createElement('button');
@@ -477,10 +512,10 @@
       copy.title = 'Скопировать текст для озвучки';
       copy.setAttribute('aria-label', 'Скопировать текст для озвучки');
       copy.addEventListener('click', () => copyScript(copy));
-      scriptActions.append(copy, showTranscriptButton);
-      scriptBox.append(icon, scriptText, scriptActions);
+      scriptActions.append(copy);
+      scriptBox.append(icon, scriptText, scriptActions, showTranscriptButton);
       if (includeFileControls && typeof settings.onUpload === 'function') {
-        scriptBox.append(fileControls(false));
+        scriptBox.append(fileControls(hasAudio));
       }
       return scriptBox;
     }
@@ -490,6 +525,7 @@
       const mode = slotRenderMode(current, editing, canUpload);
       slot.hidden = mode === 'hidden';
       slot.replaceChildren();
+      scriptText = null;
       if (mode === 'hidden') {
         resetAudioElement();
         return;
@@ -501,12 +537,11 @@
         applyPlaybackRate();
         paintPlayButton(false);
         paintProgress();
-        slot.append(player, audio, renderScriptBox(true));
-        if (editing && canUpload) slot.append(fileControls(true));
+        slot.append(player, audio, renderScriptBox(true, editing && canUpload, true));
         return;
       }
 
-      slot.append(renderScriptBox(editing, editing && canUpload));
+      slot.append(renderScriptBox(true, editing && canUpload));
     }
 
     function paint(value, replaceCurrent = false) {
@@ -520,6 +555,7 @@
       editing = false;
       saving = false;
       title.contentEditable = 'false';
+      if (scriptText) scriptText.contentEditable = 'false';
       title.removeAttribute('role');
       title.removeAttribute('aria-label');
       editButton.textContent = '✎';
@@ -537,12 +573,12 @@
       title.contentEditable = 'true';
       title.setAttribute('role', 'textbox');
       title.setAttribute('aria-label', 'Заголовок аудио');
-      initialSnapshot = JSON.stringify({ title: current.title });
+      initialSnapshot = JSON.stringify({ title: current.title, script: current.script });
       editButton.textContent = '✓';
-      editButton.setAttribute('aria-label', 'Сохранить заголовок аудио');
+      editButton.setAttribute('aria-label', 'Сохранить аудиоплеер');
       section.classList.add('audio-player--editing');
       renderSlot();
-      title.focus();
+      scriptText.focus();
     }
 
     function cancelEditing() {
@@ -554,26 +590,29 @@
 
     async function saveEditing() {
       if (!editing || saving) return;
-      let nextTitle;
+      let changes;
       try {
-        nextTitle = normalizeTitle(title.textContent || '');
-        normalizeAudioPlayer({ ...current, title: nextTitle });
+        changes = {
+          title: normalizeTitle(title.textContent || ''),
+          script: normalizeScript(scriptText ? scriptText.textContent : ''),
+        };
+        normalizeAudioPlayer({ ...current, ...changes });
       } catch (_error) {
-        notify('Введите заголовок.');
+        notify('Введите заголовок и транскрипцию аудио.');
         return;
       }
       saving = true;
       section.classList.add('audio-player--saving');
       editButton.disabled = true;
       try {
-        const saved = await settings.onSave({ title: nextTitle }, current.id);
-        paint(saved || { ...current, title: nextTitle }, Boolean(saved));
+        const saved = await settings.onSave(changes, current.id);
+        paint(saved || { ...current, ...changes }, Boolean(saved));
         leaveEditMode();
       } catch (_error) {
         saving = false;
         section.classList.remove('audio-player--saving');
         editButton.disabled = false;
-        title.focus();
+        scriptText.focus();
       }
     }
 
