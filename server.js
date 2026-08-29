@@ -67,11 +67,13 @@ const {
   OPENROUTER_BASE_URL,
   OPENROUTER_MODEL,
   applyLeadInToSkeleton,
+  applyListeningToSkeleton,
   applyReadingToSkeleton,
   applyTargetVocabularyToSkeleton,
   applyWarmUpToSkeleton,
   createLessonSkeleton,
   generateLeadIn,
+  generateListening,
   generateReading,
   generateTargetVocabulary,
   generateWarmUp,
@@ -288,16 +290,25 @@ async function runAiLessonGeneration({ draftId, ownerAdminId, topic, warmUpTopic
         vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
       }),
     );
+    const listeningResult = await generateSection(
+      'Listening',
+      topic,
+      options => generateListening({
+        ...options,
+        vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
+      }),
+    );
     const lessonWithWarmUp = applyWarmUpToSkeleton(skeleton, warmUpResult.generated);
     const lessonWithLeadIn = applyLeadInToSkeleton(lessonWithWarmUp, leadInResult.generated);
     const lessonWithTargetVocabulary = applyTargetVocabularyToSkeleton(
       lessonWithLeadIn, targetVocabularyResult.generated,
     );
-    const lesson = applyReadingToSkeleton(
+    const lessonWithReading = applyReadingToSkeleton(
       lessonWithTargetVocabulary,
       readingResult.generated,
       targetVocabularyResult.generated.vocabularyItems,
     );
+    const lesson = applyListeningToSkeleton(lessonWithReading, listeningResult.generated);
     database.exec('BEGIN IMMEDIATE');
     try {
       completeLessonDraft(draftId, ownerAdminId, lesson, database);

@@ -4,23 +4,28 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
   LEAD_IN_RESPONSE_SCHEMA,
+  LISTENING_RESPONSE_SCHEMA,
   OPENROUTER_MODEL,
   READING_RESPONSE_SCHEMA,
   TARGET_VOCABULARY_RESPONSE_SCHEMA,
   applyLeadInToSkeleton,
+  applyListeningToSkeleton,
   applyReadingToSkeleton,
   applyTargetVocabularyToSkeleton,
   applyWarmUpToSkeleton,
   buildLeadInContent,
+  buildListeningContent,
   buildReadingContent,
   buildTargetVocabularyContent,
   buildWarmUpContent,
   createLessonSkeleton,
   generateLeadIn,
+  generateListening,
   generateReading,
   generateTargetVocabulary,
   generateWarmUp,
   leadInMessages,
+  listeningMessages,
   parseOpenRouterStream,
   readingMessages,
   shuffleOptions,
@@ -32,7 +37,9 @@ const {
   TERMS,
 } = require('./fixtures/generated-target-vocabulary.js');
 const { GENERATED_READING } = require('./fixtures/generated-reading.js');
+const { GENERATED_LISTENING } = require('./fixtures/generated-listening.js');
 const { READING_TEACHER_NOTE_TEXT } = require('../lib/reading-static.js');
+const { LISTENING_TEACHER_NOTE_TEXT } = require('../lib/synthetic-lesson.js');
 
 const GENERATED_WARM_UP = Object.freeze({
   teacherNotes: '- Покажите варианты и попросите коротко объяснить выбор.\n\n**Say:** “Which space trip would you choose?”',
@@ -314,6 +321,44 @@ test('generated Reading rejects damaged questions, vocabulary references, and ar
   assert.throws(() => buildReadingContent(unsafeImagePrompt, vocabularyItems), /без текста/);
 });
 
+test('generated Listening is mapped onto the fixed synthetic component structure', () => {
+  const content = buildListeningContent(GENERATED_LISTENING, () => 0);
+  assert.deepEqual(content.map(component => component.type), [
+    'teacherNote', 'audioPlayer', 'checkboxChoice', 'audioPlayer', 'multipleChoice', 'markdownCard',
+  ]);
+  assert.equal(content[0].text, LISTENING_TEACHER_NOTE_TEXT);
+  assert.equal(content[1].id, 'listening-audio');
+  assert.equal(content[1].script, GENERATED_LISTENING.script);
+  assert.equal(content[2].items.length, 2);
+  assert.equal(content[3].id, 'listening-audio-again');
+  assert.equal(content[3].script, content[1].script);
+  assert.equal(content[4].items.length, 5);
+  assert.match(content[5].text, /^\*\*Task 1:\*\*\n\n1C —/);
+  assert.match(content[5].text, /2A, C —/);
+  assert.match(content[5].text, /\*\*Task 2:\*\*\n\n1A —/);
+  assert.equal(content[5].studentVisibility, 'teacherOnly');
+
+  const lesson = applyListeningToSkeleton(
+    createLessonSkeleton('Air travel'), GENERATED_LISTENING, () => 0,
+  );
+  assert.equal(lesson.stages[4].content.length, 6);
+  assert.ok(lesson.stages.filter(stage => stage.id !== 'listening')
+    .every(stage => stage.content.length === 0));
+});
+
+test('generated Listening keeps teacher notes static and rejects damaged question counts', () => {
+  const changed = { ...GENERATED_LISTENING, script: 'Mia: A different valid script.' };
+  assert.deepEqual(buildListeningContent(GENERATED_LISTENING)[0], buildListeningContent(changed)[0]);
+  assert.throws(() => buildListeningContent({
+    ...GENERATED_LISTENING,
+    gistQuestions: GENERATED_LISTENING.gistQuestions.slice(0, 1),
+  }), /ровно два gist-вопроса/);
+  assert.throws(() => buildListeningContent({
+    ...GENERATED_LISTENING,
+    detailQuestions: GENERATED_LISTENING.detailQuestions.slice(0, 4),
+  }), /ровно пять detail-вопросов/);
+});
+
 test('Warm-Up prompt requires three teacher-note bullets and a separate Say paragraph', () => {
   const messages = warmUpMessages('Space travel');
   const systemPrompt = messages.find(message => message.role === 'system').content;
@@ -392,6 +437,24 @@ test('Reading prompt receives the topic and exact Target Vocabulary contract', (
     'usedVocabularyTerms', 'gistQuestion', 'detailQuestions',
   ]);
   assert.equal(READING_RESPONSE_SCHEMA.properties.teacherNotes, undefined);
+});
+
+test('Listening prompt defines the audio formats and receives Target Vocabulary', () => {
+  const messages = listeningMessages('Air travel', GENERATED_TARGET_VOCABULARY.vocabularyItems);
+  const systemPrompt = messages[0].content;
+  assert.match(systemPrompt, /60 to 90 seconds/);
+  assert.match(systemPrompt, /voice-message exchange/);
+  assert.match(systemPrompt, /school announcement/);
+  assert.match(systemPrompt, /two or three speakers/);
+  assert.match(systemPrompt, /4 to 6 distinct entries/);
+  assert.match(systemPrompt, /exactly two gistQuestions/);
+  assert.match(systemPrompt, /exactly five detailQuestions/);
+  assert.match(systemPrompt, /Do not generate Teacher’s Notes/);
+  assert.match(messages[1].content, /Lesson topic: Air travel/);
+  assert.match(messages[1].content, /"book a ticket"/);
+  assert.equal(LISTENING_RESPONSE_SCHEMA.properties.gistQuestions.minItems, 2);
+  assert.equal(LISTENING_RESPONSE_SCHEMA.properties.detailQuestions.maxItems, 5);
+  assert.equal(LISTENING_RESPONSE_SCHEMA.properties.teacherNotes, undefined);
 });
 
 test('OpenRouter SSE parser joins split reasoning, output, id, and usage chunks', async () => {
@@ -518,5 +581,33 @@ test('generateReading sends its strict schema with Target Vocabulary and validat
   assert.equal(requestBody.response_format.json_schema.name, 'easyclass_reading');
   assert.deepEqual(requestBody.response_format.json_schema.schema, READING_RESPONSE_SCHEMA);
   assert.equal(requestBody.response_format.json_schema.strict, true);
+  assert.equal(result.generated.detailQuestions.length, 5);
+});
+
+test('generateListening sends its strict schema with Target Vocabulary and validates the result', async () => {
+  let requestBody;
+  const response = streamingResponse([
+    `data: ${JSON.stringify({ id: 'gen-listening', choices: [{ delta: { reasoning: 'Ready.' } }] })}`,
+    `data: ${JSON.stringify({ id: 'gen-listening', choices: [{ delta: { content: JSON.stringify(GENERATED_LISTENING) } }] })}`,
+    'data: {"id":"gen-listening","choices":[{"delta":{}}],"usage":{"cost":0.05}}',
+    'data: [DONE]',
+  ]);
+  const result = await generateListening({
+    topic: 'Air travel',
+    vocabularyItems: GENERATED_TARGET_VOCABULARY.vocabularyItems,
+    apiKey: 'test-key',
+    baseUrl: 'https://openrouter.test/api/v1/',
+    fetchImpl: async (url, options) => {
+      assert.equal(url, 'https://openrouter.test/api/v1/chat/completions');
+      requestBody = JSON.parse(options.body);
+      return response;
+    },
+  });
+  assert.match(requestBody.messages[1].content, /Lesson topic: Air travel/);
+  assert.match(requestBody.messages[1].content, /"board a plane"/);
+  assert.equal(requestBody.response_format.json_schema.name, 'easyclass_listening');
+  assert.deepEqual(requestBody.response_format.json_schema.schema, LISTENING_RESPONSE_SCHEMA);
+  assert.equal(requestBody.response_format.json_schema.strict, true);
+  assert.equal(result.generated.gistQuestions.length, 2);
   assert.equal(result.generated.detailQuestions.length, 5);
 });

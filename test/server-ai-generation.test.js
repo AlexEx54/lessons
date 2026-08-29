@@ -14,6 +14,7 @@ const {
   GENERATED_TARGET_VOCABULARY,
 } = require('./fixtures/generated-target-vocabulary.js');
 const { GENERATED_READING } = require('./fixtures/generated-reading.js');
+const { GENERATED_LISTENING } = require('./fixtures/generated-listening.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -88,7 +89,7 @@ async function login(baseUrl, email, password) {
   return response.headers.get('set-cookie').split(';')[0];
 }
 
-test('AI draft sequentially streams four generated sections with aggregate usage into review', async t => {
+test('AI draft sequentially streams five generated sections with aggregate usage into review', async t => {
   let openRouterRequestCount = 0;
   const openRouter = http.createServer((req, res) => {
     assert.equal(req.method, 'POST');
@@ -103,7 +104,9 @@ test('AI draft sequentially streams four generated sections with aggregate usage
       openRouterRequestCount += 1;
       assert.equal(payload.model, 'google/gemini-3.7-flash');
       assert.equal(payload.reasoning.effort, 'high');
-      const generated = [WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY, GENERATED_READING][requestIndex];
+      const generated = [
+        WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY, GENERATED_READING, GENERATED_LISTENING,
+      ][requestIndex];
       const usage = [{
           prompt_tokens: 220,
           completion_tokens: 140,
@@ -124,6 +127,11 @@ test('AI draft sequentially streams four generated sections with aggregate usage
           completion_tokens: 130,
           completion_tokens_details: { reasoning_tokens: 40 },
           cost: 0.04,
+        }, {
+          prompt_tokens: 160,
+          completion_tokens: 110,
+          completion_tokens_details: { reasoning_tokens: 35 },
+          cost: 0.05,
         }][requestIndex];
       if (requestIndex === 0) {
         assert.equal(payload.messages[1].content, 'Lesson topic: City transport');
@@ -135,6 +143,7 @@ test('AI draft sequentially streams four generated sections with aggregate usage
       }
       assert.equal(payload.response_format.json_schema.name, [
         'easyclass_warm_up', 'easyclass_lead_in', 'easyclass_target_vocabulary', 'easyclass_reading',
+        'easyclass_listening',
       ][requestIndex]);
       res.writeHead(200, { 'Content-Type': 'text/event-stream' });
       res.write(`data: ${JSON.stringify({ id: `gen-integration-${requestIndex}`, choices: [{ delta: { reasoning: `Planning section ${requestIndex + 1}.` } }] })}\n\n`);
@@ -213,9 +222,9 @@ test('AI draft sequentially streams four generated sections with aggregate usage
     await new Promise(resolve => setTimeout(resolve, 30));
   }
   assert.equal(ready.status, 'review');
-  assert.equal(openRouterRequestCount, 4);
+  assert.equal(openRouterRequestCount, 5);
   assert.equal(ready.generation.status, 'completed');
-  assert.ok(Math.abs(ready.generation.costUsd - 0.103456) < 1e-12);
+  assert.ok(Math.abs(ready.generation.costUsd - 0.153456) < 1e-12);
   assert.equal(ready.content.meta.topic, 'Travel choices');
   assert.equal(ready.content.meta.title, 'Travel choices');
   assert.ok(['pending', 'running', 'unavailable'].includes(ready.imageGeneration.status));
@@ -237,7 +246,14 @@ test('AI draft sequentially streams four generated sections with aggregate usage
   ]);
   assert.equal(ready.content.stages[3].content[1].title, GENERATED_READING.title);
   assert.equal(ready.content.stages[3].content[3].items.length, 5);
-  assert.ok(ready.content.stages.slice(4).every(stage => stage.content.length === 0));
+  assert.deepEqual(ready.content.stages[4].content.map(component => component.type), [
+    'teacherNote', 'audioPlayer', 'checkboxChoice', 'audioPlayer', 'multipleChoice', 'markdownCard',
+  ]);
+  assert.equal(ready.content.stages[4].content[1].script, GENERATED_LISTENING.script);
+  assert.equal(ready.content.stages[4].content[3].script, GENERATED_LISTENING.script);
+  assert.equal(ready.content.stages[4].content[2].items.length, 2);
+  assert.equal(ready.content.stages[4].content[4].items.length, 5);
+  assert.ok(ready.content.stages.slice(5).every(stage => stage.content.length === 0));
 
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/generation-stream`)).status, 401);
   const traceResponse = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/generation-stream`, {
@@ -250,19 +266,21 @@ test('AI draft sequentially streams four generated sections with aggregate usage
   assert.match(trace, /=== Lead-In ===/);
   assert.match(trace, /=== Target Vocabulary ===/);
   assert.match(trace, /=== Reading ===/);
+  assert.match(trace, /=== Listening ===/);
   assert.match(trace, /Planning section 1/);
   assert.match(trace, /Planning section 2/);
   assert.match(trace, /Planning section 3/);
   assert.match(trace, /Planning section 4/);
+  assert.match(trace, /Planning section 5/);
   assert.match(trace, /book a ticket/);
-  assert.match(trace, /0\.10345/);
-  assert.match(trace, /"promptTokens":820/);
-  assert.match(trace, /"completionTokens":550/);
-  assert.match(trace, /"reasoningTokens":200/);
+  assert.match(trace, /0\.15345/);
+  assert.match(trace, /"promptTokens":980/);
+  assert.match(trace, /"completionTokens":660/);
+  assert.match(trace, /"reasoningTokens":235/);
   assert.match(trace, /event: done/);
 });
 
-test('Reading failure keeps the AI draft atomic and marks the whole generation failed', async t => {
+test('Listening failure keeps the AI draft atomic and marks the whole generation failed', async t => {
   let openRouterRequestCount = 0;
   const openRouter = http.createServer((req, res) => {
     let body = '';
@@ -272,26 +290,31 @@ test('Reading failure keeps the AI draft atomic and marks the whole generation f
       const payload = JSON.parse(body);
       const requestIndex = openRouterRequestCount;
       openRouterRequestCount += 1;
-      if (requestIndex < 3) {
-        assert.equal(payload.messages[1].content, requestIndex === 0
-          ? 'Lesson topic: Warm-up transport'
-          : 'Lesson topic: Travel choices');
+      if (requestIndex < 4) {
+        if (requestIndex === 0) {
+          assert.equal(payload.messages[1].content, 'Lesson topic: Warm-up transport');
+        } else if (requestIndex < 3) {
+          assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices');
+        } else {
+          assert.match(payload.messages[1].content, /^Lesson topic: Travel choices/m);
+          assert.match(payload.messages[1].content, /Target Vocabulary/);
+        }
         assert.equal(payload.response_format.json_schema.name, [
-          'easyclass_warm_up', 'easyclass_lead_in', 'easyclass_target_vocabulary',
+          'easyclass_warm_up', 'easyclass_lead_in', 'easyclass_target_vocabulary', 'easyclass_reading',
         ][requestIndex]);
-        const generated = [WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY][requestIndex];
+        const generated = [WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY, GENERATED_READING][requestIndex];
         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
         res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: { reasoning: `Section ${requestIndex + 1} complete.` } }] })}\n\n`);
         res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: { content: JSON.stringify(generated) } }] })}\n\n`);
-        res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: {} }], usage: { cost: [0.005, 0.006, 0.007][requestIndex] } })}\n\n`);
+        res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: {} }], usage: { cost: [0.005, 0.006, 0.007, 0.008][requestIndex] } })}\n\n`);
         res.end('data: [DONE]\n\n');
         return;
       }
       assert.match(payload.messages[1].content, /^Lesson topic: Travel choices/m);
       assert.match(payload.messages[1].content, /Target Vocabulary/);
-      assert.equal(payload.response_format.json_schema.name, 'easyclass_reading');
+      assert.equal(payload.response_format.json_schema.name, 'easyclass_listening');
       res.writeHead(502, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: { message: 'Reading provider failed.' } }));
+      res.end(JSON.stringify({ error: { message: 'Listening provider failed.' } }));
     });
   });
   const openRouterPort = await listen(openRouter);
@@ -347,11 +370,11 @@ test('Reading failure keeps the AI draft atomic and marks the whole generation f
     if (failed.status !== 'generating') break;
     await new Promise(resolve => setTimeout(resolve, 30));
   }
-  assert.equal(openRouterRequestCount, 4);
+  assert.equal(openRouterRequestCount, 5);
   assert.equal(failed.status, 'failed');
   assert.equal(failed.generation.status, 'failed');
-  assert.equal(failed.generation.costUsd, 0.018);
-  assert.match(failed.errorMessage, /Reading provider failed/);
+  assert.equal(failed.generation.costUsd, 0.026);
+  assert.match(failed.errorMessage, /Listening provider failed/);
   assert.ok(failed.content.stages.every(stage => stage.content.length === 0));
   assert.equal(failed.imageGeneration, null);
 
@@ -364,6 +387,7 @@ test('Reading failure keeps the AI draft atomic and marks the whole generation f
   assert.match(trace, /=== Lead-In ===/);
   assert.match(trace, /=== Target Vocabulary ===/);
   assert.match(trace, /=== Reading ===/);
-  assert.match(trace, /Reading provider failed/);
+  assert.match(trace, /=== Listening ===/);
+  assert.match(trace, /Listening provider failed/);
   assert.match(trace, /event: generation-error/);
 });
