@@ -3,27 +3,32 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
+  GRAMMAR_PRESENTATION_RESPONSE_SCHEMA,
   LEAD_IN_RESPONSE_SCHEMA,
   LISTENING_RESPONSE_SCHEMA,
   OPENROUTER_MODEL,
   READING_RESPONSE_SCHEMA,
   TARGET_VOCABULARY_RESPONSE_SCHEMA,
+  applyGrammarPresentationToSkeleton,
   applyLeadInToSkeleton,
   applyListeningToSkeleton,
   applyReadingToSkeleton,
   applyTargetVocabularyToSkeleton,
   applyWarmUpToSkeleton,
+  buildGrammarPresentationContent,
   buildLeadInContent,
   buildListeningContent,
   buildReadingContent,
   buildTargetVocabularyContent,
   buildWarmUpContent,
   createLessonSkeleton,
+  generateGrammarPresentation,
   generateLeadIn,
   generateListening,
   generateReading,
   generateTargetVocabulary,
   generateWarmUp,
+  grammarPresentationMessages,
   leadInMessages,
   listeningMessages,
   parseOpenRouterStream,
@@ -38,8 +43,15 @@ const {
 } = require('./fixtures/generated-target-vocabulary.js');
 const { GENERATED_READING } = require('./fixtures/generated-reading.js');
 const { GENERATED_LISTENING } = require('./fixtures/generated-listening.js');
+const {
+  GENERATED_GRAMMAR_PRESENTATION,
+} = require('./fixtures/generated-grammar-presentation.js');
 const { READING_TEACHER_NOTE_TEXT } = require('../lib/reading-static.js');
-const { LISTENING_TEACHER_NOTE_TEXT } = require('../lib/synthetic-lesson.js');
+const { parseMarkdown } = require('../assets/components/safe-markdown.js');
+const {
+  GRAMMAR_PRESENTATION_TEACHER_NOTE_TEXT,
+  LISTENING_TEACHER_NOTE_TEXT,
+} = require('../lib/synthetic-lesson.js');
 
 const GENERATED_WARM_UP = Object.freeze({
   teacherNotes: '- Show the options and ask the learner to briefly explain their choice.\n\n**Say:** “Which space trip would you choose?”',
@@ -359,6 +371,88 @@ test('generated Listening keeps teacher notes static and rejects damaged questio
   }), /ровно пять detail-вопросов/);
 });
 
+test('generated Grammar Presentation is mapped onto the fixed synthetic component structure', () => {
+  const content = buildGrammarPresentationContent(GENERATED_GRAMMAR_PRESENTATION, () => 0);
+  assert.deepEqual(content.map(component => component.type), [
+    'teacherNote', 'textPanel', 'textPanel', 'dragWordsInText', 'markdownCard',
+    'dropdownChoice', 'markdownCard',
+  ]);
+  assert.equal(content[0].text, GRAMMAR_PRESENTATION_TEACHER_NOTE_TEXT);
+  assert.match(content[1].text, /^\{l\}\*\*Notice the Rule\*\*/);
+  assert.match(content[1].text, /1\. I \*\*visited\*\* London/);
+  assert.match(content[2].text, /4\. Do we use the past form after did\?/);
+  assert.deepEqual(content[3].words, ['-ed', 'base verb', 'Did', 'future', '-ing form', 'past']);
+  assert.equal((content[3].text.match(/\[\[/g) || []).length, 4);
+  assert.match(content[3].text, /in the \[\[past\]\]/);
+  assert.equal(content[4].sections.length, 2);
+  assert.equal(content[5].choices.length, 5);
+  assert.match(content[5].text, /I \[\[grammar-check-1\]\] to Spain/);
+  assert.match(content[6].sections[0].text, /\*\*Task 1 Rule:\*\*/);
+  assert.match(content[6].sections[1].text, /5\. Bought is the Past Simple form/);
+  assert.equal(content[6].studentVisibility, 'teacherOnly');
+
+  const noticeBlocks = parseMarkdown(content[1].text);
+  assert.equal(noticeBlocks.filter(block => block.type === 'list').length, 1);
+  assert.equal(noticeBlocks.find(block => block.type === 'list').items.length, 5);
+  const questionBlocks = parseMarkdown(content[2].text);
+  assert.equal(questionBlocks.filter(block => block.type === 'list').length, 1);
+  assert.equal(questionBlocks.find(block => block.type === 'list').items.length, 4);
+
+  const lesson = applyGrammarPresentationToSkeleton(
+    createLessonSkeleton('Air travel'), GENERATED_GRAMMAR_PRESENTATION, () => 0,
+  );
+  assert.equal(lesson.stages[5].content.length, 7);
+  assert.ok(lesson.stages.filter(stage => stage.id !== 'grammar-presentation')
+    .every(stage => stage.content.length === 0));
+});
+
+test('generated Grammar Presentation rejects invalid counts, words, and answers', () => {
+  assert.throws(() => buildGrammarPresentationContent({
+    ...GENERATED_GRAMMAR_PRESENTATION,
+    examples: GENERATED_GRAMMAR_PRESENTATION.examples.slice(0, 4),
+  }), /ровно 5 примеров/);
+  assert.throws(() => buildGrammarPresentationContent({
+    ...GENERATED_GRAMMAR_PRESENTATION,
+    conceptCheckingQuestions: GENERATED_GRAMMAR_PRESENTATION.conceptCheckingQuestions.slice(0, 3),
+  }), /ровно 4 concept-checking questions/);
+
+  const repeatedRuleAnswer = JSON.parse(JSON.stringify(GENERATED_GRAMMAR_PRESENTATION));
+  repeatedRuleAnswer.ruleItems[1].answer = repeatedRuleAnswer.ruleItems[0].answer;
+  assert.throws(() => buildGrammarPresentationContent(repeatedRuleAnswer), /повторяющиеся ответы правила/);
+
+  const overlappingDistractor = JSON.parse(JSON.stringify(GENERATED_GRAMMAR_PRESENTATION));
+  overlappingDistractor.ruleDistractors[0] = overlappingDistractor.ruleItems[0].answer;
+  assert.throws(() => buildGrammarPresentationContent(overlappingDistractor), /не должны пересекаться/);
+
+  const emptySentence = JSON.parse(JSON.stringify(GENERATED_GRAMMAR_PRESENTATION));
+  emptySentence.checkItems[0].before = '';
+  emptySentence.checkItems[0].after = '';
+  assert.throws(() => buildGrammarPresentationContent(emptySentence), /непустой текст вокруг ответа/);
+
+  const unknownAnswer = JSON.parse(JSON.stringify(GENERATED_GRAMMAR_PRESENTATION));
+  unknownAnswer.checkItems[0].answer = 'flew';
+  assert.throws(() => buildGrammarPresentationContent(unknownAnswer), /точно совпадать/);
+});
+
+test('Grammar Presentation prompt receives separate lesson and grammar topics', () => {
+  const messages = grammarPresentationMessages('Air travel', 'Past Simple');
+  const systemPrompt = messages[0].content;
+  assert.equal(messages[1].content, 'Lesson topic: Air travel\nGrammar topic: Past Simple');
+  assert.match(systemPrompt, /Grammar topic is authoritative/);
+  assert.match(systemPrompt, /Use the Lesson topic as the natural context/);
+  assert.match(systemPrompt, /exactly five short example sentences/);
+  assert.match(systemPrompt, /exactly four concept-checking questions/);
+  assert.match(systemPrompt, /exactly four ruleItems/);
+  assert.match(systemPrompt, /exactly two plausible but incorrect ruleDistractors/);
+  assert.match(systemPrompt, /exactly five checkItems/);
+  assert.match(systemPrompt, /Do not generate Teacher’s Notes/);
+  assert.equal(GRAMMAR_PRESENTATION_RESPONSE_SCHEMA.properties.examples.minItems, 5);
+  assert.equal(GRAMMAR_PRESENTATION_RESPONSE_SCHEMA.properties.ruleItems.maxItems, 4);
+  assert.equal(GRAMMAR_PRESENTATION_RESPONSE_SCHEMA.properties.quickRuleSections.maxItems, 3);
+  assert.equal(GRAMMAR_PRESENTATION_RESPONSE_SCHEMA.properties.checkItems.minItems, 5);
+  assert.equal(GRAMMAR_PRESENTATION_RESPONSE_SCHEMA.properties.teacherNotes, undefined);
+});
+
 test('Warm-Up prompt requires three teacher-note bullets and a separate Say paragraph', () => {
   const messages = warmUpMessages('Space travel');
   const systemPrompt = messages.find(message => message.role === 'system').content;
@@ -625,4 +719,34 @@ test('generateListening sends its strict schema with Target Vocabulary and valid
   assert.equal(requestBody.response_format.json_schema.strict, true);
   assert.equal(result.generated.gistQuestions.length, 2);
   assert.equal(result.generated.detailQuestions.length, 5);
+});
+
+test('generateGrammarPresentation sends both topics with its strict schema and validates the result', async () => {
+  let requestBody;
+  const response = streamingResponse([
+    `data: ${JSON.stringify({ id: 'gen-grammar-presentation', choices: [{ delta: { reasoning: 'Ready.' } }] })}`,
+    `data: ${JSON.stringify({ id: 'gen-grammar-presentation', choices: [{ delta: { content: JSON.stringify(GENERATED_GRAMMAR_PRESENTATION) } }] })}`,
+    'data: {"id":"gen-grammar-presentation","choices":[{"delta":{}}],"usage":{"cost":0.06}}',
+    'data: [DONE]',
+  ]);
+  const result = await generateGrammarPresentation({
+    topic: 'Air travel',
+    grammarTopic: 'Past Simple',
+    apiKey: 'test-key',
+    baseUrl: 'https://openrouter.test/api/v1/',
+    fetchImpl: async (url, options) => {
+      assert.equal(url, 'https://openrouter.test/api/v1/chat/completions');
+      requestBody = JSON.parse(options.body);
+      return response;
+    },
+  });
+  assert.equal(requestBody.messages[1].content, 'Lesson topic: Air travel\nGrammar topic: Past Simple');
+  assert.equal(requestBody.response_format.json_schema.name, 'easyclass_grammar_presentation');
+  assert.deepEqual(
+    requestBody.response_format.json_schema.schema,
+    GRAMMAR_PRESENTATION_RESPONSE_SCHEMA,
+  );
+  assert.equal(requestBody.response_format.json_schema.strict, true);
+  assert.equal(result.generated.examples.length, 5);
+  assert.equal(result.generated.checkItems.length, 5);
 });

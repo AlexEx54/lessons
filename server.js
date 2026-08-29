@@ -66,12 +66,14 @@ const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
 const {
   OPENROUTER_BASE_URL,
   OPENROUTER_MODEL,
+  applyGrammarPresentationToSkeleton,
   applyLeadInToSkeleton,
   applyListeningToSkeleton,
   applyReadingToSkeleton,
   applyTargetVocabularyToSkeleton,
   applyWarmUpToSkeleton,
   createLessonSkeleton,
+  generateGrammarPresentation,
   generateLeadIn,
   generateListening,
   generateReading,
@@ -213,7 +215,9 @@ function aggregateGenerationUsage(first = {}, second = {}) {
   };
 }
 
-async function runAiLessonGeneration({ draftId, ownerAdminId, topic, warmUpTopic, skeleton }) {
+async function runAiLessonGeneration({
+  draftId, ownerAdminId, topic, warmUpTopic, grammarTopic, skeleton,
+}) {
   const controller = new AbortController();
   generationControllers.set(draftId, controller);
   let reasoning = '';
@@ -298,6 +302,11 @@ async function runAiLessonGeneration({ draftId, ownerAdminId, topic, warmUpTopic
         vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
       }),
     );
+    const grammarPresentationResult = await generateSection(
+      'Grammar Presentation',
+      topic,
+      options => generateGrammarPresentation({ ...options, grammarTopic }),
+    );
     const lessonWithWarmUp = applyWarmUpToSkeleton(skeleton, warmUpResult.generated);
     const lessonWithLeadIn = applyLeadInToSkeleton(lessonWithWarmUp, leadInResult.generated);
     const lessonWithTargetVocabulary = applyTargetVocabularyToSkeleton(
@@ -308,7 +317,12 @@ async function runAiLessonGeneration({ draftId, ownerAdminId, topic, warmUpTopic
       readingResult.generated,
       targetVocabularyResult.generated.vocabularyItems,
     );
-    const lesson = applyListeningToSkeleton(lessonWithReading, listeningResult.generated);
+    const lessonWithListening = applyListeningToSkeleton(
+      lessonWithReading, listeningResult.generated,
+    );
+    const lesson = applyGrammarPresentationToSkeleton(
+      lessonWithListening, grammarPresentationResult.generated,
+    );
     database.exec('BEGIN IMMEDIATE');
     try {
       completeLessonDraft(draftId, ownerAdminId, lesson, database);
@@ -1294,6 +1308,7 @@ const server = http.createServer(async (req, res) => {
             ownerAdminId: user.id,
             topic,
             warmUpTopic,
+            grammarTopic,
             skeleton: lesson,
           });
         });
