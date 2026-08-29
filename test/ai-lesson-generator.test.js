@@ -5,19 +5,24 @@ const test = require('node:test');
 const {
   LEAD_IN_RESPONSE_SCHEMA,
   OPENROUTER_MODEL,
+  READING_RESPONSE_SCHEMA,
   TARGET_VOCABULARY_RESPONSE_SCHEMA,
   applyLeadInToSkeleton,
+  applyReadingToSkeleton,
   applyTargetVocabularyToSkeleton,
   applyWarmUpToSkeleton,
   buildLeadInContent,
+  buildReadingContent,
   buildTargetVocabularyContent,
   buildWarmUpContent,
   createLessonSkeleton,
   generateLeadIn,
+  generateReading,
   generateTargetVocabulary,
   generateWarmUp,
   leadInMessages,
   parseOpenRouterStream,
+  readingMessages,
   shuffleOptions,
   targetVocabularyMessages,
   warmUpMessages,
@@ -26,6 +31,8 @@ const {
   GENERATED_TARGET_VOCABULARY,
   TERMS,
 } = require('./fixtures/generated-target-vocabulary.js');
+const { GENERATED_READING } = require('./fixtures/generated-reading.js');
+const { READING_TEACHER_NOTE_TEXT } = require('../lib/reading-static.js');
 
 const GENERATED_WARM_UP = Object.freeze({
   teacherNotes: '- Покажите варианты и попросите коротко объяснить выбор.\n\n**Say:** “Which space trip would you choose?”',
@@ -228,6 +235,85 @@ test('generated Target Vocabulary rejects damaged counts and cross-references', 
   assert.throws(() => buildTargetVocabularyContent(invalidImagePrompt), /квадратные иллюстрации без текста/);
 });
 
+test('generated Reading is mapped onto the fixed synthetic component structure', () => {
+  const content = buildReadingContent(
+    GENERATED_READING,
+    GENERATED_TARGET_VOCABULARY.vocabularyItems,
+    () => 0,
+  );
+  assert.deepEqual(content.map(component => component.type), [
+    'teacherNote', 'textReading', 'multipleChoice', 'multipleChoice', 'markdownCard',
+  ]);
+  assert.equal(content[0].text, READING_TEACHER_NOTE_TEXT);
+  assert.equal(content[1].title, GENERATED_READING.title);
+  assert.equal(content[1].headerImage.imagePrompt, GENERATED_READING.headerImagePrompt);
+  assert.equal(content[1].textImage.imagePrompt, GENERATED_READING.textImagePrompt);
+  assert.equal(content[2].id, 'reading-gist-quiz');
+  assert.equal(content[2].items.length, 1);
+  assert.equal(content[3].id, 'reading-detail-quiz');
+  assert.equal(content[3].items.length, 5);
+  assert.match(content[4].text, /^\*\*Task 1:\*\*\n\nC —/);
+  assert.match(content[4].text, /\*\*Task 2:\*\*\n\n1C —/);
+
+  const lesson = applyReadingToSkeleton(
+    createLessonSkeleton('Air travel'),
+    GENERATED_READING,
+    GENERATED_TARGET_VOCABULARY.vocabularyItems,
+    () => 0,
+  );
+  assert.equal(lesson.stages[3].content.length, 5);
+  assert.ok(lesson.stages.filter(stage => stage.id !== 'reading')
+    .every(stage => stage.content.length === 0));
+});
+
+test('Reading keeps the teacher-provided notes fixed and complete', () => {
+  assert.doesNotMatch(READING_TEACHER_NOTE_TEXT, /^- In this part/m);
+  assert.doesNotMatch(READING_TEACHER_NOTE_TEXT, /^- \*\*Task 1:\*\*/m);
+  assert.match(READING_TEACHER_NOTE_TEXT, /\*\*reading for gist\*\* \(skimming\)/);
+  assert.match(READING_TEACHER_NOTE_TEXT, /\*\*reading for detail\*\* \(scanning\)/);
+  assert.match(READING_TEACHER_NOTE_TEXT, /\*\*For weaker students:\*\*/);
+  assert.match(READING_TEACHER_NOTE_TEXT, /\*\*For stronger students:\*\*/);
+  assert.match(READING_TEACHER_NOTE_TEXT, /There are 6 questions in total/);
+  assert.match(READING_TEACHER_NOTE_TEXT, /\*\*Post-Reading Discussion:\*\*/);
+  assert.doesNotMatch(READING_TEACHER_NOTE_TEXT, /&#x20;/);
+});
+
+test('generated Reading rejects damaged questions, vocabulary references, and article length', () => {
+  const vocabularyItems = GENERATED_TARGET_VOCABULARY.vocabularyItems;
+  const tooFewQuestions = { ...GENERATED_READING, detailQuestions: GENERATED_READING.detailQuestions.slice(0, 4) };
+  assert.throws(() => buildReadingContent(tooFewQuestions, vocabularyItems), /ровно пять/);
+
+  const duplicateOptions = JSON.parse(JSON.stringify(GENERATED_READING));
+  duplicateOptions.gistQuestion.options[1] = duplicateOptions.gistQuestion.options[0];
+  assert.throws(() => buildReadingContent(duplicateOptions, vocabularyItems), /повторяющиеся варианты/);
+
+  const missingAnswer = JSON.parse(JSON.stringify(GENERATED_READING));
+  missingAnswer.detailQuestions[0].answer = 'An answer outside the options.';
+  assert.throws(() => buildReadingContent(missingAnswer, vocabularyItems), /совпадать с одним из вариантов/);
+
+  const unknownTerm = { ...GENERATED_READING, usedVocabularyTerms: [
+    ...GENERATED_READING.usedVocabularyTerms.slice(0, 4), 'rent a car',
+  ] };
+  assert.throws(() => buildReadingContent(unknownTerm, vocabularyItems), /неизвестный элемент/);
+
+  const tooFewTerms = { ...GENERATED_READING, usedVocabularyTerms: GENERATED_READING.usedVocabularyTerms.slice(0, 3) };
+  assert.throws(() => buildReadingContent(tooFewTerms, vocabularyItems), /от 4 до 6/);
+
+  const tooManyTerms = { ...GENERATED_READING, usedVocabularyTerms: TERMS.slice(0, 7) };
+  assert.throws(() => buildReadingContent(tooManyTerms, vocabularyItems), /от 4 до 6/);
+
+  const absentTerm = { ...GENERATED_READING, usedVocabularyTerms: [
+    ...GENERATED_READING.usedVocabularyTerms.slice(0, 4), 'pick up luggage',
+  ] };
+  assert.throws(() => buildReadingContent(absentTerm, vocabularyItems), /отсутствует в тексте/);
+
+  const shortText = { ...GENERATED_READING, text: 'A very short reading text.' };
+  assert.throws(() => buildReadingContent(shortText, vocabularyItems), /от 180 до 230 слов/);
+
+  const unsafeImagePrompt = { ...GENERATED_READING, textImagePrompt: 'Students arrive at an airport.' };
+  assert.throws(() => buildReadingContent(unsafeImagePrompt, vocabularyItems), /без текста/);
+});
+
 test('Warm-Up prompt requires three teacher-note bullets and a separate Say paragraph', () => {
   const messages = warmUpMessages('Space travel');
   const systemPrompt = messages.find(message => message.role === 'system').content;
@@ -284,6 +370,28 @@ test('Target Vocabulary prompt and schema keep static copy out of the model resp
   assert.equal(TARGET_VOCABULARY_RESPONSE_SCHEMA.properties.describeAndGuessTerms.minItems, 6);
   assert.ok(!TARGET_VOCABULARY_RESPONSE_SCHEMA.required.includes('teacherNotes'));
   assert.ok(!TARGET_VOCABULARY_RESPONSE_SCHEMA.required.includes('howToPlay'));
+});
+
+test('Reading prompt receives the topic and exact Target Vocabulary contract', () => {
+  const messages = readingMessages('Air travel', GENERATED_TARGET_VOCABULARY.vocabularyItems);
+  const systemPrompt = messages[0].content;
+  assert.match(systemPrompt, /180 to 230 words/);
+  assert.match(systemPrompt, /4 to 6 distinct entries/);
+  assert.match(systemPrompt, /review, social media post, short article, influencer story, or advice-column message/);
+  assert.match(systemPrompt, /Do not use any other genre or text format/);
+  assert.match(systemPrompt, /exactly five detailQuestions/);
+  assert.match(systemPrompt, /Do not generate Teacher’s Notes/);
+  assert.match(systemPrompt, /component titles, instructions, IDs/);
+  assert.match(messages[1].content, /Lesson topic: Air travel/);
+  assert.match(messages[1].content, /"book a ticket"/);
+  assert.equal(READING_RESPONSE_SCHEMA.properties.usedVocabularyTerms.minItems, 4);
+  assert.equal(READING_RESPONSE_SCHEMA.properties.usedVocabularyTerms.maxItems, 6);
+  assert.equal(READING_RESPONSE_SCHEMA.properties.detailQuestions.minItems, 5);
+  assert.deepEqual(READING_RESPONSE_SCHEMA.required, [
+    'title', 'subtitle', 'text', 'headerImagePrompt', 'textImagePrompt',
+    'usedVocabularyTerms', 'gistQuestion', 'detailQuestions',
+  ]);
+  assert.equal(READING_RESPONSE_SCHEMA.properties.teacherNotes, undefined);
 });
 
 test('OpenRouter SSE parser joins split reasoning, output, id, and usage chunks', async () => {
@@ -384,4 +492,31 @@ test('generateTargetVocabulary sends its own strict schema and validates the res
     TARGET_VOCABULARY_RESPONSE_SCHEMA,
   );
   assert.equal(result.generated.vocabularyItems.length, 10);
+});
+
+test('generateReading sends its strict schema with Target Vocabulary and validates the result', async () => {
+  let requestBody;
+  const response = streamingResponse([
+    `data: ${JSON.stringify({ id: 'gen-reading', choices: [{ delta: { reasoning: 'Ready.' } }] })}`,
+    `data: ${JSON.stringify({ id: 'gen-reading', choices: [{ delta: { content: JSON.stringify(GENERATED_READING) } }] })}`,
+    'data: {"id":"gen-reading","choices":[{"delta":{}}],"usage":{"cost":0.04}}',
+    'data: [DONE]',
+  ]);
+  const result = await generateReading({
+    topic: 'Air travel',
+    vocabularyItems: GENERATED_TARGET_VOCABULARY.vocabularyItems,
+    apiKey: 'test-key',
+    baseUrl: 'https://openrouter.test/api/v1/',
+    fetchImpl: async (url, options) => {
+      assert.equal(url, 'https://openrouter.test/api/v1/chat/completions');
+      requestBody = JSON.parse(options.body);
+      return response;
+    },
+  });
+  assert.match(requestBody.messages[1].content, /Lesson topic: Air travel/);
+  assert.match(requestBody.messages[1].content, /"board a plane"/);
+  assert.equal(requestBody.response_format.json_schema.name, 'easyclass_reading');
+  assert.deepEqual(requestBody.response_format.json_schema.schema, READING_RESPONSE_SCHEMA);
+  assert.equal(requestBody.response_format.json_schema.strict, true);
+  assert.equal(result.generated.detailQuestions.length, 5);
 });

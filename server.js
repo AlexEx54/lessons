@@ -67,10 +67,12 @@ const {
   OPENROUTER_BASE_URL,
   OPENROUTER_MODEL,
   applyLeadInToSkeleton,
+  applyReadingToSkeleton,
   applyTargetVocabularyToSkeleton,
   applyWarmUpToSkeleton,
   createLessonSkeleton,
   generateLeadIn,
+  generateReading,
   generateTargetVocabulary,
   generateWarmUp,
 } = require('./lib/ai-lesson-generator.js');
@@ -278,10 +280,23 @@ async function runAiLessonGeneration({ draftId, ownerAdminId, topic, warmUpTopic
     const targetVocabularyResult = await generateSection(
       'Target Vocabulary', topic, generateTargetVocabulary,
     );
+    const readingResult = await generateSection(
+      'Reading',
+      topic,
+      options => generateReading({
+        ...options,
+        vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
+      }),
+    );
     const lessonWithWarmUp = applyWarmUpToSkeleton(skeleton, warmUpResult.generated);
     const lessonWithLeadIn = applyLeadInToSkeleton(lessonWithWarmUp, leadInResult.generated);
-    const lesson = applyTargetVocabularyToSkeleton(
+    const lessonWithTargetVocabulary = applyTargetVocabularyToSkeleton(
       lessonWithLeadIn, targetVocabularyResult.generated,
+    );
+    const lesson = applyReadingToSkeleton(
+      lessonWithTargetVocabulary,
+      readingResult.generated,
+      targetVocabularyResult.generated.vocabularyItems,
     );
     database.exec('BEGIN IMMEDIATE');
     try {

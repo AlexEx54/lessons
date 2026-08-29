@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { READING_TEACHER_NOTE_TEXT } = require('../lib/reading-static.js');
 
 test('synthetic lesson contains nine ordered stages and the mock-aligned content', () => {
   const lesson = createSyntheticLesson('  Space travel  ');
@@ -214,8 +215,9 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
     'teacherNote', 'textReading', 'multipleChoice', 'multipleChoice', 'markdownCard',
   ]);
   assert.equal(lesson.stages[3].content[0].id, 'reading-teacher-note');
-  assert.match(lesson.stages[3].content[0].text, /форматом blog post/);
-  assert.match(lesson.stages[3].content[0].text, /В Task 2/);
+  assert.equal(lesson.stages[3].content[0].text, READING_TEACHER_NOTE_TEXT);
+  assert.match(lesson.stages[3].content[0].text, /reading for gist/);
+  assert.match(lesson.stages[3].content[0].text, /There are 6 questions in total/);
   assert.deepEqual(lesson.stages[3].content[1], {
     type: 'textReading',
     id: 'reading-text',
