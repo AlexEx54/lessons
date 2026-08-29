@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { LISTENING_TEACHER_NOTE_TEXT, createSyntheticLesson } = require('../lib/synthetic-lesson.js');
 const { READING_TEACHER_NOTE_TEXT } = require('../lib/reading-static.js');
 
 test('synthetic lesson contains nine ordered stages and the mock-aligned content', () => {
@@ -265,8 +265,13 @@ test('synthetic lesson contains nine ordered stages and the mock-aligned content
   assert.deepEqual(lesson.stages[4].content[0], {
     type: 'teacherNote',
     id: 'listening-teacher-note',
-    text: '- Цель первого прослушивания: понять общую ситуацию, где происходит разговор и о чём он.\n- Цель второго прослушивания: услышать детали и выбрать точные ответы.\n- Не нужно объяснять заранее слова: camp, backpack, sunscreen, cabin, workshop, guitar.\n- Предложение к Target Grammar: “We’re going to stay in cabins.”, “I’m going to bring my guitar.”, “We’re going to leave on Friday morning.”\n- Ответы, которые могут вызвать обсуждение: почему ребята выбрали AFK Summer и что ученик сам взял бы с собой.',
+    text: LISTENING_TEACHER_NOTE_TEXT,
   });
+  assert.match(LISTENING_TEACHER_NOTE_TEXT, /\*\*For weaker students:\*\*/);
+  assert.match(LISTENING_TEACHER_NOTE_TEXT, /\*\*For stronger students:\*\*/);
+  assert.match(LISTENING_TEACHER_NOTE_TEXT, /\*\*Task 1:\*\* say/);
+  assert.match(LISTENING_TEACHER_NOTE_TEXT, /\*\*Task 2:\*\* say/);
+  assert.match(LISTENING_TEACHER_NOTE_TEXT, /\*\*Post-Listening Discussion:\*\* say/);
   const listeningAudio = lesson.stages[4].content[1];
   assert.equal(listeningAudio.id, 'listening-audio');
   assert.equal(listeningAudio.title, 'Listen to the audio');
