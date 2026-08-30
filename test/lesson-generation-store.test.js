@@ -7,8 +7,10 @@ const { createLessonDraft, findLessonDraft } = require('../lib/lesson-draft-stor
 const {
   completeLessonGeneration,
   createLessonGeneration,
+  failLessonGeneration,
   failInterruptedLessonGenerations,
   findLessonGeneration,
+  retryLessonGeneration,
   updateLessonGenerationStream,
 } = require('../lib/lesson-generation-store.js');
 const { createUser } = require('../lib/user-store.js');
@@ -51,5 +53,29 @@ test('running generation is failed rather than silently restarted', () => {
   const failedDraft = findLessonDraft(draft.id, owner.id, database);
   assert.equal(failedDraft.status, 'failed');
   assert.match(failedDraft.errorMessage, /перезапуском сервера/);
+  database.close();
+});
+
+test('failed AI generation can restart from a validated output prefix', () => {
+  const { database, draft } = setup();
+  createLessonGeneration({ draftId: draft.id, mode: 'ai', model: 'google/gemini-3.7-flash' }, database);
+  failLessonGeneration({
+    draftId: draft.id,
+    reasoning: 'Old reasoning',
+    output: 'invalid tail',
+    usage: { cost: 0.02 },
+    errorMessage: 'Invalid section',
+  }, database);
+
+  const retried = retryLessonGeneration({ draftId: draft.id, output: 'validated prefix' }, database);
+  assert.equal(retried.status, 'running');
+  assert.equal(retried.reasoning, '');
+  assert.equal(retried.output, 'validated prefix');
+  assert.equal(retried.costUsd, 0.02);
+  assert.equal(retried.errorMessage, null);
+  assert.throws(
+    () => retryLessonGeneration({ draftId: draft.id, output: '' }, database),
+    /неудачной AI-генерации/,
+  );
   database.close();
 });

@@ -280,6 +280,32 @@
     return button;
   }
 
+  function retryGenerationButton(draft) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Повторить генерацию';
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      button.textContent = 'Запускаем…';
+      try {
+        const response = await fetch(
+          `/api/lesson-drafts/${encodeURIComponent(draft.id)}/retry`,
+          { method: 'POST' },
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'Не удалось повторить генерацию.');
+        const index = state.drafts.findIndex(item => item.id === draft.id);
+        if (index >= 0 && payload.draft) state.drafts[index] = payload.draft;
+        render();
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = 'Повторить генерацию';
+        window.AppShell.showToast(error.message || 'Не удалось повторить генерацию.');
+      }
+    });
+    return button;
+  }
+
   function draftCard(draft) {
     const card = document.createElement('article');
     card.className = 'draft-card';
@@ -331,7 +357,7 @@
     const actions = document.createElement('div');
     actions.className = 'draft-card__actions';
     if (draft.status === 'failed') {
-      actions.append(futureAction('Повторить генерацию', 'Повторный запуск будет подключён вместе с генератором.'));
+      actions.append(retryGenerationButton(draft));
     }
     if (draft.status === 'review') {
       actions.append(

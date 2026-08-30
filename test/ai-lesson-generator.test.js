@@ -573,6 +573,7 @@ test('Grammar Focus prompt receives lesson, grammar, and Target Vocabulary conte
   );
   assert.match(messages[0].content, /Grammar topic is authoritative/);
   assert.match(messages[0].content, /exactly eight task1Items/);
+  assert.match(messages[0].content, /every turn on a separate line/);
   assert.match(messages[0].content, /exactly nine literal \{\{gap\}\} markers/);
   assert.match(messages[0].content, /exactly eight distinct entries from Target Vocabulary/);
   assert.match(messages[1].content, /^Lesson topic: Air travel\nGrammar topic: Past Simple/m);

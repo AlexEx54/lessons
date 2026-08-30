@@ -382,7 +382,7 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
   assert.match(trace, /event: done/);
 });
 
-test('Wrap-Up failure keeps the AI draft atomic and marks the whole generation failed', async t => {
+test('retry reuses validated sections and regenerates only an invalid Wrap-Up', async t => {
   let openRouterRequestCount = 0;
   const openRouter = http.createServer((req, res) => {
     let body = '';
@@ -431,8 +431,19 @@ test('Wrap-Up failure keeps the AI draft atomic and marks the whole generation f
       assert.match(payload.messages[1].content, /^Lesson topic: Travel choices\nGrammar topic: Past Simple/m);
       assert.match(payload.messages[1].content, /Target Vocabulary/);
       assert.equal(payload.response_format.json_schema.name, 'easyclass_wrap_up');
-      res.writeHead(502, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: { message: 'Wrap-Up provider failed.' } }));
+      if (requestIndex === 9) {
+        const invalidWrapUp = { ...WRAP_UP, possibleLanguage: ['I travelled to…'] };
+        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+        res.write(`data: ${JSON.stringify({ id: 'gen-invalid-wrap-up', choices: [{ delta: { content: JSON.stringify(invalidWrapUp) } }] })}\n\n`);
+        res.write(`data: ${JSON.stringify({ id: 'gen-invalid-wrap-up', choices: [{ delta: {} }], usage: { cost: 0.014 } })}\n\n`);
+        res.end('data: [DONE]\n\n');
+        return;
+      }
+      assert.equal(requestIndex, 10);
+      res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      res.write(`data: ${JSON.stringify({ id: 'gen-wrap-up-retry', choices: [{ delta: { content: JSON.stringify(WRAP_UP) } }] })}\n\n`);
+      res.write(`data: ${JSON.stringify({ id: 'gen-wrap-up-retry', choices: [{ delta: {} }], usage: { cost: 0.013 } })}\n\n`);
+      res.end('data: [DONE]\n\n');
     });
   });
   const openRouterPort = await listen(openRouter);
@@ -491,8 +502,8 @@ test('Wrap-Up failure keeps the AI draft atomic and marks the whole generation f
   assert.equal(openRouterRequestCount, 10);
   assert.equal(failed.status, 'failed');
   assert.equal(failed.generation.status, 'failed');
-  assert.ok(Math.abs(failed.generation.costUsd - 0.072) < 1e-12);
-  assert.match(failed.errorMessage, /Wrap-Up provider failed/);
+  assert.ok(Math.abs(failed.generation.costUsd - 0.086) < 1e-12);
+  assert.match(failed.errorMessage, /Possible language/);
   assert.ok(failed.content.stages.every(stage => stage.content.length === 0));
   assert.equal(failed.imageGeneration, null);
 
@@ -511,6 +522,29 @@ test('Wrap-Up failure keeps the AI draft atomic and marks the whole generation f
   assert.match(trace, /=== Grammar Focus ===/);
   assert.match(trace, /=== Guided Speaking ===/);
   assert.match(trace, /=== Wrap-Up ===/);
-  assert.match(trace, /Wrap-Up provider failed/);
+  assert.match(trace, /I travelled to/);
+  assert.match(trace, /Possible language/);
   assert.match(trace, /event: generation-error/);
+
+  const retryResponse = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/retry`, {
+    method: 'POST',
+    headers: { Cookie: cookie },
+  });
+  assert.equal(retryResponse.status, 202);
+  assert.equal((await retryResponse.json()).draft.status, 'generating');
+
+  let recovered;
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const response = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}`, { headers: { Cookie: cookie } });
+    recovered = (await response.json()).draft;
+    if (recovered.status !== 'generating') break;
+    await new Promise(resolve => setTimeout(resolve, 30));
+  }
+  assert.equal(openRouterRequestCount, 11);
+  assert.equal(recovered.status, 'review');
+  assert.equal(recovered.generation.status, 'completed');
+  assert.ok(Math.abs(recovered.generation.costUsd - 0.099) < 1e-12);
+  assert.deepEqual(recovered.content.stages[8].content.map(component => component.type), [
+    'teacherNote', 'threeTwoOne', 'selfAssessment', 'markdownCard',
+  ]);
 });

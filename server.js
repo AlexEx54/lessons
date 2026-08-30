@@ -25,6 +25,7 @@ const {
   failLessonDraft,
   findLessonDraft,
   listLessonDrafts,
+  retryLessonDraft,
   updateAudioPlayer,
   updateAudioPlayerAudio,
   updateIllustratedTextPanel,
@@ -59,8 +60,10 @@ const {
   failInterruptedLessonGenerations,
   failLessonGeneration,
   findLessonGeneration,
+  retryLessonGeneration,
   updateLessonGenerationStream,
 } = require('./lib/lesson-generation-store.js');
+const { recoverLessonGeneration } = require('./lib/lesson-generation-recovery.js');
 const { stopInterruptedLessonImageGenerations } = require('./lib/lesson-image-generation-store.js');
 const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
 const {
@@ -224,14 +227,22 @@ function aggregateGenerationUsage(first = {}, second = {}) {
 }
 
 async function runAiLessonGeneration({
-  draftId, ownerAdminId, topic, warmUpTopic, grammarTopic, skeleton,
+  draftId,
+  ownerAdminId,
+  topic,
+  warmUpTopic,
+  grammarTopic,
+  skeleton,
+  recoveredSections = {},
+  initialOutput = '',
+  initialUsage = {},
 }) {
   const controller = new AbortController();
   generationControllers.set(draftId, controller);
   let reasoning = '';
-  let output = '';
-  let usage = {};
-  let completedUsage = {};
+  let output = initialOutput;
+  let usage = initialUsage;
+  let completedUsage = initialUsage;
   let providerGenerationId = '';
   let flushTimer = null;
   let activeSection = 'Warm-Up';
@@ -288,16 +299,24 @@ async function runAiLessonGeneration({
     return result;
   }
 
+  function recoverOrGenerate(key, sectionName, sectionTopic, generator) {
+    if (Object.hasOwn(recoveredSections, key)) {
+      return Promise.resolve({ generated: recoveredSections[key], usage: {} });
+    }
+    return generateSection(sectionName, sectionTopic, generator);
+  }
+
   try {
-    const metadataResult = await generateSection(
-      'Lesson Metadata', topic, generateLessonMetadata,
+    const metadataResult = await recoverOrGenerate(
+      'lessonMetadata', 'Lesson Metadata', topic, generateLessonMetadata,
     );
-    const warmUpResult = await generateSection('Warm-Up', warmUpTopic, generateWarmUp);
-    const leadInResult = await generateSection('Lead-In', topic, generateLeadIn);
-    const targetVocabularyResult = await generateSection(
-      'Target Vocabulary', topic, generateTargetVocabulary,
+    const warmUpResult = await recoverOrGenerate('warmUp', 'Warm-Up', warmUpTopic, generateWarmUp);
+    const leadInResult = await recoverOrGenerate('leadIn', 'Lead-In', topic, generateLeadIn);
+    const targetVocabularyResult = await recoverOrGenerate(
+      'targetVocabulary', 'Target Vocabulary', topic, generateTargetVocabulary,
     );
-    const readingResult = await generateSection(
+    const readingResult = await recoverOrGenerate(
+      'reading',
       'Reading',
       topic,
       options => generateReading({
@@ -305,7 +324,8 @@ async function runAiLessonGeneration({
         vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
       }),
     );
-    const listeningResult = await generateSection(
+    const listeningResult = await recoverOrGenerate(
+      'listening',
       'Listening',
       topic,
       options => generateListening({
@@ -313,12 +333,14 @@ async function runAiLessonGeneration({
         vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
       }),
     );
-    const grammarPresentationResult = await generateSection(
+    const grammarPresentationResult = await recoverOrGenerate(
+      'grammarPresentation',
       'Grammar Presentation',
       topic,
       options => generateGrammarPresentation({ ...options, grammarTopic }),
     );
-    const grammarFocusResult = await generateSection(
+    const grammarFocusResult = await recoverOrGenerate(
+      'grammarFocus',
       'Grammar Focus',
       topic,
       options => generateGrammarFocus({
@@ -327,7 +349,8 @@ async function runAiLessonGeneration({
         vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
       }),
     );
-    const guidedSpeakingResult = await generateSection(
+    const guidedSpeakingResult = await recoverOrGenerate(
+      'guidedSpeaking',
       'Guided Speaking',
       topic,
       options => generateGuidedSpeaking({
@@ -335,7 +358,8 @@ async function runAiLessonGeneration({
         vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
       }),
     );
-    const wrapUpResult = await generateSection(
+    const wrapUpResult = await recoverOrGenerate(
+      'wrapUp',
       'Wrap-Up',
       topic,
       options => generateWrapUp({
@@ -1373,6 +1397,70 @@ const server = http.createServer(async (req, res) => {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     json(res, 200, { drafts: listLessonDrafts(user.id, database) });
+    return;
+  }
+
+  const lessonGenerationRetry = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/retry$/);
+  if (req.method === 'POST' && lessonGenerationRetry) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+
+    let draftId = '';
+    try {
+      draftId = decodeURIComponent(lessonGenerationRetry[1]);
+      const draft = findLessonDraft(draftId, user.id, database);
+      if (!draft) {
+        json(res, 404, { error: 'Черновик урока не найден.' });
+        return;
+      }
+      const generation = findLessonGeneration(draftId, database);
+      if (!generation) {
+        json(res, 404, { error: 'Журнал генерации не найден.' });
+        return;
+      }
+
+      const skeleton = draft.content || createLessonSkeleton(draft.topic);
+      const recovery = recoverLessonGeneration(generation.output, skeleton);
+      if (Object.keys(recovery.recoveredSections).length < 10 && !process.env.OPENROUTER_API_KEY) {
+        json(res, 503, { error: 'Нейрогенерация временно недоступна: OPENROUTER_API_KEY не настроен.' });
+        return;
+      }
+
+      database.exec('BEGIN IMMEDIATE');
+      try {
+        retryLessonDraft(draftId, user.id, database);
+        retryLessonGeneration({ draftId, output: recovery.validOutput }, database);
+        database.exec('COMMIT');
+      } catch (error) {
+        database.exec('ROLLBACK');
+        throw error;
+      }
+
+      const retriedDraft = findLessonDraft(draftId, user.id, database);
+      json(res, 202, { draft: retriedDraft });
+      setImmediate(() => {
+        runAiLessonGeneration({
+          draftId,
+          ownerAdminId: user.id,
+          topic: draft.topic,
+          warmUpTopic: draft.warmUpTopic,
+          grammarTopic: draft.grammarTopic,
+          skeleton,
+          recoveredSections: recovery.recoveredSections,
+          initialOutput: recovery.validOutput,
+          initialUsage: {
+            cost: generation.costUsd,
+            promptTokens: generation.promptTokens,
+            completionTokens: generation.completionTokens,
+            reasoningTokens: generation.reasoningTokens,
+          },
+        });
+      });
+    } catch (error) {
+      json(res, error.statusCode || 500, {
+        error: error.message || 'Не удалось повторить генерацию.',
+      });
+    }
     return;
   }
 
