@@ -795,14 +795,17 @@ test('Lesson Metadata generates and applies a standalone lesson cover prompt', a
   assert.equal(messages[1].content, 'Lesson topic: Space travel');
   assert.match(messages[0].content, /coverImagePrompt for the lesson as a whole/);
   assert.match(messages[0].content, /landscape 16:10 lesson-library cover/);
+  assert.match(messages[0].content, /no visible or readable text/);
   assert.deepEqual(LESSON_METADATA_RESPONSE_SCHEMA.required, ['coverImagePrompt']);
 
   assert.throws(() => buildLessonMetadata({
     coverImagePrompt: '',
   }), /промпт для обложки/);
-  assert.throws(() => buildLessonMetadata({
+  assert.deepEqual(buildLessonMetadata({
     coverImagePrompt: 'A colorful landscape illustration of a space lesson.',
-  }), /запрещать текст/);
+  }), {
+    coverImagePrompt: 'A colorful landscape illustration of a space lesson.',
+  });
 
   const lesson = applyLessonMetadataToSkeleton(
     createLessonSkeleton('Space travel'), GENERATED_LESSON_METADATA,
