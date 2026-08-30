@@ -5,6 +5,7 @@ const test = require('node:test');
 const {
   GRAMMAR_FOCUS_RESPONSE_SCHEMA,
   GRAMMAR_PRESENTATION_RESPONSE_SCHEMA,
+  GUIDED_SPEAKING_RESPONSE_SCHEMA,
   LEAD_IN_RESPONSE_SCHEMA,
   LISTENING_RESPONSE_SCHEMA,
   OPENROUTER_MODEL,
@@ -12,6 +13,7 @@ const {
   TARGET_VOCABULARY_RESPONSE_SCHEMA,
   applyGrammarFocusToSkeleton,
   applyGrammarPresentationToSkeleton,
+  applyGuidedSpeakingToSkeleton,
   applyLeadInToSkeleton,
   applyListeningToSkeleton,
   applyReadingToSkeleton,
@@ -19,6 +21,7 @@ const {
   applyWarmUpToSkeleton,
   buildGrammarFocusContent,
   buildGrammarPresentationContent,
+  buildGuidedSpeakingContent,
   buildLeadInContent,
   buildListeningContent,
   buildReadingContent,
@@ -27,6 +30,7 @@ const {
   createLessonSkeleton,
   generateGrammarFocus,
   generateGrammarPresentation,
+  generateGuidedSpeaking,
   generateLeadIn,
   generateListening,
   generateReading,
@@ -34,6 +38,7 @@ const {
   generateWarmUp,
   grammarFocusMessages,
   grammarPresentationMessages,
+  guidedSpeakingMessages,
   leadInMessages,
   listeningMessages,
   parseOpenRouterStream,
@@ -52,6 +57,7 @@ const {
   GENERATED_GRAMMAR_PRESENTATION,
 } = require('./fixtures/generated-grammar-presentation.js');
 const { GENERATED_GRAMMAR_FOCUS } = require('./fixtures/generated-grammar-focus.js');
+const { GENERATED_GUIDED_SPEAKING } = require('./fixtures/generated-guided-speaking.js');
 const { READING_TEACHER_NOTE_TEXT } = require('../lib/reading-static.js');
 const { parseMarkdown } = require('../assets/components/safe-markdown.js');
 const {
@@ -541,6 +547,86 @@ test('Grammar Focus prompt receives lesson, grammar, and Target Vocabulary conte
   assert.equal(GRAMMAR_FOCUS_RESPONSE_SCHEMA.properties.supportWordBank.minItems, 8);
 });
 
+test('generated Guided Speaking maps variable content onto the fixed synthetic structure', () => {
+  const vocabulary = GENERATED_TARGET_VOCABULARY.vocabularyItems;
+  const content = buildGuidedSpeakingContent(GENERATED_GUIDED_SPEAKING, vocabulary);
+  assert.deepEqual(content.map(component => component.type), [
+    'teacherNote', 'textPanel', 'howToPlay', 'guidedRoleCards', 'speakingSupport', 'markdownCard',
+  ]);
+  assert.equal(content[0].text, GENERATED_GUIDED_SPEAKING.teacherNotes);
+  assert.deepEqual(content[1], {
+    type: 'textPanel', id: 'guided-speaking-read-instructions',
+    text: '{l}**Read the instructions.**{/l}', backgroundColor: '#FFFFFF',
+    accentColor: '#20243B', showBorder: false,
+  });
+  assert.deepEqual(content[2], {
+    type: 'howToPlay', id: 'guided-speaking-how-to-play', title: 'How to Play',
+    steps: [
+      'Read your role. Keep your card secret.',
+      'Talk to your partner. Listen, answer and complete your secret mission.',
+      'Decide together. Complete the Shared Outcome.',
+    ],
+  });
+  assert.match(content[3].roles.student.sections.secret, /pack a suitcase/);
+  assert.match(content[3].roles.teacher.sections.secret, /book a ticket/);
+  assert.deepEqual(Object.keys(content[4].sections), [
+    'reacting', 'followUpQuestions', 'clarification',
+    'suggestions', 'agreeingDisagreeing', 'decision',
+  ]);
+  assert.equal(content[5].text.split('\n\n').length, 6);
+
+  const lesson = applyGuidedSpeakingToSkeleton(
+    createLessonSkeleton('Air travel'), GENERATED_GUIDED_SPEAKING, vocabulary,
+  );
+  assert.equal(lesson.stages[7].content.length, 6);
+  assert.ok(lesson.stages.filter(stage => stage.id !== 'guided-speaking')
+    .every(stage => stage.content.length === 0));
+
+  const changed = JSON.parse(JSON.stringify(GENERATED_GUIDED_SPEAKING));
+  changed.roles.student.want[0] = 'Stay near the airport';
+  const changedContent = buildGuidedSpeakingContent(changed, vocabulary);
+  assert.deepEqual(changedContent[1], content[1]);
+  assert.deepEqual(changedContent[2], content[2]);
+});
+
+test('generated Guided Speaking rejects damaged roles, dialogue, language, and vocabulary', () => {
+  const vocabulary = GENERATED_TARGET_VOCABULARY.vocabularyItems;
+  const damagedGoal = JSON.parse(JSON.stringify(GENERATED_GUIDED_SPEAKING));
+  damagedGoal.roles.teacher.goal = 'Choose a different plan.';
+  assert.throws(() => buildGuidedSpeakingContent(damagedGoal, vocabulary), /одинаковую общую цель/);
+
+  const damagedDialogue = JSON.parse(JSON.stringify(GENERATED_GUIDED_SPEAKING));
+  damagedDialogue.dialogue[1].speaker = 'Teacher';
+  assert.throws(() => buildGuidedSpeakingContent(damagedDialogue, vocabulary), /должны чередоваться/);
+
+  assert.throws(() => buildGuidedSpeakingContent({
+    ...GENERATED_GUIDED_SPEAKING,
+    usedVocabularyTerms: ['book a ticket', 'unknown phrase'],
+  }, vocabulary), /неизвестный элемент/);
+  assert.throws(() => buildGuidedSpeakingContent({
+    ...GENERATED_GUIDED_SPEAKING,
+    usedVocabularyTerms: ['book a ticket', 'book a ticket'],
+  }, vocabulary), /повторяющиеся/);
+  assert.throws(() => buildGuidedSpeakingContent({
+    ...GENERATED_GUIDED_SPEAKING,
+    teacherNotes: 'Попросите ученика начать разговор.',
+  }, vocabulary), /полностью на английском/);
+});
+
+test('Guided Speaking prompt receives lesson topic and Target Vocabulary without grammar', () => {
+  const messages = guidedSpeakingMessages('Air travel', GENERATED_TARGET_VOCABULARY.vocabularyItems);
+  assert.match(messages[0].content, /2 to 4 distinct entries from Target Vocabulary/);
+  assert.match(messages[0].content, /6 to 10 alternating Teacher and Student turns/);
+  assert.match(messages[0].content, /application adds them statically/);
+  assert.equal(
+    messages[1].content,
+    `Lesson topic: Air travel\nTarget Vocabulary: ${JSON.stringify(TERMS)}`,
+  );
+  assert.doesNotMatch(messages[1].content, /Grammar topic/);
+  assert.equal(GUIDED_SPEAKING_RESPONSE_SCHEMA.properties.usedVocabularyTerms.minItems, 2);
+  assert.equal(GUIDED_SPEAKING_RESPONSE_SCHEMA.properties.dialogue.maxItems, 10);
+});
+
 test('Warm-Up prompt requires three teacher-note bullets and a separate Say paragraph', () => {
   const messages = warmUpMessages('Space travel');
   const systemPrompt = messages.find(message => message.role === 'system').content;
@@ -866,4 +952,32 @@ test('generateGrammarFocus sends all context with its strict schema and validate
   assert.equal(requestBody.response_format.json_schema.strict, true);
   assert.equal(result.generated.task1Items.length, 8);
   assert.equal(result.generated.task2Gaps.length, 9);
+});
+
+test('generateGuidedSpeaking sends topic and vocabulary with its strict schema', async () => {
+  let requestBody;
+  const response = streamingResponse([
+    `data: ${JSON.stringify({ id: 'gen-guided-speaking', choices: [{ delta: { reasoning: 'Ready.' } }] })}`,
+    `data: ${JSON.stringify({ id: 'gen-guided-speaking', choices: [{ delta: { content: JSON.stringify(GENERATED_GUIDED_SPEAKING) } }] })}`,
+    'data: {"id":"gen-guided-speaking","choices":[{"delta":{}}],"usage":{"cost":0.08}}',
+    'data: [DONE]',
+  ]);
+  const result = await generateGuidedSpeaking({
+    topic: 'Air travel',
+    vocabularyItems: GENERATED_TARGET_VOCABULARY.vocabularyItems,
+    apiKey: 'test-key',
+    baseUrl: 'https://openrouter.test/api/v1/',
+    fetchImpl: async (url, options) => {
+      assert.equal(url, 'https://openrouter.test/api/v1/chat/completions');
+      requestBody = JSON.parse(options.body);
+      return response;
+    },
+  });
+  assert.match(requestBody.messages[1].content, /^Lesson topic: Air travel/m);
+  assert.match(requestBody.messages[1].content, /Target Vocabulary: \["book a ticket"/);
+  assert.doesNotMatch(requestBody.messages[1].content, /Grammar topic/);
+  assert.equal(requestBody.response_format.json_schema.name, 'easyclass_guided_speaking');
+  assert.deepEqual(requestBody.response_format.json_schema.schema, GUIDED_SPEAKING_RESPONSE_SCHEMA);
+  assert.equal(requestBody.response_format.json_schema.strict, true);
+  assert.equal(result.generated.dialogue.length, 6);
 });

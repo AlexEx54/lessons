@@ -68,6 +68,7 @@ const {
   OPENROUTER_MODEL,
   applyGrammarFocusToSkeleton,
   applyGrammarPresentationToSkeleton,
+  applyGuidedSpeakingToSkeleton,
   applyLeadInToSkeleton,
   applyListeningToSkeleton,
   applyReadingToSkeleton,
@@ -76,6 +77,7 @@ const {
   createLessonSkeleton,
   generateGrammarFocus,
   generateGrammarPresentation,
+  generateGuidedSpeaking,
   generateLeadIn,
   generateListening,
   generateReading,
@@ -318,6 +320,14 @@ async function runAiLessonGeneration({
         vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
       }),
     );
+    const guidedSpeakingResult = await generateSection(
+      'Guided Speaking',
+      topic,
+      options => generateGuidedSpeaking({
+        ...options,
+        vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
+      }),
+    );
     const lessonWithWarmUp = applyWarmUpToSkeleton(skeleton, warmUpResult.generated);
     const lessonWithLeadIn = applyLeadInToSkeleton(lessonWithWarmUp, leadInResult.generated);
     const lessonWithTargetVocabulary = applyTargetVocabularyToSkeleton(
@@ -334,9 +344,14 @@ async function runAiLessonGeneration({
     const lessonWithGrammarPresentation = applyGrammarPresentationToSkeleton(
       lessonWithListening, grammarPresentationResult.generated,
     );
-    const lesson = applyGrammarFocusToSkeleton(
+    const lessonWithGrammarFocus = applyGrammarFocusToSkeleton(
       lessonWithGrammarPresentation,
       grammarFocusResult.generated,
+      targetVocabularyResult.generated.vocabularyItems,
+    );
+    const lesson = applyGuidedSpeakingToSkeleton(
+      lessonWithGrammarFocus,
+      guidedSpeakingResult.generated,
       targetVocabularyResult.generated.vocabularyItems,
     );
     database.exec('BEGIN IMMEDIATE');
