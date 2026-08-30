@@ -3,18 +3,21 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
+  GRAMMAR_FOCUS_RESPONSE_SCHEMA,
   GRAMMAR_PRESENTATION_RESPONSE_SCHEMA,
   LEAD_IN_RESPONSE_SCHEMA,
   LISTENING_RESPONSE_SCHEMA,
   OPENROUTER_MODEL,
   READING_RESPONSE_SCHEMA,
   TARGET_VOCABULARY_RESPONSE_SCHEMA,
+  applyGrammarFocusToSkeleton,
   applyGrammarPresentationToSkeleton,
   applyLeadInToSkeleton,
   applyListeningToSkeleton,
   applyReadingToSkeleton,
   applyTargetVocabularyToSkeleton,
   applyWarmUpToSkeleton,
+  buildGrammarFocusContent,
   buildGrammarPresentationContent,
   buildLeadInContent,
   buildListeningContent,
@@ -22,12 +25,14 @@ const {
   buildTargetVocabularyContent,
   buildWarmUpContent,
   createLessonSkeleton,
+  generateGrammarFocus,
   generateGrammarPresentation,
   generateLeadIn,
   generateListening,
   generateReading,
   generateTargetVocabulary,
   generateWarmUp,
+  grammarFocusMessages,
   grammarPresentationMessages,
   leadInMessages,
   listeningMessages,
@@ -46,6 +51,7 @@ const { GENERATED_LISTENING } = require('./fixtures/generated-listening.js');
 const {
   GENERATED_GRAMMAR_PRESENTATION,
 } = require('./fixtures/generated-grammar-presentation.js');
+const { GENERATED_GRAMMAR_FOCUS } = require('./fixtures/generated-grammar-focus.js');
 const { READING_TEACHER_NOTE_TEXT } = require('../lib/reading-static.js');
 const { parseMarkdown } = require('../assets/components/safe-markdown.js');
 const {
@@ -453,6 +459,88 @@ test('Grammar Presentation prompt receives separate lesson and grammar topics', 
   assert.equal(GRAMMAR_PRESENTATION_RESPONSE_SCHEMA.properties.teacherNotes, undefined);
 });
 
+test('generated Grammar Focus is mapped onto the fixed synthetic component structure', () => {
+  const content = buildGrammarFocusContent(
+    GENERATED_GRAMMAR_FOCUS, GENERATED_TARGET_VOCABULARY.vocabularyItems, () => 0,
+  );
+  assert.deepEqual(content.map(component => component.type), [
+    'teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard',
+    'miniSituation', 'cardRow',
+  ]);
+  assert.deepEqual(content[0].blocks.map(block => block.id), [
+    'grammar-focus-transition-phrases', 'grammar-focus-struggle-tips',
+    'grammar-focus-correction-timing', 'grammar-focus-free-practice-success',
+  ]);
+  assert.equal(content[1].choices.length, 8);
+  assert.equal((content[1].text.match(/\[\[/g) || []).length, 8);
+  assert.match(content[2].sections[1].text, /After did not, use the base verb/);
+  assert.equal(content[2].studentVisibility, 'teacherOnly');
+  assert.equal(content[3].gaps.length, 9);
+  assert.equal((content[3].text.match(/\[\[/g) || []).length, 9);
+  assert.match(content[4].sections[1].text, /\*\*9\.\*\* took off/);
+  assert.equal(content[5].situation.leadingPicture.imagePrompt, GENERATED_GRAMMAR_FOCUS.miniSituation.imagePrompt);
+  assert.deepEqual(content[6].items.map(item => item.id), [
+    'grammar-focus-writing-support', 'grammar-focus-support', 'grammar-focus-challenge',
+  ]);
+  TERMS.slice(0, 8).forEach(term => assert.match(content[6].items[1].text, new RegExp(term)));
+
+  const lesson = applyGrammarFocusToSkeleton(
+    createLessonSkeleton('Air travel'), GENERATED_GRAMMAR_FOCUS,
+    GENERATED_TARGET_VOCABULARY.vocabularyItems, () => 0,
+  );
+  assert.equal(lesson.stages[6].content.length, 7);
+  assert.ok(lesson.stages.filter(stage => stage.id !== 'grammar-focus')
+    .every(stage => stage.content.length === 0));
+});
+
+test('generated Grammar Focus rejects damaged tasks, language, markers, and vocabulary references', () => {
+  const vocabulary = GENERATED_TARGET_VOCABULARY.vocabularyItems;
+  assert.throws(() => buildGrammarFocusContent({
+    ...GENERATED_GRAMMAR_FOCUS,
+    task1Items: GENERATED_GRAMMAR_FOCUS.task1Items.slice(0, 7),
+  }, vocabulary), /ровно 8 заданий Task 1/);
+
+  const unknownAnswer = JSON.parse(JSON.stringify(GENERATED_GRAMMAR_FOCUS));
+  unknownAnswer.task1Items[0].answer = 'flew';
+  assert.throws(() => buildGrammarFocusContent(unknownAnswer, vocabulary), /точно совпадать с вариантом/);
+
+  const repeatedOption = JSON.parse(JSON.stringify(GENERATED_GRAMMAR_FOCUS));
+  repeatedOption.task1Items[0].options[1] = repeatedOption.task1Items[0].options[0];
+  assert.throws(() => buildGrammarFocusContent(repeatedOption, vocabulary), /повторяющиеся варианты/);
+
+  assert.throws(() => buildGrammarFocusContent({
+    ...GENERATED_GRAMMAR_FOCUS,
+    task2Dialogue: GENERATED_GRAMMAR_FOCUS.task2Dialogue.replace('{{gap}}', 'went'),
+  }, vocabulary), /ровно 9 маркеров/);
+  assert.throws(() => buildGrammarFocusContent({
+    ...GENERATED_GRAMMAR_FOCUS,
+    task2Dialogue: GENERATED_GRAMMAR_FOCUS.task2Dialogue.replace('**Mia:**', 'Mia:'),
+  }, vocabulary), /speaker labels/);
+  assert.throws(() => buildGrammarFocusContent({
+    ...GENERATED_GRAMMAR_FOCUS,
+    modelSentence: 'Вчера я летал в Лондон.',
+  }, vocabulary), /полностью на английском/);
+  assert.throws(() => buildGrammarFocusContent({
+    ...GENERATED_GRAMMAR_FOCUS,
+    supportWordBank: [...GENERATED_GRAMMAR_FOCUS.supportWordBank.slice(0, 7), 'unknown phrase'],
+  }, vocabulary), /точные элементы Target Vocabulary/);
+});
+
+test('Grammar Focus prompt receives lesson, grammar, and Target Vocabulary context', () => {
+  const messages = grammarFocusMessages(
+    'Air travel', 'Past Simple', GENERATED_TARGET_VOCABULARY.vocabularyItems,
+  );
+  assert.match(messages[0].content, /Grammar topic is authoritative/);
+  assert.match(messages[0].content, /exactly eight task1Items/);
+  assert.match(messages[0].content, /exactly nine literal \{\{gap\}\} markers/);
+  assert.match(messages[0].content, /exactly eight distinct entries from Target Vocabulary/);
+  assert.match(messages[1].content, /^Lesson topic: Air travel\nGrammar topic: Past Simple/m);
+  assert.match(messages[1].content, /Target Vocabulary: \["book a ticket"/);
+  assert.equal(GRAMMAR_FOCUS_RESPONSE_SCHEMA.properties.task1Items.minItems, 8);
+  assert.equal(GRAMMAR_FOCUS_RESPONSE_SCHEMA.properties.task2Gaps.maxItems, 9);
+  assert.equal(GRAMMAR_FOCUS_RESPONSE_SCHEMA.properties.supportWordBank.minItems, 8);
+});
+
 test('Warm-Up prompt requires three teacher-note bullets and a separate Say paragraph', () => {
   const messages = warmUpMessages('Space travel');
   const systemPrompt = messages.find(message => message.role === 'system').content;
@@ -749,4 +837,33 @@ test('generateGrammarPresentation sends both topics with its strict schema and v
   assert.equal(requestBody.response_format.json_schema.strict, true);
   assert.equal(result.generated.examples.length, 5);
   assert.equal(result.generated.checkItems.length, 5);
+});
+
+test('generateGrammarFocus sends all context with its strict schema and validates the result', async () => {
+  let requestBody;
+  const response = streamingResponse([
+    `data: ${JSON.stringify({ id: 'gen-grammar-focus', choices: [{ delta: { reasoning: 'Ready.' } }] })}`,
+    `data: ${JSON.stringify({ id: 'gen-grammar-focus', choices: [{ delta: { content: JSON.stringify(GENERATED_GRAMMAR_FOCUS) } }] })}`,
+    'data: {"id":"gen-grammar-focus","choices":[{"delta":{}}],"usage":{"cost":0.07}}',
+    'data: [DONE]',
+  ]);
+  const result = await generateGrammarFocus({
+    topic: 'Air travel',
+    grammarTopic: 'Past Simple',
+    vocabularyItems: GENERATED_TARGET_VOCABULARY.vocabularyItems,
+    apiKey: 'test-key',
+    baseUrl: 'https://openrouter.test/api/v1/',
+    fetchImpl: async (url, options) => {
+      assert.equal(url, 'https://openrouter.test/api/v1/chat/completions');
+      requestBody = JSON.parse(options.body);
+      return response;
+    },
+  });
+  assert.match(requestBody.messages[1].content, /^Lesson topic: Air travel\nGrammar topic: Past Simple/m);
+  assert.match(requestBody.messages[1].content, /Target Vocabulary: \["book a ticket"/);
+  assert.equal(requestBody.response_format.json_schema.name, 'easyclass_grammar_focus');
+  assert.deepEqual(requestBody.response_format.json_schema.schema, GRAMMAR_FOCUS_RESPONSE_SCHEMA);
+  assert.equal(requestBody.response_format.json_schema.strict, true);
+  assert.equal(result.generated.task1Items.length, 8);
+  assert.equal(result.generated.task2Gaps.length, 9);
 });

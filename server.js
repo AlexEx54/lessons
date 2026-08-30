@@ -66,6 +66,7 @@ const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
 const {
   OPENROUTER_BASE_URL,
   OPENROUTER_MODEL,
+  applyGrammarFocusToSkeleton,
   applyGrammarPresentationToSkeleton,
   applyLeadInToSkeleton,
   applyListeningToSkeleton,
@@ -73,6 +74,7 @@ const {
   applyTargetVocabularyToSkeleton,
   applyWarmUpToSkeleton,
   createLessonSkeleton,
+  generateGrammarFocus,
   generateGrammarPresentation,
   generateLeadIn,
   generateListening,
@@ -307,6 +309,15 @@ async function runAiLessonGeneration({
       topic,
       options => generateGrammarPresentation({ ...options, grammarTopic }),
     );
+    const grammarFocusResult = await generateSection(
+      'Grammar Focus',
+      topic,
+      options => generateGrammarFocus({
+        ...options,
+        grammarTopic,
+        vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
+      }),
+    );
     const lessonWithWarmUp = applyWarmUpToSkeleton(skeleton, warmUpResult.generated);
     const lessonWithLeadIn = applyLeadInToSkeleton(lessonWithWarmUp, leadInResult.generated);
     const lessonWithTargetVocabulary = applyTargetVocabularyToSkeleton(
@@ -320,8 +331,13 @@ async function runAiLessonGeneration({
     const lessonWithListening = applyListeningToSkeleton(
       lessonWithReading, listeningResult.generated,
     );
-    const lesson = applyGrammarPresentationToSkeleton(
+    const lessonWithGrammarPresentation = applyGrammarPresentationToSkeleton(
       lessonWithListening, grammarPresentationResult.generated,
+    );
+    const lesson = applyGrammarFocusToSkeleton(
+      lessonWithGrammarPresentation,
+      grammarFocusResult.generated,
+      targetVocabularyResult.generated.vocabularyItems,
     );
     database.exec('BEGIN IMMEDIATE');
     try {
