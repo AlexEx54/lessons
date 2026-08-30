@@ -63,6 +63,22 @@ const LEAD_IN = {
   ],
 };
 
+const WRAP_UP = {
+  teacherNotes: {
+    signsOfSuccess: 'The learner recalls travel phrases and uses the Past Simple accurately.',
+    struggleSupport: 'Review key phrases and give one Past Simple model sentence.',
+    positiveEnding: 'Say: “Well done! You can talk about past travel choices clearly.”',
+  },
+  threePrompt: 'Name three words or phrases you remember about travel choices.',
+  twoPrompt: 'Create two Past Simple sentences about a journey.',
+  twoCues: [
+    'Say where you travelled and how you got there.',
+    'Explain one travel choice you made and why.',
+  ],
+  onePrompt: 'Can you describe a past journey and explain your best travel choice?',
+  possibleLanguage: ['I travelled to…', 'I booked a ticket because…', 'The best option was…'],
+};
+
 async function listen(server) {
   await new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -94,7 +110,7 @@ async function login(baseUrl, email, password) {
   return response.headers.get('set-cookie').split(';')[0];
 }
 
-test('AI draft sequentially streams eight generated sections with aggregate usage into review', async t => {
+test('AI draft sequentially streams nine generated sections with aggregate usage into review', async t => {
   let openRouterRequestCount = 0;
   const openRouter = http.createServer((req, res) => {
     assert.equal(req.method, 'POST');
@@ -112,6 +128,7 @@ test('AI draft sequentially streams eight generated sections with aggregate usag
       const generated = [
         WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY, GENERATED_READING, GENERATED_LISTENING,
         GENERATED_GRAMMAR_PRESENTATION, GENERATED_GRAMMAR_FOCUS, GENERATED_GUIDED_SPEAKING,
+        WRAP_UP,
       ][requestIndex];
       const usage = [{
           prompt_tokens: 220,
@@ -153,6 +170,11 @@ test('AI draft sequentially streams eight generated sections with aggregate usag
           completion_tokens: 60,
           completion_tokens_details: { reasoning_tokens: 15 },
           cost: 0.08,
+        }, {
+          prompt_tokens: 70,
+          completion_tokens: 50,
+          completion_tokens_details: { reasoning_tokens: 12 },
+          cost: 0.09,
         }][requestIndex];
       if (requestIndex === 0) {
         assert.equal(payload.messages[1].content, 'Lesson topic: City transport');
@@ -166,15 +188,18 @@ test('AI draft sequentially streams eight generated sections with aggregate usag
       } else if (requestIndex === 6) {
         assert.match(payload.messages[1].content, /^Lesson topic: Travel choices\nGrammar topic: Past Simple/m);
         assert.match(payload.messages[1].content, /Target Vocabulary: \["book a ticket"/);
-      } else {
+      } else if (requestIndex === 7) {
         assert.match(payload.messages[1].content, /^Lesson topic: Travel choices/m);
         assert.match(payload.messages[1].content, /Target Vocabulary: \["book a ticket"/);
         assert.doesNotMatch(payload.messages[1].content, /Grammar topic/);
+      } else {
+        assert.match(payload.messages[1].content, /^Lesson topic: Travel choices\nGrammar topic: Past Simple/m);
+        assert.match(payload.messages[1].content, /Target Vocabulary: \["book a ticket"/);
       }
       assert.equal(payload.response_format.json_schema.name, [
         'easyclass_warm_up', 'easyclass_lead_in', 'easyclass_target_vocabulary', 'easyclass_reading',
         'easyclass_listening', 'easyclass_grammar_presentation', 'easyclass_grammar_focus',
-        'easyclass_guided_speaking',
+        'easyclass_guided_speaking', 'easyclass_wrap_up',
       ][requestIndex]);
       res.writeHead(200, { 'Content-Type': 'text/event-stream' });
       res.write(`data: ${JSON.stringify({ id: `gen-integration-${requestIndex}`, choices: [{ delta: { reasoning: `Planning section ${requestIndex + 1}.` } }] })}\n\n`);
@@ -253,9 +278,9 @@ test('AI draft sequentially streams eight generated sections with aggregate usag
     await new Promise(resolve => setTimeout(resolve, 30));
   }
   assert.equal(ready.status, 'review');
-  assert.equal(openRouterRequestCount, 8);
+  assert.equal(openRouterRequestCount, 9);
   assert.equal(ready.generation.status, 'completed');
-  assert.ok(Math.abs(ready.generation.costUsd - 0.363456) < 1e-12);
+  assert.ok(Math.abs(ready.generation.costUsd - 0.453456) < 1e-12);
   assert.equal(ready.content.meta.topic, 'Travel choices');
   assert.equal(ready.content.meta.title, 'Travel choices');
   assert.ok(['pending', 'running', 'unavailable'].includes(ready.imageGeneration.status));
@@ -300,7 +325,15 @@ test('AI draft sequentially streams eight generated sections with aggregate usag
   ]);
   assert.equal(ready.content.stages[7].content[2].id, 'guided-speaking-how-to-play');
   assert.match(ready.content.stages[7].content[3].roles.teacher.sections.secret, /book a ticket/);
-  assert.equal(ready.content.stages[8].content.length, 0);
+  assert.deepEqual(ready.content.stages[8].content.map(component => component.type), [
+    'teacherNote', 'threeTwoOne', 'selfAssessment', 'markdownCard',
+  ]);
+  assert.match(ready.content.stages[8].content[0].text, /Past Simple accurately/);
+  assert.equal(
+    ready.content.stages[8].content[2].title,
+    'Self-assessment: How do you feel about today’s lesson?',
+  );
+  assert.equal(ready.content.stages[8].content[3].text, WRAP_UP.possibleLanguage.join(' / '));
 
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/generation-stream`)).status, 401);
   const traceResponse = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/generation-stream`, {
@@ -317,6 +350,7 @@ test('AI draft sequentially streams eight generated sections with aggregate usag
   assert.match(trace, /=== Grammar Presentation ===/);
   assert.match(trace, /=== Grammar Focus ===/);
   assert.match(trace, /=== Guided Speaking ===/);
+  assert.match(trace, /=== Wrap-Up ===/);
   assert.match(trace, /Planning section 1/);
   assert.match(trace, /Planning section 2/);
   assert.match(trace, /Planning section 3/);
@@ -325,15 +359,16 @@ test('AI draft sequentially streams eight generated sections with aggregate usag
   assert.match(trace, /Planning section 6/);
   assert.match(trace, /Planning section 7/);
   assert.match(trace, /Planning section 8/);
+  assert.match(trace, /Planning section 9/);
   assert.match(trace, /book a ticket/);
-  assert.match(trace, /0\.36345/);
-  assert.match(trace, /"promptTokens":1300/);
-  assert.match(trace, /"completionTokens":880/);
-  assert.match(trace, /"reasoningTokens":295/);
+  assert.match(trace, /0\.45345/);
+  assert.match(trace, /"promptTokens":1370/);
+  assert.match(trace, /"completionTokens":930/);
+  assert.match(trace, /"reasoningTokens":307/);
   assert.match(trace, /event: done/);
 });
 
-test('Guided Speaking failure keeps the AI draft atomic and marks the whole generation failed', async t => {
+test('Wrap-Up failure keeps the AI draft atomic and marks the whole generation failed', async t => {
   let openRouterRequestCount = 0;
   const openRouter = http.createServer((req, res) => {
     let body = '';
@@ -343,7 +378,7 @@ test('Guided Speaking failure keeps the AI draft atomic and marks the whole gene
       const payload = JSON.parse(body);
       const requestIndex = openRouterRequestCount;
       openRouterRequestCount += 1;
-      if (requestIndex < 7) {
+      if (requestIndex < 8) {
         if (requestIndex === 0) {
           assert.equal(payload.messages[1].content, 'Lesson topic: Warm-up transport');
         } else if (requestIndex < 3) {
@@ -353,31 +388,35 @@ test('Guided Speaking failure keeps the AI draft atomic and marks the whole gene
           assert.match(payload.messages[1].content, /Target Vocabulary/);
         } else if (requestIndex === 5) {
           assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices\nGrammar topic: Past Simple');
-        } else {
+        } else if (requestIndex === 6) {
           assert.match(payload.messages[1].content, /^Lesson topic: Travel choices\nGrammar topic: Past Simple/m);
           assert.match(payload.messages[1].content, /Target Vocabulary/);
+        } else {
+          assert.match(payload.messages[1].content, /^Lesson topic: Travel choices/m);
+          assert.match(payload.messages[1].content, /Target Vocabulary/);
+          assert.doesNotMatch(payload.messages[1].content, /Grammar topic/);
         }
         assert.equal(payload.response_format.json_schema.name, [
           'easyclass_warm_up', 'easyclass_lead_in', 'easyclass_target_vocabulary', 'easyclass_reading',
           'easyclass_listening', 'easyclass_grammar_presentation', 'easyclass_grammar_focus',
+          'easyclass_guided_speaking',
         ][requestIndex]);
         const generated = [
           WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY, GENERATED_READING, GENERATED_LISTENING,
-          GENERATED_GRAMMAR_PRESENTATION, GENERATED_GRAMMAR_FOCUS,
+          GENERATED_GRAMMAR_PRESENTATION, GENERATED_GRAMMAR_FOCUS, GENERATED_GUIDED_SPEAKING,
         ][requestIndex];
         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
         res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: { reasoning: `Section ${requestIndex + 1} complete.` } }] })}\n\n`);
         res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: { content: JSON.stringify(generated) } }] })}\n\n`);
-        res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: {} }], usage: { cost: [0.005, 0.006, 0.007, 0.008, 0.009, 0.01, 0.011][requestIndex] } })}\n\n`);
+        res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: {} }], usage: { cost: [0.005, 0.006, 0.007, 0.008, 0.009, 0.01, 0.011, 0.012][requestIndex] } })}\n\n`);
         res.end('data: [DONE]\n\n');
         return;
       }
-      assert.match(payload.messages[1].content, /^Lesson topic: Travel choices/m);
+      assert.match(payload.messages[1].content, /^Lesson topic: Travel choices\nGrammar topic: Past Simple/m);
       assert.match(payload.messages[1].content, /Target Vocabulary/);
-      assert.doesNotMatch(payload.messages[1].content, /Grammar topic/);
-      assert.equal(payload.response_format.json_schema.name, 'easyclass_guided_speaking');
+      assert.equal(payload.response_format.json_schema.name, 'easyclass_wrap_up');
       res.writeHead(502, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: { message: 'Guided Speaking provider failed.' } }));
+      res.end(JSON.stringify({ error: { message: 'Wrap-Up provider failed.' } }));
     });
   });
   const openRouterPort = await listen(openRouter);
@@ -433,11 +472,11 @@ test('Guided Speaking failure keeps the AI draft atomic and marks the whole gene
     if (failed.status !== 'generating') break;
     await new Promise(resolve => setTimeout(resolve, 30));
   }
-  assert.equal(openRouterRequestCount, 8);
+  assert.equal(openRouterRequestCount, 9);
   assert.equal(failed.status, 'failed');
   assert.equal(failed.generation.status, 'failed');
-  assert.ok(Math.abs(failed.generation.costUsd - 0.056) < 1e-12);
-  assert.match(failed.errorMessage, /Guided Speaking provider failed/);
+  assert.ok(Math.abs(failed.generation.costUsd - 0.068) < 1e-12);
+  assert.match(failed.errorMessage, /Wrap-Up provider failed/);
   assert.ok(failed.content.stages.every(stage => stage.content.length === 0));
   assert.equal(failed.imageGeneration, null);
 
@@ -454,6 +493,7 @@ test('Guided Speaking failure keeps the AI draft atomic and marks the whole gene
   assert.match(trace, /=== Grammar Presentation ===/);
   assert.match(trace, /=== Grammar Focus ===/);
   assert.match(trace, /=== Guided Speaking ===/);
-  assert.match(trace, /Guided Speaking provider failed/);
+  assert.match(trace, /=== Wrap-Up ===/);
+  assert.match(trace, /Wrap-Up provider failed/);
   assert.match(trace, /event: generation-error/);
 });

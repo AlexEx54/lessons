@@ -11,6 +11,7 @@ const {
   OPENROUTER_MODEL,
   READING_RESPONSE_SCHEMA,
   TARGET_VOCABULARY_RESPONSE_SCHEMA,
+  WRAP_UP_RESPONSE_SCHEMA,
   applyGrammarFocusToSkeleton,
   applyGrammarPresentationToSkeleton,
   applyGuidedSpeakingToSkeleton,
@@ -19,6 +20,7 @@ const {
   applyReadingToSkeleton,
   applyTargetVocabularyToSkeleton,
   applyWarmUpToSkeleton,
+  applyWrapUpToSkeleton,
   buildGrammarFocusContent,
   buildGrammarPresentationContent,
   buildGuidedSpeakingContent,
@@ -27,6 +29,7 @@ const {
   buildReadingContent,
   buildTargetVocabularyContent,
   buildWarmUpContent,
+  buildWrapUpContent,
   createLessonSkeleton,
   generateGrammarFocus,
   generateGrammarPresentation,
@@ -36,6 +39,7 @@ const {
   generateReading,
   generateTargetVocabulary,
   generateWarmUp,
+  generateWrapUp,
   grammarFocusMessages,
   grammarPresentationMessages,
   guidedSpeakingMessages,
@@ -46,6 +50,7 @@ const {
   shuffleOptions,
   targetVocabularyMessages,
   warmUpMessages,
+  wrapUpMessages,
 } = require('../lib/ai-lesson-generator.js');
 const {
   GENERATED_TARGET_VOCABULARY,
@@ -103,6 +108,26 @@ const GENERATED_LEAD_IN = Object.freeze({
     'He thinks seeing a new planet sounds amazing.',
     'Yes, I would, because I want to see space.',
   ],
+});
+
+const GENERATED_WRAP_UP = Object.freeze({
+  teacherNotes: Object.freeze({
+    signsOfSuccess: 'The learner names three travel phrases and uses the Past Simple accurately in two clear sentences.',
+    struggleSupport: 'Review three useful travel phrases and give one Past Simple model before the learner tries again.',
+    positiveEnding: 'Say: “Great work! You can describe a past journey and explain your travel choices clearly.”',
+  }),
+  threePrompt: 'Name three words or phrases you remember about travel choices.',
+  twoPrompt: 'Create two sentences about a past journey using the Past Simple.',
+  twoCues: Object.freeze([
+    'Say where you travelled and how you got there.',
+    'Explain one travel choice you made and why.',
+  ]),
+  onePrompt: 'Can you describe a past journey and explain which travel option was best for you?',
+  possibleLanguage: Object.freeze([
+    'I travelled to…',
+    'I booked a ticket because…',
+    'The best option was…',
+  ]),
 });
 
 function streamingResponse(events) {
@@ -627,6 +652,77 @@ test('Guided Speaking prompt receives lesson topic and Target Vocabulary without
   assert.equal(GUIDED_SPEAKING_RESPONSE_SCHEMA.properties.dialogue.maxItems, 10);
 });
 
+test('generated Wrap-Up maps variable copy onto the fixed synthetic structure', () => {
+  const content = buildWrapUpContent(GENERATED_WRAP_UP);
+  assert.deepEqual(content.map(component => component.type), [
+    'teacherNote', 'threeTwoOne', 'selfAssessment', 'markdownCard',
+  ]);
+  assert.match(content[0].text, /\*\*Signs of success:\*\*/);
+  assert.match(content[0].text, /Past Simple accurately/);
+  assert.deepEqual(content[1], {
+    type: 'threeTwoOne',
+    id: 'wrap-up-three-two-one',
+    steps: {
+      three: { prompt: GENERATED_WRAP_UP.threePrompt },
+      two: {
+        prompt: GENERATED_WRAP_UP.twoPrompt,
+        text: '1. Say where you travelled and how you got there.\n2. Explain one travel choice you made and why.',
+      },
+      one: { label: 'Can-do question', prompt: GENERATED_WRAP_UP.onePrompt },
+    },
+  });
+  assert.deepEqual(content[2], {
+    type: 'selfAssessment',
+    id: 'wrap-up-self-assessment',
+    title: 'Self-assessment: How do you feel about today’s lesson?',
+  });
+  assert.deepEqual(content[3], {
+    type: 'markdownCard',
+    id: 'wrap-up-possible-language',
+    title: 'Possible language:',
+    text: GENERATED_WRAP_UP.possibleLanguage.join(' / '),
+    icon: 'chat',
+    accentColor: '#6545F5',
+    studentVisibility: 'always',
+  });
+
+  const lesson = applyWrapUpToSkeleton(createLessonSkeleton('Air travel'), GENERATED_WRAP_UP);
+  assert.equal(lesson.stages[8].content.length, 4);
+  assert.ok(lesson.stages.slice(0, 8).every(stage => stage.content.length === 0));
+});
+
+test('generated Wrap-Up rejects empty, Cyrillic, and damaged variable content', () => {
+  assert.throws(() => buildWrapUpContent(null), /пустой Wrap-Up/);
+  assert.throws(() => buildWrapUpContent({
+    ...GENERATED_WRAP_UP,
+    onePrompt: 'Расскажи о своей последней поездке.',
+  }), /полностью на английском/);
+  assert.throws(() => buildWrapUpContent({
+    ...GENERATED_WRAP_UP,
+    twoCues: GENERATED_WRAP_UP.twoCues.slice(0, 1),
+  }), /ровно 2 подсказки/);
+  assert.throws(() => buildWrapUpContent({
+    ...GENERATED_WRAP_UP,
+    possibleLanguage: ['', ...GENERATED_WRAP_UP.possibleLanguage.slice(1)],
+  }), /Possible language №1/);
+});
+
+test('Wrap-Up prompt receives lesson, grammar, and exact Target Vocabulary context', () => {
+  const messages = wrapUpMessages(
+    'Air travel', 'Past Simple', GENERATED_TARGET_VOCABULARY.vocabularyItems,
+  );
+  assert.match(messages[0].content, /three-minute Wrap-Up/);
+  assert.match(messages[0].content, /threePrompt must ask the learner to recall three/);
+  assert.match(messages[0].content, /exactly two concrete twoCues/);
+  assert.match(messages[0].content, /Do not generate.*Self-assessment/);
+  assert.equal(
+    messages[1].content,
+    `Lesson topic: Air travel\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(TERMS)}`,
+  );
+  assert.equal(WRAP_UP_RESPONSE_SCHEMA.properties.twoCues.minItems, 2);
+  assert.equal(WRAP_UP_RESPONSE_SCHEMA.properties.possibleLanguage.maxItems, 3);
+});
+
 test('Warm-Up prompt requires three teacher-note bullets and a separate Say paragraph', () => {
   const messages = warmUpMessages('Space travel');
   const systemPrompt = messages.find(message => message.role === 'system').content;
@@ -980,4 +1076,33 @@ test('generateGuidedSpeaking sends topic and vocabulary with its strict schema',
   assert.deepEqual(requestBody.response_format.json_schema.schema, GUIDED_SPEAKING_RESPONSE_SCHEMA);
   assert.equal(requestBody.response_format.json_schema.strict, true);
   assert.equal(result.generated.dialogue.length, 6);
+});
+
+test('generateWrapUp sends all lesson context with its strict schema', async () => {
+  let requestBody;
+  const response = streamingResponse([
+    `data: ${JSON.stringify({ id: 'gen-wrap-up', choices: [{ delta: { reasoning: 'Ready.' } }] })}`,
+    `data: ${JSON.stringify({ id: 'gen-wrap-up', choices: [{ delta: { content: JSON.stringify(GENERATED_WRAP_UP) } }] })}`,
+    'data: {"id":"gen-wrap-up","choices":[{"delta":{}}],"usage":{"cost":0.09}}',
+    'data: [DONE]',
+  ]);
+  const result = await generateWrapUp({
+    topic: 'Air travel',
+    grammarTopic: 'Past Simple',
+    vocabularyItems: GENERATED_TARGET_VOCABULARY.vocabularyItems,
+    apiKey: 'test-key',
+    baseUrl: 'https://openrouter.test/api/v1/',
+    fetchImpl: async (url, options) => {
+      assert.equal(url, 'https://openrouter.test/api/v1/chat/completions');
+      requestBody = JSON.parse(options.body);
+      return response;
+    },
+  });
+  assert.match(requestBody.messages[1].content, /^Lesson topic: Air travel\nGrammar topic: Past Simple/m);
+  assert.match(requestBody.messages[1].content, /Target Vocabulary: \["book a ticket"/);
+  assert.equal(requestBody.response_format.json_schema.name, 'easyclass_wrap_up');
+  assert.deepEqual(requestBody.response_format.json_schema.schema, WRAP_UP_RESPONSE_SCHEMA);
+  assert.equal(requestBody.response_format.json_schema.strict, true);
+  assert.equal(result.generated.twoCues.length, 2);
+  assert.equal(result.generated.possibleLanguage.length, 3);
 });

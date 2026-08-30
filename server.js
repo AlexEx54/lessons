@@ -74,6 +74,7 @@ const {
   applyReadingToSkeleton,
   applyTargetVocabularyToSkeleton,
   applyWarmUpToSkeleton,
+  applyWrapUpToSkeleton,
   createLessonSkeleton,
   generateGrammarFocus,
   generateGrammarPresentation,
@@ -83,6 +84,7 @@ const {
   generateReading,
   generateTargetVocabulary,
   generateWarmUp,
+  generateWrapUp,
 } = require('./lib/ai-lesson-generator.js');
 
 const PORT = process.env.PORT || 8787;
@@ -328,6 +330,15 @@ async function runAiLessonGeneration({
         vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
       }),
     );
+    const wrapUpResult = await generateSection(
+      'Wrap-Up',
+      topic,
+      options => generateWrapUp({
+        ...options,
+        grammarTopic,
+        vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
+      }),
+    );
     const lessonWithWarmUp = applyWarmUpToSkeleton(skeleton, warmUpResult.generated);
     const lessonWithLeadIn = applyLeadInToSkeleton(lessonWithWarmUp, leadInResult.generated);
     const lessonWithTargetVocabulary = applyTargetVocabularyToSkeleton(
@@ -349,11 +360,12 @@ async function runAiLessonGeneration({
       grammarFocusResult.generated,
       targetVocabularyResult.generated.vocabularyItems,
     );
-    const lesson = applyGuidedSpeakingToSkeleton(
+    const lessonWithGuidedSpeaking = applyGuidedSpeakingToSkeleton(
       lessonWithGrammarFocus,
       guidedSpeakingResult.generated,
       targetVocabularyResult.generated.vocabularyItems,
     );
+    const lesson = applyWrapUpToSkeleton(lessonWithGuidedSpeaking, wrapUpResult.generated);
     database.exec('BEGIN IMMEDIATE');
     try {
       completeLessonDraft(draftId, ownerAdminId, lesson, database);
