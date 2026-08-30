@@ -70,6 +70,7 @@ const {
   applyGrammarPresentationToSkeleton,
   applyGuidedSpeakingToSkeleton,
   applyLeadInToSkeleton,
+  applyLessonMetadataToSkeleton,
   applyListeningToSkeleton,
   applyReadingToSkeleton,
   applyTargetVocabularyToSkeleton,
@@ -80,6 +81,7 @@ const {
   generateGrammarPresentation,
   generateGuidedSpeaking,
   generateLeadIn,
+  generateLessonMetadata,
   generateListening,
   generateReading,
   generateTargetVocabulary,
@@ -287,6 +289,9 @@ async function runAiLessonGeneration({
   }
 
   try {
+    const metadataResult = await generateSection(
+      'Lesson Metadata', topic, generateLessonMetadata,
+    );
     const warmUpResult = await generateSection('Warm-Up', warmUpTopic, generateWarmUp);
     const leadInResult = await generateSection('Lead-In', topic, generateLeadIn);
     const targetVocabularyResult = await generateSection(
@@ -339,7 +344,8 @@ async function runAiLessonGeneration({
         vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
       }),
     );
-    const lessonWithWarmUp = applyWarmUpToSkeleton(skeleton, warmUpResult.generated);
+    const lessonWithMetadata = applyLessonMetadataToSkeleton(skeleton, metadataResult.generated);
+    const lessonWithWarmUp = applyWarmUpToSkeleton(lessonWithMetadata, warmUpResult.generated);
     const lessonWithLeadIn = applyLeadInToSkeleton(lessonWithWarmUp, leadInResult.generated);
     const lessonWithTargetVocabulary = applyTargetVocabularyToSkeleton(
       lessonWithLeadIn, targetVocabularyResult.generated,

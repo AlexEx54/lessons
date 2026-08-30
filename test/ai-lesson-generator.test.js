@@ -7,6 +7,7 @@ const {
   GRAMMAR_PRESENTATION_RESPONSE_SCHEMA,
   GUIDED_SPEAKING_RESPONSE_SCHEMA,
   LEAD_IN_RESPONSE_SCHEMA,
+  LESSON_METADATA_RESPONSE_SCHEMA,
   LISTENING_RESPONSE_SCHEMA,
   OPENROUTER_MODEL,
   READING_RESPONSE_SCHEMA,
@@ -16,6 +17,7 @@ const {
   applyGrammarPresentationToSkeleton,
   applyGuidedSpeakingToSkeleton,
   applyLeadInToSkeleton,
+  applyLessonMetadataToSkeleton,
   applyListeningToSkeleton,
   applyReadingToSkeleton,
   applyTargetVocabularyToSkeleton,
@@ -25,6 +27,7 @@ const {
   buildGrammarPresentationContent,
   buildGuidedSpeakingContent,
   buildLeadInContent,
+  buildLessonMetadata,
   buildListeningContent,
   buildReadingContent,
   buildTargetVocabularyContent,
@@ -35,6 +38,7 @@ const {
   generateGrammarPresentation,
   generateGuidedSpeaking,
   generateLeadIn,
+  generateLessonMetadata,
   generateListening,
   generateReading,
   generateTargetVocabulary,
@@ -44,6 +48,7 @@ const {
   grammarPresentationMessages,
   guidedSpeakingMessages,
   leadInMessages,
+  lessonMetadataMessages,
   listeningMessages,
   parseOpenRouterStream,
   readingMessages,
@@ -84,6 +89,10 @@ const GENERATED_WARM_UP = Object.freeze({
   })),
   followUpQuestions: 'Which option was the most exciting? Why?',
   possibleLanguage: 'I would choose… because…',
+});
+
+const GENERATED_LESSON_METADATA = Object.freeze({
+  coverImagePrompt: 'Vivid landscape 16:10 educational illustration of a young space explorer looking toward Mars from a futuristic observatory, polished child-friendly style, one clear focal scene, no visible text, letters, numbers, logos, or watermarks.',
 });
 
 const GENERATED_LEAD_IN = Object.freeze({
@@ -191,6 +200,7 @@ test('generated Lead-In is mapped onto the fixed synthetic component structure',
   assert.equal(content[4].studentVisibility, 'controlled');
 
   const lesson = applyLeadInToSkeleton(createLessonSkeleton('Space travel'), GENERATED_LEAD_IN);
+  assert.equal(lesson.meta.coverImagePrompt, undefined);
   assert.equal(lesson.stages[1].content.length, 5);
   assert.ok(lesson.stages.filter(stage => stage.id !== 'lead-in').every(stage => stage.content.length === 0));
 });
@@ -759,6 +769,7 @@ test('Lead-In prompt keeps Teacher’s Notes in one field and defines all conten
   assert.match(systemPrompt, /Never invent a grammar or vocabulary goal/);
   assert.match(systemPrompt, /Questions 1 and 2 must check comprehension/);
   assert.match(systemPrompt, /Question 3 must be personalized/);
+  assert.doesNotMatch(systemPrompt, /coverImagePrompt|lesson-library cover/);
   assert.equal(messages[1].content, 'Lesson topic: Space travel and Past Simple');
   assert.deepEqual(LEAD_IN_RESPONSE_SCHEMA.required, [
     'teacherNotes', 'message', 'leadingImagePrompt', 'trailingImagePrompt',
@@ -777,6 +788,44 @@ test('generated Teacher’s Notes reject Cyrillic text', () => {
     ...GENERATED_LEAD_IN,
     teacherNotes: 'Обратитесь к учителю напрямую.',
   }), /полностью на английском языке/);
+});
+
+test('Lesson Metadata generates and applies a standalone lesson cover prompt', async () => {
+  const messages = lessonMetadataMessages('Space travel');
+  assert.equal(messages[1].content, 'Lesson topic: Space travel');
+  assert.match(messages[0].content, /coverImagePrompt for the lesson as a whole/);
+  assert.match(messages[0].content, /landscape 16:10 lesson-library cover/);
+  assert.deepEqual(LESSON_METADATA_RESPONSE_SCHEMA.required, ['coverImagePrompt']);
+
+  assert.throws(() => buildLessonMetadata({
+    coverImagePrompt: '',
+  }), /промпт для обложки/);
+  assert.throws(() => buildLessonMetadata({
+    coverImagePrompt: 'A colorful landscape illustration of a space lesson.',
+  }), /запрещать текст/);
+
+  const lesson = applyLessonMetadataToSkeleton(
+    createLessonSkeleton('Space travel'), GENERATED_LESSON_METADATA,
+  );
+  assert.equal(lesson.meta.coverImagePrompt, GENERATED_LESSON_METADATA.coverImagePrompt);
+
+  let requestBody;
+  const response = streamingResponse([
+    `data: ${JSON.stringify({ id: 'gen-metadata', choices: [{ delta: { content: JSON.stringify(GENERATED_LESSON_METADATA) } }] })}`,
+    'data: [DONE]',
+  ]);
+  const result = await generateLessonMetadata({
+    topic: 'Space travel',
+    apiKey: 'test-key',
+    baseUrl: 'https://openrouter.test/api/v1/',
+    fetchImpl: async (_url, options) => {
+      requestBody = JSON.parse(options.body);
+      return response;
+    },
+  });
+  assert.equal(requestBody.response_format.json_schema.name, 'easyclass_lesson_metadata');
+  assert.deepEqual(requestBody.response_format.json_schema.schema, LESSON_METADATA_RESPONSE_SCHEMA);
+  assert.equal(result.generated.coverImagePrompt, GENERATED_LESSON_METADATA.coverImagePrompt);
 });
 
 test('Target Vocabulary prompt and schema keep static copy out of the model response', () => {

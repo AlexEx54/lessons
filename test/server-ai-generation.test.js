@@ -39,6 +39,10 @@ const WARM_UP = {
   possibleLanguage: 'I would choose… because…',
 };
 
+const LESSON_METADATA = {
+  coverImagePrompt: 'Vivid landscape 16:10 educational illustration of a young traveler choosing between a city bus and a bicycle, polished child-friendly style, one clear focal scene, no visible text, letters, numbers, logos, or watermarks.',
+};
+
 const LEAD_IN = {
   teacherNotes: [
     'Read the text together with the learner and invite them to answer the questions.',
@@ -110,7 +114,7 @@ async function login(baseUrl, email, password) {
   return response.headers.get('set-cookie').split(';')[0];
 }
 
-test('AI draft sequentially streams nine generated sections with aggregate usage into review', async t => {
+test('AI draft sequentially streams lesson metadata and nine sections into review', async t => {
   let openRouterRequestCount = 0;
   const openRouter = http.createServer((req, res) => {
     assert.equal(req.method, 'POST');
@@ -126,11 +130,16 @@ test('AI draft sequentially streams nine generated sections with aggregate usage
       assert.equal(payload.model, 'google/gemini-3.7-flash');
       assert.equal(payload.reasoning.effort, 'high');
       const generated = [
-        WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY, GENERATED_READING, GENERATED_LISTENING,
+        LESSON_METADATA, WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY, GENERATED_READING, GENERATED_LISTENING,
         GENERATED_GRAMMAR_PRESENTATION, GENERATED_GRAMMAR_FOCUS, GENERATED_GUIDED_SPEAKING,
         WRAP_UP,
       ][requestIndex];
       const usage = [{
+          prompt_tokens: 60,
+          completion_tokens: 30,
+          completion_tokens_details: { reasoning_tokens: 10 },
+          cost: 0.005,
+        }, {
           prompt_tokens: 220,
           completion_tokens: 140,
           completion_tokens_details: { reasoning_tokens: 60 },
@@ -177,18 +186,20 @@ test('AI draft sequentially streams nine generated sections with aggregate usage
           cost: 0.09,
         }][requestIndex];
       if (requestIndex === 0) {
-        assert.equal(payload.messages[1].content, 'Lesson topic: City transport');
-      } else if (requestIndex < 3) {
         assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices');
-      } else if (requestIndex < 5) {
+      } else if (requestIndex === 1) {
+        assert.equal(payload.messages[1].content, 'Lesson topic: City transport');
+      } else if (requestIndex < 4) {
+        assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices');
+      } else if (requestIndex < 6) {
         assert.match(payload.messages[1].content, /^Lesson topic: Travel choices/m);
         assert.match(payload.messages[1].content, /Target Vocabulary: \["book a ticket"/);
-      } else if (requestIndex === 5) {
-        assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices\nGrammar topic: Past Simple');
       } else if (requestIndex === 6) {
+        assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices\nGrammar topic: Past Simple');
+      } else if (requestIndex === 7) {
         assert.match(payload.messages[1].content, /^Lesson topic: Travel choices\nGrammar topic: Past Simple/m);
         assert.match(payload.messages[1].content, /Target Vocabulary: \["book a ticket"/);
-      } else if (requestIndex === 7) {
+      } else if (requestIndex === 8) {
         assert.match(payload.messages[1].content, /^Lesson topic: Travel choices/m);
         assert.match(payload.messages[1].content, /Target Vocabulary: \["book a ticket"/);
         assert.doesNotMatch(payload.messages[1].content, /Grammar topic/);
@@ -197,7 +208,7 @@ test('AI draft sequentially streams nine generated sections with aggregate usage
         assert.match(payload.messages[1].content, /Target Vocabulary: \["book a ticket"/);
       }
       assert.equal(payload.response_format.json_schema.name, [
-        'easyclass_warm_up', 'easyclass_lead_in', 'easyclass_target_vocabulary', 'easyclass_reading',
+        'easyclass_lesson_metadata', 'easyclass_warm_up', 'easyclass_lead_in', 'easyclass_target_vocabulary', 'easyclass_reading',
         'easyclass_listening', 'easyclass_grammar_presentation', 'easyclass_grammar_focus',
         'easyclass_guided_speaking', 'easyclass_wrap_up',
       ][requestIndex]);
@@ -278,11 +289,12 @@ test('AI draft sequentially streams nine generated sections with aggregate usage
     await new Promise(resolve => setTimeout(resolve, 30));
   }
   assert.equal(ready.status, 'review');
-  assert.equal(openRouterRequestCount, 9);
+  assert.equal(openRouterRequestCount, 10);
   assert.equal(ready.generation.status, 'completed');
-  assert.ok(Math.abs(ready.generation.costUsd - 0.453456) < 1e-12);
+  assert.ok(Math.abs(ready.generation.costUsd - 0.458456) < 1e-12);
   assert.equal(ready.content.meta.topic, 'Travel choices');
   assert.equal(ready.content.meta.title, 'Travel choices');
+  assert.equal(ready.content.meta.coverImagePrompt, LESSON_METADATA.coverImagePrompt);
   assert.ok(['pending', 'running', 'unavailable'].includes(ready.imageGeneration.status));
   assert.equal(ready.imageGeneration.total, 23);
   assert.deepEqual(ready.content.stages[0].content.map(component => component.type), [
@@ -342,6 +354,7 @@ test('AI draft sequentially streams nine generated sections with aggregate usage
   assert.equal(traceResponse.status, 200);
   const trace = await traceResponse.text();
   assert.match(trace, /event: snapshot/);
+  assert.match(trace, /=== Lesson Metadata ===/);
   assert.match(trace, /=== Warm-Up ===/);
   assert.match(trace, /=== Lead-In ===/);
   assert.match(trace, /=== Target Vocabulary ===/);
@@ -360,11 +373,12 @@ test('AI draft sequentially streams nine generated sections with aggregate usage
   assert.match(trace, /Planning section 7/);
   assert.match(trace, /Planning section 8/);
   assert.match(trace, /Planning section 9/);
+  assert.match(trace, /Planning section 10/);
   assert.match(trace, /book a ticket/);
-  assert.match(trace, /0\.45345/);
-  assert.match(trace, /"promptTokens":1370/);
-  assert.match(trace, /"completionTokens":930/);
-  assert.match(trace, /"reasoningTokens":307/);
+  assert.match(trace, /0\.45845/);
+  assert.match(trace, /"promptTokens":1430/);
+  assert.match(trace, /"completionTokens":960/);
+  assert.match(trace, /"reasoningTokens":317/);
   assert.match(trace, /event: done/);
 });
 
@@ -378,17 +392,19 @@ test('Wrap-Up failure keeps the AI draft atomic and marks the whole generation f
       const payload = JSON.parse(body);
       const requestIndex = openRouterRequestCount;
       openRouterRequestCount += 1;
-      if (requestIndex < 8) {
+      if (requestIndex < 9) {
         if (requestIndex === 0) {
-          assert.equal(payload.messages[1].content, 'Lesson topic: Warm-up transport');
-        } else if (requestIndex < 3) {
           assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices');
-        } else if (requestIndex < 5) {
+        } else if (requestIndex === 1) {
+          assert.equal(payload.messages[1].content, 'Lesson topic: Warm-up transport');
+        } else if (requestIndex < 4) {
+          assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices');
+        } else if (requestIndex < 6) {
           assert.match(payload.messages[1].content, /^Lesson topic: Travel choices/m);
           assert.match(payload.messages[1].content, /Target Vocabulary/);
-        } else if (requestIndex === 5) {
-          assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices\nGrammar topic: Past Simple');
         } else if (requestIndex === 6) {
+          assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices\nGrammar topic: Past Simple');
+        } else if (requestIndex === 7) {
           assert.match(payload.messages[1].content, /^Lesson topic: Travel choices\nGrammar topic: Past Simple/m);
           assert.match(payload.messages[1].content, /Target Vocabulary/);
         } else {
@@ -397,18 +413,18 @@ test('Wrap-Up failure keeps the AI draft atomic and marks the whole generation f
           assert.doesNotMatch(payload.messages[1].content, /Grammar topic/);
         }
         assert.equal(payload.response_format.json_schema.name, [
-          'easyclass_warm_up', 'easyclass_lead_in', 'easyclass_target_vocabulary', 'easyclass_reading',
+          'easyclass_lesson_metadata', 'easyclass_warm_up', 'easyclass_lead_in', 'easyclass_target_vocabulary', 'easyclass_reading',
           'easyclass_listening', 'easyclass_grammar_presentation', 'easyclass_grammar_focus',
           'easyclass_guided_speaking',
         ][requestIndex]);
         const generated = [
-          WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY, GENERATED_READING, GENERATED_LISTENING,
+          LESSON_METADATA, WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY, GENERATED_READING, GENERATED_LISTENING,
           GENERATED_GRAMMAR_PRESENTATION, GENERATED_GRAMMAR_FOCUS, GENERATED_GUIDED_SPEAKING,
         ][requestIndex];
         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
         res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: { reasoning: `Section ${requestIndex + 1} complete.` } }] })}\n\n`);
         res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: { content: JSON.stringify(generated) } }] })}\n\n`);
-        res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: {} }], usage: { cost: [0.005, 0.006, 0.007, 0.008, 0.009, 0.01, 0.011, 0.012][requestIndex] } })}\n\n`);
+        res.write(`data: ${JSON.stringify({ id: `gen-section-${requestIndex}`, choices: [{ delta: {} }], usage: { cost: [0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01, 0.011, 0.012][requestIndex] } })}\n\n`);
         res.end('data: [DONE]\n\n');
         return;
       }
@@ -472,10 +488,10 @@ test('Wrap-Up failure keeps the AI draft atomic and marks the whole generation f
     if (failed.status !== 'generating') break;
     await new Promise(resolve => setTimeout(resolve, 30));
   }
-  assert.equal(openRouterRequestCount, 9);
+  assert.equal(openRouterRequestCount, 10);
   assert.equal(failed.status, 'failed');
   assert.equal(failed.generation.status, 'failed');
-  assert.ok(Math.abs(failed.generation.costUsd - 0.068) < 1e-12);
+  assert.ok(Math.abs(failed.generation.costUsd - 0.072) < 1e-12);
   assert.match(failed.errorMessage, /Wrap-Up provider failed/);
   assert.ok(failed.content.stages.every(stage => stage.content.length === 0));
   assert.equal(failed.imageGeneration, null);
@@ -485,6 +501,7 @@ test('Wrap-Up failure keeps the AI draft atomic and marks the whole generation f
   });
   assert.equal(traceResponse.status, 200);
   const trace = await traceResponse.text();
+  assert.match(trace, /=== Lesson Metadata ===/);
   assert.match(trace, /=== Warm-Up ===/);
   assert.match(trace, /=== Lead-In ===/);
   assert.match(trace, /=== Target Vocabulary ===/);
