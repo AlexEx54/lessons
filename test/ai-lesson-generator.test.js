@@ -654,6 +654,9 @@ test('Guided Speaking prompt receives lesson topic and Target Vocabulary without
   assert.match(messages[0].content, /2 to 4 distinct entries from Target Vocabulary/);
   assert.match(messages[0].content, /6 to 10 alternating Teacher and Student turns/);
   assert.match(messages[0].content, /application adds them statically/);
+  assert.match(messages[0].content, /only allowed Markdown formatting is unordered lists/);
+  assert.match(messages[0].content, /Do not use Markdown headings \(#, ##, ###\)/);
+  assert.match(messages[0].content, /make the label bold instead of using a heading/);
   assert.equal(
     messages[1].content,
     `Lesson topic: Air travel\nTarget Vocabulary: ${JSON.stringify(TERMS)}`,
@@ -753,6 +756,8 @@ test('Warm-Up prompt requires three teacher-note bullets and a separate Say para
   assert.match(systemPrompt, /without presenting its topic as the topic of the whole lesson/);
   assert.match(systemPrompt, /Today we will talk about/);
   assert.doesNotMatch(systemPrompt, /summer\/gaming/);
+  assert.match(systemPrompt, /suitable for teenagers/);
+  assert.doesNotMatch(systemPrompt, /child-friendly/i);
 });
 
 test('Lead-In prompt keeps Teacher’s Notes in one field and defines all content requirements', () => {
@@ -797,6 +802,8 @@ test('Lesson Metadata generates and applies a standalone lesson cover prompt', a
   assert.match(messages[0].content, /coverImagePrompt for the lesson as a whole/);
   assert.match(messages[0].content, /landscape 16:10 lesson-library cover/);
   assert.match(messages[0].content, /no visible or readable text/);
+  assert.match(messages[0].content, /suitable for teenagers/);
+  assert.doesNotMatch(messages[0].content, /child-friendly/i);
   assert.deepEqual(LESSON_METADATA_RESPONSE_SCHEMA.required, ['coverImagePrompt']);
 
   assert.throws(() => buildLessonMetadata({
@@ -841,7 +848,8 @@ test('Target Vocabulary prompt and schema keep static copy out of the model resp
   assert.match(systemPrompt, /Vary the answer position/);
   assert.match(systemPrompt, /Do not generate Teacher’s Notes/);
   assert.match(systemPrompt, /How to Play rules/);
-  assert.match(systemPrompt, /square educational illustration with no text/);
+  assert.match(systemPrompt, /modern square educational illustration suitable for teenagers/);
+  assert.doesNotMatch(systemPrompt, /child-friendly/i);
   assert.equal(TARGET_VOCABULARY_RESPONSE_SCHEMA.properties.vocabularyItems.minItems, 10);
   assert.equal(TARGET_VOCABULARY_RESPONSE_SCHEMA.properties.contextItems.maxItems, 8);
   assert.equal(TARGET_VOCABULARY_RESPONSE_SCHEMA.properties.describeAndGuessTerms.minItems, 6);
