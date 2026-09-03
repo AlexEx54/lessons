@@ -54,6 +54,16 @@ test('admin sees lesson creation and drafts links in both profile menus', async 
   assert.equal((html.match(/data-value="template-1"[^>]*>Шаблон 1<\/li>/g) || []).length, 1);
   assert.match(html, /data-new-lesson-select/);
   assert.match(html, /name="template" value="template-1"/);
+  assert.equal((html.match(/data-new-lesson-choice-group/g) || []).length, 2);
+  assert.match(html, /<legend>Возраст ученика<\/legend>/);
+  assert.match(html, /data-value="9-11"/);
+  assert.match(html, /aria-pressed="true" data-value="12-14"/);
+  assert.match(html, /data-value="15-18"/);
+  assert.match(html, /<legend>Уровень сложности<\/legend>/);
+  assert.match(html, /data-value="A1"/);
+  assert.match(html, /aria-pressed="true" data-value="A2"/);
+  assert.match(html, /data-value="B1"/);
+  assert.match(html, /data-value="B2"/);
   assert.match(html, /class="new-lesson-dialog__create" type="button" data-create-lesson-draft/);
 });
 
@@ -99,8 +109,13 @@ test('logout returns the teacher to the public landing page', () => {
 
 test('lesson creation opens the drafts page while generation continues', () => {
   const appShellScript = fs.readFileSync(path.join(ROOT, 'assets', 'app-shell.js'), 'utf8');
+  const requestBody = appShellScript.match(/body: JSON\.stringify\(\{([\s\S]*?)\n\s*\}\),/)[1];
   assert.match(appShellScript, /window\.location\.assign\('\/lesson-drafts'\)/);
   assert.doesNotMatch(appShellScript, /window\.location\.assign\(payload\.lessonUrl\)/);
+  assert.match(appShellScript, /querySelectorAll\('\[data-new-lesson-choice-group\]'\)/);
+  assert.match(appShellScript, /button\.setAttribute\('aria-pressed', String\(button === choice\)\)/);
+  assert.doesNotMatch(requestBody, /\bage\s*:/);
+  assert.doesNotMatch(requestBody, /\blevel\s*:/);
 });
 
 test('lesson draft review action links to its editor', () => {

@@ -466,6 +466,81 @@ p { margin: 0; }
   letter-spacing: -0.02em;
 }
 
+.new-lesson-choice-field {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.new-lesson-choice-field legend {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 0;
+  color: #6b6d98;
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.new-lesson-choice-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.new-lesson-choice-grid--age {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.new-lesson-choice-grid--level {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.new-lesson-choice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 46px;
+  padding: 0 14px;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: #62617e;
+  background: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.new-lesson-choice__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: #8b89a6;
+}
+
+.new-lesson-choice__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.new-lesson-choice:hover {
+  color: var(--purple);
+  border-color: #cfc4ff;
+}
+
+.new-lesson-choice:hover .new-lesson-choice__icon,
+.new-lesson-choice[aria-pressed="true"] .new-lesson-choice__icon {
+  color: var(--purple);
+}
+
+.new-lesson-choice[aria-pressed="true"] {
+  color: var(--purple);
+  border-color: #d6ccff;
+  background: var(--purple-soft);
+  box-shadow: 0 4px 10px rgba(93, 43, 242, 0.08);
+}
+
 .new-lesson-field input,
 .new-lesson-select__trigger {
   width: 100%;
@@ -882,6 +957,25 @@ p { margin: 0; }
 
   .new-lesson-field > span:first-child {
     font-size: 16px;
+  }
+
+  .new-lesson-choice-field legend {
+    font-size: 16px;
+  }
+
+  .new-lesson-choice-grid--age,
+  .new-lesson-choice-grid--level {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .new-lesson-choice-grid--age .new-lesson-choice:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .new-lesson-choice {
+    min-height: 42px;
+    padding-inline: 10px;
+    font-size: 13px;
   }
 
   .new-lesson-field input,

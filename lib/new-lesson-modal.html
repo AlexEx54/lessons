@@ -27,6 +27,40 @@
         <input id="new-lesson-warm-up-topic" name="warmUpTopic" type="text" placeholder="Необязательно — по умолчанию тема урока" autocomplete="off" maxlength="120" />
       </label>
 
+      <fieldset class="new-lesson-field new-lesson-choice-field" data-new-lesson-choice-group>
+        <legend>Возраст ученика</legend>
+        <div class="new-lesson-choice-grid new-lesson-choice-grid--age">
+          <button class="new-lesson-choice" type="button" aria-pressed="false" data-value="9-11">
+            <span class="new-lesson-choice__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 19.5c1.2-3.4 3.5-5 6.5-5s5.3 1.6 6.5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </span>
+            9–11 лет
+          </button>
+          <button class="new-lesson-choice" type="button" aria-pressed="true" data-value="12-14">
+            <span class="new-lesson-choice__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 19.5c1.2-3.4 3.5-5 6.5-5s5.3 1.6 6.5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </span>
+            12–14 лет
+          </button>
+          <button class="new-lesson-choice" type="button" aria-pressed="false" data-value="15-18">
+            <span class="new-lesson-choice__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 19.5c1.2-3.4 3.5-5 6.5-5s5.3 1.6 6.5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </span>
+            15–18 лет
+          </button>
+        </div>
+      </fieldset>
+
+      <fieldset class="new-lesson-field new-lesson-choice-field" data-new-lesson-choice-group>
+        <legend>Уровень сложности</legend>
+        <div class="new-lesson-choice-grid new-lesson-choice-grid--level">
+          <button class="new-lesson-choice" type="button" aria-pressed="false" data-value="A1">A1</button>
+          <button class="new-lesson-choice" type="button" aria-pressed="true" data-value="A2">A2</button>
+          <button class="new-lesson-choice" type="button" aria-pressed="false" data-value="B1">B1</button>
+          <button class="new-lesson-choice" type="button" aria-pressed="false" data-value="B2">B2</button>
+        </div>
+      </fieldset>
+
       <div class="new-lesson-field">
         <span id="new-lesson-template-label">Выбор шаблона</span>
         <div class="new-lesson-select" data-new-lesson-select>

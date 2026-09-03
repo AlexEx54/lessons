@@ -29,6 +29,9 @@
   const newLessonSelectOptions = newLessonSelect
     ? [...newLessonSelect.querySelectorAll('.new-lesson-select__option')]
     : [];
+  const newLessonChoiceGroups = newLessonModal
+    ? [...newLessonModal.querySelectorAll('[data-new-lesson-choice-group]')]
+    : [];
   let toastTimer = null;
   let newLessonReturnFocus = null;
 
@@ -360,6 +363,15 @@
     option.addEventListener('click', event => {
       event.stopPropagation();
       selectNewLessonTemplate(option);
+    });
+  });
+  newLessonChoiceGroups.forEach(group => {
+    group.addEventListener('click', event => {
+      const choice = event.target.closest('.new-lesson-choice');
+      if (!choice || !group.contains(choice)) return;
+      group.querySelectorAll('.new-lesson-choice').forEach(button => {
+        button.setAttribute('aria-pressed', String(button === choice));
+      });
     });
   });
   createLessonDraftButton?.addEventListener('click', createLessonDraft);
