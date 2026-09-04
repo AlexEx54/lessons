@@ -15,6 +15,7 @@
     participantName: document.getElementById('participant-name'),
     prejoinMic: document.getElementById('prejoin-mic'),
     prejoinCamera: document.getElementById('prejoin-camera'),
+    prejoinBackgroundOptions: document.getElementById('prejoin-background-options'),
     prejoinError: document.getElementById('prejoin-error'),
     join: document.getElementById('join-call'),
     stage: document.getElementById('call-stage'),
@@ -27,13 +28,29 @@
     remoteMuted: document.getElementById('remote-muted'),
     toggleMic: document.getElementById('toggle-mic'),
     toggleCamera: document.getElementById('toggle-camera'),
+    toggleBackground: document.getElementById('toggle-background'),
     toggleScreen: document.getElementById('toggle-screen'),
+    callBackgroundPanel: document.getElementById('call-background-panel'),
+    callBackgroundOptions: document.getElementById('call-background-options'),
+    closeBackgroundPanel: document.getElementById('close-background-panel'),
     leave: document.getElementById('leave-call'),
     leaveLabel: document.getElementById('leave-label'),
     ended: document.getElementById('room-ended'),
     endedMessage: document.getElementById('room-ended-message'),
     exitLink: document.getElementById('room-exit-link'),
   };
+
+  const BACKGROUND_STORAGE_KEY = 'easyclass.videoBackground';
+  const BACKGROUND_OPTIONS = [
+    { id: 'none', label: 'Без фона', previewClass: 'background-option__preview--none' },
+    { id: 'blur', label: 'Размытие', previewClass: 'background-option__preview--blur' },
+    { id: 'study-light', label: 'Кабинет', src: '/assets/images/video-backgrounds/study-light.jpg' },
+    { id: 'library-plum', label: 'Библиотека', src: '/assets/images/video-backgrounds/library-plum.jpg' },
+    { id: 'classroom-soft', label: 'Класс', src: '/assets/images/video-backgrounds/classroom-soft.jpg' },
+  ];
+  const BACKGROUND_IDS = new Set(BACKGROUND_OPTIONS.map(option => option.id));
+  const MEDIAPIPE_BASE = '/assets/vendor/mediapipe-1.0.1';
+  const EFFECT_FRAME_INTERVAL_MS = window.matchMedia?.('(pointer: coarse)').matches ? 1000 / 18 : 1000 / 24;
 
   let room = null;
   let iceServers = [];
@@ -44,6 +61,21 @@
   let peerConnection = null;
   let audioTransceiver = null;
   let videoTransceiver = null;
+  let selectedBackground = readStoredBackground();
+  let backgroundEffectGeneration = 0;
+  let segmenterPromise = null;
+  let segmenter = null;
+  let segmenterDelegate = 'GPU';
+  let effectSourceVideo = null;
+  let effectOutputCanvas = null;
+  let effectForegroundCanvas = null;
+  let effectMaskCanvas = null;
+  let effectStream = null;
+  let effectTrack = null;
+  let effectFrameRequest = 0;
+  let effectLastFrameAt = 0;
+  let effectFailureCount = 0;
+  const backgroundImages = new Map();
   let joined = false;
   let leaving = false;
   let reconnectAttempts = 0;
@@ -61,6 +93,9 @@
   elements.leaveLabel.textContent = role === 'teacher' ? 'Завершить' : 'Выйти';
   elements.guestNameField.hidden = role !== 'guest';
   elements.remoteName.textContent = role === 'teacher' ? 'Ученик' : 'Преподаватель';
+  elements.remoteVideo.addEventListener('playing', () => {
+    elements.remotePlaceholder.hidden = true;
+  });
 
   function setConnection(text, state = '') {
     elements.connection.dataset.state = state;
@@ -72,15 +107,358 @@
     elements.prejoinError.hidden = !message;
   }
 
+  function readStoredBackground() {
+    try {
+      const stored = window.localStorage.getItem(BACKGROUND_STORAGE_KEY);
+      return BACKGROUND_IDS.has(stored) ? stored : 'none';
+    } catch (_error) {
+      return 'none';
+    }
+  }
+
+  function writeStoredBackground(value) {
+    try {
+      window.localStorage.setItem(BACKGROUND_STORAGE_KEY, value);
+    } catch (_error) {
+      // The choice still works for this call when storage is unavailable.
+    }
+  }
+
+  function renderBackgroundOptions(container) {
+    const fragment = document.createDocumentFragment();
+    BACKGROUND_OPTIONS.forEach(option => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'background-option';
+      button.dataset.backgroundOption = option.id;
+      button.setAttribute('role', 'radio');
+      button.setAttribute('aria-checked', String(option.id === selectedBackground));
+      button.setAttribute('aria-label', option.label);
+
+      const preview = document.createElement('span');
+      preview.className = `background-option__preview ${option.previewClass || ''}`.trim();
+      if (option.src) preview.style.backgroundImage = `url("${option.src}")`;
+      const label = document.createElement('span');
+      label.textContent = option.label;
+      button.append(preview, label);
+      button.addEventListener('click', () => selectVideoBackground(option.id));
+      fragment.append(button);
+    });
+    container.replaceChildren(fragment);
+  }
+
+  function updateBackgroundControls() {
+    document.querySelectorAll('[data-background-option]').forEach(button => {
+      button.setAttribute('aria-checked', String(button.dataset.backgroundOption === selectedBackground));
+    });
+    elements.toggleBackground.setAttribute('aria-pressed', String(selectedBackground !== 'none'));
+  }
+
+  function setBackgroundStatus(message, state = '') {
+    document.querySelectorAll('.background-picker__status').forEach(status => {
+      status.textContent = message;
+      status.dataset.state = state;
+    });
+  }
+
+  function backgroundOption(value = selectedBackground) {
+    return BACKGROUND_OPTIONS.find(option => option.id === value) || BACKGROUND_OPTIONS[0];
+  }
+
+  function backgroundEffectsSupported() {
+    const canvas = document.createElement('canvas');
+    return Boolean(window.WebAssembly && canvas.captureStream);
+  }
+
+  function drawCover(context, source, width, height, overscan = 0) {
+    const sourceWidth = source.videoWidth || source.naturalWidth || source.width;
+    const sourceHeight = source.videoHeight || source.naturalHeight || source.height;
+    if (!sourceWidth || !sourceHeight) return;
+    const destinationWidth = width + overscan * 2;
+    const destinationHeight = height + overscan * 2;
+    const scale = Math.max(destinationWidth / sourceWidth, destinationHeight / sourceHeight);
+    const cropWidth = destinationWidth / scale;
+    const cropHeight = destinationHeight / scale;
+    const sourceX = (sourceWidth - cropWidth) / 2;
+    const sourceY = (sourceHeight - cropHeight) / 2;
+    context.drawImage(
+      source,
+      sourceX,
+      sourceY,
+      cropWidth,
+      cropHeight,
+      -overscan,
+      -overscan,
+      destinationWidth,
+      destinationHeight,
+    );
+  }
+
+  function loadBackgroundImage(option) {
+    if (!option?.src) return Promise.resolve(null);
+    if (backgroundImages.has(option.id)) return Promise.resolve(backgroundImages.get(option.id));
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.addEventListener('load', () => {
+        backgroundImages.set(option.id, image);
+        resolve(image);
+      }, { once: true });
+      image.addEventListener('error', () => reject(new Error('Не удалось загрузить изображение фона.')), { once: true });
+      image.src = option.src;
+    });
+  }
+
+  async function ensureSegmenter() {
+    if (segmenter) return segmenter;
+    if (segmenterPromise) return segmenterPromise;
+    segmenterPromise = (async () => {
+      const { FilesetResolver, ImageSegmenter } = await import(`${MEDIAPIPE_BASE}/vision_bundle.mjs`);
+      const vision = await FilesetResolver.forVisionTasks(`${MEDIAPIPE_BASE}/wasm`);
+      const options = {
+        baseOptions: {
+          modelAssetPath: `${MEDIAPIPE_BASE}/models/selfie_segmenter_landscape.tflite`,
+          delegate: 'GPU',
+        },
+        runningMode: 'VIDEO',
+        outputConfidenceMasks: true,
+        outputCategoryMask: false,
+      };
+      try {
+        segmenter = await ImageSegmenter.createFromOptions(vision, options);
+        segmenterDelegate = 'GPU';
+      } catch (_gpuError) {
+        options.baseOptions.delegate = 'CPU';
+        segmenter = await ImageSegmenter.createFromOptions(vision, options);
+        segmenterDelegate = 'CPU';
+      }
+      return segmenter;
+    })().catch(error => {
+      segmenterPromise = null;
+      throw error;
+    });
+    return segmenterPromise;
+  }
+
+  function stopBackgroundEffect({ closeSegmenter = false } = {}) {
+    window.cancelAnimationFrame(effectFrameRequest);
+    effectFrameRequest = 0;
+    effectTrack?.stop();
+    effectStream?.getTracks().forEach(item => item.stop());
+    effectSourceVideo?.pause();
+    if (effectSourceVideo) effectSourceVideo.srcObject = null;
+    effectSourceVideo = null;
+    effectOutputCanvas = null;
+    effectForegroundCanvas = null;
+    effectMaskCanvas = null;
+    effectStream = null;
+    effectTrack = null;
+    effectLastFrameAt = 0;
+    effectFailureCount = 0;
+    if (closeSegmenter && segmenter) {
+      segmenter.close();
+      segmenter = null;
+      segmenterPromise = null;
+    }
+  }
+
+  function cameraTrack() {
+    return localStream.getVideoTracks()[0];
+  }
+
+  function outboundVideoTrack() {
+    if (screenTrack) return screenTrack;
+    if (!mediaState.video || !cameraTrack()?.enabled) return null;
+    return selectedBackground === 'none' ? cameraTrack() : (effectTrack || cameraTrack());
+  }
+
+  async function applyOutboundVideoTrack() {
+    if (videoTransceiver) await videoTransceiver.sender.replaceTrack(outboundVideoTrack());
+  }
+
+  function renderEffectComposite(mask) {
+    const output = effectOutputCanvas;
+    const foreground = effectForegroundCanvas;
+    const source = effectSourceVideo;
+    if (!output || !foreground || !source) return;
+    const outputContext = output.getContext('2d');
+    const foregroundContext = foreground.getContext('2d');
+    const width = output.width;
+    const height = output.height;
+
+    outputContext.clearRect(0, 0, width, height);
+    if (selectedBackground === 'blur') {
+      outputContext.save();
+      outputContext.filter = 'blur(18px)';
+      drawCover(outputContext, source, width, height, 24);
+      outputContext.restore();
+    } else {
+      const image = backgroundImages.get(selectedBackground);
+      if (image) drawCover(outputContext, image, width, height);
+      else {
+        outputContext.fillStyle = '#242136';
+        outputContext.fillRect(0, 0, width, height);
+      }
+    }
+
+    foregroundContext.clearRect(0, 0, width, height);
+    foregroundContext.globalCompositeOperation = 'source-over';
+    foregroundContext.filter = 'none';
+    drawCover(foregroundContext, source, width, height);
+    foregroundContext.globalCompositeOperation = 'destination-in';
+    foregroundContext.filter = 'blur(1.4px)';
+    drawCover(foregroundContext, mask, width, height);
+    foregroundContext.globalCompositeOperation = 'source-over';
+    foregroundContext.filter = 'none';
+    outputContext.drawImage(foreground, 0, 0);
+  }
+
+  function handleEffectFailure(error) {
+    console.error('Video background processing failed:', error);
+    backgroundEffectGeneration += 1;
+    stopBackgroundEffect();
+    setBackgroundStatus('Эффект недоступен — показываем обычную камеру', 'error');
+    applyOutboundVideoTrack();
+    updateLocalPreview();
+  }
+
+  function renderEffectFrame(timestamp) {
+    if (!effectTrack || !effectSourceVideo || selectedBackground === 'none') return;
+    const frameInterval = segmenterDelegate === 'CPU' ? Math.max(EFFECT_FRAME_INTERVAL_MS, 1000 / 15) : EFFECT_FRAME_INTERVAL_MS;
+    if (timestamp - effectLastFrameAt < frameInterval) {
+      effectFrameRequest = window.requestAnimationFrame(renderEffectFrame);
+      return;
+    }
+    effectLastFrameAt = timestamp;
+    try {
+      segmenter.segmentForVideo(effectSourceVideo, timestamp, result => {
+        const confidenceMask = result.confidenceMasks?.[0];
+        if (!confidenceMask) throw new Error('Модель не вернула маску человека.');
+        const values = confidenceMask.getAsFloat32Array();
+        if (effectMaskCanvas.width !== confidenceMask.width || effectMaskCanvas.height !== confidenceMask.height) {
+          effectMaskCanvas.width = confidenceMask.width;
+          effectMaskCanvas.height = confidenceMask.height;
+        }
+        const pixels = new Uint8ClampedArray(values.length * 4);
+        for (let index = 0; index < values.length; index += 1) {
+          const normalized = Math.max(0, Math.min(1, (values[index] - 0.12) / 0.76));
+          const softened = normalized * normalized * (3 - 2 * normalized);
+          const offset = index * 4;
+          pixels[offset] = 255;
+          pixels[offset + 1] = 255;
+          pixels[offset + 2] = 255;
+          pixels[offset + 3] = Math.round(softened * 255);
+        }
+        effectMaskCanvas.getContext('2d').putImageData(
+          new ImageData(pixels, confidenceMask.width, confidenceMask.height),
+          0,
+          0,
+        );
+        renderEffectComposite(effectMaskCanvas);
+      });
+      effectFailureCount = 0;
+    } catch (error) {
+      effectFailureCount += 1;
+      if (effectFailureCount >= 3) {
+        handleEffectFailure(error);
+        return;
+      }
+    }
+    effectFrameRequest = window.requestAnimationFrame(renderEffectFrame);
+  }
+
+  async function startBackgroundEffect() {
+    const generation = ++backgroundEffectGeneration;
+    stopBackgroundEffect();
+    await applyOutboundVideoTrack();
+    updateLocalPreview();
+    if (selectedBackground === 'none' || !mediaState.video || !cameraTrack()?.enabled || screenTrack) return;
+    if (!backgroundEffectsSupported()) throw new Error('Браузер не поддерживает обработку видеофона.');
+
+    setBackgroundStatus('Готовим эффект…');
+    const option = backgroundOption();
+    const sourceVideo = document.createElement('video');
+    sourceVideo.muted = true;
+    sourceVideo.playsInline = true;
+    sourceVideo.srcObject = new MediaStream([cameraTrack()]);
+    const videoReady = new Promise(resolve => {
+      if (sourceVideo.readyState >= HTMLMediaElement.HAVE_METADATA) {
+        resolve();
+        return;
+      }
+      sourceVideo.addEventListener('loadedmetadata', resolve, { once: true });
+      window.setTimeout(resolve, 2500);
+    });
+    const playPromise = sourceVideo.play().catch(() => {});
+    await Promise.all([ensureSegmenter(), loadBackgroundImage(option), videoReady, playPromise]);
+    if (generation !== backgroundEffectGeneration || selectedBackground === 'none') {
+      sourceVideo.pause();
+      sourceVideo.srcObject = null;
+      return;
+    }
+
+    const sourceWidth = sourceVideo.videoWidth || 1280;
+    const sourceHeight = sourceVideo.videoHeight || 720;
+    const maxWidth = window.innerWidth <= 820 ? 640 : 960;
+    const width = Math.max(2, Math.round(Math.min(sourceWidth, maxWidth) / 2) * 2);
+    const height = Math.max(2, Math.round((width * sourceHeight / sourceWidth) / 2) * 2);
+    effectSourceVideo = sourceVideo;
+    effectOutputCanvas = document.createElement('canvas');
+    effectForegroundCanvas = document.createElement('canvas');
+    effectMaskCanvas = document.createElement('canvas');
+    effectOutputCanvas.width = effectForegroundCanvas.width = width;
+    effectOutputCanvas.height = effectForegroundCanvas.height = height;
+    const outputContext = effectOutputCanvas.getContext('2d');
+    drawCover(outputContext, sourceVideo, width, height);
+    effectStream = effectOutputCanvas.captureStream(segmenterDelegate === 'CPU' ? 15 : 24);
+    effectTrack = effectStream.getVideoTracks()[0];
+    if (!effectTrack) throw new Error('Браузер не создал обработанный видеотрек.');
+    effectTrack.enabled = mediaState.video;
+    effectFrameRequest = window.requestAnimationFrame(renderEffectFrame);
+    await applyOutboundVideoTrack();
+    updateLocalPreview();
+    setBackgroundStatus(segmenterDelegate === 'CPU' ? 'Энергосберегающий режим' : 'Эффект включён', 'ready');
+  }
+
+  async function selectVideoBackground(value, { persist = true } = {}) {
+    if (!BACKGROUND_IDS.has(value)) value = 'none';
+    selectedBackground = value;
+    if (persist) writeStoredBackground(value);
+    updateBackgroundControls();
+    if (value === 'none') {
+      backgroundEffectGeneration += 1;
+      stopBackgroundEffect();
+      setBackgroundStatus('');
+      await applyOutboundVideoTrack();
+      updateLocalPreview();
+      return;
+    }
+    if (!mediaState.video || !cameraTrack()?.enabled) {
+      setBackgroundStatus('Включите камеру, чтобы применить эффект');
+      return;
+    }
+    if (screenTrack) {
+      setBackgroundStatus('Фон включится после демонстрации экрана');
+      return;
+    }
+    try {
+      await startBackgroundEffect();
+    } catch (error) {
+      handleEffectFailure(error);
+    }
+  }
+
   function track(kind) {
     return kind === 'audio' ? localStream.getAudioTracks()[0] : localStream.getVideoTracks()[0];
   }
 
   function updateLocalPreview() {
-    elements.previewVideo.srcObject = localStream;
-    elements.localVideo.srcObject = screenTrack ? new MediaStream([screenTrack]) : localStream;
-    const cameraVisible = Boolean(screenTrack || (track('video')?.enabled));
-    elements.previewPlaceholder.hidden = Boolean(track('video')?.enabled);
+    const previewTrack = screenTrack || (mediaState.video && cameraTrack()?.enabled ? outboundVideoTrack() : null);
+    const previewStream = previewTrack ? new MediaStream([previewTrack]) : new MediaStream();
+    elements.previewVideo.srcObject = previewStream;
+    elements.localVideo.srcObject = previewStream;
+    const cameraVisible = Boolean(previewTrack);
+    elements.previewPlaceholder.hidden = Boolean(mediaState.video && cameraTrack()?.enabled);
     elements.localPlaceholder.hidden = cameraVisible;
   }
 
@@ -94,6 +472,7 @@
     elements.toggleMic.setAttribute('aria-pressed', String(micEnabled));
     elements.toggleCamera.setAttribute('aria-pressed', String(cameraEnabled));
     elements.toggleScreen.setAttribute('aria-pressed', String(Boolean(screenTrack)));
+    updateBackgroundControls();
     updateLocalPreview();
   }
 
@@ -104,13 +483,16 @@
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     const newTrack = kind === 'audio' ? stream.getAudioTracks()[0] : stream.getVideoTracks()[0];
     if (!newTrack) throw new Error(`Браузер не предоставил ${kind === 'audio' ? 'микрофон' : 'камеру'}.`);
+    if (kind === 'video') {
+      backgroundEffectGeneration += 1;
+      stopBackgroundEffect();
+    }
     localStream.getTracks().filter(item => item.kind === kind).forEach(item => {
       localStream.removeTrack(item);
       item.stop();
     });
     localStream.addTrack(newTrack);
     if (kind === 'audio' && audioTransceiver) await audioTransceiver.sender.replaceTrack(newTrack);
-    if (kind === 'video' && videoTransceiver && !screenTrack) await videoTransceiver.sender.replaceTrack(newTrack);
     return newTrack;
   }
 
@@ -135,6 +517,13 @@
       showPrejoinError('Камера или микрофон недоступны. Можно войти без них и включить позже.');
     }
     updateButtons();
+    if (mediaState.video && cameraTrack()?.enabled && selectedBackground !== 'none') {
+      try {
+        await startBackgroundEffect();
+      } catch (error) {
+        handleEffectFailure(error);
+      }
+    }
   }
 
   function send(message) {
@@ -274,14 +663,13 @@
       if (!remoteStream.getTracks().some(item => item.id === event.track.id)) remoteStream.addTrack(event.track);
       elements.remoteVideo.srcObject = remoteStream;
       elements.remotePlaceholder.hidden = false;
-      event.track.addEventListener('unmute', () => { elements.remotePlaceholder.hidden = false; });
-      event.track.addEventListener('mute', () => {
-        if (remoteStream.getVideoTracks().every(item => item.muted)) elements.remotePlaceholder.hidden = false;
-      });
       if (event.track.kind === 'video') {
-        const revealVideo = () => { elements.remotePlaceholder.hidden = false; };
-        elements.remoteVideo.addEventListener('playing', () => { elements.remotePlaceholder.hidden = true; }, { once: true });
-        event.track.addEventListener('unmute', revealVideo, { once: true });
+        event.track.addEventListener('unmute', () => {
+          elements.remotePlaceholder.hidden = true;
+        });
+        event.track.addEventListener('mute', () => {
+          if (remoteStream.getVideoTracks().every(item => item.muted)) elements.remotePlaceholder.hidden = false;
+        });
       }
     };
     connection.onconnectionstatechange = () => {
@@ -311,7 +699,7 @@
     audioTransceiver = connection.addTransceiver('audio', { direction: 'sendrecv' });
     videoTransceiver = connection.addTransceiver('video', { direction: 'sendrecv' });
     await audioTransceiver.sender.replaceTrack(track('audio') || null);
-    await videoTransceiver.sender.replaceTrack(screenTrack || track('video') || null);
+    await videoTransceiver.sender.replaceTrack(outboundVideoTrack());
     return connection;
   }
 
@@ -436,6 +824,12 @@
     if (mediaState[key] && current?.enabled) {
       current.enabled = false;
       mediaState[key] = false;
+      if (kind === 'video') {
+        backgroundEffectGeneration += 1;
+        stopBackgroundEffect();
+        await applyOutboundVideoTrack();
+        if (selectedBackground !== 'none') setBackgroundStatus('Включите камеру, чтобы применить эффект');
+      }
     } else {
       try {
         if (!current || current.readyState === 'ended') current = await acquireTrack(kind);
@@ -445,6 +839,14 @@
       } catch (_error) {
         mediaState[key] = false;
         showPrejoinError(`Не удалось включить ${kind === 'audio' ? 'микрофон' : 'камеру'}. Проверьте разрешения браузера.`);
+      }
+      if (kind === 'video' && mediaState.video) {
+        try {
+          if (selectedBackground !== 'none' && !screenTrack) await startBackgroundEffect();
+          else await applyOutboundVideoTrack();
+        } catch (error) {
+          handleEffectFailure(error);
+        }
       }
     }
     updateButtons();
@@ -458,8 +860,16 @@
       previous.onended = null;
       previous.stop();
     }
-    if (videoTransceiver) await videoTransceiver.sender.replaceTrack(track('video') || null);
     mediaState.screen = false;
+    if (selectedBackground !== 'none' && mediaState.video && cameraTrack()?.enabled) {
+      try {
+        await startBackgroundEffect();
+      } catch (error) {
+        handleEffectFailure(error);
+      }
+    } else {
+      await applyOutboundVideoTrack();
+    }
     updateButtons();
     sendMediaState();
   }
@@ -477,8 +887,11 @@
       const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       screenTrack = display.getVideoTracks()[0];
       screenTrack.onended = stopScreenShare;
+      backgroundEffectGeneration += 1;
+      stopBackgroundEffect();
       if (videoTransceiver) await videoTransceiver.sender.replaceTrack(screenTrack);
       mediaState.screen = true;
+      if (selectedBackground !== 'none') setBackgroundStatus('Фон включится после демонстрации экрана');
       updateButtons();
       sendMediaState();
     } catch (error) {
@@ -488,6 +901,8 @@
 
   function stopMedia() {
     window.clearTimeout(reconnectTimer);
+    backgroundEffectGeneration += 1;
+    stopBackgroundEffect({ closeSegmenter: true });
     screenTrack?.stop();
     localStream.getTracks().forEach(item => item.stop());
     closePeerConnection();
@@ -528,9 +943,13 @@
     joined = true;
     elements.prejoin.hidden = true;
     elements.stage.hidden = false;
-    elements.localVideo.srcObject = localStream;
     updateButtons();
     connectSocket();
+  }
+
+  function setBackgroundPanelOpen(open) {
+    elements.callBackgroundPanel.hidden = !open;
+    elements.toggleBackground.setAttribute('aria-expanded', String(open));
   }
 
   async function loadRoom() {
@@ -561,6 +980,11 @@
   elements.prejoinCamera.addEventListener('click', () => toggleKind('video'));
   elements.toggleMic.addEventListener('click', () => toggleKind('audio'));
   elements.toggleCamera.addEventListener('click', () => toggleKind('video'));
+  elements.toggleBackground.addEventListener('click', event => {
+    event.stopPropagation();
+    setBackgroundPanelOpen(elements.toggleBackground.getAttribute('aria-expanded') !== 'true');
+  });
+  elements.closeBackgroundPanel.addEventListener('click', () => setBackgroundPanelOpen(false));
   elements.toggleScreen.addEventListener('click', toggleScreenShare);
   elements.leave.addEventListener('click', leaveCall);
   elements.join.addEventListener('click', joinCall);
@@ -570,6 +994,21 @@
       stopMedia();
     }
   });
+
+  document.addEventListener('click', event => {
+    if (!elements.callBackgroundPanel.hidden
+      && !elements.callBackgroundPanel.contains(event.target)
+      && event.target !== elements.toggleBackground) {
+      setBackgroundPanelOpen(false);
+    }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') setBackgroundPanelOpen(false);
+  });
+
+  renderBackgroundOptions(elements.prejoinBackgroundOptions);
+  renderBackgroundOptions(elements.callBackgroundOptions);
+  updateBackgroundControls();
 
   loadRoom();
 })();

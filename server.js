@@ -550,7 +550,7 @@ function json(res, status, payload, extraHeaders = {}) {
 function getContentType(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === '.html') return 'text/html; charset=utf-8';
-  if (ext === '.js') return 'text/javascript; charset=utf-8';
+  if (ext === '.js' || ext === '.mjs') return 'text/javascript; charset=utf-8';
   if (ext === '.css') return 'text/css; charset=utf-8';
   if (ext === '.json') return 'application/json; charset=utf-8';
   if (ext === '.svg') return 'image/svg+xml';
@@ -559,6 +559,8 @@ function getContentType(filePath) {
   if (ext === '.mp3') return 'audio/mpeg';
   if (ext === '.wav') return 'audio/wav';
   if (ext === '.m4a') return 'audio/mp4';
+  if (ext === '.wasm') return 'application/wasm';
+  if (ext === '.tflite') return 'application/octet-stream';
   return 'text/plain; charset=utf-8';
 }
 
@@ -584,7 +586,9 @@ function serveStatic(reqPath, res) {
 
     res.writeHead(200, {
       'Content-Type': getContentType(absolute),
-      'Cache-Control': 'no-store',
+      'Cache-Control': target.startsWith('assets/vendor/mediapipe-1.0.1/')
+        ? 'public, max-age=31536000, immutable'
+        : 'no-store',
     });
     res.end(data);
   });

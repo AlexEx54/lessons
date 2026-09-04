@@ -43,6 +43,13 @@
           <button id="prejoin-mic" type="button" aria-pressed="true">Микрофон включён</button>
           <button id="prejoin-camera" type="button" aria-pressed="true">Камера включена</button>
         </div>
+        <section class="background-picker background-picker--prejoin" aria-labelledby="prejoin-background-title">
+          <div class="background-picker__heading">
+            <strong id="prejoin-background-title">Фон камеры</strong>
+            <span class="background-picker__status" role="status"></span>
+          </div>
+          <div class="background-options" id="prejoin-background-options" role="radiogroup" aria-label="Выберите фон камеры"></div>
+        </section>
         <p class="prejoin__error" id="prejoin-error" role="alert" hidden></p>
         <button class="prejoin__join" id="join-call" type="button">Войти в звонок</button>
       </div>
@@ -80,6 +87,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z M17 10l6-3v10l-6-3" /></svg>
           <span>Камера</span>
         </button>
+        <button class="call-control" id="toggle-background" type="button" aria-expanded="false" aria-controls="call-background-panel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z M8 15l2.8-3 2.2 2 2.5-3 3.5 4 M8.5 9.2h.01" /></svg>
+          <span>Фон</span>
+        </button>
         <button class="call-control" id="toggle-screen" type="button" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v13H3z M8 21h8 M12 17v4 M8 10l4-4 4 4 M12 6v8" /></svg>
           <span>Экран</span>
@@ -89,6 +100,14 @@
           <span id="leave-label">Выйти</span>
         </button>
       </nav>
+      <section class="background-picker background-picker--call" id="call-background-panel" aria-labelledby="call-background-title" hidden>
+        <div class="background-picker__heading">
+          <strong id="call-background-title">Фон камеры</strong>
+          <button class="background-picker__close" id="close-background-panel" type="button" aria-label="Закрыть выбор фона">×</button>
+        </div>
+        <div class="background-options" id="call-background-options" role="radiogroup" aria-label="Выберите фон камеры"></div>
+        <span class="background-picker__status" role="status"></span>
+      </section>
     </section>
 
     <section class="room-ended" id="room-ended" aria-labelledby="room-ended-title" hidden>

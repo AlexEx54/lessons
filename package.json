@@ -4,6 +4,7 @@
   "private": true,
   "description": "EasyClass teaching platform",
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.0.1",
     "dt-grpc-ts": "https://github.com/kcjerrell/dt-grpc-ts/archive/60c843d1d3bb0b3993c987d3826c2755d15c1aae.tar.gz",
     "tsx": "^4.20.6",
     "ws": "^8.18.3"
