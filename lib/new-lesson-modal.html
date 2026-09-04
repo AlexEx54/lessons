@@ -83,6 +83,29 @@
         </div>
       </div>
 
+      <div class="new-lesson-field">
+        <span id="new-lesson-model-label">Модель генерации</span>
+        <div class="new-lesson-select" data-new-lesson-select>
+          <button
+            class="new-lesson-select__trigger"
+            id="new-lesson-model"
+            type="button"
+            aria-haspopup="listbox"
+            aria-expanded="false"
+            aria-controls="new-lesson-model-list"
+            aria-labelledby="new-lesson-model-label new-lesson-model-value"
+          >
+            <span class="new-lesson-select__value" id="new-lesson-model-value">Gemini 3.7 Flash</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          <ul class="new-lesson-select__list" id="new-lesson-model-list" role="listbox" aria-labelledby="new-lesson-model-label" hidden>
+            <li class="new-lesson-select__option" role="option" tabindex="-1" data-value="google/gemini-3.7-flash" aria-selected="true">Gemini 3.7 Flash</li>
+            <li class="new-lesson-select__option" role="option" tabindex="-1" data-value="deepseek/deepseek-v4-flash-vision-exp" aria-selected="false">DeepSeek V4 Flash Vision Exp · High Reasoning</li>
+          </ul>
+          <input type="hidden" name="model" value="google/gemini-3.7-flash" data-new-lesson-model-value />
+        </div>
+      </div>
+
       <label class="new-lesson-synthetic" for="new-lesson-synthetic">
         <input id="new-lesson-synthetic" name="synthetic" type="checkbox" />
         <span class="new-lesson-synthetic__control" aria-hidden="true">

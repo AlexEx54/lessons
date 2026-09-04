@@ -21,14 +21,18 @@
   const newLessonGrammarTopic = document.getElementById('new-lesson-grammar-topic');
   const newLessonSynthetic = document.getElementById('new-lesson-synthetic');
   const createLessonDraftButton = newLessonModal?.querySelector('[data-create-lesson-draft]');
-  const newLessonSelect = newLessonModal?.querySelector('[data-new-lesson-select]');
-  const newLessonSelectTrigger = newLessonSelect?.querySelector('.new-lesson-select__trigger');
-  const newLessonSelectList = newLessonSelect?.querySelector('.new-lesson-select__list');
-  const newLessonSelectValue = newLessonSelect?.querySelector('.new-lesson-select__value');
-  const newLessonSelectInput = newLessonSelect?.querySelector('[data-new-lesson-template-value]');
-  const newLessonSelectOptions = newLessonSelect
-    ? [...newLessonSelect.querySelectorAll('.new-lesson-select__option')]
+  const newLessonSelects = newLessonModal
+    ? [...newLessonModal.querySelectorAll('[data-new-lesson-select]')].map(container => ({
+      container,
+      trigger: container.querySelector('.new-lesson-select__trigger'),
+      list: container.querySelector('.new-lesson-select__list'),
+      value: container.querySelector('.new-lesson-select__value'),
+      input: container.querySelector('input[type="hidden"]'),
+      options: [...container.querySelectorAll('.new-lesson-select__option')],
+    }))
     : [];
+  const newLessonSelectInput = newLessonModal?.querySelector('[data-new-lesson-template-value]');
+  const newLessonModelInput = newLessonModal?.querySelector('[data-new-lesson-model-value]');
   const newLessonChoiceGroups = newLessonModal
     ? [...newLessonModal.querySelectorAll('[data-new-lesson-choice-group]')]
     : [];
@@ -111,52 +115,62 @@
     }
   }
 
+  function getOpenNewLessonSelect() {
+    return newLessonSelects.find(select => select.container.classList.contains('new-lesson-select--open')) || null;
+  }
+
   function isNewLessonSelectOpen() {
-    return Boolean(newLessonSelect?.classList.contains('new-lesson-select--open'));
+    return Boolean(getOpenNewLessonSelect());
   }
 
   function closeNewLessonSelect({ restoreFocus = false } = {}) {
-    if (!newLessonSelect || !isNewLessonSelectOpen()) return;
-    newLessonSelect.classList.remove('new-lesson-select--open');
-    newLessonSelectTrigger?.setAttribute('aria-expanded', 'false');
-    newLessonSelectList?.setAttribute('hidden', '');
-    if (restoreFocus) newLessonSelectTrigger?.focus();
+    const select = getOpenNewLessonSelect();
+    if (!select) return;
+    select.container.classList.remove('new-lesson-select--open');
+    select.trigger?.setAttribute('aria-expanded', 'false');
+    select.list?.setAttribute('hidden', '');
+    if (restoreFocus) select.trigger?.focus();
   }
 
-  function openNewLessonSelect() {
-    if (!newLessonSelect || !newLessonSelectTrigger || !newLessonSelectList) return;
-    newLessonSelect.classList.add('new-lesson-select--open');
-    newLessonSelectTrigger.setAttribute('aria-expanded', 'true');
-    newLessonSelectList.removeAttribute('hidden');
-    const selected = newLessonSelectOptions.find(option => option.getAttribute('aria-selected') === 'true')
-      || newLessonSelectOptions[0];
+  function openNewLessonSelect(select) {
+    if (!select?.trigger || !select.list) return;
+    closeNewLessonSelect();
+    select.container.classList.add('new-lesson-select--open');
+    select.trigger.setAttribute('aria-expanded', 'true');
+    select.list.removeAttribute('hidden');
+    const selected = select.options.find(option => option.getAttribute('aria-selected') === 'true')
+      || select.options[0];
     window.requestAnimationFrame(() => selected?.focus());
   }
 
-  function toggleNewLessonSelect() {
-    if (isNewLessonSelectOpen()) closeNewLessonSelect({ restoreFocus: true });
-    else openNewLessonSelect();
+  function toggleNewLessonSelect(select) {
+    if (select.container.classList.contains('new-lesson-select--open')) {
+      closeNewLessonSelect({ restoreFocus: true });
+    } else {
+      openNewLessonSelect(select);
+    }
   }
 
-  function selectNewLessonTemplate(option) {
-    if (!option || !newLessonSelectValue || !newLessonSelectInput) return;
+  function selectNewLessonOption(select, option) {
+    if (!option || !select.value || !select.input) return;
     const value = option.dataset.value || '';
     const label = option.textContent.trim();
-    newLessonSelectOptions.forEach(item => {
+    select.options.forEach(item => {
       item.setAttribute('aria-selected', String(item === option));
     });
-    newLessonSelectValue.textContent = label;
-    newLessonSelectInput.value = value;
+    select.value.textContent = label;
+    select.input.value = value;
     closeNewLessonSelect({ restoreFocus: true });
   }
 
   function moveNewLessonSelectFocus(delta) {
-    if (!newLessonSelectOptions.length) return;
-    const currentIndex = newLessonSelectOptions.indexOf(document.activeElement);
+    const openSelect = getOpenNewLessonSelect();
+    if (!openSelect || !openSelect.options.length) return;
+    const currentIndex = openSelect.options.indexOf(document.activeElement);
     const nextIndex = currentIndex < 0
       ? 0
-      : (currentIndex + delta + newLessonSelectOptions.length) % newLessonSelectOptions.length;
-    newLessonSelectOptions[nextIndex]?.focus();
+      : (currentIndex + delta + openSelect.options.length) % openSelect.options.length;
+    openSelect.options[nextIndex]?.focus();
   }
 
   function openNewLessonModal(event) {
@@ -216,6 +230,7 @@
           ageGroup,
           level,
           template: newLessonSelectInput.value,
+          model: newLessonModelInput?.value || '',
           synthetic: Boolean(newLessonSynthetic?.checked),
         }),
       });
@@ -237,10 +252,12 @@
     const last = focusable.at(-1);
     if (!first || !last) return;
 
-    if (isNewLessonSelectOpen() || newLessonSelectOptions.includes(document.activeElement)) {
+    const activeSelect = newLessonSelects.find(select => select.options.includes(document.activeElement))
+      || getOpenNewLessonSelect();
+    if (activeSelect) {
       event.preventDefault();
       closeNewLessonSelect();
-      const triggerIndex = Math.max(0, focusable.indexOf(newLessonSelectTrigger));
+      const triggerIndex = Math.max(0, focusable.indexOf(activeSelect.trigger));
       const next = event.shiftKey
         ? focusable[triggerIndex - 1] || last
         : focusable[triggerIndex + 1] || first;
@@ -321,19 +338,20 @@
       }
       if (event.key === 'Home') {
         event.preventDefault();
-        newLessonSelectOptions[0]?.focus();
+        getOpenNewLessonSelect()?.options[0]?.focus();
         return;
       }
       if (event.key === 'End') {
         event.preventDefault();
-        newLessonSelectOptions.at(-1)?.focus();
+        getOpenNewLessonSelect()?.options.at(-1)?.focus();
         return;
       }
       if (event.key === 'Enter' || event.key === ' ') {
         const option = document.activeElement?.closest?.('.new-lesson-select__option');
-        if (option) {
+        const select = getOpenNewLessonSelect();
+        if (option && select) {
           event.preventDefault();
-          selectNewLessonTemplate(option);
+          selectNewLessonOption(select, option);
           return;
         }
       }
@@ -363,14 +381,16 @@
   newLessonModal?.querySelectorAll('[data-close-new-lesson-modal]').forEach(button => {
     button.addEventListener('click', closeNewLessonModal);
   });
-  newLessonSelectTrigger?.addEventListener('click', event => {
-    event.stopPropagation();
-    toggleNewLessonSelect();
-  });
-  newLessonSelectOptions.forEach(option => {
-    option.addEventListener('click', event => {
+  newLessonSelects.forEach(select => {
+    select.trigger?.addEventListener('click', event => {
       event.stopPropagation();
-      selectNewLessonTemplate(option);
+      toggleNewLessonSelect(select);
+    });
+    select.options.forEach(option => {
+      option.addEventListener('click', event => {
+        event.stopPropagation();
+        selectNewLessonOption(select, option);
+      });
     });
   });
   newLessonChoiceGroups.forEach(group => {

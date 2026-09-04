@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
+  DEEPSEEK_FLASH_VISION_MODEL,
   GRAMMAR_FOCUS_RESPONSE_SCHEMA,
   GRAMMAR_PRESENTATION_RESPONSE_SCHEMA,
   GUIDED_SPEAKING_RESPONSE_SCHEMA,
@@ -852,6 +853,7 @@ test('Lesson Metadata generates and applies a standalone lesson cover prompt', a
   ]);
   const result = await generateLessonMetadata({
     topic: 'Space travel',
+    model: OPENROUTER_MODEL,
     apiKey: 'test-key',
     baseUrl: 'https://openrouter.test/api/v1/',
     fetchImpl: async (_url, options) => {
@@ -957,6 +959,7 @@ test('generateWarmUp sends the selected model, high reasoning, and strict schema
   ]);
   const result = await generateWarmUp({
     topic: 'Space travel',
+    model: DEEPSEEK_FLASH_VISION_MODEL,
     apiKey: 'test-key',
     baseUrl: 'https://openrouter.test/api/v1/',
     fetchImpl: async (url, options) => {
@@ -966,12 +969,23 @@ test('generateWarmUp sends the selected model, high reasoning, and strict schema
       return response;
     },
   });
-  assert.equal(requestBody.model, OPENROUTER_MODEL);
+  assert.equal(requestBody.model, DEEPSEEK_FLASH_VISION_MODEL);
   assert.deepEqual(requestBody.reasoning, { effort: 'high', exclude: false });
   assert.equal(requestBody.response_format.type, 'json_schema');
   assert.equal(requestBody.response_format.json_schema.strict, true);
+  assert.deepEqual(requestBody.provider, { require_parameters: true });
   assert.equal(requestBody.stream, true);
   assert.equal(result.generated.choices.length, 4);
+});
+
+test('generateWarmUp rejects a missing model instead of falling back', async () => {
+  await assert.rejects(generateWarmUp({
+    topic: 'Space travel',
+    apiKey: 'test-key',
+    fetchImpl: async () => {
+      throw new Error('OpenRouter must not be called without a model.');
+    },
+  }), /Модель генерации не задана/);
 });
 
 test('generateLeadIn sends its own strict schema and validates the result', async () => {
@@ -984,6 +998,7 @@ test('generateLeadIn sends its own strict schema and validates the result', asyn
   ]);
   const result = await generateLeadIn({
     topic: 'Space travel',
+    model: OPENROUTER_MODEL,
     apiKey: 'test-key',
     baseUrl: 'https://openrouter.test/api/v1/',
     fetchImpl: async (url, options) => {
@@ -1011,6 +1026,7 @@ test('generateTargetVocabulary sends its own strict schema and validates the res
   ]);
   const result = await generateTargetVocabulary({
     topic: 'Air travel',
+    model: OPENROUTER_MODEL,
     apiKey: 'test-key',
     baseUrl: 'https://openrouter.test/api/v1/',
     fetchImpl: async (url, options) => {
@@ -1038,6 +1054,7 @@ test('generateReading sends its strict schema with Target Vocabulary and validat
   ]);
   const result = await generateReading({
     topic: 'Air travel',
+    model: OPENROUTER_MODEL,
     grammarTopic: 'Past Simple',
     vocabularyItems: GENERATED_TARGET_VOCABULARY.vocabularyItems,
     apiKey: 'test-key',
@@ -1067,6 +1084,7 @@ test('generateListening sends its strict schema with Target Vocabulary and valid
   ]);
   const result = await generateListening({
     topic: 'Air travel',
+    model: OPENROUTER_MODEL,
     grammarTopic: 'Past Simple',
     vocabularyItems: GENERATED_TARGET_VOCABULARY.vocabularyItems,
     apiKey: 'test-key',
@@ -1097,6 +1115,7 @@ test('generateGrammarPresentation sends both topics with its strict schema and v
   ]);
   const result = await generateGrammarPresentation({
     topic: 'Air travel',
+    model: OPENROUTER_MODEL,
     grammarTopic: 'Past Simple',
     apiKey: 'test-key',
     baseUrl: 'https://openrouter.test/api/v1/',
@@ -1127,6 +1146,7 @@ test('generateGrammarFocus sends all context with its strict schema and validate
   ]);
   const result = await generateGrammarFocus({
     topic: 'Air travel',
+    model: OPENROUTER_MODEL,
     grammarTopic: 'Past Simple',
     vocabularyItems: GENERATED_TARGET_VOCABULARY.vocabularyItems,
     apiKey: 'test-key',
@@ -1156,6 +1176,7 @@ test('generateGuidedSpeaking sends topic and vocabulary with its strict schema',
   ]);
   const result = await generateGuidedSpeaking({
     topic: 'Air travel',
+    model: OPENROUTER_MODEL,
     vocabularyItems: GENERATED_TARGET_VOCABULARY.vocabularyItems,
     apiKey: 'test-key',
     baseUrl: 'https://openrouter.test/api/v1/',
@@ -1184,6 +1205,7 @@ test('generateWrapUp sends all lesson context with its strict schema', async () 
   ]);
   const result = await generateWrapUp({
     topic: 'Air travel',
+    model: OPENROUTER_MODEL,
     grammarTopic: 'Past Simple',
     vocabularyItems: GENERATED_TARGET_VOCABULARY.vocabularyItems,
     apiKey: 'test-key',

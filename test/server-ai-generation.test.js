@@ -127,7 +127,8 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
       const payload = JSON.parse(body);
       const requestIndex = openRouterRequestCount;
       openRouterRequestCount += 1;
-      assert.equal(payload.model, 'google/gemini-3.7-flash');
+      assert.equal(payload.model, 'deepseek/deepseek-v4-flash-vision-exp');
+      assert.deepEqual(payload.provider, { require_parameters: true });
       assert.equal(payload.reasoning.effort, 'high');
       assert.match(payload.messages[0].content, /CEFR level: B1/);
       assert.match(payload.messages[0].content, /Age: 9-11/);
@@ -266,7 +267,8 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
     headers: { 'Content-Type': 'application/json', Cookie: cookie },
     body: JSON.stringify({
       topic: 'Travel choices', warmUpTopic: '  City transport  ', grammarTopic: 'Past Simple',
-      ageGroup: '9-11', level: 'B1', template: 'template-1', synthetic: false,
+      ageGroup: '9-11', level: 'B1', template: 'template-1',
+      model: 'deepseek/deepseek-v4-flash-vision-exp', synthetic: false,
     }),
   });
   assert.equal(createdResponse.status, 201);
@@ -276,7 +278,7 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
   assert.equal(created.ageGroup, '9-11');
   assert.equal(created.level, 'B1');
   assert.equal(created.generation.mode, 'ai');
-  assert.equal(created.generation.model, 'google/gemini-3.7-flash');
+  assert.equal(created.generation.model, 'deepseek/deepseek-v4-flash-vision-exp');
   assert.equal(created.content.stages.length, 9);
   assert.ok(created.content.stages.every(stage => stage.content.length === 0));
   assert.deepEqual(created.content.stages.slice(0, 3).map(stage => stage.subtitle), [
@@ -493,7 +495,8 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: cookie },
     body: JSON.stringify({
-      topic: 'Travel choices', warmUpTopic: 'Warm-up transport', grammarTopic: 'Past Simple', template: 'template-1', synthetic: false,
+      topic: 'Travel choices', warmUpTopic: 'Warm-up transport', grammarTopic: 'Past Simple',
+      template: 'template-1', model: 'google/gemini-3.7-flash', synthetic: false,
     }),
   });
   assert.equal(createdResponse.status, 201);

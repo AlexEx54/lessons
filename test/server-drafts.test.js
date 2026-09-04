@@ -105,11 +105,16 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     { topic: 'Topic', grammarTopic: 'x'.repeat(121), template: 'template-1' },
     { topic: 'Topic', grammarTopic: 'Past Simple', ageGroup: '18+', template: 'template-1' },
     { topic: 'Topic', grammarTopic: 'Past Simple', level: 'C1', template: 'template-1' },
+    { topic: 'Topic', grammarTopic: 'Past Simple', model: undefined, template: 'template-1' },
+    { topic: 'Topic', grammarTopic: 'Past Simple', model: '', template: 'template-1' },
+    { topic: 'Topic', grammarTopic: 'Past Simple', model: null, template: 'template-1' },
+    { topic: 'Topic', grammarTopic: 'Past Simple', model: 42, template: 'template-1' },
+    { topic: 'Topic', grammarTopic: 'Past Simple', model: 'unknown/model', template: 'template-1' },
   ]) {
     const invalid = await fetch(`${baseUrl}/api/lesson-drafts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ model: 'google/gemini-3.7-flash', ...body }),
     });
     assert.equal(invalid.status, 400);
   }
@@ -123,6 +128,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
       ageGroup: '15-18',
       level: 'B2',
       template: 'template-1',
+      model: 'google/gemini-3.7-flash',
       synthetic: true,
       ownerAdminId: 'attempted-owner-override',
     }),

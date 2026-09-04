@@ -67,8 +67,8 @@ const { recoverLessonGeneration } = require('./lib/lesson-generation-recovery.js
 const { stopInterruptedLessonImageGenerations } = require('./lib/lesson-image-generation-store.js');
 const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
 const {
+  LESSON_MODEL_OPTIONS,
   OPENROUTER_BASE_URL,
-  OPENROUTER_MODEL,
   applyGrammarFocusToSkeleton,
   applyGrammarPresentationToSkeleton,
   applyGuidedSpeakingToSkeleton,
@@ -234,6 +234,7 @@ async function runAiLessonGeneration({
   grammarTopic,
   ageGroup,
   level,
+  model,
   skeleton,
   recoveredSections = {},
   initialOutput = '',
@@ -278,6 +279,7 @@ async function runAiLessonGeneration({
       level,
       apiKey: process.env.OPENROUTER_API_KEY,
       baseUrl: process.env.OPENROUTER_BASE_URL || OPENROUTER_BASE_URL,
+      model,
       signal: controller.signal,
       onDelta: delta => {
         reasoning += delta.reasoningDelta || '';
@@ -311,6 +313,9 @@ async function runAiLessonGeneration({
   }
 
   try {
+    if (typeof model !== 'string' || !model.trim()) {
+      throw new Error('Модель генерации не задана.');
+    }
     const metadataResult = await recoverOrGenerate(
       'lessonMetadata', 'Lesson Metadata', topic, generateLessonMetadata,
     );
@@ -1313,6 +1318,7 @@ const server = http.createServer(async (req, res) => {
     const ageGroup = body.ageGroup === undefined ? '12-14' : body.ageGroup;
     const level = body.level === undefined ? 'A2' : body.level;
     const template = typeof body.template === 'string' ? body.template.trim() : '';
+    const model = typeof body.model === 'string' ? body.model.trim() : null;
     const synthetic = body.synthetic === true;
     if (!topic || topic.length > 120) {
       json(res, 400, { error: 'Тема должна содержать от 1 до 120 символов.' });
@@ -1342,6 +1348,10 @@ const server = http.createServer(async (req, res) => {
       json(res, 400, { error: 'Выбран неизвестный шаблон урока.' });
       return;
     }
+    if (!model || !LESSON_MODEL_OPTIONS[model]) {
+      json(res, 400, { error: 'Выбрана неизвестная модель генерации.' });
+      return;
+    }
     if (body.synthetic !== undefined && typeof body.synthetic !== 'boolean') {
       json(res, 400, { error: 'Режим синтетического урока должен быть логическим значением.' });
       return;
@@ -1359,7 +1369,7 @@ const server = http.createServer(async (req, res) => {
       try {
         lesson = synthetic
           ? createSyntheticLesson(topic)
-          : createLessonSkeleton(topic, { ageGroup, level });
+          : createLessonSkeleton(topic, { ageGroup, level, model });
         lesson.meta.ageGroup = ageGroup;
         lesson.meta.level = level;
         pendingDraft = createLessonDraft({
@@ -1375,7 +1385,7 @@ const server = http.createServer(async (req, res) => {
         createLessonGeneration({
           draftId: pendingDraft.id,
           mode: synthetic ? 'synthetic' : 'ai',
-          model: synthetic ? null : OPENROUTER_MODEL,
+          model: synthetic ? null : model,
         }, database);
         if (synthetic) {
           completeLessonDraft(pendingDraft.id, user.id, lesson, database);
@@ -1406,6 +1416,7 @@ const server = http.createServer(async (req, res) => {
             grammarTopic,
             ageGroup,
             level,
+            model,
             skeleton: lesson,
           });
         });
@@ -1442,10 +1453,16 @@ const server = http.createServer(async (req, res) => {
         json(res, 404, { error: 'Журнал генерации не найден.' });
         return;
       }
+      const model = typeof generation.model === 'string' ? generation.model.trim() : '';
+      if (!model) {
+        json(res, 409, { error: 'В журнале генерации не сохранена модель.' });
+        return;
+      }
 
       const skeleton = draft.content || createLessonSkeleton(draft.topic, {
         ageGroup: draft.ageGroup,
         level: draft.level,
+        model,
       });
       const recovery = recoverLessonGeneration(generation.output, skeleton);
       if (Object.keys(recovery.recoveredSections).length < 10 && !process.env.OPENROUTER_API_KEY) {
@@ -1474,6 +1491,7 @@ const server = http.createServer(async (req, res) => {
           grammarTopic: draft.grammarTopic,
           ageGroup: draft.ageGroup,
           level: draft.level,
+          model,
           skeleton,
           recoveredSections: recovery.recoveredSections,
           initialOutput: recovery.validOutput,
