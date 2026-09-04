@@ -1,0 +1,33 @@
+<!-- Раздел видеозвонков. Общий AppShell добавляется серверным renderer. -->
+<section class="calls-panel" aria-labelledby="calls-title">
+  <header class="calls-heading">
+    <div>
+      <p class="calls-heading__eyebrow">Занятия онлайн</p>
+      <h2 id="calls-title">Видеозвонки</h2>
+      <p>Создайте личную комнату и отправьте ученику безопасную ссылку.</p>
+    </div>
+    <button class="calls-heading__create" id="create-video-call" type="button">
+      <span aria-hidden="true">＋</span> Создать видеозвонок
+    </button>
+  </header>
+
+  <div class="call-state call-state--loading" id="calls-loading" role="status">
+    <span class="call-spinner" aria-hidden="true"></span>
+    <p>Загружаем видеозвонки…</p>
+  </div>
+
+  <div class="call-state call-state--error" id="calls-error" role="alert" hidden>
+    <span aria-hidden="true">!</span>
+    <h3>Не удалось загрузить видеозвонки</h3>
+    <p id="calls-error-message"></p>
+    <button id="calls-retry" type="button">Попробовать снова</button>
+  </div>
+
+  <div class="call-state" id="calls-empty" hidden>
+    <span aria-hidden="true">◉</span>
+    <h3>Звонков пока нет</h3>
+    <p>Создайте комнату — ссылка для ученика появится сразу.</p>
+  </div>
+
+  <div class="calls-grid" id="calls-grid" aria-live="polite"></div>
+</section>

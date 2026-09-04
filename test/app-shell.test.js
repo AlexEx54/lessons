@@ -46,6 +46,7 @@ test('admin sees lesson creation and drafts links in both profile menus', async 
   assert.equal((html.match(/>Создать урок<\/button>/g) || []).length, 2);
   assert.equal((html.match(/>Создать урок<\/button>\s*<a href="\/lesson-drafts" role="menuitem">Черновики уроков<\/a>/g) || []).length, 2);
   assert.equal((html.match(/href="\/lesson-drafts"/g) || []).length, 2);
+  assert.equal((html.match(/href="\/video-calls" role="menuitem">Видеозвонки<\/a>/g) || []).length, 2);
   assert.equal((html.match(/id="new-lesson-modal"/g) || []).length, 1);
   assert.match(html, /placeholder="Напр\. Luca Cartoon"/);
   assert.match(html, /name="warmUpTopic"/);
@@ -95,6 +96,23 @@ test('lesson drafts render inside the shared shell for an admin', async () => {
   assert.match(html, /class="content content--lesson-drafts"/);
   assert.match(html, /id="draft-grid"/);
   assert.deepEqual(activeNavigationItems(html), []);
+});
+
+test('video calls render inside the shared shell for an admin', async () => {
+  const html = await renderAppPage('videoCalls', {
+    user: { displayName: 'Администратор', email: 'admin@example.com', role: 'admin' },
+  });
+
+  assert.match(html, /<title>Видеозвонки — EasyClass<\/title>/);
+  assert.match(html, /href="\/assets\/video-calls\.css"/);
+  assert.match(html, /src="\/assets\/video-calls\.js"/);
+  assert.match(html, /id="create-video-call"/);
+});
+
+test('hidden video call states cannot be forced visible by their layout styles', () => {
+  const videoCallStyles = fs.readFileSync(path.join(ROOT, 'assets', 'video-calls.css'), 'utf8');
+  assert.match(videoCallStyles, /\.call-state\[hidden\][\s\S]*?display:\s*none\s*!important;/);
+  assert.match(videoCallStyles, /\.calls-grid\[hidden\][\s\S]*?display:\s*none\s*!important;/);
 });
 
 test('renderer rejects unknown application pages', async () => {

@@ -86,7 +86,7 @@ fi
 
 chown -R teachplatform:teachplatform "$STAGING_DIR"
 cd "$STAGING_DIR"
-"$NPM" ci --omit=dev --ignore-scripts
+"$NPM" ci --omit=dev --ignore-scripts --no-audit --no-fund
 
 check_files=(
   server.js
@@ -95,6 +95,8 @@ check_files=(
   assets/home.js
   assets/library.js
   assets/lesson-editor.js
+  assets/video-calls.js
+  assets/video-call-room.js
   assets/components/this-or-that.js
   assets/components/audio-player.js
   assets/components/how-to-play.js
@@ -104,6 +106,9 @@ check_files=(
   lib/password.js
   lib/session-store.js
   lib/user-store.js
+  lib/video-call-store.js
+  lib/video-call-signaling.js
+  lib/webrtc-config.js
   lib/lesson-draft-store.js
   lib/lesson-generation-store.js
   lib/lesson-image-generation-store.js

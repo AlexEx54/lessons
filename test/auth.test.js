@@ -17,10 +17,10 @@ test('auth migrations are repeatable and create the expected tables', () => {
     database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(row => row.name),
     [
       'lesson_draft_generations', 'lesson_draft_image_generations', 'lesson_drafts',
-      'schema_migrations', 'sessions', 'users',
+      'schema_migrations', 'sessions', 'users', 'video_calls',
     ],
   );
-  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 7);
+  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 8);
   assert.ok(database.prepare(
     "SELECT 1 FROM pragma_table_info('lesson_drafts') WHERE name = 'grammar_topic'",
   ).get());

@@ -19,6 +19,17 @@ const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
 const { createUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
 const {
+  createVideoCall,
+  endVideoCall,
+  findOwnedVideoCall,
+  findVideoCallByGuestToken,
+  listVideoCalls,
+  resetInterruptedVideoCalls,
+  rotateVideoCallGuestToken,
+} = require('./lib/video-call-store.js');
+const { getIceServers } = require('./lib/webrtc-config.js');
+const { createVideoCallSignaling } = require('./lib/video-call-signaling.js');
+const {
   completeLessonDraft,
   createLessonDraft,
   deleteLessonDraft,
@@ -103,6 +114,9 @@ const lessonImageGenerator = new LessonImageGenerator({
 });
 const generationControllers = new Map();
 const generationSubscribers = new Map();
+let videoCallSignaling = null;
+
+resetInterruptedVideoCalls(database);
 
 const interruptedGenerationIds = failInterruptedLessonGenerations(database);
 if (interruptedGenerationIds.length > 0) {
@@ -1223,6 +1237,47 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && (pathname === '/video-calls' || pathname === '/video-calls/')) {
+    const user = getAuthenticatedUser(req, database);
+    if (!user) {
+      redirect(res, loginRedirect('/video-calls'));
+      return;
+    }
+    if (user.role !== 'admin') {
+      json(res, 403, { error: 'Раздел доступен только администратору.' });
+      return;
+    }
+    await serveAppPage('videoCalls', res, { user });
+    return;
+  }
+
+  const teacherVideoCallPage = pathname.match(/^\/video-calls\/([^/]+)$/);
+  if (req.method === 'GET' && teacherVideoCallPage) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    let callId = '';
+    try { callId = decodeURIComponent(teacherVideoCallPage[1]); } catch (_error) { /* handled below */ }
+    const call = findOwnedVideoCall(callId, user.id, database);
+    if (!call) {
+      json(res, 404, { error: 'Видеозвонок не найден.' });
+      return;
+    }
+    serveStatic('/video-call-room.html', res);
+    return;
+  }
+
+  const guestVideoCallPage = pathname.match(/^\/call\/([^/]+)$/);
+  if (req.method === 'GET' && guestVideoCallPage) {
+    let guestToken = '';
+    try { guestToken = decodeURIComponent(guestVideoCallPage[1]); } catch (_error) { /* handled below */ }
+    if (!findVideoCallByGuestToken(guestToken, database)) {
+      json(res, 404, { error: 'Ссылка на видеозвонок недействительна.' });
+      return;
+    }
+    serveStatic('/video-call-room.html', res);
+    return;
+  }
+
   if (req.method === 'GET' && pathname.startsWith('/lesson-drafts/') && pathname.endsWith('/edit')) {
     const user = requireAdminAuth(req, res);
     if (!user) return;
@@ -1253,6 +1308,101 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && pathname === '/api/home-content') {
     if (!requireTeacherAuth(req, res)) return;
     json(res, 200, homeContentMock);
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/video-calls') {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    try {
+      const call = createVideoCall({ ownerAdminId: user.id }, database);
+      const guestPath = `/call/${encodeURIComponent(call.guestToken)}`;
+      delete call.guestToken;
+      json(res, 201, { call, guestPath });
+    } catch (error) {
+      console.error('Cannot create video call:', error);
+      json(res, 500, { error: 'Не удалось создать видеозвонок.' });
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/video-calls') {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    json(res, 200, { calls: listVideoCalls(user.id, database) });
+    return;
+  }
+
+  const videoCallInviteRoute = pathname.match(/^\/api\/video-calls\/([^/]+)\/invite$/);
+  if (req.method === 'POST' && videoCallInviteRoute) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    let callId = '';
+    try { callId = decodeURIComponent(videoCallInviteRoute[1]); } catch (_error) { /* handled below */ }
+    const guestToken = rotateVideoCallGuestToken(callId, user.id, database);
+    if (!guestToken) {
+      json(res, 409, { error: 'Звонок завершён или срок ссылки истёк.' });
+      return;
+    }
+    json(res, 200, { guestPath: `/call/${encodeURIComponent(guestToken)}` });
+    return;
+  }
+
+  const videoCallEndRoute = pathname.match(/^\/api\/video-calls\/([^/]+)\/end$/);
+  if (req.method === 'POST' && videoCallEndRoute) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    let callId = '';
+    try { callId = decodeURIComponent(videoCallEndRoute[1]); } catch (_error) { /* handled below */ }
+    const call = endVideoCall(callId, user.id, database);
+    if (!call) {
+      json(res, 404, { error: 'Видеозвонок не найден.' });
+      return;
+    }
+    videoCallSignaling?.closeRoom(callId);
+    json(res, 200, { call });
+    return;
+  }
+
+  const publicVideoCallApi = pathname.match(/^\/api\/public\/video-calls\/([^/]+)$/);
+  if (req.method === 'GET' && publicVideoCallApi) {
+    let guestToken = '';
+    try { guestToken = decodeURIComponent(publicVideoCallApi[1]); } catch (_error) { /* handled below */ }
+    const call = findVideoCallByGuestToken(guestToken, database);
+    if (!call) {
+      json(res, 404, { error: 'Ссылка на видеозвонок недействительна.' });
+      return;
+    }
+    if (!['waiting', 'active'].includes(call.status)) {
+      json(res, 410, { error: call.status === 'expired' ? 'Срок действия ссылки истёк.' : 'Видеозвонок завершён.' });
+      return;
+    }
+    json(res, 200, {
+      call,
+      iceServers: getIceServers(`guest-${call.id.slice(0, 8)}`),
+    });
+    return;
+  }
+
+  const ownedVideoCallApi = pathname.match(/^\/api\/video-calls\/([^/]+)$/);
+  if (req.method === 'GET' && ownedVideoCallApi) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    let callId = '';
+    try { callId = decodeURIComponent(ownedVideoCallApi[1]); } catch (_error) { /* handled below */ }
+    const call = findOwnedVideoCall(callId, user.id, database);
+    if (!call) {
+      json(res, 404, { error: 'Видеозвонок не найден.' });
+      return;
+    }
+    if (!['waiting', 'active'].includes(call.status)) {
+      json(res, 410, { error: call.status === 'expired' ? 'Срок действия ссылки истёк.' : 'Видеозвонок завершён.' });
+      return;
+    }
+    json(res, 200, {
+      call,
+      iceServers: getIceServers(`teacher-${user.id.slice(0, 8)}`),
+    });
     return;
   }
 
@@ -2014,6 +2164,8 @@ const server = http.createServer(async (req, res) => {
 
   json(res, 405, { error: 'Method not allowed' });
 });
+
+videoCallSignaling = createVideoCallSignaling({ server, database });
 
 server.listen(PORT, HOST, () => {
   console.log(`EasyClass server running on http://${HOST}:${PORT}`);

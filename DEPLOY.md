@@ -51,6 +51,30 @@ Set these environment variables in the production `.env` on the VPS:
 - `DRAWTHINGS_MODEL`, `DRAWTHINGS_LORA`, and `DRAWTHINGS_LORA_WEIGHT`: exact installed Qwen Image 2512/Lightning filenames and weight.
 - `DRAWTHINGS_CONFIG_JSON`: optional generation-config overrides. Output size and batch size are always forced to one `512×512` PNG.
 - `DRAWTHINGS_NEGATIVE_PROMPT`: optional negative prompt override.
+- `WEBRTC_STUN_URLS`: comma-separated STUN URLs; defaults to Google's public STUN endpoint.
+- `WEBRTC_TURN_URLS`: comma-separated coturn URLs, normally UDP and TCP variants.
+- `WEBRTC_TURN_SHARED_SECRET`: the coturn `static-auth-secret` used to create temporary credentials.
+- `WEBRTC_TURN_CREDENTIAL_TTL_SECONDS`: temporary TURN credential lifetime; defaults to one hour.
+
+## Video calls
+
+The application handles WebRTC signaling at `/ws/video-calls/:id`. The HTTPS reverse
+proxy must forward WebSocket upgrades and keep these connections open. A typical nginx
+location uses HTTP/1.1 together with `Upgrade` and `Connection` proxy headers.
+
+Production calls require a coturn instance reachable from browsers. Configure coturn
+with `use-auth-secret`, set `static-auth-secret` to the same random value as
+`WEBRTC_TURN_SHARED_SECRET`, and expose port 3478 over UDP and TCP plus the configured
+relay port range. For restrictive mobile networks, also configure a valid certificate,
+expose TLS port 5349/TCP, and add `turns:turn.example.com:5349?transport=tcp` to
+`WEBRTC_TURN_URLS`. Without TURN, calls remain available for local development but may
+fail behind strict NAT or firewalls.
+
+The production timer in `deploy/systemd/teach-platform-turn-cert-sync.timer` copies the
+renewed Caddy certificate into `/etc/turnserver-certs` every 12 hours and restarts
+coturn only when the certificate changed. Its defaults target the current production
+Caddy volume and can be overridden with `TURN_DOMAIN`, `CADDY_DATA_DIR`, and
+`TURN_CERT_DIR` in the service environment.
 
 The Draw Things client is pinned to a reviewed GitHub commit because its documented
 `dt-grpc-ts` npm package is not currently published. Deployment installs the lockfile

@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodically sync the EasyClass TURN certificate
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=12h
+Persistent=true
+Unit=teach-platform-turn-cert-sync.service
+
+[Install]
+WantedBy=timers.target

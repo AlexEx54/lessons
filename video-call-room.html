@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#17152a" />
+  <title>Видеозвонок — EasyClass</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/video-call-room.css" />
+</head>
+<body>
+  <header class="room-header">
+    <a class="room-brand" id="room-brand" href="/" aria-label="EasyClass — выйти из комнаты">
+      <img src="/assets/images/easyclass-mark-cropped.png" alt="" width="34" height="28" />
+      <span>Easy<span>Class</span></span>
+    </a>
+    <p class="room-connection" id="room-connection" role="status">
+      <span aria-hidden="true"></span> Подготовка комнаты…
+    </p>
+  </header>
+
+  <main>
+    <section class="prejoin" id="prejoin" aria-labelledby="prejoin-title">
+      <div class="prejoin__preview">
+        <video id="preview-video" autoplay muted playsinline></video>
+        <div class="video-placeholder" id="preview-placeholder">
+          <span aria-hidden="true">EC</span>
+          <p>Камера выключена</p>
+        </div>
+        <span class="prejoin__label">Вы</span>
+      </div>
+      <div class="prejoin__content">
+        <p class="prejoin__eyebrow">Личная комната</p>
+        <h1 id="prejoin-title">Всё готово к звонку?</h1>
+        <p>Проверьте изображение и звук перед подключением.</p>
+        <label class="prejoin__name" id="guest-name-field" hidden>
+          <span>Ваше имя</span>
+          <input id="participant-name" type="text" maxlength="60" autocomplete="name" placeholder="Например, Алина" />
+        </label>
+        <div class="prejoin__toggles">
+          <button id="prejoin-mic" type="button" aria-pressed="true">Микрофон включён</button>
+          <button id="prejoin-camera" type="button" aria-pressed="true">Камера включена</button>
+        </div>
+        <p class="prejoin__error" id="prejoin-error" role="alert" hidden></p>
+        <button class="prejoin__join" id="join-call" type="button">Войти в звонок</button>
+      </div>
+    </section>
+
+    <section class="call-stage" id="call-stage" aria-label="Видеозвонок" hidden>
+      <div class="call-layout">
+        <article class="video-tile video-tile--remote">
+          <video id="remote-video" autoplay playsinline></video>
+          <div class="video-placeholder" id="remote-placeholder">
+            <span aria-hidden="true">…</span>
+            <p id="remote-placeholder-text">Ждём второго участника</p>
+          </div>
+          <div class="video-tile__label">
+            <span id="remote-name">Участник</span>
+            <span class="video-tile__muted" id="remote-muted" hidden>Микрофон выключен</span>
+          </div>
+        </article>
+        <article class="video-tile video-tile--local">
+          <video id="local-video" autoplay muted playsinline></video>
+          <div class="video-placeholder" id="local-placeholder">
+            <span aria-hidden="true">EC</span>
+            <p>Камера выключена</p>
+          </div>
+          <div class="video-tile__label"><span>Вы</span></div>
+        </article>
+      </div>
+
+      <nav class="call-controls" aria-label="Управление звонком">
+        <button class="call-control" id="toggle-mic" type="button" aria-pressed="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z M5 11v1a7 7 0 0 0 14 0v-1 M12 19v3 M9 22h6" /></svg>
+          <span>Микрофон</span>
+        </button>
+        <button class="call-control" id="toggle-camera" type="button" aria-pressed="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z M17 10l6-3v10l-6-3" /></svg>
+          <span>Камера</span>
+        </button>
+        <button class="call-control" id="toggle-screen" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v13H3z M8 21h8 M12 17v4 M8 10l4-4 4 4 M12 6v8" /></svg>
+          <span>Экран</span>
+        </button>
+        <button class="call-control call-control--leave" id="leave-call" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11a11 11 0 0 1 14 0 M7 10l-2 5 4 2 2-4 M17 10l2 5-4 2-2-4" /></svg>
+          <span id="leave-label">Выйти</span>
+        </button>
+      </nav>
+    </section>
+
+    <section class="room-ended" id="room-ended" aria-labelledby="room-ended-title" hidden>
+      <span aria-hidden="true">✓</span>
+      <h1 id="room-ended-title">Звонок завершён</h1>
+      <p id="room-ended-message">Спасибо за занятие!</p>
+      <a id="room-exit-link" href="/">Вернуться</a>
+    </section>
+  </main>
+
+  <script src="/assets/video-call-room.js" defer></script>
+</body>
+</html>

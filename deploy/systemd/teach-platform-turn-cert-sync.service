@@ -1,0 +1,7 @@
+[Unit]
+Description=Sync the EasyClass TURN certificate from Caddy
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/teach_platform/scripts/sync-turn-certificate.sh
