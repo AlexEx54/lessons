@@ -194,7 +194,7 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
       } else if (requestIndex < 4) {
         assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices');
       } else if (requestIndex < 6) {
-        assert.match(payload.messages[1].content, /^Lesson topic: Travel choices/m);
+        assert.match(payload.messages[1].content, /^Lesson topic: Travel choices\nGrammar topic: Past Simple/m);
         assert.match(payload.messages[1].content, /Target Vocabulary: \["book a ticket"/);
       } else if (requestIndex === 6) {
         assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices\nGrammar topic: Past Simple');
@@ -407,7 +407,7 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
         } else if (requestIndex < 4) {
           assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices');
         } else if (requestIndex < 6) {
-          assert.match(payload.messages[1].content, /^Lesson topic: Travel choices/m);
+          assert.match(payload.messages[1].content, /^Lesson topic: Travel choices\nGrammar topic: Past Simple/m);
           assert.match(payload.messages[1].content, /Target Vocabulary/);
         } else if (requestIndex === 6) {
           assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices\nGrammar topic: Past Simple');

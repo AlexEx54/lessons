@@ -767,8 +767,8 @@ test('learner age and CEFR level are added to prompts without changing image req
     warmUpMessages('Space travel', profile),
     leadInMessages('Space travel', profile),
     targetVocabularyMessages('Space travel', profile),
-    readingMessages('Space travel', GENERATED_TARGET_VOCABULARY.vocabularyItems, profile),
-    listeningMessages('Space travel', GENERATED_TARGET_VOCABULARY.vocabularyItems, profile),
+    readingMessages('Space travel', 'Past Simple', GENERATED_TARGET_VOCABULARY.vocabularyItems, profile),
+    listeningMessages('Space travel', 'Past Simple', GENERATED_TARGET_VOCABULARY.vocabularyItems, profile),
     grammarPresentationMessages('Space travel', 'Past Simple', profile),
     grammarFocusMessages('Space travel', 'Past Simple', GENERATED_TARGET_VOCABULARY.vocabularyItems, profile),
     guidedSpeakingMessages('Space travel', GENERATED_TARGET_VOCABULARY.vocabularyItems, profile),
@@ -883,16 +883,19 @@ test('Target Vocabulary prompt and schema keep static copy out of the model resp
 });
 
 test('Reading prompt receives the topic and exact Target Vocabulary contract', () => {
-  const messages = readingMessages('Air travel', GENERATED_TARGET_VOCABULARY.vocabularyItems);
+  const messages = readingMessages('Air travel', 'Past Simple', GENERATED_TARGET_VOCABULARY.vocabularyItems);
   const systemPrompt = messages[0].content;
   assert.match(systemPrompt, /180 to 230 words/);
-  assert.match(systemPrompt, /4 to 6 distinct entries/);
+  assert.match(systemPrompt, /4 to 7 clear and accurate examples/);
+  assert.match(systemPrompt, /5 to 6 distinct entries/);
+  assert.match(systemPrompt, /Grammar topic is authoritative/);
   assert.match(systemPrompt, /review, social media post, short article, influencer story, or advice-column message/);
   assert.match(systemPrompt, /Do not use any other genre or text format/);
   assert.match(systemPrompt, /exactly five detailQuestions/);
   assert.match(systemPrompt, /Do not generate Teacher’s Notes/);
   assert.match(systemPrompt, /component titles, instructions, IDs/);
   assert.match(messages[1].content, /Lesson topic: Air travel/);
+  assert.match(messages[1].content, /Grammar topic: Past Simple/);
   assert.match(messages[1].content, /"book a ticket"/);
   assert.equal(READING_RESPONSE_SCHEMA.properties.usedVocabularyTerms.minItems, 4);
   assert.equal(READING_RESPONSE_SCHEMA.properties.usedVocabularyTerms.maxItems, 6);
@@ -905,17 +908,20 @@ test('Reading prompt receives the topic and exact Target Vocabulary contract', (
 });
 
 test('Listening prompt defines the audio formats and receives Target Vocabulary', () => {
-  const messages = listeningMessages('Air travel', GENERATED_TARGET_VOCABULARY.vocabularyItems);
+  const messages = listeningMessages('Air travel', 'Past Simple', GENERATED_TARGET_VOCABULARY.vocabularyItems);
   const systemPrompt = messages[0].content;
   assert.match(systemPrompt, /60 to 90 seconds/);
   assert.match(systemPrompt, /voice-message exchange/);
   assert.match(systemPrompt, /school announcement/);
   assert.match(systemPrompt, /two or three speakers/);
-  assert.match(systemPrompt, /4 to 6 distinct entries/);
+  assert.match(systemPrompt, /4 to 7 clear and accurate examples/);
+  assert.match(systemPrompt, /5 to 6 distinct entries/);
+  assert.match(systemPrompt, /Grammar topic is authoritative/);
   assert.match(systemPrompt, /exactly two gistQuestions/);
   assert.match(systemPrompt, /exactly five detailQuestions/);
   assert.match(systemPrompt, /Do not generate Teacher’s Notes/);
   assert.match(messages[1].content, /Lesson topic: Air travel/);
+  assert.match(messages[1].content, /Grammar topic: Past Simple/);
   assert.match(messages[1].content, /"book a ticket"/);
   assert.equal(LISTENING_RESPONSE_SCHEMA.properties.gistQuestions.minItems, 2);
   assert.equal(LISTENING_RESPONSE_SCHEMA.properties.detailQuestions.maxItems, 5);
@@ -1032,6 +1038,7 @@ test('generateReading sends its strict schema with Target Vocabulary and validat
   ]);
   const result = await generateReading({
     topic: 'Air travel',
+    grammarTopic: 'Past Simple',
     vocabularyItems: GENERATED_TARGET_VOCABULARY.vocabularyItems,
     apiKey: 'test-key',
     baseUrl: 'https://openrouter.test/api/v1/',
@@ -1042,6 +1049,7 @@ test('generateReading sends its strict schema with Target Vocabulary and validat
     },
   });
   assert.match(requestBody.messages[1].content, /Lesson topic: Air travel/);
+  assert.match(requestBody.messages[1].content, /Grammar topic: Past Simple/);
   assert.match(requestBody.messages[1].content, /"board a plane"/);
   assert.equal(requestBody.response_format.json_schema.name, 'easyclass_reading');
   assert.deepEqual(requestBody.response_format.json_schema.schema, READING_RESPONSE_SCHEMA);
@@ -1059,6 +1067,7 @@ test('generateListening sends its strict schema with Target Vocabulary and valid
   ]);
   const result = await generateListening({
     topic: 'Air travel',
+    grammarTopic: 'Past Simple',
     vocabularyItems: GENERATED_TARGET_VOCABULARY.vocabularyItems,
     apiKey: 'test-key',
     baseUrl: 'https://openrouter.test/api/v1/',
@@ -1069,6 +1078,7 @@ test('generateListening sends its strict schema with Target Vocabulary and valid
     },
   });
   assert.match(requestBody.messages[1].content, /Lesson topic: Air travel/);
+  assert.match(requestBody.messages[1].content, /Grammar topic: Past Simple/);
   assert.match(requestBody.messages[1].content, /"board a plane"/);
   assert.equal(requestBody.response_format.json_schema.name, 'easyclass_listening');
   assert.deepEqual(requestBody.response_format.json_schema.schema, LISTENING_RESPONSE_SCHEMA);

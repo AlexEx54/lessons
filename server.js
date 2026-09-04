@@ -325,6 +325,7 @@ async function runAiLessonGeneration({
       topic,
       options => generateReading({
         ...options,
+        grammarTopic,
         vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
       }),
     );
@@ -334,6 +335,7 @@ async function runAiLessonGeneration({
       topic,
       options => generateListening({
         ...options,
+        grammarTopic,
         vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
       }),
     );
