@@ -114,8 +114,8 @@ test('lesson creation opens the drafts page while generation continues', () => {
   assert.doesNotMatch(appShellScript, /window\.location\.assign\(payload\.lessonUrl\)/);
   assert.match(appShellScript, /querySelectorAll\('\[data-new-lesson-choice-group\]'\)/);
   assert.match(appShellScript, /button\.setAttribute\('aria-pressed', String\(button === choice\)\)/);
-  assert.doesNotMatch(requestBody, /\bage\s*:/);
-  assert.doesNotMatch(requestBody, /\blevel\s*:/);
+  assert.match(requestBody, /\bageGroup\s*,/);
+  assert.match(requestBody, /\blevel\s*,/);
 });
 
 test('lesson draft review action links to its editor', () => {

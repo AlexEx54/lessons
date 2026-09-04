@@ -195,6 +195,12 @@
       newLessonGrammarTopic.focus();
       return;
     }
+    const ageGroup = newLessonModal
+      ?.querySelector('.new-lesson-choice-grid--age .new-lesson-choice[aria-pressed="true"]')
+      ?.dataset.value;
+    const level = newLessonModal
+      ?.querySelector('.new-lesson-choice-grid--level .new-lesson-choice[aria-pressed="true"]')
+      ?.dataset.value;
 
     const originalLabel = createLessonDraftButton.innerHTML;
     createLessonDraftButton.disabled = true;
@@ -207,6 +213,8 @@
           topic,
           warmUpTopic: newLessonWarmUpTopic?.value.trim() || '',
           grammarTopic,
+          ageGroup,
+          level,
           template: newLessonSelectInput.value,
           synthetic: Boolean(newLessonSynthetic?.checked),
         }),

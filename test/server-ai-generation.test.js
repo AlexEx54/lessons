@@ -129,6 +129,8 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
       openRouterRequestCount += 1;
       assert.equal(payload.model, 'google/gemini-3.7-flash');
       assert.equal(payload.reasoning.effort, 'high');
+      assert.match(payload.messages[0].content, /CEFR level: B1/);
+      assert.match(payload.messages[0].content, /Age: 9-11/);
       const generated = [
         LESSON_METADATA, WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY, GENERATED_READING, GENERATED_LISTENING,
         GENERATED_GRAMMAR_PRESENTATION, GENERATED_GRAMMAR_FOCUS, GENERATED_GUIDED_SPEAKING,
@@ -263,13 +265,16 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: cookie },
     body: JSON.stringify({
-      topic: 'Travel choices', warmUpTopic: '  City transport  ', grammarTopic: 'Past Simple', template: 'template-1', synthetic: false,
+      topic: 'Travel choices', warmUpTopic: '  City transport  ', grammarTopic: 'Past Simple',
+      ageGroup: '9-11', level: 'B1', template: 'template-1', synthetic: false,
     }),
   });
   assert.equal(createdResponse.status, 201);
   const created = (await createdResponse.json()).draft;
   assert.equal(created.status, 'generating');
   assert.equal(created.warmUpTopic, 'City transport');
+  assert.equal(created.ageGroup, '9-11');
+  assert.equal(created.level, 'B1');
   assert.equal(created.generation.mode, 'ai');
   assert.equal(created.generation.model, 'google/gemini-3.7-flash');
   assert.equal(created.content.stages.length, 9);
@@ -293,6 +298,8 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
   assert.equal(ready.generation.status, 'completed');
   assert.ok(Math.abs(ready.generation.costUsd - 0.458456) < 1e-12);
   assert.equal(ready.content.meta.topic, 'Travel choices');
+  assert.equal(ready.content.meta.ageGroup, '9-11');
+  assert.equal(ready.content.meta.level, 'B1');
   assert.equal(ready.content.meta.title, 'Travel choices');
   assert.equal(ready.content.meta.coverImagePrompt, LESSON_METADATA.coverImagePrompt);
   assert.ok(['pending', 'running', 'unavailable'].includes(ready.imageGeneration.status));

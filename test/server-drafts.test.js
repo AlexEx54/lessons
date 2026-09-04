@@ -103,6 +103,8 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     { topic: 'Topic', template: 'template-1' },
     { topic: 'Topic', grammarTopic: '   ', template: 'template-1' },
     { topic: 'Topic', grammarTopic: 'x'.repeat(121), template: 'template-1' },
+    { topic: 'Topic', grammarTopic: 'Past Simple', ageGroup: '18+', template: 'template-1' },
+    { topic: 'Topic', grammarTopic: 'Past Simple', level: 'C1', template: 'template-1' },
   ]) {
     const invalid = await fetch(`${baseUrl}/api/lesson-drafts`, {
       method: 'POST',
@@ -118,6 +120,8 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     body: JSON.stringify({
       topic: '  Travel English  ',
       grammarTopic: '  Past Simple  ',
+      ageGroup: '15-18',
+      level: 'B2',
       template: 'template-1',
       synthetic: true,
       ownerAdminId: 'attempted-owner-override',
@@ -129,11 +133,15 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.topic, 'Travel English');
   assert.equal(created.warmUpTopic, 'Travel English');
   assert.equal(created.grammarTopic, 'Past Simple');
+  assert.equal(created.ageGroup, '15-18');
+  assert.equal(created.level, 'B2');
   assert.equal(created.status, 'review');
   assert.equal(created.imageGeneration.status, 'pending');
   assert.equal(created.imageGeneration.total, 23);
   assert.equal(created.content.schemaVersion, 'lesson-draft-v1');
   assert.equal(created.content.meta.topic, 'Travel English');
+  assert.equal(created.content.meta.ageGroup, '15-18');
+  assert.equal(created.content.meta.level, 'B2');
   assert.equal(created.content.meta.durationMinutes, 50);
   assert.equal(created.content.stages.length, 9);
   assert.deepEqual(created.content.stages.map(stage => stage.number), [1, 2, 3, 4, 5, 6, 7, 8, 9]);

@@ -232,6 +232,8 @@ async function runAiLessonGeneration({
   topic,
   warmUpTopic,
   grammarTopic,
+  ageGroup,
+  level,
   skeleton,
   recoveredSections = {},
   initialOutput = '',
@@ -272,6 +274,8 @@ async function runAiLessonGeneration({
 
     const result = await generator({
       topic: sectionTopic,
+      ageGroup,
+      level,
       apiKey: process.env.OPENROUTER_API_KEY,
       baseUrl: process.env.OPENROUTER_BASE_URL || OPENROUTER_BASE_URL,
       signal: controller.signal,
@@ -1304,6 +1308,8 @@ const server = http.createServer(async (req, res) => {
     const requestedWarmUpTopic = typeof body.warmUpTopic === 'string' ? body.warmUpTopic.trim() : '';
     const warmUpTopic = requestedWarmUpTopic || topic;
     const grammarTopic = typeof body.grammarTopic === 'string' ? body.grammarTopic.trim() : '';
+    const ageGroup = body.ageGroup === undefined ? '12-14' : body.ageGroup;
+    const level = body.level === undefined ? 'A2' : body.level;
     const template = typeof body.template === 'string' ? body.template.trim() : '';
     const synthetic = body.synthetic === true;
     if (!topic || topic.length > 120) {
@@ -1320,6 +1326,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (!grammarTopic || grammarTopic.length > 120) {
       json(res, 400, { error: 'Тема Grammar должна содержать от 1 до 120 символов.' });
+      return;
+    }
+    if (!['9-11', '12-14', '15-18'].includes(ageGroup)) {
+      json(res, 400, { error: 'Выбрана неизвестная возрастная группа.' });
+      return;
+    }
+    if (!['A1', 'A2', 'B1', 'B2'].includes(level)) {
+      json(res, 400, { error: 'Выбран неизвестный уровень сложности.' });
       return;
     }
     if (template !== 'template-1') {
@@ -1341,12 +1355,18 @@ const server = http.createServer(async (req, res) => {
       let lesson;
       database.exec('BEGIN IMMEDIATE');
       try {
-        lesson = synthetic ? createSyntheticLesson(topic) : createLessonSkeleton(topic);
+        lesson = synthetic
+          ? createSyntheticLesson(topic)
+          : createLessonSkeleton(topic, { ageGroup, level });
+        lesson.meta.ageGroup = ageGroup;
+        lesson.meta.level = level;
         pendingDraft = createLessonDraft({
           ownerAdminId: user.id,
           topic,
           warmUpTopic,
           grammarTopic,
+          ageGroup,
+          level,
           template,
           content: synthetic ? undefined : lesson,
         }, database);
@@ -1382,6 +1402,8 @@ const server = http.createServer(async (req, res) => {
             topic,
             warmUpTopic,
             grammarTopic,
+            ageGroup,
+            level,
             skeleton: lesson,
           });
         });
@@ -1419,7 +1441,10 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const skeleton = draft.content || createLessonSkeleton(draft.topic);
+      const skeleton = draft.content || createLessonSkeleton(draft.topic, {
+        ageGroup: draft.ageGroup,
+        level: draft.level,
+      });
       const recovery = recoverLessonGeneration(generation.output, skeleton);
       if (Object.keys(recovery.recoveredSections).length < 10 && !process.env.OPENROUTER_API_KEY) {
         json(res, 503, { error: 'Нейрогенерация временно недоступна: OPENROUTER_API_KEY не настроен.' });
@@ -1445,6 +1470,8 @@ const server = http.createServer(async (req, res) => {
           topic: draft.topic,
           warmUpTopic: draft.warmUpTopic,
           grammarTopic: draft.grammarTopic,
+          ageGroup: draft.ageGroup,
+          level: draft.level,
           skeleton,
           recoveredSections: recovery.recoveredSections,
           initialOutput: recovery.validOutput,

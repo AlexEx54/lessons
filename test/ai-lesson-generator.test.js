@@ -745,11 +745,11 @@ test('Warm-Up prompt requires three teacher-note bullets and a separate Say para
   assert.match(systemPrompt, /including instructions and direct address to the teacher/);
   assert.doesNotMatch(systemPrompt, /In Russian/);
   assert.match(systemPrompt, /briefly explain the purpose of the lead-in question/);
-  assert.match(systemPrompt, /exact question for the learner in natural A2 English/);
+  assert.match(systemPrompt, /exact question for the learner in natural English at the target CEFR level/);
   assert.match(systemPrompt, /summarize the main Warm-Up topic/);
   assert.match(systemPrompt, /one word or short phrases/);
   assert.match(systemPrompt, /what kind of answer the teacher should accept/);
-  assert.match(systemPrompt, /ready-to-say opening phrase in natural A2 English/);
+  assert.match(systemPrompt, /ready-to-say opening phrase in natural English at the target CEFR level/);
   assert.match(systemPrompt, /\*\*Say:\*\* \*English opening phrase\*/);
   assert.match(systemPrompt, /Say paragraph must not be a bullet point/);
   assert.match(systemPrompt, /only the English opening phrase after \*\*Say:\*\* must be italic/);
@@ -758,6 +758,31 @@ test('Warm-Up prompt requires three teacher-note bullets and a separate Say para
   assert.doesNotMatch(systemPrompt, /summer\/gaming/);
   assert.match(systemPrompt, /suitable for teenagers/);
   assert.doesNotMatch(systemPrompt, /child-friendly/i);
+});
+
+test('learner age and CEFR level are added to prompts without changing image requirements', () => {
+  const profile = { ageGroup: '9-11', level: 'B1' };
+  const prompts = [
+    lessonMetadataMessages('Space travel', profile),
+    warmUpMessages('Space travel', profile),
+    leadInMessages('Space travel', profile),
+    targetVocabularyMessages('Space travel', profile),
+    readingMessages('Space travel', GENERATED_TARGET_VOCABULARY.vocabularyItems, profile),
+    listeningMessages('Space travel', GENERATED_TARGET_VOCABULARY.vocabularyItems, profile),
+    grammarPresentationMessages('Space travel', 'Past Simple', profile),
+    grammarFocusMessages('Space travel', 'Past Simple', GENERATED_TARGET_VOCABULARY.vocabularyItems, profile),
+    guidedSpeakingMessages('Space travel', GENERATED_TARGET_VOCABULARY.vocabularyItems, profile),
+    wrapUpMessages('Space travel', 'Past Simple', GENERATED_TARGET_VOCABULARY.vocabularyItems, profile),
+  ];
+
+  for (const messages of prompts) {
+    assert.match(messages[0].content, /CEFR level: B1/);
+    assert.match(messages[0].content, /Age: 9-11/);
+    assert.match(messages[0].content, /learner profile does not change image-generation prompts/i);
+    assert.doesNotMatch(messages[0].content, /lessons for A2 learners|natural A2 English/);
+  }
+  assert.match(prompts[0][0].content, /suitable for teenagers/);
+  assert.match(prompts[1][0].content, /suitable for teenagers/);
 });
 
 test('Lead-In prompt keeps Teacher’s Notes in one field and defines all content requirements', () => {
