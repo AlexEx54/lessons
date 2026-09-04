@@ -50,7 +50,18 @@
   ];
   const BACKGROUND_IDS = new Set(BACKGROUND_OPTIONS.map(option => option.id));
   const MEDIAPIPE_BASE = '/assets/vendor/mediapipe-1.0.1';
-  const EFFECT_FRAME_INTERVAL_MS = window.matchMedia?.('(pointer: coarse)').matches ? 1000 / 18 : 1000 / 24;
+  const MOBILE_DEVICE = navigator.userAgentData?.mobile === true
+    || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  const SEGMENTER_MODEL = MOBILE_DEVICE
+    ? { id: 'landscape', filename: 'selfie_segmenter_landscape.tflite' }
+    : { id: 'square', filename: 'selfie_segmenter.tflite' };
+  const EFFECT_FRAME_INTERVAL_MS = MOBILE_DEVICE ? 1000 / 18 : 1000 / 24;
+  const EFFECT_STATS_INTERVAL_MS = 30_000;
+  const MASK_PROFILES = Object.freeze({
+    blur: { low: 0.25, high: 0.65, feather: 1.2, erode: false },
+    replacement: { low: 0.35, high: 0.72, feather: 0.8, erode: true },
+  });
 
   let room = null;
   let iceServers = [];
@@ -75,6 +86,13 @@
   let effectFrameRequest = 0;
   let effectLastFrameAt = 0;
   let effectFailureCount = 0;
+  let effectTemporalMask = null;
+  let effectSpatialMask = null;
+  let effectMaskPixels = null;
+  let effectMaskImageData = null;
+  let effectProcessedFrames = 0;
+  let effectInferenceTotalMs = 0;
+  let effectStatsStartedAt = 0;
   const backgroundImages = new Map();
   let joined = false;
   let leaving = false;
@@ -217,7 +235,7 @@
       const vision = await FilesetResolver.forVisionTasks(`${MEDIAPIPE_BASE}/wasm`);
       const options = {
         baseOptions: {
-          modelAssetPath: `${MEDIAPIPE_BASE}/models/selfie_segmenter_landscape.tflite`,
+          modelAssetPath: `${MEDIAPIPE_BASE}/models/${SEGMENTER_MODEL.filename}`,
           delegate: 'GPU',
         },
         runningMode: 'VIDEO',
@@ -255,6 +273,13 @@
     effectTrack = null;
     effectLastFrameAt = 0;
     effectFailureCount = 0;
+    effectTemporalMask = null;
+    effectSpatialMask = null;
+    effectMaskPixels = null;
+    effectMaskImageData = null;
+    effectProcessedFrames = 0;
+    effectInferenceTotalMs = 0;
+    effectStatsStartedAt = 0;
     if (closeSegmenter && segmenter) {
       segmenter.close();
       segmenter = null;
@@ -274,6 +299,106 @@
 
   async function applyOutboundVideoTrack() {
     if (videoTransceiver) await videoTransceiver.sender.replaceTrack(outboundVideoTrack());
+  }
+
+  function effectMode() {
+    return selectedBackground === 'blur' ? 'blur' : 'replacement';
+  }
+
+  function effectDiagnosticDetails(extra = {}) {
+    return {
+      model: SEGMENTER_MODEL.id,
+      delegate: segmenterDelegate.toLowerCase(),
+      mode: effectMode(),
+      outputWidth: effectOutputCanvas?.width || 0,
+      outputHeight: effectOutputCanvas?.height || 0,
+      maskWidth: effectMaskCanvas?.width || 0,
+      maskHeight: effectMaskCanvas?.height || 0,
+      ...extra,
+    };
+  }
+
+  function smoothstep(low, high, value) {
+    const normalized = Math.max(0, Math.min(1, (value - low) / (high - low)));
+    return normalized * normalized * (3 - 2 * normalized);
+  }
+
+  function ensureMaskBuffers(width, height) {
+    const length = width * height;
+    if (effectTemporalMask?.length === length && effectMaskImageData) return;
+    effectTemporalMask = null;
+    effectSpatialMask = new Float32Array(length);
+    effectMaskPixels = new Uint8ClampedArray(length * 4);
+    for (let index = 0; index < length; index += 1) {
+      const offset = index * 4;
+      effectMaskPixels[offset] = 255;
+      effectMaskPixels[offset + 1] = 255;
+      effectMaskPixels[offset + 2] = 255;
+    }
+    effectMaskImageData = new ImageData(effectMaskPixels, width, height);
+  }
+
+  function stabilizeMask(values) {
+    if (!effectTemporalMask) {
+      effectTemporalMask = new Float32Array(values);
+      return effectTemporalMask;
+    }
+    for (let index = 0; index < values.length; index += 1) {
+      const previous = effectTemporalMask[index];
+      const current = values[index];
+      const response = Math.abs(current - previous) > 0.18 ? 0.7 : 0.3;
+      effectTemporalMask[index] = previous + (current - previous) * response;
+    }
+    return effectTemporalMask;
+  }
+
+  function erodeUncertainEdges(values, width, height) {
+    effectSpatialMask.set(values);
+    for (let y = 1; y < height - 1; y += 1) {
+      for (let x = 1; x < width - 1; x += 1) {
+        const index = y * width + x;
+        const center = values[index];
+        if (center >= 0.88) continue;
+        const neighborMinimum = Math.min(
+          values[index - 1],
+          values[index + 1],
+          values[index - width],
+          values[index + width],
+        );
+        effectSpatialMask[index] = center * 0.65 + neighborMinimum * 0.35;
+      }
+    }
+    return effectSpatialMask;
+  }
+
+  function updateEffectMask(confidenceMask) {
+    const { width, height } = confidenceMask;
+    if (effectMaskCanvas.width !== width || effectMaskCanvas.height !== height) {
+      effectMaskCanvas.width = width;
+      effectMaskCanvas.height = height;
+    }
+    ensureMaskBuffers(width, height);
+    const profile = MASK_PROFILES[effectMode()];
+    let values = stabilizeMask(confidenceMask.getAsFloat32Array());
+    if (profile.erode) values = erodeUncertainEdges(values, width, height);
+    for (let index = 0; index < values.length; index += 1) {
+      effectMaskPixels[index * 4 + 3] = Math.round(smoothstep(profile.low, profile.high, values[index]) * 255);
+    }
+    effectMaskCanvas.getContext('2d').putImageData(effectMaskImageData, 0, 0);
+  }
+
+  function reportEffectStats(now) {
+    if (!effectStatsStartedAt) effectStatsStartedAt = now;
+    const elapsed = now - effectStatsStartedAt;
+    if (elapsed < EFFECT_STATS_INTERVAL_MS || effectProcessedFrames === 0) return;
+    sendDiagnostic('background-effect-stats', effectDiagnosticDetails({
+      state: 'running',
+      fps: Math.round(effectProcessedFrames * 1000 / elapsed),
+      averageFrameMs: Math.round(effectInferenceTotalMs / effectProcessedFrames),
+    }));
+    effectProcessedFrames = 0;
+    effectInferenceTotalMs = 0;
+    effectStatsStartedAt = now;
   }
 
   function renderEffectComposite(mask) {
@@ -304,9 +429,11 @@
     foregroundContext.clearRect(0, 0, width, height);
     foregroundContext.globalCompositeOperation = 'source-over';
     foregroundContext.filter = 'none';
+    foregroundContext.imageSmoothingEnabled = true;
+    foregroundContext.imageSmoothingQuality = 'high';
     drawCover(foregroundContext, source, width, height);
     foregroundContext.globalCompositeOperation = 'destination-in';
-    foregroundContext.filter = 'blur(1.4px)';
+    foregroundContext.filter = `blur(${MASK_PROFILES[effectMode()].feather}px)`;
     drawCover(foregroundContext, mask, width, height);
     foregroundContext.globalCompositeOperation = 'source-over';
     foregroundContext.filter = 'none';
@@ -315,6 +442,10 @@
 
   function handleEffectFailure(error) {
     console.error('Video background processing failed:', error);
+    sendDiagnostic('background-effect-failure', effectDiagnosticDetails({
+      state: 'failed',
+      errorText: `${error?.name || 'Error'}: ${error?.message || 'Background processing failed'}`,
+    }));
     backgroundEffectGeneration += 1;
     stopBackgroundEffect();
     setBackgroundStatus('Эффект недоступен — показываем обычную камеру', 'error');
@@ -331,30 +462,16 @@
     }
     effectLastFrameAt = timestamp;
     try {
+      const inferenceStartedAt = performance.now();
       segmenter.segmentForVideo(effectSourceVideo, timestamp, result => {
         const confidenceMask = result.confidenceMasks?.[0];
         if (!confidenceMask) throw new Error('Модель не вернула маску человека.');
-        const values = confidenceMask.getAsFloat32Array();
-        if (effectMaskCanvas.width !== confidenceMask.width || effectMaskCanvas.height !== confidenceMask.height) {
-          effectMaskCanvas.width = confidenceMask.width;
-          effectMaskCanvas.height = confidenceMask.height;
-        }
-        const pixels = new Uint8ClampedArray(values.length * 4);
-        for (let index = 0; index < values.length; index += 1) {
-          const normalized = Math.max(0, Math.min(1, (values[index] - 0.12) / 0.76));
-          const softened = normalized * normalized * (3 - 2 * normalized);
-          const offset = index * 4;
-          pixels[offset] = 255;
-          pixels[offset + 1] = 255;
-          pixels[offset + 2] = 255;
-          pixels[offset + 3] = Math.round(softened * 255);
-        }
-        effectMaskCanvas.getContext('2d').putImageData(
-          new ImageData(pixels, confidenceMask.width, confidenceMask.height),
-          0,
-          0,
-        );
+        updateEffectMask(confidenceMask);
         renderEffectComposite(effectMaskCanvas);
+        const now = performance.now();
+        effectProcessedFrames += 1;
+        effectInferenceTotalMs += now - inferenceStartedAt;
+        reportEffectStats(now);
       });
       effectFailureCount = 0;
     } catch (error) {
@@ -417,6 +534,7 @@
     effectFrameRequest = window.requestAnimationFrame(renderEffectFrame);
     await applyOutboundVideoTrack();
     updateLocalPreview();
+    sendDiagnostic('background-effect-ready', effectDiagnosticDetails({ state: 'ready' }));
     setBackgroundStatus(segmenterDelegate === 'CPU' ? 'Энергосберегающий режим' : 'Эффект включён', 'ready');
   }
 
@@ -768,6 +886,9 @@
             ? (turnHasCredentials ? 'turn-auth' : 'turn-no-auth')
             : 'stun-only'),
       });
+      if (effectTrack) {
+        sendDiagnostic('background-effect-ready', effectDiagnosticDetails({ state: 'ready' }));
+      }
       sendMediaState();
     });
     socket.addEventListener('message', async event => {

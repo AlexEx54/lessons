@@ -30,11 +30,21 @@ test('virtual-background runtime and the three bundled backgrounds are present',
     'assets/images/video-backgrounds/classroom-soft.jpg',
     'assets/vendor/mediapipe-1.0.1/vision_bundle.mjs',
     'assets/vendor/mediapipe-1.0.1/wasm/vision_wasm_internal.wasm',
+    'assets/vendor/mediapipe-1.0.1/models/selfie_segmenter.tflite',
     'assets/vendor/mediapipe-1.0.1/models/selfie_segmenter_landscape.tflite',
   ];
   requiredAssets.forEach(relativePath => {
     assert.ok(fs.statSync(path.join(root, relativePath)).size > 0, `${relativePath} must not be empty`);
   });
+});
+
+test('desktop background processing uses the higher-resolution square model and stabilizes its mask', () => {
+  assert.match(roomScript, /MOBILE_DEVICE[\s\S]*?selfie_segmenter_landscape\.tflite/);
+  assert.match(roomScript, /selfie_segmenter\.tflite/);
+  assert.match(roomScript, /function stabilizeMask/);
+  assert.match(roomScript, /function erodeUncertainEdges/);
+  assert.match(roomScript, /replacement: \{ low: 0\.35, high: 0\.72/);
+  assert.doesNotMatch(roomScript, /values\[index\] - 0\.12/);
 });
 
 test('screen sharing and camera effects use the same outbound video selector', () => {

@@ -39,6 +39,43 @@ test('video call diagnostics keep useful ICE fields without accepting addresses 
   });
 });
 
+test('video call diagnostics retain bounded background-effect measurements', () => {
+  assert.deepEqual(sanitizeVideoCallDiagnostic({
+    event: 'background-effect-stats',
+    state: 'running',
+    model: 'square',
+    delegate: 'gpu',
+    mode: 'replacement',
+    outputWidth: 960,
+    outputHeight: 540,
+    maskWidth: 256,
+    maskHeight: 256,
+    fps: 23,
+    averageFrameMs: 35,
+    arbitrary: 'discard me',
+  }), {
+    event: 'background-effect-stats',
+    state: 'running',
+    model: 'square',
+    delegate: 'gpu',
+    mode: 'replacement',
+    outputWidth: 960,
+    outputHeight: 540,
+    maskWidth: 256,
+    maskHeight: 256,
+    fps: 23,
+    averageFrameMs: 35,
+  });
+
+  assert.deepEqual(sanitizeVideoCallDiagnostic({
+    event: 'background-effect-stats',
+    model: 'unknown',
+    delegate: 'webgpu',
+    fps: 999,
+    outputWidth: -1,
+  }), { event: 'background-effect-stats' });
+});
+
 async function waitForServer(baseUrl, child) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     if (child.exitCode != null) throw new Error(`Server exited with code ${child.exitCode}`);
