@@ -1295,6 +1295,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && (pathname === '/' || pathname === '/index.html')) {
+    if (getAuthenticatedUser(req, database)) {
+      redirect(res, '/app');
+      return;
+    }
     serveStatic('/index.html', res);
     return;
   }
