@@ -19,6 +19,7 @@ const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
 const { createUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
 const {
+  clearVideoCallHistory,
   createVideoCall,
   endVideoCall,
   findOwnedVideoCall,
@@ -1338,6 +1339,20 @@ const server = http.createServer(async (req, res) => {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     json(res, 200, { calls: listVideoCalls(user.id, database) });
+    return;
+  }
+
+  if (req.method === 'DELETE' && pathname === '/api/video-calls') {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    try {
+      const { deletedCount, deletedIds } = clearVideoCallHistory(user.id, database);
+      for (const callId of deletedIds) videoCallSignaling?.closeRoom(callId);
+      json(res, 200, { deleted: deletedCount });
+    } catch (error) {
+      console.error('Cannot clear video call history:', error);
+      json(res, 500, { error: 'Не удалось очистить историю видеозвонков.' });
+    }
     return;
   }
 

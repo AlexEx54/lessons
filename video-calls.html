@@ -6,9 +6,14 @@
       <h2 id="calls-title">Видеозвонки</h2>
       <p>Создайте личную комнату и отправьте ученику безопасную ссылку.</p>
     </div>
-    <button class="calls-heading__create" id="create-video-call" type="button">
-      <span aria-hidden="true">＋</span> Создать видеозвонок
-    </button>
+    <div class="calls-heading__actions">
+      <button class="calls-heading__clear" id="clear-video-call-history" type="button" hidden>
+        Очистить историю
+      </button>
+      <button class="calls-heading__create" id="create-video-call" type="button">
+        <span aria-hidden="true">＋</span> Создать видеозвонок
+      </button>
+    </div>
   </header>
 
   <div class="call-state call-state--loading" id="calls-loading" role="status">

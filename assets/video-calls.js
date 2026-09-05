@@ -9,6 +9,7 @@
   const errorState = document.getElementById('calls-error');
   const errorMessage = document.getElementById('calls-error-message');
   const createButton = document.getElementById('create-video-call');
+  const clearHistoryButton = document.getElementById('clear-video-call-history');
 
   const statusLabels = {
     waiting: 'Ожидает участника',
@@ -136,12 +137,39 @@
     return card;
   }
 
+  function isPastCall(call) {
+    return call.status === 'ended' || call.status === 'expired';
+  }
+
+  async function clearHistory() {
+    if (!window.confirm('Удалить все прошлые видеозвонки из истории? Активные комнаты останутся доступными.')) {
+      return;
+    }
+    clearHistoryButton.disabled = true;
+    clearHistoryButton.textContent = 'Очищаем…';
+    try {
+      const response = await fetch('/api/video-calls', { method: 'DELETE' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось очистить историю.');
+      state.calls.filter(isPastCall).forEach(call => invitePaths.delete(call.id));
+      state.calls = state.calls.filter(call => !isPastCall(call));
+      render();
+      window.AppShell.showToast('История видеозвонков очищена.');
+    } catch (error) {
+      window.AppShell.showToast(error.message || 'Не удалось очистить историю.');
+    } finally {
+      clearHistoryButton.disabled = false;
+      clearHistoryButton.textContent = 'Очистить историю';
+    }
+  }
+
   function render() {
     loading.hidden = !state.loading;
     errorState.hidden = !state.error;
     errorMessage.textContent = state.error;
     empty.hidden = state.loading || Boolean(state.error) || state.calls.length > 0;
     grid.hidden = state.loading || Boolean(state.error) || state.calls.length === 0;
+    if (clearHistoryButton) clearHistoryButton.hidden = !state.calls.some(isPastCall);
     grid.replaceChildren(...state.calls.map(renderCard));
   }
 
@@ -183,6 +211,7 @@
   }
 
   createButton?.addEventListener('click', createCall);
+  clearHistoryButton?.addEventListener('click', clearHistory);
   document.getElementById('calls-retry')?.addEventListener('click', loadCalls);
   loadCalls();
 })();

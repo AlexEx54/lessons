@@ -5,6 +5,7 @@ const test = require('node:test');
 const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const {
+  clearVideoCallHistory,
   createVideoCall,
   endVideoCall,
   findOwnedVideoCall,
@@ -69,4 +70,21 @@ test('rotating an invite revokes the old link and ending closes the room', t => 
   assert.equal(ended.status, 'ended');
   assert.ok(ended.endedAt);
   assert.equal(rotateVideoCallGuestToken(created.id, admin.id, database), null);
+});
+
+test('clearing history removes only ended and expired calls of their owner', t => {
+  const { admin, otherAdmin, database } = fixture();
+  t.after(() => database.close());
+
+  const past = createVideoCall({ ownerAdminId: admin.id }, database);
+  endVideoCall(past.id, admin.id, database);
+  const live = createVideoCall({ ownerAdminId: admin.id }, database);
+  const foreignPast = createVideoCall({ ownerAdminId: otherAdmin.id }, database);
+  endVideoCall(foreignPast.id, otherAdmin.id, database);
+
+  const { deletedCount, deletedIds } = clearVideoCallHistory(admin.id, database);
+  assert.equal(deletedCount, 1);
+  assert.deepEqual(deletedIds, [past.id]);
+  assert.deepEqual(listVideoCalls(admin.id, database).map(call => call.id), [live.id]);
+  assert.equal(listVideoCalls(otherAdmin.id, database).length, 1);
 });
