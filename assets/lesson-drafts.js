@@ -40,14 +40,6 @@
     return element;
   }
 
-  function futureAction(label, message) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = label;
-    button.setAttribute('aria-disabled', 'true');
-    button.addEventListener('click', () => window.AppShell.showToast(message));
-    return button;
-  }
 
   function formatCost(draft) {
     const cost = draft.generation?.costUsd;
@@ -306,6 +298,16 @@
     return button;
   }
 
+  function publicationButton(draft) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = draft.publication ? 'Публикация урока' : 'Добавить в библиотеку';
+    button.addEventListener('click', () => window.LessonPublication.open(draft.id, {
+      onChange: () => loadDrafts({ background: true }),
+    }));
+    return button;
+  }
+
   function draftCard(draft) {
     const card = document.createElement('article');
     card.className = 'draft-card';
@@ -322,6 +324,12 @@
     addText(meta, 'span', '', `Обновлён ${formatDate(draft.updatedAt)}`);
     addText(meta, 'span', 'draft-card__cost', formatCost(draft));
     card.append(meta);
+    if (draft.publication) {
+      const link = document.createElement(draft.publication.is_published ? 'a' : 'span');
+      link.textContent = draft.publication.is_published ? 'В библиотеке ↗' : 'Снят с публикации';
+      if (draft.publication.is_published) link.href = `/library/${encodeURIComponent(draft.publication.id)}`;
+      meta.append(link);
+    }
 
     if (draft.status === 'generating') {
       const progress = document.createElement('div');
@@ -362,7 +370,7 @@
     if (draft.status === 'review') {
       actions.append(
         editorLink(draft),
-        futureAction('Добавить в библиотеку', 'Публикация будет доступна после подключения редактора.'),
+        publicationButton(draft),
       );
     }
     const managementActions = document.createElement('div');
@@ -387,7 +395,7 @@
     errorMessage.textContent = state.error;
     const visible = state.filter === 'all'
       ? state.drafts
-      : state.drafts.filter(draft => draft.status === state.filter);
+      : state.drafts.filter(draft => state.filter === 'published' ? draft.publication?.is_published : draft.status === state.filter);
     empty.hidden = state.loading || Boolean(state.error) || visible.length > 0;
     grid.hidden = state.loading || Boolean(state.error) || visible.length === 0;
     grid.replaceChildren(...visible.map(draftCard));

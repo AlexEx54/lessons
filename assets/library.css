@@ -87,3 +87,9 @@
 @media (max-width:1360px) { .workspace { grid-template-columns:1fr; } .quick-panel { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; } .quick-title,.quick-list { grid-column:1/-1; } .quick-title { padding:0; } .quick-list { grid-template-columns:repeat(3,minmax(0,1fr)); } .exam-card,.tip-card { margin-top:0; } }
 @media (max-width:720px) { .library { padding:17px 13px; } .library-heading { align-items:flex-start; flex-direction:column; } .library-heading h2 { font-size:25px; } .search { width:100%; } .lesson-grid { gap:10px; } .quick-panel { display:block; } .quick-list { display:grid; grid-template-columns:1fr; } .exam-card,.tip-card { margin-top:12px; } }
 @media (max-width:520px) { .lesson-grid { grid-template-columns:minmax(220px,1fr); } .lesson-card { display:grid; grid-template-columns:130px minmax(0,1fr); } .lesson-cover { height:100%; min-height:220px; aspect-ratio:auto; } .lesson-body h3,.lesson-description { min-height:0; } .lesson-actions { grid-template-columns:1fr; } }
+
+.lesson-actions button:disabled,.quick-card button:disabled,.exam-actions button:disabled { color:#858093; border-color:#e2deea; background:#f2eff6; box-shadow:none; cursor:not-allowed; transform:none; filter:none; }
+#library-loading,#library-error { padding:24px; color:var(--muted); text-align:center; }
+#library-error button { margin:8px; color:var(--purple); text-decoration:underline; }
+
+.library-unpublish { margin-top:10px; padding:5px; color:var(--muted); background:transparent; font-size:11px; text-decoration:underline; }

@@ -1,19 +1,7 @@
 (() => {
   'use strict';
 
-  // Временный контракт данных. Позже массив можно заменить результатом GET /api/library.
-  const libraryLessonsMock = [
-    { id: 'superhero', title: 'My Superhero', age: '9-11', level: 'A1', category: 'General English', description: 'Говорим о героях и развиваем словарный запас.', skills: ['Vocabulary', 'Speaking'], duration: '30–45 мин', cover: '/assets/images/lesson-superhero.png', badge: 'NEW' },
-    { id: 'animals', title: 'Animals and Their Superpowers', age: '9-11', level: 'A1', category: 'General English', description: 'Изучаем животных и их суперсилы.', skills: ['Vocabulary', 'Listening'], duration: '30–45 мин', cover: '/assets/images/lesson-animals.png' },
-    { id: 'weekend', title: 'My Perfect Weekend', age: '12-14', level: 'A2', category: 'Speaking', description: 'Рассказываем о выходных и любимых занятиях.', skills: ['Speaking', 'Writing'], duration: '30–45 мин', cover: '/assets/images/lesson-weekend.png' },
-    { id: 'music', title: 'Music and Mood', age: '12-14', level: 'A2', category: 'Speaking', description: 'Музыка, эмоции и выражение своего мнения.', skills: ['Listening', 'Speaking'], duration: '30–45 мин', cover: '/assets/images/lesson-music.png', badge: 'Популярное' },
-    { id: 'travel', title: 'Travel & Transport', age: '12-14', level: 'A2', category: 'General English', description: 'Транспорт, путешествия и полезные фразы.', skills: ['Vocabulary', 'Speaking'], duration: '30–45 мин', cover: '/assets/images/lesson-travel.png' },
-    { id: 'careers', title: 'Future Careers', age: '15-18', level: 'B1', category: 'Speaking', description: 'Профессии будущего и планы на жизнь.', skills: ['Vocabulary', 'Speaking'], duration: '45 мин', cover: '/assets/images/lesson-careers.png', badge: 'NEW' },
-    { id: 'tech', title: 'Working in Tech', age: '15-18', level: 'B1', category: 'Grammar', description: 'Работа в IT: навыки, команды и проекты.', skills: ['Listening', 'Speaking'], duration: '45 мин', cover: '/assets/images/lesson-work-tech.png' },
-    { id: 'global', title: 'Global Issues', age: '15-18', level: 'B2', category: 'ОГЭ / ЕГЭ', description: 'Обсуждаем важные мировые проблемы.', skills: ['Listening', 'Speaking'], duration: '45 мин', cover: '/assets/images/lesson-global.png', badge: 'NEW' },
-    { id: 'communication', title: 'Everyday Communication', age: '12-14', level: 'B1', category: 'General English', description: 'Учимся уверенно общаться каждый день.', skills: ['Speaking', 'Grammar'], duration: '30–45 мин', cover: '/assets/images/lesson-communication.png' },
-    { id: 'discussion', title: 'Discussion Club', age: '15-18', level: 'B2', category: 'ОГЭ / ЕГЭ', description: 'Аргументируем мнение и ведём дискуссию.', skills: ['Speaking', 'Listening'], duration: '45 мин', cover: '/assets/images/lesson-discussion.png' },
-  ];
+  let libraryLessons = [];
 
   const quickLessonsMock = [
     { title: 'Тест на определение уровня', text: 'Идеальный старт для нового ученика', image: '/assets/images/recommendation-placement.png' },
@@ -38,12 +26,17 @@
     window.AppShell.showToast(message);
   }
 
-  function skillLabel(skill) {
-    const icon = skillIcons[skill] || skillIcons.Vocabulary;
-    return `<span class="skill-tag">${icon}${skill}</span>`;
+  function escapeHtml(value) {
+    return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
   }
 
-  function lessonCard(lesson) {
+  function skillLabel(skill) {
+    const icon = skillIcons[skill] || skillIcons.Vocabulary;
+    return `<span class="skill-tag">${icon}${escapeHtml(skill)}</span>`;
+  }
+
+  function lessonCard(source) {
+    const lesson = Object.fromEntries(Object.entries(source).map(([key, value]) => [key, typeof value === 'string' ? escapeHtml(value) : value]));
     const article = document.createElement('article');
     article.className = 'lesson-card';
     const badge = lesson.badge ? `<span class="cover-badge ${lesson.badge === 'Популярное' ? 'cover-badge--popular' : ''}">${lesson.badge}</span>` : '';
@@ -53,22 +46,46 @@
         <h3>${lesson.title}</h3>
         <p class="lesson-facts">${lesson.age.replace('-', '–')} лет <span>•</span> ${lesson.level}</p>
         <p class="lesson-description">${lesson.description}</p>
-        <div class="lesson-skills">${lesson.skills.map(skillLabel).join('')}</div>
+        <div class="lesson-skills">${source.skills.map(skillLabel).join('')}</div>
         <p class="lesson-duration"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4.5l2.5 1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>${lesson.duration}</p>
         <div class="lesson-actions"><button type="button" data-action="preview">Предпросмотр</button><button type="button" data-action="select">Выбрать урок</button></div>
       </div>`;
-    article.querySelector('[data-action="preview"]').addEventListener('click', () => showToast(`Предпросмотр: ${lesson.title}`));
-    article.querySelector('[data-action="select"]').addEventListener('click', event => {
-      document.querySelectorAll('.lesson-card--selected').forEach(card => card.classList.remove('lesson-card--selected'));
-      article.classList.add('lesson-card--selected');
-      event.currentTarget.textContent = 'Выбрано ✓';
-      showToast(`Урок «${lesson.title}» выбран`);
-    });
+    const buttons = article.querySelectorAll('.lesson-actions button');
+    if (!source.is_available) {
+      buttons.forEach(button => { button.disabled = true; button.title = 'Урок пока недоступен'; });
+      buttons[1].textContent = 'Скоро';
+    } else {
+      buttons.forEach(button => button.addEventListener('click', () => {
+        window.location.href = `/library/${encodeURIComponent(source.id)}`;
+      }));
+      buttons[1].textContent = 'Открыть урок';
+    }
+    if (source.can_unpublish) {
+      const unpublish = document.createElement('button');
+      unpublish.type = 'button';
+      unpublish.className = 'library-unpublish';
+      unpublish.textContent = 'Снять с публикации';
+      unpublish.addEventListener('click', async () => {
+        unpublish.disabled = true;
+        try {
+          const response = await fetch(`/api/library/${encodeURIComponent(source.id)}/publication`, {
+            method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expectedRevision: source.revision }),
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error || 'Не удалось скрыть урок.');
+          libraryLessons = libraryLessons.filter(lesson => lesson.id !== source.id);
+          render();
+          showToast('Урок снят с публикации.');
+        } catch (error) { unpublish.disabled = false; showToast(error.message); }
+      });
+      article.querySelector('.lesson-body').append(unpublish);
+    }
     return article;
   }
 
   function render() {
-    const filtered = libraryLessonsMock.filter(lesson => {
+    const filtered = libraryLessons.filter(lesson => {
       const query = state.query.toLocaleLowerCase('ru-RU');
       return (state.age === 'all' || lesson.age === state.age)
         && (state.level === 'all' || lesson.level === state.level)
@@ -122,9 +139,29 @@
         <p>${item.text}</p>
         <button type="button">Выбрать <span aria-hidden="true">›</span></button>
       </div>`;
-    card.querySelector('button').addEventListener('click', () => showToast(`Выбрано: ${item.title}`));
+    card.querySelector('button').disabled = true;
+    card.querySelector('button').textContent = 'Скоро';
     quickList.append(card);
   });
 
-  render();
+  async function loadLibrary() {
+    document.getElementById('library-loading').hidden = false;
+    document.getElementById('library-error').hidden = true;
+    empty.hidden = true;
+    grid.hidden = true;
+    showMore.hidden = true;
+    try {
+      const response = await fetch('/api/library', { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok || !Array.isArray(payload.lessons)) throw new Error('Не удалось загрузить библиотеку.');
+      libraryLessons = payload.lessons;
+      render();
+    } catch (_error) {
+      document.getElementById('library-error').hidden = false;
+    } finally {
+      document.getElementById('library-loading').hidden = true;
+    }
+  }
+  document.getElementById('library-retry').addEventListener('click', loadLibrary);
+  loadLibrary();
 })();

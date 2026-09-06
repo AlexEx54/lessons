@@ -147,6 +147,8 @@
         image.alt = option.caption;
         image.loading = 'lazy';
         media.append(image);
+      } else if (settings.showImagePrompts === false) {
+        media.textContent = 'Изображение не добавлено';
       } else {
         media.classList.add('this-or-that__media--prompt');
         const prompt = doc.createElement('span');

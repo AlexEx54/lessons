@@ -34,6 +34,7 @@
   <link rel="stylesheet" href="/assets/components/audio-player.css" />
   <link rel="stylesheet" href="/assets/components/markdown-card.css" />
   <link rel="stylesheet" href="/assets/components/card-row.css" />
+  <link rel="stylesheet" href="/assets/lesson-publication.css" />
 </head>
 <body>
   <div class="lesson-app" id="lesson-app">
@@ -47,6 +48,7 @@
         <small id="lesson-number">Lesson 1 of 1</small>
       </div>
       <div class="lesson-header__actions">
+        <button class="teacher-screen" id="publish-lesson" type="button" hidden>Добавить в библиотеку</button>
         <button class="timer-card" id="lesson-timer" type="button" aria-label="Запустить таймер урока">
           <span class="timer-card__play" id="timer-icon">▶</span>
           <span><strong><span id="elapsed-time">00:00</span> <em>/ <span id="total-time">45:00</span></em></strong><small>Lesson time</small></span>
@@ -141,6 +143,7 @@
   <script src="/assets/components/audio-player.js" defer></script>
   <script src="/assets/components/markdown-card.js" defer></script>
   <script src="/assets/components/card-row.js" defer></script>
+  <script src="/assets/lesson-publication.js" defer></script>
   <script src="/assets/lesson-editor.js" defer></script>
 </body>
 </html>

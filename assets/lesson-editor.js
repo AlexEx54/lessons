@@ -139,11 +139,13 @@
       onError: showToast,
     }),
     thisOrThat: component => window.ThisOrThatComponent.renderThisOrThat(component, {
+      showImagePrompts: state.draftStatus !== 'readonly',
       onUpload: state.draftStatus === 'review' ? uploadThisOrThatImage : undefined,
       onDelete: state.draftStatus === 'review' ? deleteThisOrThatImage : undefined,
       onMessage: showToast,
     }),
     matchWords: component => window.MatchWordsComponent.renderMatchWords(component, {
+      showImagePrompts: state.draftStatus !== 'readonly',
       onUpload: state.draftStatus === 'review' ? uploadMatchWordsImage : undefined,
       onDelete: state.draftStatus === 'review' ? deleteMatchWordsImage : undefined,
       onMessage: showToast,
@@ -1335,14 +1337,24 @@
   }
 
   async function loadLesson() {
-    const match = window.location.pathname.match(/^\/lesson-drafts\/([^/]+)\/edit\/?$/);
+    const libraryMatch = window.location.pathname.match(/^\/library\/([^/]+)\/?$/);
+    const match = libraryMatch || window.location.pathname.match(/^\/lesson-drafts\/([^/]+)\/edit\/?$/);
     if (!match) return showError('Некорректная ссылка на урок.');
     try {
-      const response = await fetch(`/api/lesson-drafts/${encodeURIComponent(decodeURIComponent(match[1]))}`, { cache: 'no-store' });
+      const response = await fetch(`/api/${libraryMatch ? 'library' : 'lesson-drafts'}/${encodeURIComponent(decodeURIComponent(match[1]))}`, { cache: 'no-store' });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Черновик урока не найден.');
+      if (libraryMatch) {
+        state.draftStatus = 'readonly';
+        document.querySelector('.end-lesson').href = '/library.html';
+        document.querySelector('.end-lesson span').textContent = 'В библиотеку';
+        render(payload.lesson.content);
+        return;
+      }
       if (!payload.draft?.content?.stages?.length) throw new Error('В черновике пока нет структуры урока.');
       state.draftId = payload.draft.id;
+      byId('publish-lesson').hidden = payload.draft.status !== 'review';
+      byId('publish-lesson').textContent = payload.draft.publication ? 'Публикация урока' : 'Добавить в библиотеку';
       state.draftStatus = payload.draft.status;
       state.imageGeneration = payload.draft.imageGeneration;
       render(payload.draft.content);
@@ -1359,6 +1371,10 @@
     document.body.classList.toggle('lesson-plan-hidden', !visible);
   }
 
+  byId('publish-lesson').addEventListener('click', () => window.LessonPublication.open(state.draftId, {
+    isDirty: () => state.dirtyComponents.size > 0,
+    onChange: () => { byId('publish-lesson').textContent = 'Публикация урока'; },
+  }));
   byId('hide-plan').addEventListener('click', () => setPlanVisible(false));
   byId('close-plan').addEventListener('click', () => setPlanVisible(false));
   byId('show-plan').addEventListener('click', () => setPlanVisible(true));

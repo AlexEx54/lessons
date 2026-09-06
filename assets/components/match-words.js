@@ -330,7 +330,7 @@
       target.dataset.itemId = item.id;
       target.tabIndex = 0;
       target.setAttribute('role', 'button');
-      target.setAttribute('aria-label', `Картинка для сопоставления: ${item.imagePrompt}`);
+      target.setAttribute('aria-label', settings.showImagePrompts === false ? 'Картинка для сопоставления' : `Картинка для сопоставления: ${item.imagePrompt}`);
 
       const media = doc.createElement('div');
       media.className = 'match-words__media';
@@ -340,6 +340,8 @@
         image.alt = '';
         image.loading = 'lazy';
         media.append(image);
+      } else if (settings.showImagePrompts === false) {
+        media.textContent = 'Изображение не добавлено';
       } else {
         media.classList.add('match-words__media--prompt');
         const prompt = doc.createElement('span');

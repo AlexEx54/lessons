@@ -28,9 +28,11 @@
             </div>
           </div>
 
+          <p id="library-loading" role="status">Загружаем библиотеку…</p>
+          <div id="library-error" role="alert" hidden>Не удалось загрузить библиотеку. <button id="library-retry" type="button">Повторить</button></div>
           <div class="lesson-grid" id="lesson-grid"></div>
           <div class="empty-state" id="empty-state" hidden><span>🔎</span><h3>Уроки не найдены</h3><p>Попробуйте изменить фильтры или поисковый запрос.</p></div>
-          <button class="show-more" id="show-more" type="button">Показать ещё <span aria-hidden="true">↓</span></button>
+          <button class="show-more" id="show-more" type="button" hidden>Показать ещё <span aria-hidden="true">↓</span></button>
         </section>
 
         <aside class="quick-panel" aria-labelledby="quick-title">
@@ -46,7 +48,7 @@
               <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10M7 9h10M7 14h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M5 20h14a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" stroke="currentColor" stroke-width="1.7"/></svg>Grammar</span>
               <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4.5l2.5 1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>45 мин</span>
             </div>
-            <div class="exam-actions"><button type="button" data-toast="Открываем предпросмотр урока">Предпросмотр</button><button type="button" data-toast="Урок готов к запуску">Запустить</button></div>
+            <div class="exam-actions"><button type="button" disabled title="Урок пока недоступен">Предпросмотр</button><button type="button" disabled title="Урок пока недоступен">Скоро</button></div>
           </section>
           <section class="tip-card">
             <p class="eyebrow"><span class="eyebrow-icon" aria-hidden="true">💡</span> Совет преподавателю</p>

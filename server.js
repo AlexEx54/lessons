@@ -15,6 +15,7 @@ const {
   sessionCookie,
 } = require('./lib/auth.js');
 const { getDatabase } = require('./lib/db.js');
+const { listLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, findLibraryAsset } = require('./lib/library-store.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
 const { createUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
@@ -1311,6 +1312,70 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && pathname === '/health') {
     json(res, 200, { ok: true });
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/library') {
+    const user = getAuthenticatedUser(req, database);
+    json(res, 200, { lessons: listLibraryLessons(database, user?.role === 'admin' ? user.id : null) });
+    return;
+  }
+
+  const libraryPage = pathname.match(/^\/library\/([a-z0-9-]+)\/?$/i);
+  const libraryDetail = pathname.match(/^\/api\/library\/([a-z0-9-]+)$/i);
+  if (req.method === 'GET' && (libraryPage || libraryDetail)) {
+    const user = getAuthenticatedUser(req, database);
+    if (!user) {
+      if (libraryPage) redirect(res, loginRedirect(pathname));
+      else json(res, 401, { error: 'Войдите для просмотра урока.' });
+      return;
+    }
+    const lesson = findLibraryLesson((libraryPage || libraryDetail)[1], database);
+    if (!lesson) { json(res, 404, { error: 'Урок недоступен.' }); return; }
+    if (libraryPage) serveStatic('/lesson-editor.html', res);
+    else json(res, 200, { lesson });
+    return;
+  }
+
+  const libraryAsset = pathname.match(/^\/api\/library\/([a-z0-9-]+)\/assets\/([a-f0-9]{64}\.(?:jpg|png|webp|mp3|wav|m4a))$/i);
+  if (libraryAsset && ['GET', 'HEAD'].includes(req.method)) {
+    if (!requireTeacherAuth(req, res)) return;
+    const data = findLibraryAsset(libraryAsset[1], libraryAsset[2], database);
+    if (!data) { json(res, 404, { error: 'Файл недоступен.' }); return; }
+    if (req.method === 'HEAD') {
+      res.writeHead(200, { 'Content-Type': getContentType(libraryAsset[2]), 'Content-Length': data.length, 'Cache-Control': 'private, no-store' });
+      res.end();
+    } else sendDraftAsset(res, libraryAsset[2], Buffer.from(data), req.headers.range);
+    return;
+  }
+
+  const libraryUnpublish = pathname.match(/^\/api\/library\/([a-z0-9-]+)\/publication$/i);
+  if (libraryUnpublish && req.method === 'DELETE') {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    try {
+      const body = await readJsonBody(req);
+      unpublishLibraryLesson(libraryUnpublish[1], user.id, body?.expectedRevision, database);
+      json(res, 200, { ok: true });
+    } catch (error) {
+      json(res, error.statusCode || 400, { error: error.statusCode ? error.message : 'Не удалось снять урок с публикации.' });
+    }
+    return;
+  }
+
+  const publicationRoute = pathname.match(/^\/api\/lesson-drafts\/([a-f0-9-]{36})\/publication$/i);
+  if (publicationRoute && ['POST', 'DELETE'].includes(req.method)) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    try {
+      const body = await readJsonBody(req);
+      const publication = req.method === 'POST'
+        ? publishLesson(publicationRoute[1], user.id, body, database, DRAFT_ASSETS_DIR)
+        : unpublishLesson(publicationRoute[1], user.id, body?.expectedRevision, database);
+      json(res, 200, { publication });
+    } catch (error) {
+      json(res, error.statusCode || 400, { error: error.statusCode ? error.message : 'Не удалось сохранить публикацию.' });
+    }
     return;
   }
 
