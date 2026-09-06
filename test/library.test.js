@@ -25,7 +25,7 @@ function fixture(t, dbPath = ':memory:') {
   fs.writeFileSync(path.join(dir, created.id, name), 'audio-test-data');
   const content = { meta: { title: 'Travel' }, stages: [{ id: 'listening', content: [{ id: 'audio', type: 'audioPlayer', audioSrc: `/api/lesson-draft-assets/${created.id}/${name}` }] }] };
   const draft = completeLessonDraft(created.id, admin.id, content, db);
-  const input = { expectedUpdatedAt: draft.updatedAt, expectedRevision: 0, title: 'Travel lesson', description: 'Travel and transport', category: 'Speaking', duration: '45 мин', cover: '/assets/images/lesson-travel.png', skills: ['Speaking'] };
+  const input = { expectedUpdatedAt: draft.updatedAt, expectedRevision: 0, title: 'Travel lesson', description: 'Travel and transport', category: 'Speaking', duration: '45 мин', coverUpload: { type: 'image/png', data: fs.readFileSync(path.join(__dirname, '../assets/images/lesson-travel.png')).toString('base64') }, skills: ['Speaking'] };
   return { db, dir, admin, other, teacher, draft, input, name };
 }
 
@@ -66,6 +66,7 @@ test('publication copies content and files, updates one record, hides and republ
   unpublishLesson(draft.id, admin.id, 2, db);
   assert.equal(findLibraryLesson(published.id, db), null);
   assert.equal(findLibraryAsset(published.id, asset, db), undefined);
+  assert.ok(findLibraryAsset(published.id, asset, db, admin.id));
   assert.equal(listLibraryLessons(db).length, 10);
   publishLesson(draft.id, admin.id, { ...input, expectedRevision: 3 }, db, dir);
   deleteLessonDraft(draft.id, admin.id, db);
@@ -82,7 +83,7 @@ test('publication rejects unauthorized users, stale content, missing files and i
   assert.throws(() => publishLesson(draft.id, teacher.id, input, db, dir), { statusCode: 403 });
   assert.throws(() => publishLesson(draft.id, other.id, input, db, dir), { statusCode: 404 });
   assert.throws(() => publishLesson(draft.id, admin.id, { ...input, expectedUpdatedAt: 'old' }, db, dir), { statusCode: 409 });
-  assert.throws(() => publishLesson(draft.id, admin.id, { ...input, cover: '/../../.env' }, db, dir), { statusCode: 400 });
+  assert.throws(() => publishLesson(draft.id, admin.id, { ...input, coverUpload: undefined, cover: '/../../.env' }, db, dir), { statusCode: 400 });
   assert.throws(() => publishLesson(draft.id, admin.id, { ...input, skills: [] }, db, dir), { statusCode: 400 });
   fs.unlinkSync(path.join(dir, draft.id, name));
   assert.throws(() => publishLesson(draft.id, admin.id, input, db, dir), { statusCode: 409 });
@@ -149,4 +150,21 @@ test('library HTTP routes protect publication, placeholders, hidden lessons and 
   assert.equal((await request(independentRoute, otherCookie, 'DELETE', { expectedRevision: 3 })).status, 404);
   assert.equal((await request(independentRoute, adminCookie, 'DELETE', { expectedRevision: 3 })).status, 200);
   assert.equal((await request(`/api/library/${publication.id}`, teacherCookie)).status, 404);
+});
+
+test('uploaded cover is required, retained on updates, replaceable and independent of draft', t => {
+  const { db, dir, admin, draft, input } = fixture(t);
+  for (const coverUpload of [undefined, { type: 'image/svg+xml', data: 'PHN2Zz4=' }, { type: 'image/png', data: 'bm90LWFuLWltYWdl' }, { type: 'image/png', data: 'a'.repeat(6990512) }]) {
+    assert.throws(() => publishLesson(draft.id, admin.id, { ...input, coverUpload }, db, dir), { statusCode: 400 });
+  }
+  const first = publishLesson(draft.id, admin.id, input, db, dir);
+  const coverName = first.cover.split('/').at(-1);
+  assert.deepEqual(Buffer.from(findLibraryAsset(first.id, coverName, db)), Buffer.from(input.coverUpload.data, 'base64'));
+  const retained = publishLesson(draft.id, admin.id, { ...input, expectedRevision: 1, coverUpload: undefined, cover: first.cover }, db, dir);
+  assert.equal(retained.cover, first.cover);
+  const replacement = { type: 'image/png', data: fs.readFileSync(path.join(__dirname, '../assets/images/lesson-music.png')).toString('base64') };
+  const replaced = publishLesson(draft.id, admin.id, { ...input, expectedRevision: 2, coverUpload: replacement }, db, dir);
+  assert.notEqual(replaced.cover, first.cover);
+  deleteLessonDraft(draft.id, admin.id, db);
+  assert.deepEqual(Buffer.from(findLibraryAsset(first.id, replaced.cover.split('/').at(-1), db)), Buffer.from(replacement.data, 'base64'));
 });

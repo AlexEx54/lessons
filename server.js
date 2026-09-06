@@ -1339,8 +1339,9 @@ const server = http.createServer(async (req, res) => {
 
   const libraryAsset = pathname.match(/^\/api\/library\/([a-z0-9-]+)\/assets\/([a-f0-9]{64}\.(?:jpg|png|webp|mp3|wav|m4a))$/i);
   if (libraryAsset && ['GET', 'HEAD'].includes(req.method)) {
-    if (!requireTeacherAuth(req, res)) return;
-    const data = findLibraryAsset(libraryAsset[1], libraryAsset[2], database);
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    const data = findLibraryAsset(libraryAsset[1], libraryAsset[2], database, user.id);
     if (!data) { json(res, 404, { error: 'Файл недоступен.' }); return; }
     if (req.method === 'HEAD') {
       res.writeHead(200, { 'Content-Type': getContentType(libraryAsset[2]), 'Content-Length': data.length, 'Cache-Control': 'private, no-store' });
@@ -1368,7 +1369,7 @@ const server = http.createServer(async (req, res) => {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     try {
-      const body = await readJsonBody(req);
+      const body = JSON.parse((await readRawBody(req, 7 * 1024 * 1024)).toString('utf8') || '{}');
       const publication = req.method === 'POST'
         ? publishLesson(publicationRoute[1], user.id, body, database, DRAFT_ASSETS_DIR)
         : unpublishLesson(publicationRoute[1], user.id, body?.expectedRevision, database);
