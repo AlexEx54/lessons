@@ -168,7 +168,7 @@
         target.removeAttribute('tabindex');
         target.setAttribute('aria-disabled', 'true');
         target.querySelector('.match-words__feedback--correct').hidden = false;
-        target.querySelector('.match-words__drop-label').textContent = '';
+        target.querySelector('.match-words__drop-label').textContent = card.textContent;
         if (ghost) {
           ghost.style.transition = 'opacity 180ms ease, transform 180ms ease';
           ghost.style.opacity = '0';

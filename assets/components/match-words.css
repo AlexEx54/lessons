@@ -24,7 +24,7 @@
 .match-words__copy { position: absolute; right: 7px; bottom: 7px; z-index: 4; display: grid; place-items: center; width: 27px; height: 27px; border: 1px solid #d8d2f4; border-radius: 7px; color: #6545f5; background: rgba(255, 255, 255, .94); font-size: 15px; }
 .match-words__copy--done { color: #15983d; border-color: #a8ddb5; }
 .match-words__drop-label { display: grid; place-items: center; min-height: 32px; margin: 5px; border: 1px dashed #cfc7f8; border-radius: 6px; color: #817b9d; font-size: 9px; font-weight: 650; }
-.match-words__target--matched .match-words__drop-label { border-color: transparent; }
+.match-words__target--matched .match-words__drop-label { border-color: transparent; color: #17182d; font-weight: 700; }
 .match-words__feedback { position: absolute; top: 50%; left: 50%; z-index: 5; display: grid; place-items: center; width: 54px; height: 54px; border: 4px solid currentColor; border-radius: 50%; color: #fff; box-shadow: 0 8px 22px rgba(20, 20, 45, .2); font-size: 35px; font-weight: 900; line-height: 1; transform: translate(-50%, -50%); }
 .match-words__feedback--correct { background: #20a85b; border-color: rgba(255, 255, 255, .92); }
 .match-words__feedback--wrong { background: #ec4756; border-color: rgba(255, 255, 255, .92); animation: match-words-wrong 220ms ease-out; }
