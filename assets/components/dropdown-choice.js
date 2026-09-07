@@ -1,6 +1,7 @@
 (function initDropdownChoiceComponent(root) {
   'use strict';
 
+  const model = root.ExerciseState || (typeof require === 'function' ? require('./exercise-state.js') : null);
   const inlineGapText = root.InlineGapText
     || (typeof require === 'function' ? require('./inline-gap-text.js') : null);
   if (!inlineGapText) throw new Error('DropdownChoice requires InlineGapText.');
@@ -134,8 +135,7 @@
   }
 
   function getSelectionState(value, answer) {
-    if (!value) return 'empty';
-    return value === answer ? 'correct' : 'wrong';
+    return model.selectionState(value, answer);
   }
 
   function slug(value) {
@@ -168,7 +168,10 @@
     if (options && typeof options.createElement === 'function') { doc = options; settings = {}; }
     if (!doc) throw new Error('DropdownChoice requires a document.');
 
-    let current = normalizeDropdownChoice(data);
+    let current = settings.presentation || normalizeDropdownChoice(data);
+    let exerciseState = settings.exerciseState || {};
+    let interactive = settings.interactive !== false;
+    const selects = new Map();
     let editing = false;
     let saving = false;
     let initialSnapshot = '';
@@ -250,26 +253,45 @@
         element.textContent = option;
         select.append(element);
       });
+      selects.set(choice.id, select);
       select.addEventListener('change', () => {
-        const state = getSelectionState(select.value, choice.answer);
-        select.dataset.state = state;
-        select.classList.toggle('dropdown-choice__select--correct', state === 'correct');
-        select.classList.toggle('dropdown-choice__select--wrong', state === 'wrong');
-        select.setAttribute('aria-invalid', String(state === 'wrong'));
-        if (state === 'correct') {
-          correct.add(choice.id);
-          select.disabled = true;
-          status.textContent = correct.size === current.choices.length
-            ? 'Все ответы верны.' : `Верно. ${correct.size} из ${current.choices.length}.`;
-        } else if (state === 'wrong') status.textContent = 'Неверный вариант. Попробуйте ещё раз.';
-        else status.textContent = `${correct.size} из ${current.choices.length} ответов верны.`;
+        if (!interactive || exerciseState.answers?.[choice.id]?.status === 'correct') { paintState(); return; }
+        const action = { type: 'choose-word', componentId: current.id, itemId: choice.id, value: select.value };
+        if (settings.onAction) settings.onAction(action);
+        else section.updateState(model.apply(current, exerciseState, action));
+        const state = exerciseState.answers?.[choice.id]?.status || 'empty';
         if (typeof settings.onActivity === 'function') settings.onActivity(current.id, choice.id, state);
       });
       field.append(makeChoiceNumberLabel(number, doc), select);
       return field;
     }
 
+    function paintState() {
+      correct.clear();
+      let wrong = false;
+      selects.forEach((select, id) => {
+        const answer = exerciseState.answers?.[id];
+        const state = answer?.status || 'empty';
+        const value = answer?.value || '';
+        if (select.value !== value) select.value = value;
+        select.dataset.state = state;
+        select.classList.toggle('dropdown-choice__select--correct', state === 'correct');
+        select.classList.toggle('dropdown-choice__select--wrong', state === 'wrong');
+        select.setAttribute('aria-invalid', String(state === 'wrong'));
+        select.setAttribute('aria-readonly', String(!interactive));
+        // An observer can open the native menu; change restores the shared value.
+        select.disabled = !settings.inspectOnly && (!interactive || state === 'correct');
+        if (state === 'correct') correct.add(id);
+        if (state === 'wrong') wrong = true;
+      });
+      status.textContent = correct.size === current.choices.length ? 'Все ответы верны.'
+        : wrong ? 'Неверный вариант. Попробуйте ещё раз.' : `${correct.size} из ${current.choices.length} ответов верны.`;
+    }
+    section.updateState = (next = {}) => { exerciseState = next; paintState(); };
+    section.setInteractive = value => { interactive = Boolean(value); paintState(); };
+
     function paintPlay() {
+      selects.clear();
       section.style.setProperty('--dropdown-choice-accent', current.accentColor);
       section.setAttribute('aria-label', stripAccentMarkdown(current.title));
       title.replaceChildren();
@@ -291,7 +313,7 @@
         return paragraph;
       }));
       correct.clear();
-      status.textContent = `0 из ${current.choices.length} ответов верны.`;
+      paintState();
     }
 
     function makeTextSpan(text) {
@@ -493,6 +515,7 @@
     }
 
     function leaveEditMode() {
+      exerciseState = {};
       editing = false;
       saving = false;
       toolbar.hidden = true;

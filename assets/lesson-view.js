@@ -34,6 +34,7 @@
     const loading = byId('lesson-loading');
     const content = byId('lesson-content');
     const mounted = new Map();
+    const mountedContent = new Map();
     const canSelect = index => settings.canSelect ? settings.canSelect(index) : true;
     const svgNS = 'http://www.w3.org/2000/svg';
     const stageIconShapes = {
@@ -196,26 +197,59 @@
       return element;
     }
 
-    function renderStageContent(stage) {
+    function renderStageContent(stage, reconcile = false) {
       const container = byId('stage-components');
-      mounted.clear();
+      const previous = new Map(mounted);
+      if (!reconcile) {
+        previous.forEach(node => node.dispose?.());
+        mounted.clear();
+        mountedContent.clear();
+      }
       if (!Array.isArray(stage.content) || stage.content.length === 0) {
+        if (reconcile) previous.forEach(node => node.dispose?.());
+        mounted.clear();
+        mountedContent.clear();
         container.replaceChildren(emptyStage(stage));
         return;
       }
+      const nextIds = new Set(stage.content.map(component => component.id));
+      if (reconcile) for (const [id, node] of previous) {
+        if (!nextIds.has(id)) {
+          node.dispose?.();
+          mounted.delete(id);
+          mountedContent.delete(id);
+        }
+      }
       const rendered = stage.content.map((component) => {
+        const fingerprint = JSON.stringify(component);
+        if (reconcile && mountedContent.get(component.id) === fingerprint) return mounted.get(component.id);
+        if (reconcile) {
+          previous.get(component.id)?.dispose?.();
+          mounted.delete(component.id);
+          mountedContent.delete(component.id);
+        }
         const entry = component && componentRenderers[component.type];
         const renderer = entry && window[entry[0]]?.[entry[1]];
         if (!renderer) return unsupportedComponent(component);
         try {
           const node = renderer(component, settings.componentOptions?.(component) || {});
-          if (node) mounted.set(component.id, node);
+          if (node) {
+            mounted.set(component.id, node);
+            mountedContent.set(component.id, fingerprint);
+          }
           return node;
         } catch (_error) {
           return unsupportedComponent(component);
         }
       }).filter(Boolean);
-      container.replaceChildren(...rendered);
+      if (!reconcile) container.replaceChildren(...rendered);
+      else {
+        // Leave surviving nodes in place so revealing a sibling keeps focus/IME.
+        for (const child of [...container.children]) if (!rendered.includes(child)) container.removeChild(child);
+        rendered.forEach((node, index) => {
+          if (container.children[index] !== node) container.insertBefore(node, container.children[index] || null);
+        });
+      }
     }
 
     function render(lesson) {

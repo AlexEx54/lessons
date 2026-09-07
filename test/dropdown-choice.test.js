@@ -71,6 +71,13 @@ function createFakeDocument() {
         this._text = String(value);
       },
     };
+    el.classList = {
+      toggle(name, enabled) {
+        const names = new Set(el.className.split(/\s+/).filter(Boolean));
+        if (enabled) names.add(name); else names.delete(name);
+        el.className = [...names].join(' ');
+      },
+    };
     return el;
   }
   return {

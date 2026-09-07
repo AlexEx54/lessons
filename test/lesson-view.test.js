@@ -60,3 +60,26 @@ test('shared view can restore a stage by id without changing default draft navig
   document.getElementById('previous-stage').click();
   assert.equal(document.getElementById('stage-title').textContent, 'Warm Up');
 });
+
+test('revealing and hiding a sibling leaves the mounted exercise in place', () => {
+  const { document, window, calls, lesson } = fixture();
+  const view = window.LessonView.create();
+  view.render(lesson);
+  const exercise = view.mounted.get('choice');
+  const container = document.getElementById('stage-components');
+  let removedExercise = false, disposed = false;
+  const remove = container.removeChild;
+  container.removeChild = function(node) { if (node === exercise) removedExercise = true; remove.call(this, node); };
+  exercise.dispose = () => { disposed = true; };
+  const stage = { ...lesson.stages[0], content: [{ type: 'thisOrThat', id: 'revealed' }, ...lesson.stages[0].content] };
+  view.renderStageContent(stage, true);
+  assert.equal(view.mounted.get('choice'), exercise);
+  assert.equal(container.children[1], exercise);
+  assert.equal(calls.length, 2);
+  view.renderStageContent(lesson.stages[0], true);
+  assert.equal(container.children[0], exercise);
+  assert.equal(removedExercise, false);
+  assert.equal(disposed, false);
+  view.selectStage(1, true);
+  assert.equal(disposed, true);
+});

@@ -1,6 +1,7 @@
 (function initMatchWordsComponent(root) {
   'use strict';
 
+  const model = root.ExerciseState || (typeof require === 'function' ? require('./exercise-state.js') : null);
   const KEBAB_CASE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
   function requiredText(value, field) {
@@ -41,14 +42,7 @@
     };
   }
 
-  function shuffled(items) {
-    const result = [...items];
-    for (let index = result.length - 1; index > 0; index -= 1) {
-      const next = Math.floor(Math.random() * (index + 1));
-      [result[index], result[next]] = [result[next], result[index]];
-    }
-    return result;
-  }
+  const shuffled = model.shuffle;
 
   function renderMatchWords(data, options, documentRef) {
     let settings = options || {};
@@ -59,7 +53,13 @@
     }
     if (!doc) throw new Error('MatchWords requires a document.');
 
-    let current = normalizeMatchWords(data);
+    let current = settings.presentation || normalizeMatchWords(data);
+    let exerciseState = settings.exerciseState || {};
+    let interactive = settings.interactive !== false;
+    let pendingMatch = null;
+    const shownAttempts = new Set();
+    let suppressClick = false;
+    const cancelDrags = new Set();
     let editing = false;
     let busy = false;
     let selectedId = null;
@@ -123,7 +123,7 @@
     function returnGhost(ghost, card) {
       if (!ghost) {
         card.classList.remove('match-words__chip--dragging');
-        card.hidden = false;
+        card.hidden = matched.has(card.dataset.itemId);
         return;
       }
       const destination = card.getBoundingClientRect();
@@ -134,7 +134,7 @@
       root.setTimeout(() => {
         removeGhost(ghost);
         card.classList.remove('match-words__chip--dragging');
-        card.hidden = false;
+        card.hidden = matched.has(card.dataset.itemId);
       }, 270);
     }
 
@@ -150,17 +150,33 @@
       }, 1000);
     }
 
+    function selectWord(itemId) {
+      updateSelection(itemId);
+      const action = { type: 'select-word', componentId: current.id, itemId };
+      if (settings.onAction) settings.onAction(action);
+      else section.updateState(model.apply(current, exerciseState, action));
+    }
+
     function attemptMatch(termId, targetId, ghost) {
       const card = cardsById.get(termId);
       const target = targetsById.get(targetId);
-      if (!card || !target || matched.has(termId) || editing || busy) {
+      if (!card || !target || target.classList.contains('match-words__target--matched') || matched.has(termId) || editing || busy || !interactive || pendingMatch) {
         if (card) returnGhost(ghost, card);
         else removeGhost(ghost);
         return;
       }
 
+      pendingMatch = { termId, targetId, ghost };
+      const action = { type: 'match-word', componentId: current.id, itemId: termId, targetId, attemptId: root.crypto.randomUUID() };
+      section.updateState(model.apply(current, exerciseState, action));
+      if (settings.onAction) settings.onAction(action);
+    }
+
+    function finishMatch(termId, targetId, ghost, correct) {
+      const card = cardsById.get(termId), target = targetsById.get(targetId);
+      if (!card || !target) { removeGhost(ghost); return; }
       updateSelection(null);
-      if (termId === targetId) {
+      if (correct) {
         matched.add(termId);
         card.classList.remove('match-words__chip--dragging');
         card.hidden = true;
@@ -248,6 +264,7 @@
         removeDocumentListeners();
         clearDropHover();
         if (!finished.active) return;
+        root.setTimeout(() => { suppressClick = false; }, 0);
         event.preventDefault();
         const hit = doc.elementFromPoint(event.clientX, event.clientY);
         const pointerTarget = hit && hit.closest ? hit.closest('.match-words__target') : null;
@@ -266,10 +283,22 @@
         removeDocumentListeners();
         clearDropHover();
         if (cancelled.active) returnGhost(cancelled.ghost, card);
+        if (interactive) selectWord(null);
+        suppressClick = false;
       }
+      cancelDrags.add(() => {
+        if (!drag) return;
+        const cancelled = drag;
+        drag = null;
+        removeDocumentListeners();
+        clearDropHover();
+        removeGhost(cancelled.ghost);
+        card.classList.remove('match-words__chip--dragging');
+        suppressClick = false;
+      });
 
       card.addEventListener('pointerdown', (event) => {
-        if (editing || busy || matched.has(itemId) || (event.pointerType === 'mouse' && event.button !== 0)) return;
+        if (!interactive || pendingMatch || editing || busy || matched.has(itemId) || (event.pointerType === 'mouse' && event.button !== 0)) return;
         drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, active: false, ghost: null, targetId: null };
         doc.addEventListener('pointerup', finishDrag, true);
         doc.addEventListener('pointercancel', cancelDrag, true);
@@ -291,7 +320,8 @@
           doc.body.append(ghost);
           drag.ghost = ghost;
           card.classList.add('match-words__chip--dragging');
-          updateSelection(null);
+          selectWord(itemId);
+          suppressClick = true;
         }
         event.preventDefault();
         drag.ghost.style.left = `${event.clientX - drag.ghost.offsetWidth / 2}px`;
@@ -314,9 +344,9 @@
       card.textContent = item.term;
       card.setAttribute('aria-pressed', 'false');
       card.addEventListener('click', () => {
-        if (editing || busy || matched.has(item.id)) return;
+        if (suppressClick || !interactive || pendingMatch || editing || busy || matched.has(item.id)) return;
         const next = selectedId === item.id ? null : item.id;
-        updateSelection(next);
+        selectWord(next);
         card.setAttribute('aria-pressed', String(next === item.id));
       });
       enableDrag(card, item.id);
@@ -410,11 +440,11 @@
       dropLabel.textContent = 'Drop word here';
       target.append(media, dropLabel);
       target.addEventListener('click', (event) => {
-        if (event.target.closest('button') || !selectedId || matched.has(item.id) || editing || busy) return;
+        if (!interactive || event.target.closest('button') || !selectedId || target.classList.contains('match-words__target--matched') || editing || busy) return;
         attemptMatch(selectedId, item.id, null);
       });
       target.addEventListener('keydown', (event) => {
-        if ((event.key === 'Enter' || event.key === ' ') && selectedId && !matched.has(item.id) && !editing && !busy) {
+        if (interactive && (event.key === 'Enter' || event.key === ' ') && selectedId && !target.classList.contains('match-words__target--matched') && !editing && !busy) {
           event.preventDefault();
           attemptMatch(selectedId, item.id, null);
         }
@@ -424,12 +454,15 @@
     }
 
     function renderItems() {
+      if (!settings.presentation) exerciseState = {};
       matched.clear();
       selectedId = null;
       cardsById.clear();
       targetsById.clear();
-      pool.replaceChildren(...shuffled(current.items).map(createChip));
-      grid.replaceChildren(...current.items.map(createTarget));
+      cancelDrags.forEach(cancel => cancel());
+      cancelDrags.clear();
+      pool.replaceChildren(...(settings.presentation ? current.items : shuffled(current.items)).map(createChip));
+      grid.replaceChildren(...(current.targets || current.items).map(createTarget));
       section.classList.toggle('match-words--editing', editing);
       setStatus(`0 из ${current.items.length} сопоставлено.`);
     }
@@ -443,7 +476,54 @@
       section.classList.toggle('match-words--editing', editing);
     });
 
+    function paintState() {
+      matched.clear();
+      for (const [termId, card] of cardsById) {
+        const targetId = exerciseState.matches?.[termId];
+        card.hidden = Boolean(targetId);
+        card.setAttribute('aria-disabled', String(!interactive || Boolean(targetId)));
+        if (targetId) matched.add(termId);
+      }
+      for (const [targetId, target] of targetsById) {
+        const termId = Object.keys(exerciseState.matches || {}).find(id => exerciseState.matches[id] === targetId);
+        target.classList.toggle('match-words__target--matched', Boolean(termId));
+        target.setAttribute('aria-disabled', String(!interactive || Boolean(termId)));
+        target.tabIndex = termId ? -1 : 0;
+        target.querySelector('.match-words__feedback--correct').hidden = !termId;
+        target.querySelector('.match-words__drop-label').textContent = termId ? cardsById.get(termId).textContent : 'Drop word here';
+      }
+      updateSelection(exerciseState.selectedId || null);
+      if (!selectedId) setStatus(matched.size === current.items.length ? 'Все слова сопоставлены.' : `${matched.size} из ${current.items.length} сопоставлено.`);
+    }
+    section.updateState = (next = {}, options = {}) => {
+      const attemptKey = next.attempt && (next.attempt.id || `sequence:${next.attempt.sequence}`);
+      const freshAttempt = attemptKey && !shownAttempts.has(attemptKey);
+      if (attemptKey) shownAttempts.add(attemptKey);
+      exerciseState = next;
+      paintState();
+      if (freshAttempt && options.feedback !== false) {
+        const attempt = next.attempt;
+        const pending = pendingMatch;
+        pendingMatch = null;
+        finishMatch(attempt.itemId, attempt.targetId, pending?.ghost, attempt.correct);
+      } else if (pendingMatch && !options.pending) {
+        returnGhost(pendingMatch.ghost, cardsById.get(pendingMatch.termId));
+        pendingMatch = null;
+      }
+    };
+    section.setInteractive = value => {
+      if (interactive === Boolean(value)) return;
+      interactive = Boolean(value);
+      if (!interactive) cancelDrags.forEach(cancel => cancel());
+      paintState();
+    };
+    section.dispose = () => {
+      cancelDrags.forEach(cancel => cancel());
+      removeGhost(pendingMatch?.ghost);
+      pendingMatch = null;
+    };
     renderItems();
+    paintState();
     section.append(heading, instruction, pool, grid, status);
     return section;
   }

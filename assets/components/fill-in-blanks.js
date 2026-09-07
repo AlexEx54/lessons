@@ -1,6 +1,7 @@
 (function initFillInBlanksComponent(root) {
   'use strict';
 
+  const model = root.ExerciseState || (typeof require === 'function' ? require('./exercise-state.js') : null);
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s|^\s*(?:[-*+]\s|\d+\.\s)/m;
 
@@ -52,22 +53,8 @@
     };
   }
 
-  function comparableAnswer(value) {
-    return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ').toLocaleLowerCase() : '';
-  }
-
-  function answersMatch(value, answer) {
-    return Boolean(comparableAnswer(value)) && comparableAnswer(value) === comparableAnswer(answer);
-  }
-
-  function shuffleWords(words, random = Math.random) {
-    const shuffled = [...words];
-    for (let index = shuffled.length - 1; index > 0; index -= 1) {
-      const randomIndex = Math.floor(random() * (index + 1));
-      [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
-    }
-    return shuffled;
-  }
+  const answersMatch = model.answersMatch;
+  const shuffleWords = model.shuffle;
 
   function shouldShowAnswerKey(viewerRole) {
     if (!['teacher', 'student'].includes(viewerRole)) throw new Error('FillInBlanks requires a supported viewer role.');
@@ -101,7 +88,10 @@
     }
     if (!doc) throw new Error('FillInBlanks requires a document.');
 
-    let current = normalizeFillInBlanks(data);
+    let current = settings.presentation || normalizeFillInBlanks(data);
+    let exerciseState = settings.exerciseState || {};
+    let interactive = settings.interactive !== false;
+    const fields = new Map();
     const viewerRole = settings.viewerRole || 'teacher';
     shouldShowAnswerKey(viewerRole);
     let editing = false;
@@ -145,6 +135,7 @@
     }
 
     function paintView() {
+      fields.clear();
       const wordBank = doc.createElement('div');
       wordBank.className = 'fill-in-blanks__word-bank';
       wordBank.setAttribute('aria-label', 'Words and phrases to use');
@@ -153,7 +144,7 @@
       wordBankLabel.textContent = 'Words / phrases:';
       const wordBankTerms = doc.createElement('span');
       wordBankTerms.className = 'fill-in-blanks__word-bank-terms';
-      shuffleWords(current.items.map(item => item.answer)).forEach((answer, index) => {
+      (current.wordBank || shuffleWords(current.items.map(item => item.answer))).forEach((answer, index) => {
         if (index > 0) {
           const separator = doc.createElement('span');
           separator.className = 'fill-in-blanks__word-bank-separator';
@@ -182,6 +173,7 @@
         input.type = 'text';
         input.className = 'fill-in-blanks__input';
         input.autocomplete = 'off';
+        input.maxLength = 1000;
         input.spellcheck = false;
         input.dataset.itemId = item.id;
         input.setAttribute('aria-label', `Пропуск ${index + 1}`);
@@ -192,12 +184,13 @@
         const status = doc.createElement('span');
         status.className = 'fill-in-blanks__sr-status';
         status.setAttribute('aria-live', 'polite');
+        fields.set(item.id, { input, field, check, status, index });
         input.addEventListener('input', () => {
-          const correct = answersMatch(input.value, item.answer);
-          field.classList.toggle('fill-in-blanks__field--correct', correct);
-          check.hidden = !correct;
-          status.textContent = correct ? `Ответ ${index + 1} верный.` : '';
-          if (typeof settings.onActivity === 'function') settings.onActivity(current.id, item.id, correct ? 'correct' : 'pending');
+          if (!interactive) { paintState(); return; }
+          const action = { type: 'type-answer', componentId: current.id, itemId: item.id, value: input.value };
+          if (settings.onAction) settings.onAction(action);
+          else section.updateState(model.apply(current, exerciseState, action));
+          if (typeof settings.onActivity === 'function') settings.onActivity(current.id, item.id, exerciseState.answers?.[item.id]?.status || 'pending');
         });
         field.append(input, check, status);
         sentence.append(field);
@@ -231,14 +224,31 @@
         answers.className = 'fill-in-blanks__answers';
         current.items.forEach((item) => {
           const answer = doc.createElement('li');
-          answer.textContent = item.answer;
+          answer.textContent = item.answer || data.items?.find(source => source.id === item.id)?.answer;
           answers.append(answer);
         });
         key.append(keyHeader, answers);
         children.push(key);
       }
       view.replaceChildren(...children);
+      paintState();
     }
+
+    function paintState() {
+      fields.forEach(({ input, field, check, status, index }, id) => {
+        const answer = exerciseState.answers?.[id];
+        const value = answer?.value || '';
+        // Do not touch the value when it already matches: preserve the caret/IME.
+        if (input.value !== value) input.value = value;
+        input.readOnly = !interactive;
+        const correct = answer?.status === 'correct';
+        field.classList.toggle('fill-in-blanks__field--correct', correct);
+        check.hidden = !correct;
+        status.textContent = correct ? `Ответ ${index + 1} верный.` : '';
+      });
+    }
+    section.updateState = (next = {}) => { exerciseState = next; paintState(); };
+    section.setInteractive = value => { interactive = Boolean(value); paintState(); };
 
     function makeItemId() {
       const random = root.crypto && typeof root.crypto.randomUUID === 'function'
@@ -366,6 +376,7 @@
       try {
         const saved = await settings.onSave({ items: candidate.items }, current.id);
         current = normalizeFillInBlanks(saved || candidate);
+        exerciseState = {};
         paintView();
         saving = false;
         leaveEditMode();

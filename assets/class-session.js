@@ -8,6 +8,7 @@
   let confirmed, inFlight = false, pending = [], reconnectDelay = 500;
   const viewState = { lesson: null, activeIndex: 0 };
   let availableStageIds = [];
+  let feedback = false;
   const adapters = window.ClassComponentAdapters;
   const status = byId('teacher-screen');
   status.disabled = true;
@@ -37,7 +38,7 @@
   function componentFor(action) {
     return viewState.lesson?.stages.find(stage => stage.id === action.stageId)?.content?.find(component => component.id === action.componentId);
   }
-  function session(state = confirmed) { return { role, connected, state, send: enqueue }; }
+  function session(state = confirmed) { return { role, connected, state, send: enqueue, pendingActions: pending, feedback }; }
   function enqueue(action) {
     if (!connected) { paint(); return; }
     pending.push({ ...action, stageId: action.stageId || confirmed.activeStageId });
@@ -70,6 +71,7 @@
     view.refreshNavigation();
   }
   function receiveState(payload) {
+    feedback = payload.type === 'action';
     const previousStage = viewState.lesson?.stages[viewState.activeIndex];
     confirmed = payload.state;
     availableStageIds = payload.availableStageIds;
@@ -78,8 +80,9 @@
     const stage = viewState.lesson.stages[index];
     if (index < 0) throw new Error('Активная стадия не найдена.');
     if (previousStage?.id !== stage.id) view.selectStage(index, true);
-    else if (JSON.stringify(previousStage.content) !== JSON.stringify(stage.content)) view.renderStageContent(stage);
+    else if (JSON.stringify(previousStage.content) !== JSON.stringify(stage.content)) view.renderStageContent(stage, true);
     paint();
+    feedback = false;
   }
   function flush() {
     if (!connected || inFlight || !pending.length || socket?.readyState !== WebSocket.OPEN) return;

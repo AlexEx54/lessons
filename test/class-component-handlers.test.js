@@ -25,3 +25,30 @@ test('visibility actions cannot reveal teacher-only cards or change static compo
   assert.throws(() => applyComponentAction({ ...context, action: { type: 'set-visibility', visible: 'true' }, component: { id: 'card', type: 'markdownCard', studentVisibility: 'controlled' } }));
   assert.deepEqual(state, { selections: {} });
 });
+
+test('vocabulary handlers reject observer edits, invalid targets, oversized input and hidden game actions', () => {
+  const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+  const model = require('../assets/components/exercise-state.js');
+  const content = createSyntheticLesson('Vocabulary').stages.find(stage => stage.id === 'target-vocabulary').content;
+  const match = content.find(c => c.type === 'matchWords');
+  const dropdown = content.find(c => c.type === 'dropdownChoice');
+  const fill = content.find(c => c.type === 'fillInBlanks');
+  const game = content.find(c => c.type === 'describeAndGuess');
+  const state = { _layouts: { [match.id]: model.createLayout(match) } };
+  const act = (component, action, role = 'student') => applyComponentAction({ component, action, role, state });
+  for (const exercise of [match, dropdown, fill]) assert.throws(() => act(exercise, {}, 'teacher'), { statusCode: 403 });
+  assert.throws(() => act(match, { type: 'match-word', itemId: match.items[0].id, targetId: match.items[0].id }), { statusCode: 400 });
+  assert.throws(() => act(match, { type: 'select-word', itemId: 'missing' }), { statusCode: 400 });
+  assert.throws(() => act(dropdown, { type: 'choose-word', itemId: dropdown.choices[0].id, value: 'missing' }), { statusCode: 400 });
+  assert.throws(() => act(fill, { type: 'type-answer', itemId: fill.items[0].id, value: 'a'.repeat(1001) }), { statusCode: 400 });
+  assert.throws(() => act(game, { type: 'set-crossed', itemId: game.items[0].id, crossed: true }), { statusCode: 403 });
+  assert.throws(() => act(game, { type: 'set-visibility', visible: true }), { statusCode: 403 });
+  assert.equal(state.exercises, undefined, 'rejected actions must not create progress');
+  const correct = { type: 'choose-word', itemId: dropdown.choices[0].id, value: dropdown.choices[0].answer };
+  act(dropdown, correct);
+  assert.throws(() => act(dropdown, { ...correct, value: '' }), { statusCode: 400 });
+  const typed = { type: 'type-answer', itemId: fill.items[0].id, value: fill.items[0].answer };
+  act(fill, typed);
+  act(fill, { ...typed, value: '' });
+  assert.equal(state.exercises[fill.id].answers[typed.itemId].status, 'pending', 'typed answers remain editable after success');
+});

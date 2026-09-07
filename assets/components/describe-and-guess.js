@@ -1,6 +1,7 @@
 (function initDescribeAndGuessComponent(root) {
   'use strict';
 
+  const model = root.ExerciseState || (typeof require === 'function' ? require('./exercise-state.js') : null);
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|\r|\n|^\s{0,3}#{1,6}\s|^\s*(?:[-+*]|\d+\.)\s/;
 
@@ -103,6 +104,12 @@
     if (!doc) throw new Error('DescribeAndGuess requires a document.');
 
     let current = normalizeDescribeAndGuess(data);
+    let exerciseState = settings.exerciseState || {};
+    let interactive = settings.interactive !== false;
+    let studentVisible = Boolean(settings.studentVisible);
+    let visibilityInteractive = settings.visibilityInteractive !== false;
+    const wordButtons = new Map();
+    let visibilityButton;
     let editing = false;
     let saving = false;
     let draft = null;
@@ -135,7 +142,28 @@
       return button;
     }
 
+    function paintState() {
+      wordButtons.forEach((button, id) => {
+        const crossed = Boolean(exerciseState.crossed?.[id]);
+        button.classList.toggle('describe-and-guess__word--crossed', crossed);
+        button.setAttribute('aria-pressed', String(crossed));
+        button.setAttribute('aria-disabled', String(!interactive));
+      });
+    }
+    function paintVisibility() {
+      if (!visibilityButton) return;
+      visibilityButton.replaceChildren(createEyeIcon(doc), doc.createTextNode(studentVisible ? 'Скрыть' : 'Показать'));
+      visibilityButton.setAttribute('aria-label', studentVisible ? 'Скрыть дополнительное упражнение у ученика' : 'Показать дополнительное упражнение ученику');
+      visibilityButton.setAttribute('aria-pressed', String(studentVisible));
+      visibilityButton.setAttribute('aria-disabled', String(!visibilityInteractive));
+    }
+    section.updateState = (next = {}) => { exerciseState = next; paintState(); };
+    section.setInteractive = value => { interactive = Boolean(value); paintState(); };
+    section.updateStudentVisibility = value => { studentVisible = Boolean(value); paintVisibility(); };
+    section.setVisibilityInteractive = value => { visibilityInteractive = Boolean(value); paintVisibility(); };
+
     function renderView() {
+      wordButtons.clear();
       section.classList.remove('describe-and-guess--editing', 'describe-and-guess--saving');
       const header = doc.createElement('div');
       header.className = 'describe-and-guess__header';
@@ -156,7 +184,14 @@
       show.dataset.studentVisibilityControl = '';
       show.append(createEyeIcon(doc), doc.createTextNode('Показать'));
       show.setAttribute('aria-label', 'Показать дополнительное упражнение ученику');
-      actions.append(show);
+      visibilityButton = show;
+      show.addEventListener('click', () => {
+        if (!visibilityInteractive) return;
+        if (settings.onStudentVisibilityChange) settings.onStudentVisibilityChange(!studentVisible);
+        else section.updateStudentVisibility(!studentVisible);
+      });
+      if (settings.viewerRole !== 'student') actions.append(show);
+      paintVisibility();
       if (typeof settings.onSave === 'function') {
         actions.append(actionButton('✎', 'Редактировать Describe and Guess', beginEditing, 'describe-and-guess__edit'));
       }
@@ -171,9 +206,12 @@
         button.textContent = item.text;
         button.dataset.itemId = item.id;
         button.setAttribute('aria-pressed', 'false');
+        wordButtons.set(item.id, button);
         button.addEventListener('click', () => {
-          const crossed = button.classList.toggle('describe-and-guess__word--crossed');
-          button.setAttribute('aria-pressed', String(crossed));
+          if (!interactive) return;
+          const action = { type: 'set-crossed', componentId: current.id, itemId: item.id, crossed: !exerciseState.crossed?.[item.id] };
+          if (settings.onAction) settings.onAction(action);
+          else section.updateState(model.apply(current, exerciseState, action));
         });
         words.append(button);
       });
@@ -215,6 +253,7 @@
       dialogue.setAttribute('aria-hidden', 'true');
       guide.append(guideContent, dialogue);
       section.replaceChildren(header, words, guide);
+      paintState();
     }
 
     function textField(labelText, value, onInput, multiline = false) {
@@ -311,6 +350,7 @@
     }
 
     function beginEditing() {
+      exerciseState = {};
       draft = JSON.parse(JSON.stringify(current));
       initialSnapshot = JSON.stringify(draft);
       editing = true;
