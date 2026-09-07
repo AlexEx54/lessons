@@ -52,3 +52,26 @@ test('vocabulary handlers reject observer edits, invalid targets, oversized inpu
   act(fill, { ...typed, value: '' });
   assert.equal(state.exercises[fill.id].answers[typed.itemId].status, 'pending', 'typed answers remain editable after success');
 });
+
+test('reading validates choices on server and local preview uses the same rules', () => {
+  const fs = require('node:fs');
+  const vm = require('node:vm');
+  const model = require('../assets/components/exercise-state.js');
+  const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+  const component = createSyntheticLesson('Reading').stages.find(s => s.id === 'reading').content.find(c => c.type === 'multipleChoice');
+  const item = component.items[0];
+  const state = {};
+  const action = { type: 'choose-option', componentId: component.id, itemId: item.id, value: item.answer };
+  for (const invalid of [{ ...action, itemId: 'missing' }, { ...action, value: 'missing' }, { ...action, type: 'unknown' }]) {
+    assert.throws(() => applyComponentAction({ role: 'student', component, state, action: invalid }), { statusCode: 400 });
+  }
+  assert.deepEqual(state, {});
+  const window = { ExerciseState: model };
+  vm.runInNewContext(fs.readFileSync(require.resolve('../assets/class-component-adapters.js'), 'utf8'), { window });
+  const projected = studentComponent(component, state);
+  const preview = {};
+  window.ClassComponentAdapters.preview(projected, preview, action);
+  applyComponentAction({ role: 'student', component, state, action });
+  assert.equal(JSON.stringify(preview), JSON.stringify(state));
+  assert.throws(() => applyComponentAction({ role: 'student', component, state, action }), { statusCode: 400 });
+});

@@ -268,3 +268,38 @@ test('multiple choice is registered with editing, teacher hint, and responsive s
   assert.match(page, /components\/multiple-choice\.js/);
   assert.match(page, /components\/multiple-choice\.css/);
 });
+
+test('live choice reacts before sending, updates existing nodes without echo and rolls back', () => {
+  const source = normalizeMultipleChoice(component());
+  const actions = [];
+  let node;
+  node = renderMultipleChoice({ type: source.type, id: source.id }, {
+    presentation: source, viewerRole: 'student', exerciseState: {},
+    onAction(action) {
+      assert.equal(byClass(node, 'multiple-choice__option--correct').length, 1);
+      actions.push(action);
+    },
+  }, createFakeDocument());
+  const buttons = byClass(node, 'multiple-choice__option');
+  buttons[1].click();
+  assert.equal(actions.length, 1);
+  assert.equal(buttons[0].disabled, true);
+  const model = require('../assets/components/exercise-state.js');
+  const state = model.apply(source, {}, actions[0]);
+  node.updateState(state);
+  assert.equal(byClass(node, 'multiple-choice__option')[1], buttons[1]);
+  assert.equal(actions.length, 1);
+  node.updateState({});
+  assert.equal(buttons[0].disabled, false);
+  assert.equal(byClass(node, 'multiple-choice__option--correct').length, 0);
+  node.setInteractive(false);
+  buttons[1].click();
+  assert.equal(actions.length, 1);
+  assert.equal(byClass(node, 'multiple-choice__option--hint').length, 0);
+  const teacher = renderMultipleChoice(source, {
+    viewerRole: 'teacher', interactive: false, exerciseState: state,
+    onAction: () => assert.fail('teacher must not answer'),
+  }, createFakeDocument());
+  byClass(teacher, 'multiple-choice__option')[0].click();
+  assert.equal(byClass(teacher, 'multiple-choice__option--correct').length, 1);
+});

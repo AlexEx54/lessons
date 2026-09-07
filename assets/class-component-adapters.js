@@ -33,7 +33,7 @@
       },
     }],
   ]);
-  for (const type of ['matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess']) {
+  for (const type of ['matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice']) {
     const canInteract = session => session.connected && (session.role === 'student' || type === 'describeAndGuess');
     adapters.set(type, {
       options(component, session) {
@@ -57,8 +57,8 @@
         }
         const previous = state.exercises?.[action.componentId] || {};
         let next = previous;
-        // Matching has an explicit answer key for immediate local feedback.
-        if (type === 'matchWords') {
+        // These exercises include keys for immediate local feedback.
+        if (type === 'matchWords' || type === 'multipleChoice') {
           next = window.ExerciseState.apply(component.presentation, previous, action);
           state.exercises = { ...state.exercises, [action.componentId]: next };
           return;

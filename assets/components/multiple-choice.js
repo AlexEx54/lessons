@@ -1,6 +1,8 @@
 (function initMultipleChoiceComponent(root) {
   'use strict';
 
+  const model = root.ExerciseState || (typeof require === 'function' ? require('./exercise-state.js') : null);
+
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s|^\s*(?:[-*+]\s|\d+\.\s)/m;
   const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'items'];
@@ -115,13 +117,15 @@
     }
     if (!doc) throw new Error('MultipleChoice requires a document.');
 
-    let current = normalizeMultipleChoice(data);
+    let current = normalizeMultipleChoice(settings.presentation || data);
     const viewerRole = settings.viewerRole || 'teacher';
     const hintCorrect = shouldHintCorrect(viewerRole);
     let draft = null;
     let initialSnapshot = '';
     let saving = false;
-    const selections = new Map();
+    let exerciseState = settings.exerciseState || {};
+    let interactive = settings.interactive !== false;
+    const itemNodes = new Map();
 
     const section = doc.createElement('section');
     section.className = 'multiple-choice';
@@ -161,7 +165,7 @@
     }
 
     function applyItemState(item, nodes) {
-      const selected = selections.get(item.id);
+      const selected = exerciseState.answers?.[item.id]?.value;
       const locked = selected === item.answer;
       item.options.forEach((option, index) => {
         const button = nodes.buttons[index];
@@ -170,7 +174,7 @@
         button.classList.toggle('multiple-choice__option--correct', isSelected && isCorrect);
         button.classList.toggle('multiple-choice__option--wrong', isSelected && !isCorrect);
         button.classList.toggle('multiple-choice__option--hint', hintCorrect && isCorrect && !locked);
-        button.disabled = locked;
+        button.disabled = locked || !interactive;
         button.setAttribute('aria-pressed', String(isSelected));
         nodes.checks[index].hidden = !(isSelected && isCorrect);
       });
@@ -221,9 +225,10 @@
         check.append(createCheckIcon(doc));
         button.append(letter, label, check);
         button.addEventListener('click', () => {
-          if (selections.get(item.id) === item.answer) return;
-          selections.set(item.id, option);
-          applyItemState(item, nodes);
+          if (!interactive || exerciseState.answers?.[item.id]?.status === 'correct') return;
+          const action = { type: 'choose-option', componentId: current.id, itemId: item.id, value: option };
+          updateState(model.apply(current, exerciseState, action));
+          if (typeof settings.onAction === 'function') settings.onAction(action);
           if (typeof settings.onActivity === 'function') {
             settings.onActivity(current.id, item.id, option === item.answer ? 'correct' : 'wrong');
           }
@@ -252,11 +257,21 @@
         nodes.feedback = feedback;
       }
       block.append(status);
+      itemNodes.set(item.id, nodes);
       applyItemState(item, nodes);
       return block;
     }
 
+    function updateState(state = {}) {
+      exerciseState = state;
+      current.items.forEach(item => {
+        const nodes = itemNodes.get(item.id);
+        if (nodes) applyItemState(item, nodes);
+      });
+    }
+
     function paintView() {
+      itemNodes.clear();
       title.textContent = current.title;
       instruction.textContent = current.instruction;
       if (current.items.length === 1) {
@@ -488,7 +503,7 @@
         };
         const saved = await settings.onSave(changes, current.id);
         current = normalizeMultipleChoice(saved || { ...current, ...candidate });
-        selections.clear();
+        exerciseState = {};
         paintView();
         saving = false;
         leaveEditMode();
@@ -501,6 +516,8 @@
       }
     }
 
+    section.updateState = updateState;
+    section.setInteractive = value => { interactive = Boolean(value); updateState(exerciseState); };
     edit.addEventListener('click', enterEditMode);
     paintView();
     section.append(header, instruction, view, editor);

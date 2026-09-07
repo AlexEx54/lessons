@@ -6,7 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { createDocument } = require('./helpers/lesson-dom.js');
 const source = fs.readFileSync(path.join(__dirname, '../assets/class-session.js'), 'utf8');
-async function fixture(role = 'student') {
+async function fixture(role = 'student', quiz = null) {
   const document = createDocument(), sockets = [], timers = new Map(), frames = [];
   const id = '11111111-1111-4111-8111-111111111111';
   let settings, interactive;
@@ -14,7 +14,8 @@ async function fixture(role = 'student') {
     { id: 'warm-up', content: [{ type: 'thisOrThat', id: 'choice' }] },
     { id: 'lead-in', content: role === 'teacher' ? [{ type: 'markdownCard', id: 'answers', studentVisibility: 'controlled' }] : [] },
   ] } };
-  const availableStageIds = ['warm-up', 'lead-in'];
+  if (quiz) lesson.content.stages[0] = { id: 'reading', content: [quiz] };
+  const availableStageIds = [quiz ? 'reading' : 'warm-up', 'lead-in'];
   const status = document.getElementById('teacher-screen');
   status.append(document.createElement('span'));
   const selectors = {};
@@ -36,10 +37,12 @@ async function fixture(role = 'student') {
     setTimeout(fn) { timers.set(++timerId, fn); return timerId; },
     clearTimeout(id) { timers.delete(id); }, addEventListener() {},
     scrollTo() {},
+    ExerciseState: require('../assets/components/exercise-state.js'),
+    MultipleChoiceComponent: { renderMultipleChoice() { return mounted.get('choice'); } },
     ThisOrThatComponent: { renderThisOrThat() { return mounted.get('choice'); } },
     MarkdownCardComponent: { renderMarkdownCard() { return { updateStudentVisibility() {}, setVisibilityInteractive() {} }; } },
   };
-  const initial = { activeStageId: 'warm-up', version: 0, selections: {} };
+  const initial = { activeStageId: quiz ? 'reading' : 'warm-up', version: 0, selections: {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/lesson-view.js'), 'utf8'), { window, document });
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/class-component-adapters.js'), 'utf8'), { window });
   const createView = window.LessonView.create;
@@ -143,4 +146,30 @@ test('student mounts revealed content, removes hidden content and restores it af
   f.sockets[1].receive({ type: 'snapshot', state: { ...state, version: 4, visibleCards: { answers: true } }, lesson: shownLesson });
   assert.equal(f.settings.state.activeIndex, 1);
   assert.equal(f.settings.state.lesson.stages[1].content[0].id, 'answers');
+});
+
+
+test('reading queue preserves local correct feedback while an earlier wrong answer is acknowledged', async () => {
+  const quiz = { type: 'multipleChoice', id: 'choice', presentation: {
+    type: 'multipleChoice', id: 'choice', items: [{ id: 'question', options: ['wrong', 'right'], answer: 'right' }],
+  } };
+  const f = await fixture('student', quiz), socket = f.sockets[0];
+  socket.receive({ type: 'snapshot', state: f.initial });
+  const { onAction } = f.settings.componentOptions(quiz);
+  const action = { type: 'choose-option', componentId: 'choice', itemId: 'question', value: 'wrong' };
+  onAction(action);
+  assert.equal(f.frames.at(-1).answers.question.status, 'wrong');
+  onAction({ ...action, value: 'right' });
+  assert.equal(f.frames.at(-1).answers.question.status, 'correct');
+  assert.equal(socket.sent.length, 1);
+  const wrong = { ...f.initial, version: 1, exercises: { choice: { answers: { question: { value: 'wrong', status: 'wrong' } } } } };
+  socket.receive({ type: 'action', state: wrong });
+  assert.equal(socket.sent.length, 2);
+  assert.equal(socket.sent[1].expectedVersion, 1);
+  assert.equal(f.frames.at(-1).answers.question.status, 'correct');
+  socket.receive({ type: 'action-error', state: wrong, error: 'Conflict' });
+  assert.equal(f.frames.at(-1).answers.question.status, 'wrong');
+  assert.equal(socket.sent.length, 2);
+  socket.close();
+  assert.equal(f.isInteractive(), false);
 });

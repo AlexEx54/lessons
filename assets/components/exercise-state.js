@@ -55,6 +55,15 @@
         attempt: { ...(action.attemptId ? { id: action.attemptId } : {}), sequence: (previous.attempt?.sequence || 0) + 1, itemId: action.itemId, targetId: action.targetId, correct },
       };
     }
+    if (component.type === 'multipleChoice') {
+      if (action.type !== 'choose-option') fail('Неизвестное действие.');
+      const item = component.items.find(item => item.id === action.itemId);
+      if (!item || !item.options.includes(action.value)) fail('Вариант не найден.');
+      if (previous.answers?.[item.id]?.status === 'correct') fail('Ответ уже верный.');
+      return { ...previous, answers: { ...previous.answers, [item.id]: {
+        value: action.value, status: selectionState(action.value, item.answer),
+      } } };
+    }
     if (component.type === 'dropdownChoice') {
       if (action.type !== 'choose-word') fail('Неизвестное действие.');
       const choice = component.choices.find(item => item.id === action.itemId);
