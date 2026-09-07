@@ -13,7 +13,7 @@ const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
 const { createClass } = require('../lib/class-store.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
-const { applyAction, authorizeClass, joinClass } = require('../lib/class-session-store.js');
+const { applyAction, authorizeClass, joinClass, sessionPayload } = require('../lib/class-session-store.js');
 
 test('live class: guest authorization, actions, isolation, tab replacement and restart recovery', { timeout: 20000 }, async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'class-session-'));
@@ -31,12 +31,13 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   const teacher = createUser({ email: 'live@test.local', displayName: 'Teacher', role: 'teacher', passwordHash: 'unused' }, db);
   const teacherCookie = `teach_session=${createSession(teacher.id, db).token}`;
   const content = createSyntheticLesson('Live lesson');
-  const publicAsset = `${'c'.repeat(64)}.png`, privateAsset = `${'d'.repeat(64)}.png`;
+  const publicAsset = `${'c'.repeat(64)}.png`, privateAsset = `${'d'.repeat(64)}.png`, leadAsset = `${'e'.repeat(64)}.png`;
   const choice = content.stages[0].content.find(component => component.type === 'thisOrThat');
   choice.items[0].options[0].imageSrc = `/api/library/superhero/assets/${publicAsset}`;
+  content.stages[1].content.find(c => c.type === 'illustratedTextPanel').leadingPicture.imageSrc = `/api/library/superhero/assets/${leadAsset}`;
   content.stages[1].content.push({ type: 'teacherNote', id: 'private-note', text: `/api/library/superhero/assets/${privateAsset}` });
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
-  for (const name of [publicAsset, privateAsset]) db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', name, Buffer.from('image'));
+  for (const name of [publicAsset, privateAsset, leadAsset]) db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', name, Buffer.from('image'));
   const makeClass = () => createClass({ name: 'Live test', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID() }, teacher.id, db);
   const lesson = makeClass(), otherLesson = makeClass();
   const probe = require('node:net').createServer();
@@ -93,10 +94,11 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.equal((await get(`/api/classes/${lesson.id}`, cookie)).status, 401);
   const studentPayload = await (await get(`/api/classes/${lesson.id}/live?role=student`, cookie)).json();
   assert.deepEqual(studentPayload.lesson.content.stages[0].content.map(component => component.type), ['markdownCard', 'thisOrThat', 'taskPrompt']);
-  assert.ok(studentPayload.lesson.content.stages.slice(1).every(stage => stage.content === null));
+  assert.ok(studentPayload.lesson.content.stages.slice(2).every(stage => stage.content === null));
   assert.ok(!JSON.stringify(studentPayload).includes('teacherNote'));
   assert.equal((await get(`/api/classes/${lesson.id}/assets/${publicAsset}`, cookie)).status, 200);
   assert.equal((await get(`/api/classes/${lesson.id}/assets/${privateAsset}`, cookie)).status, 404);
+  assert.equal((await get(`/api/classes/${lesson.id}/assets/${leadAsset}`, cookie)).status, 200);
   assert.equal((await get(`/api/classes/${otherLesson.id}/assets/${publicAsset}`, cookie)).status, 401);
   for (const [role, auth, origin] of [['teacher', cookie, base], ['student', '', base], ['student', cookie, 'https://evil.test']]) {
     const denied = connect(role, auth, lesson.id, origin);
@@ -121,8 +123,8 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.match((await studentSocket.next('action-error')).error, /преподаватель/);
   teacherSocket.send(JSON.stringify({ ...action, expectedVersion: 1 }));
   assert.match((await teacherSocket.next('action-error')).error, /ученик/);
-  teacherSocket.send(JSON.stringify({ type: 'select-stage', stageId: 'lead-in' }));
-  assert.match((await teacherSocket.next('action-error')).error, /Warm Up/);
+  teacherSocket.send(JSON.stringify({ type: 'select-stage', stageId: 'reading', expectedVersion: 1 }));
+  assert.match((await teacherSocket.next('action-error')).error, /недоступна/);
   const duplicate = connect('student', secondCookie);
   assert.equal((await once(duplicate, 'close'))[0], 4003);
   const replaced = once(studentSocket, 'close');
@@ -136,13 +138,48 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.deepEqual((await teacherSocket.next('action')).state, second);
   // Persisted data contains current state, not an attempt log.
   assert.deepEqual(JSON.parse(db.prepare('SELECT state_json FROM class_live_state WHERE class_id = ?').get(lesson.id).state_json), second);
+  const answersId = 'lead-in-suggested-answers-card';
+  const sendTeacher = async action => {
+    teacherSocket.send(JSON.stringify(action));
+    const teacherMessage = await teacherSocket.next('action');
+    const studentMessage = await replacement.next('action');
+    assert.equal(studentMessage.actorRole, 'teacher');
+    assert.deepEqual(studentMessage.state, teacherMessage.state);
+    assert.ok(!JSON.stringify(studentMessage.lesson).includes('teacherNote'));
+    return studentMessage;
+  };
+  const lead = await sendTeacher({ type: 'select-stage', stageId: 'lead-in', expectedVersion: 2 });
+  assert.equal(lead.state.activeStageId, 'lead-in');
+  assert.deepEqual(lead.lesson.content.stages[1].content.map(c => c.type), ['markdownCard', 'illustratedTextPanel', 'textPanel']);
+  const visibility = { type: 'set-visibility', stageId: 'lead-in', componentId: answersId, visible: true, expectedVersion: 3 };
+  replacement.send(JSON.stringify(visibility));
+  assert.match((await replacement.next('action-error')).error, /преподаватель/);
+  const shown = await sendTeacher(visibility);
+  assert.ok(shown.lesson.content.stages[1].content.some(c => c.id === answersId));
+  const hidden = await sendTeacher({ ...visibility, visible: false, expectedVersion: 4 });
+  assert.ok(!JSON.stringify(hidden.lesson).includes(answersId));
+  await sendTeacher({ ...visibility, expectedVersion: 5 });
+  const back = await sendTeacher({ type: 'select-stage', stageId: 'warm-up', expectedVersion: 6 });
+  assert.deepEqual(back.state.selections, second.selections);
+  const final = await sendTeacher({ type: 'select-stage', stageId: 'lead-in', expectedVersion: 7 });
+  assert.equal(final.state.visibleCards[answersId], true);
   sockets.forEach(socket => socket.terminate());
   await stop();
   await start();
   const restored = connect('student', cookie);
-  assert.deepEqual((await restored.next('snapshot')).state, second);
+  const snapshot = await restored.next('snapshot');
+  assert.deepEqual(snapshot.state, final.state);
+  assert.ok(snapshot.lesson.content.stages[1].content.some(c => c.id === answersId));
   const access = authorizeClass({ headers: { cookie } }, lesson.id, db, 'student');
   assert.throws(() => applyAction(access, { ...action, expectedVersion: 2, stageId: 'lead-in' }, db), { statusCode: 409 });
+  const reordered = structuredClone(content);
+  reordered.stages.reverse();
+  db.prepare('UPDATE classes SET content_json = ? WHERE id = ?').run(JSON.stringify(reordered), otherLesson.id);
+  const otherAccess = { role: 'teacher', classId: otherLesson.id, ownerId: teacher.id };
+  assert.equal(sessionPayload(otherAccess, db).state.activeStageId, 'lead-in');
+  applyAction(otherAccess, { type: 'select-stage', stageId: 'warm-up', expectedVersion: 0 }, db);
+  const reorderedState = applyAction({ ...otherAccess, role: 'student' }, { ...action, expectedVersion: 1 }, db);
+  assert.equal(reorderedState.selections[choice.id][choice.items[0].id], action.optionId);
   db.prepare("UPDATE classes SET status = 'completed' WHERE id = ?").run(lesson.id);
   assert.equal(authorizeClass({ headers: { cookie } }, lesson.id, db, 'student'), null);
   assert.throws(() => joinClass({ headers: {} }, lesson.invitePath.split('/').at(-1), db), { statusCode: 404 });

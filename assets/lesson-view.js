@@ -134,7 +134,7 @@
     function selectStage(index, force = false) {
       const lesson = state.lesson;
       if (!lesson || index < 0 || index >= lesson.stages.length) return;
-      if (!force && (!canSelect(index) || settings.beforeSelect?.() === false)) return;
+      if (!force && (!canSelect(index) || settings.beforeSelect?.(index) === false)) return;
       state.activeIndex = index;
       const stage = lesson.stages[index];
       [...stages.children].forEach((button, buttonIndex) => {
@@ -150,9 +150,17 @@
       kicker.hidden = !subtitle;
       renderStageContent(stage);
       byId('stage-progress').textContent = `${index + 1} из ${lesson.stages.length}`;
+      refreshNavigation();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function refreshNavigation() {
+      const lesson = state.lesson;
+      if (!lesson) return;
+      const index = state.activeIndex;
+      [...stages.children].forEach((button, i) => { button.disabled = !canSelect(i); });
       byId('previous-stage').disabled = index === 0 || !canSelect(index - 1);
       byId('next-stage').disabled = index === lesson.stages.length - 1 || !canSelect(index + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function emptyStage(stage) {
@@ -220,7 +228,8 @@
       stages.replaceChildren(...lesson.stages.map(stageButton));
       loading.hidden = true;
       content.hidden = false;
-      selectStage(0, true);
+      const initialIndex = lesson.stages.findIndex(stage => stage.id === settings.initialStageId?.());
+      selectStage(initialIndex < 0 ? 0 : initialIndex, true);
     }
 
     function setPlanVisible(visible) {
@@ -234,7 +243,7 @@
     byId('show-plan').addEventListener('click', () => setPlanVisible(true));
     byId('previous-stage').addEventListener('click', () => selectStage(state.activeIndex - 1));
     byId('next-stage').addEventListener('click', () => selectStage(state.activeIndex + 1));
-    return { render, renderStageContent, selectStage, formatTime, mounted };
+    return { render, renderStageContent, selectStage, refreshNavigation, formatTime, mounted };
   }
   window.LessonView = { create: createLessonView };
 })();

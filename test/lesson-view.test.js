@@ -51,3 +51,12 @@ test('student sees the same shared renderer and full stage list with no navigati
   view.selectStage(1);
   assert.equal(document.getElementById('stage-title').textContent, 'Warm Up');
 });
+
+test('shared view can restore a stage by id without changing default draft navigation', () => {
+  const { document, window, lesson } = fixture();
+  const view = window.LessonView.create({ initialStageId: () => 'lead-in' });
+  view.render(lesson);
+  assert.equal(document.getElementById('stage-title').textContent, 'Lead In');
+  document.getElementById('previous-stage').click();
+  assert.equal(document.getElementById('stage-title').textContent, 'Warm Up');
+});

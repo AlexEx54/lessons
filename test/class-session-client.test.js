@@ -10,6 +10,11 @@ async function fixture(role = 'student') {
   const document = createDocument(), sockets = [], timers = new Map(), frames = [];
   const id = '11111111-1111-4111-8111-111111111111';
   let settings, interactive;
+  const lesson = { content: { stages: [
+    { id: 'warm-up', content: [{ type: 'thisOrThat', id: 'choice' }] },
+    { id: 'lead-in', content: role === 'teacher' ? [{ type: 'markdownCard', id: 'answers', studentVisibility: 'controlled' }] : [] },
+  ] } };
+  const availableStageIds = ['warm-up', 'lead-in'];
   const status = document.getElementById('teacher-screen');
   status.append(document.createElement('span'));
   const selectors = {};
@@ -21,7 +26,7 @@ async function fixture(role = 'student') {
     constructor() { this.readyState = 1; this.listeners = {}; this.sent = []; sockets.push(this); }
     addEventListener(name, listener) { this.listeners[name] = listener; }
     send(raw) { this.sent.push(JSON.parse(raw)); }
-    receive(payload) { this.listeners.message({ data: JSON.stringify(payload) }); }
+    receive(payload) { this.listeners.message({ data: JSON.stringify({ lesson, availableStageIds, actorRole: role, ...payload }) }); }
     close(code = 1006, reason = '') { this.readyState = 3; this.listeners.close({ code, reason }); }
   }
   const mounted = new Map([['choice', { updateState(selections) { frames.push(selections); }, setInteractive(value) { interactive = value; } }]]);
@@ -30,18 +35,24 @@ async function fixture(role = 'student') {
     location: { pathname: `/classes/${id}${role === 'student' ? '/student' : ''}`, protocol: 'http:', host: 'localhost' },
     setTimeout(fn) { timers.set(++timerId, fn); return timerId; },
     clearTimeout(id) { timers.delete(id); }, addEventListener() {},
-    LessonView: { create(value) { settings = value; return { mounted, render() {} }; } },
+    scrollTo() {},
+    ThisOrThatComponent: { renderThisOrThat() { return mounted.get('choice'); } },
+    MarkdownCardComponent: { renderMarkdownCard() { return { updateStudentVisibility() {}, setVisibilityInteractive() {} }; } },
   };
   const initial = { activeStageId: 'warm-up', version: 0, selections: {} };
-  vm.runInNewContext(source, { window, document, WebSocket: Socket, structuredClone, fetch: async () => ({ ok: true, json: async () => ({ state: initial, lesson: { content: {} } }) }) });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/lesson-view.js'), 'utf8'), { window, document });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/class-component-adapters.js'), 'utf8'), { window });
+  const createView = window.LessonView.create;
+  window.LessonView.create = value => { settings = value; return createView(value); };
+  vm.runInNewContext(source, { window, document, WebSocket: Socket, structuredClone, fetch: async () => ({ ok: true, json: async () => ({ state: initial, lesson, availableStageIds }) }) });
   await new Promise(resolve => setImmediate(resolve));
-  return { settings, sockets, timers, frames, initial, isInteractive: () => interactive, status };
+  return { settings, sockets, timers, frames, initial, lesson, document, isInteractive: () => interactive, status };
 }
 test('rapid selections are sent in order with acknowledged versions and remote updates do not echo', async () => {
   const f = await fixture(), socket = f.sockets[0];
   socket.receive({ type: 'snapshot', state: f.initial });
   assert.equal(f.isInteractive(), true);
-  const { onAction } = f.settings.componentOptions({ id: 'choice' });
+  const { onAction } = f.settings.componentOptions({ type: 'thisOrThat', id: 'choice' });
   const a = { type: 'select-option', componentId: 'choice', itemId: 'pair', optionId: 'a' };
   onAction(a);
   onAction({ ...a, optionId: 'b' });
@@ -59,7 +70,7 @@ test('rapid selections are sent in order with acknowledged versions and remote u
 test('disconnect drops unconfirmed clicks, restores server state and replacement does not reconnect', async () => {
   const f = await fixture(), socket = f.sockets[0];
   socket.receive({ type: 'snapshot', state: f.initial });
-  const { onAction } = f.settings.componentOptions({ id: 'choice' });
+  const { onAction } = f.settings.componentOptions({ type: 'thisOrThat', id: 'choice' });
   onAction({ type: 'select-option', componentId: 'choice', itemId: 'pair', optionId: 'a' });
   socket.close();
   assert.equal(f.isInteractive(), false);
@@ -82,4 +93,54 @@ test('teacher applies the same selection state as an observer', async () => {
   assert.equal(f.isInteractive(), false);
   assert.equal(f.frames.at(-1).pair, 'a');
   assert.equal(socket.sent.length, 0);
+});
+
+test('peer action does not acknowledge own request or relabel queued clicks with the new stage', async () => {
+  const f = await fixture(), socket = f.sockets[0];
+  socket.receive({ type: 'snapshot', state: f.initial });
+  const { onAction } = f.settings.componentOptions({ type: 'thisOrThat', id: 'choice' });
+  const action = { type: 'select-option', componentId: 'choice', itemId: 'pair', optionId: 'a' };
+  onAction(action);
+  onAction({ ...action, optionId: 'b' });
+  const next = { ...f.initial, activeStageId: 'lead-in', version: 1 };
+  socket.receive({ type: 'action', actorRole: 'teacher', state: next });
+  assert.equal(socket.sent.length, 1);
+  assert.equal(f.settings.state.activeIndex, 1);
+  socket.receive({ type: 'action-error', error: 'Стадия уже изменилась.', state: next });
+  assert.equal(socket.sent.length, 1);
+  assert.equal(socket.sent[0].stageId, 'warm-up');
+});
+test('teacher stage navigation waits for confirmation and snapshot restores the active stage', async () => {
+  const f = await fixture('teacher'), socket = f.sockets[0];
+  assert.equal(f.settings.canSelect(1), false);
+  socket.receive({ type: 'snapshot', state: f.initial });
+  assert.equal(f.settings.canSelect(1), true);
+  f.document.getElementById('next-stage').click();
+  assert.equal(f.settings.state.activeIndex, 0);
+  assert.equal(socket.sent[0].type, 'select-stage');
+  assert.equal(socket.sent[0].stageId, 'lead-in');
+  socket.receive({ type: 'action', state: { ...f.initial, version: 1, activeStageId: 'lead-in' } });
+  assert.equal(f.settings.state.activeIndex, 1);
+  socket.close();
+  assert.equal(f.settings.canSelect(0), false);
+});
+
+test('student mounts revealed content, removes hidden content and restores it after reconnect', async () => {
+  const f = await fixture(), socket = f.sockets[0];
+  const state = { ...f.initial, activeStageId: 'lead-in', version: 1 };
+  socket.receive({ type: 'snapshot', state });
+  const container = f.document.getElementById('stage-components');
+  const hidden = container.children[0];
+  const shownLesson = structuredClone(f.lesson);
+  shownLesson.content.stages[1].content.push({ type: 'markdownCard', id: 'answers', studentVisibility: 'controlled' });
+  socket.receive({ type: 'action', actorRole: 'teacher', state: { ...state, version: 2, visibleCards: { answers: true } }, lesson: shownLesson });
+  const shown = container.children[0];
+  assert.notEqual(shown, hidden);
+  socket.receive({ type: 'action', actorRole: 'teacher', state: { ...state, version: 3, visibleCards: { answers: false } } });
+  assert.notEqual(container.children[0], shown);
+  socket.close();
+  for (const timer of [...f.timers.values()]) timer();
+  f.sockets[1].receive({ type: 'snapshot', state: { ...state, version: 4, visibleCards: { answers: true } }, lesson: shownLesson });
+  assert.equal(f.settings.state.activeIndex, 1);
+  assert.equal(f.settings.state.lesson.stages[1].content[0].id, 'answers');
 });

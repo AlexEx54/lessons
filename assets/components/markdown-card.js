@@ -225,6 +225,7 @@
     }
 
     visibilityButton.addEventListener('click', () => {
+      if (visibilityButton.disabled) return;
       const previous = studentVisible;
       studentVisible = !studentVisible;
       paintVisibility();
@@ -592,6 +593,11 @@
     header.append(heading, actions);
     paint(current);
     card.append(header, toolbar, content, editorFooter);
+    card.updateStudentVisibility = value => {
+      studentVisible = Boolean(value);
+      paintVisibility();
+    };
+    card.setVisibilityInteractive = value => { visibilityButton.disabled = !value; };
     return card;
   }
 

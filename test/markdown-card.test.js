@@ -136,3 +136,35 @@ test('markdown card renderer exposes configurable visuals, markdown editing, and
   assert.match(source, /sections\.length >= 3/);
   assert.doesNotMatch(source, /localStorage|sessionStorage/);
 });
+
+test('live visibility updates reuse the same card and button without emitting actions', () => {
+  const vm = require('node:vm');
+  const { createDocument } = require('./helpers/lesson-dom.js');
+  const document = createDocument();
+  const createElement = document.createElement;
+  document.createElement = tag => {
+    const node = createElement(tag);
+    node.style.setProperty = () => {};
+    node.removeAttribute = key => { delete node.attributes[key]; };
+    return node;
+  };
+  const window = { document, SafeMarkdown: { renderMarkdownInto(node, text) { node.textContent = text; } } };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/components/markdown-card.js'), 'utf8'), { window });
+  const changes = [];
+  const card = window.MarkdownCardComponent.renderMarkdownCard(example, {
+    onStudentVisibilityChange: value => changes.push(value),
+  });
+  const button = card.querySelector('.markdown-card__visibility');
+  card.updateStudentVisibility(true);
+  assert.equal(button.getAttribute('aria-pressed'), 'true');
+  assert.deepEqual(changes, []);
+  card.setVisibilityInteractive(false);
+  button.click();
+  assert.deepEqual(changes, []);
+  card.setVisibilityInteractive(true);
+  button.click();
+  assert.deepEqual(changes, [false]);
+  assert.equal(card.querySelector('.markdown-card__visibility'), button);
+  card.updateStudentVisibility(true);
+  assert.deepEqual(changes, [false]);
+});

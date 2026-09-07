@@ -6,6 +6,9 @@
   const byId = id => document.getElementById(id);
   let socket, reconnectTimer, toastTimer, stopped = false, connected = false;
   let confirmed, inFlight = false, pending = [], reconnectDelay = 500;
+  const viewState = { lesson: null, activeIndex: 0 };
+  let availableStageIds = [];
+  const adapters = window.ClassComponentAdapters;
   const status = byId('teacher-screen');
   status.disabled = true;
   const statusLabel = status.querySelector('span');
@@ -31,37 +34,57 @@
     link.href = role === 'teacher' ? '/schedule' : window.location.pathname;
     link.textContent = role === 'teacher' ? 'В расписание' : 'Повторить подключение';
   }
+  function componentFor(action) {
+    return viewState.lesson?.stages.find(stage => stage.id === action.stageId)?.content?.find(component => component.id === action.componentId);
+  }
+  function session(state = confirmed) { return { role, connected, state, send: enqueue }; }
+  function enqueue(action) {
+    if (!connected) { paint(); return; }
+    pending.push({ ...action, stageId: action.stageId || confirmed.activeStageId });
+    paint();
+    flush();
+  }
   const view = window.LessonView.create({
-    // Other stages remain listed; no extra navigation workflow for this increment.
-    canSelect: index => role === 'teacher' && index === 0,
-    componentOptions: component => ({
-      viewerRole: role,
-      showImagePrompts: false,
-      selections: confirmed?.selections[component.id],
-      interactive: role === 'student' && connected,
-      onAction: action => {
-        if (!connected) { paint(); return; }
-        pending.push(action);
-        flush();
-      },
-    }),
+    state: viewState,
+    initialStageId: () => confirmed?.activeStageId,
+    canSelect: index => role === 'teacher' && connected && availableStageIds.includes(viewState.lesson?.stages[index]?.id),
+    beforeSelect: index => {
+      const stageId = viewState.lesson.stages[index].id;
+      if (stageId !== confirmed.activeStageId) enqueue({ type: 'select-stage', stageId });
+      return false;
+    },
+    componentOptions: component => adapters.options(component, session()),
   });
   function paint() {
-    if (!confirmed) return;
-    const selections = structuredClone(confirmed.selections);
-    // Keep later local clicks visible while an earlier click is being acknowledged.
+    if (!confirmed || !viewState.lesson) return;
+    const state = structuredClone(confirmed);
     for (const action of pending) {
-      selections[action.componentId] = { ...selections[action.componentId], [action.itemId]: action.optionId };
+      const component = componentFor(action);
+      if (component && action.stageId === confirmed.activeStageId) adapters.preview(component, state, action);
     }
-    for (const [id, node] of view.mounted) {
-      node.updateState?.(selections[id]);
-      node.setInteractive?.(role === 'student' && connected);
+    const stage = viewState.lesson.stages[viewState.activeIndex];
+    for (const component of stage?.content || []) {
+      const node = view.mounted.get(component.id);
+      if (node) adapters.update(node, component, session(state));
     }
+    view.refreshNavigation();
+  }
+  function receiveState(payload) {
+    const previousStage = viewState.lesson?.stages[viewState.activeIndex];
+    confirmed = payload.state;
+    availableStageIds = payload.availableStageIds;
+    viewState.lesson = payload.lesson.content;
+    const index = viewState.lesson.stages.findIndex(stage => stage.id === confirmed.activeStageId);
+    const stage = viewState.lesson.stages[index];
+    if (index < 0) throw new Error('Активная стадия не найдена.');
+    if (previousStage?.id !== stage.id) view.selectStage(index, true);
+    else if (JSON.stringify(previousStage.content) !== JSON.stringify(stage.content)) view.renderStageContent(stage);
+    paint();
   }
   function flush() {
     if (!connected || inFlight || !pending.length || socket?.readyState !== WebSocket.OPEN) return;
     inFlight = true;
-    socket.send(JSON.stringify({ ...pending[0], stageId: confirmed.activeStageId, expectedVersion: confirmed.version }));
+    socket.send(JSON.stringify({ ...pending[0], expectedVersion: confirmed.version }));
   }
   function connect() {
     if (stopped) return;
@@ -75,13 +98,12 @@
       }
       if (!['snapshot', 'action', 'action-error'].includes(message.type)) return;
       if (message.type === 'snapshot') { connected = true; reconnectDelay = 500; }
-      if (inFlight && (message.type === 'action' || message.type === 'action-error')) {
+      if (inFlight && ((message.type === 'action' && message.actorRole === role) || message.type === 'action-error')) {
         pending.shift();
         inFlight = false;
       }
-      confirmed = message.state;
       if (message.type === 'action-error') { pending = []; notify(message.error); }
-      paint();
+      receiveState(message);
       flush();
     });
     socket.addEventListener('close', event => {
@@ -108,7 +130,9 @@
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Не удалось открыть класс.');
       confirmed = payload.state;
+      availableStageIds = payload.availableStageIds;
       view.render(payload.lesson.content);
+      paint();
       connect();
     } catch (error) { showError(error.message); }
   }
