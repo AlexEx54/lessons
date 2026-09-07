@@ -189,6 +189,7 @@ test('fill in the blanks is registered with editing, answer-key, and responsive 
   const css = fs.readFileSync(path.join(root, 'assets', 'components', 'fill-in-blanks.css'), 'utf8');
   const componentSource = fs.readFileSync(path.join(root, 'assets', 'components', 'fill-in-blanks.js'), 'utf8');
   const editor = fs.readFileSync(path.join(root, 'assets', 'lesson-editor.js'), 'utf8');
+  const view = fs.readFileSync(path.join(root, 'assets', 'lesson-view.js'), 'utf8');
   const page = fs.readFileSync(path.join(root, 'lesson-editor.html'), 'utf8');
   assert.match(css, /fill-in-blanks__field--correct/);
   assert.match(css, /top:\s*50%/);
@@ -204,7 +205,7 @@ test('fill in the blanks is registered with editing, answer-key, and responsive 
   assert.match(css, /fill-in-blanks__answer-edit/);
   assert.match(css, /padding:\s*10px 4px 0 56px/);
   assert.match(css, /@media \(max-width: 480px\)/);
-  assert.match(editor, /fillInBlanks: component/);
+  assert.match(view, /fillInBlanks: \[/);
   assert.match(editor, /saveFillInBlanks/);
   assert.match(page, /components\/fill-in-blanks\.js/);
   assert.match(page, /components\/fill-in-blanks\.css/);

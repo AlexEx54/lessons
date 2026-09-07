@@ -198,13 +198,14 @@ test('component is registered in the lesson editor with numbered colors', () => 
   const css = fs.readFileSync(path.join(root, 'assets', 'components', 'three-two-one.css'), 'utf8');
   const source = fs.readFileSync(path.join(root, 'assets', 'components', 'three-two-one.js'), 'utf8');
   const editor = fs.readFileSync(path.join(root, 'assets', 'lesson-editor.js'), 'utf8');
+  const view = fs.readFileSync(path.join(root, 'assets', 'lesson-view.js'), 'utf8');
   const page = fs.readFileSync(path.join(root, 'lesson-editor.html'), 'utf8');
   assert.match(css, /data-step="three"[^}]+#6545f5/);
   assert.match(css, /data-step="two"[^}]+#2f80ed/);
   assert.match(css, /data-step="one"[^}]+#20a85b/);
   assert.match(css, /@media \(max-width: 700px\)/);
   assert.match(source, /fixed 3-2-1 step set/);
-  assert.match(editor, /threeTwoOne: component/);
+  assert.match(view, /threeTwoOne: \[/);
   assert.match(editor, /saveThreeTwoOne/);
   assert.match(page, /<script src="\/assets\/components\/three-two-one\.js" defer><\/script>/);
   assert.match(page, /<link rel="stylesheet" href="\/assets\/components\/three-two-one\.css" \/>/);

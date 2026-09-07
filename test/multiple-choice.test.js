@@ -249,6 +249,7 @@ test('multiple choice is registered with editing, teacher hint, and responsive s
   const css = fs.readFileSync(path.join(root, 'assets', 'components', 'multiple-choice.css'), 'utf8');
   const source = fs.readFileSync(path.join(root, 'assets', 'components', 'multiple-choice.js'), 'utf8');
   const editor = fs.readFileSync(path.join(root, 'assets', 'lesson-editor.js'), 'utf8');
+  const view = fs.readFileSync(path.join(root, 'assets', 'lesson-view.js'), 'utf8');
   const page = fs.readFileSync(path.join(root, 'lesson-editor.html'), 'utf8');
   assert.match(css, /multiple-choice__option--hint/);
   assert.match(css, /multiple-choice__option--correct/);
@@ -261,7 +262,7 @@ test('multiple choice is registered with editing, teacher hint, and responsive s
   assert.match(source, /hintCorrect && isCorrect && !locked/);
   assert.match(source, /current\.items\.length === 1/);
   assert.match(source, /settings\.viewerRole \|\| 'teacher'/);
-  assert.match(editor, /multipleChoice: component/);
+  assert.match(view, /multipleChoice: \[/);
   assert.match(editor, /viewerRole: 'teacher'/);
   assert.match(editor, /saveMultipleChoice/);
   assert.match(page, /components\/multiple-choice\.js/);

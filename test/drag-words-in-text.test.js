@@ -95,6 +95,7 @@ test('drag words in text is registered with in-place editing and play styles', (
   const root = path.join(__dirname, '..');
   const css = fs.readFileSync(path.join(root, 'assets', 'components', 'drag-words-in-text.css'), 'utf8');
   const editor = fs.readFileSync(path.join(root, 'assets', 'lesson-editor.js'), 'utf8');
+  const view = fs.readFileSync(path.join(root, 'assets', 'lesson-view.js'), 'utf8');
   const page = fs.readFileSync(path.join(root, 'lesson-editor.html'), 'utf8');
   const check = fs.readFileSync(path.join(root, 'package.json'), 'utf8');
   assert.match(css, /drag-words-in-text__chip--picked/);
@@ -104,7 +105,7 @@ test('drag words in text is registered with in-place editing and play styles', (
   assert.match(css, /drag-words-in-text--editing/);
   assert.match(css, /@media \(max-width: 560px\)/);
   assert.doesNotMatch(css, /drag-words-in-text__editor-item/);
-  assert.match(editor, /dragWordsInText: component/);
+  assert.match(view, /dragWordsInText: \[/);
   assert.match(editor, /saveDragWordsInText/);
   assert.match(page, /components\/drag-words-in-text\.js/);
   assert.match(page, /components\/drag-words-in-text\.css/);

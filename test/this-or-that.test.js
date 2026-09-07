@@ -65,3 +65,33 @@ test('this or that CSS defines selected, dimmed, prompt and responsive states', 
   assert.match(css, /this-or-that__media--prompt/);
   assert.match(css, /@media \(max-width: 820px\)/);
 });
+
+test('local and synchronized choices share rendering; remote updates neither emit actions nor replace nodes', () => {
+  const { createDocument } = require('./helpers/lesson-dom.js');
+  const { renderThisOrThat } = require('../assets/components/this-or-that.js');
+  const doc = createDocument(), actions = [];
+  const control = renderThisOrThat(component(), { onAction: action => actions.push(action), showImagePrompts: false }, doc);
+  const [first, second] = control.querySelectorAll('.this-or-that__option');
+  first.querySelector('button').click();
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].optionId, 'option-one');
+  assert.ok(first.classList.contains('this-or-that__option--selected'));
+  assert.ok(second.classList.contains('this-or-that__option--dimmed'));
+  control.updateState({ 'choice-one': 'option-two' });
+  assert.equal(actions.length, 1);
+  assert.equal(control.querySelectorAll('.this-or-that__option')[0], first);
+  assert.ok(second.classList.contains('this-or-that__option--selected'));
+  assert.equal(second.querySelector('button').getAttribute('aria-pressed'), 'true');
+  control.setInteractive(false);
+  first.querySelector('button').click();
+  assert.equal(actions.length, 1);
+  assert.ok(second.classList.contains('this-or-that__option--selected'));
+  control.setInteractive(true);
+  first.querySelector('button').click();
+  assert.equal(actions.length, 2);
+  control.updateState({});
+  assert.ok(!first.classList.contains('this-or-that__option--selected'));
+  assert.ok(!second.classList.contains('this-or-that__option--dimmed'));
+  const restored = renderThisOrThat(component(), { selections: { 'choice-one': 'option-two' }, interactive: false, showImagePrompts: false }, doc);
+  assert.ok(restored.querySelectorAll('.this-or-that__option')[1].classList.contains('this-or-that__option--selected'));
+});

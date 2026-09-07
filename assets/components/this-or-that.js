@@ -65,6 +65,8 @@
     if (!doc) throw new Error('ThisOrThat requires a document.');
 
     let current = normalizeThisOrThat(data);
+    let selections = { ...(settings.selections || {}) };
+    let interactive = settings.interactive !== false;
     let editing = false;
     let busy = false;
     const section = doc.createElement('section');
@@ -177,13 +179,11 @@
       selectButton.setAttribute('aria-pressed', 'false');
       selectButton.setAttribute('aria-label', option.caption);
       selectButton.addEventListener('click', () => {
-        if (editing || busy) return;
-        pair.querySelectorAll('.this-or-that__option').forEach((candidate) => {
-          const selected = candidate === optionElement;
-          candidate.classList.toggle('this-or-that__option--selected', selected);
-          candidate.classList.toggle('this-or-that__option--dimmed', !selected);
-          candidate.querySelector('.this-or-that__select').setAttribute('aria-pressed', String(selected));
-        });
+        if (editing || busy || !interactive) return;
+        const action = { type: 'select-option', componentId: current.id, itemId: item.id, optionId: option.id };
+        selections = { ...selections, [item.id]: option.id };
+        paintSelections();
+        settings.onAction?.(action);
       });
 
       if (typeof settings.onUpload === 'function') {
@@ -226,6 +226,29 @@
       return optionElement;
     }
 
+    function paintSelections() {
+      grid.querySelectorAll('.this-or-that__pair').forEach(pair => {
+        const selectedId = selections[pair.dataset.itemId];
+        pair.querySelectorAll('.this-or-that__option').forEach(option => {
+          const selected = option.dataset.optionId === selectedId;
+          option.classList.toggle('this-or-that__option--selected', selected);
+          option.classList.toggle('this-or-that__option--dimmed', Boolean(selectedId) && !selected);
+          const button = option.querySelector('.this-or-that__select');
+          button.setAttribute('aria-pressed', String(selected));
+          // aria-disabled preserves the existing visual styling in observer mode.
+          button.setAttribute('aria-disabled', String(!interactive));
+        });
+      });
+    }
+    section.updateState = (nextSelections) => {
+      selections = { ...(nextSelections || {}) };
+      paintSelections();
+    };
+    section.setInteractive = value => {
+      interactive = Boolean(value);
+      paintSelections();
+    };
+
     function renderItems() {
       const pairs = current.items.map((item, index) => {
         const pair = doc.createElement('article');
@@ -245,6 +268,7 @@
         return pair;
       });
       grid.replaceChildren(...pairs);
+      paintSelections();
       section.classList.toggle('this-or-that--editing', editing);
     }
 

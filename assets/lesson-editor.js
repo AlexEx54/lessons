@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  if (/^\/classes\//.test(window.location.pathname)) return;
 
   const state = {
     lesson: null,
@@ -13,8 +14,6 @@
     imagePollTimer: null,
   };
   const byId = id => document.getElementById(id);
-  const plan = byId('lesson-plan');
-  const stages = byId('lesson-stages');
   const content = byId('lesson-content');
   const loading = byId('lesson-loading');
   const errorBox = byId('lesson-error');
@@ -121,8 +120,8 @@
     }
   }
 
-  const componentRenderers = {
-    teacherNote: component => window.TeacherNoteComponent.renderTeacherNote(component, {
+  const componentOptions = {
+    teacherNote: () => ({
       onSave: state.draftStatus === 'review' ? saveTeacherNote : undefined,
       onDirtyChange: (dirty, noteId) => {
         if (dirty) state.dirtyComponents.add(noteId);
@@ -130,7 +129,7 @@
       },
       onError: showToast,
     }),
-    taskPrompt: component => window.TaskPromptComponent.renderTaskPrompt(component, {
+    taskPrompt: () => ({
       onSave: state.draftStatus === 'review' ? saveTaskPrompt : undefined,
       onDirtyChange: (dirty, promptId) => {
         if (dirty) state.dirtyComponents.add(promptId);
@@ -138,19 +137,19 @@
       },
       onError: showToast,
     }),
-    thisOrThat: component => window.ThisOrThatComponent.renderThisOrThat(component, {
+    thisOrThat: () => ({
       showImagePrompts: state.draftStatus !== 'readonly',
       onUpload: state.draftStatus === 'review' ? uploadThisOrThatImage : undefined,
       onDelete: state.draftStatus === 'review' ? deleteThisOrThatImage : undefined,
       onMessage: showToast,
     }),
-    matchWords: component => window.MatchWordsComponent.renderMatchWords(component, {
+    matchWords: () => ({
       showImagePrompts: state.draftStatus !== 'readonly',
       onUpload: state.draftStatus === 'review' ? uploadMatchWordsImage : undefined,
       onDelete: state.draftStatus === 'review' ? deleteMatchWordsImage : undefined,
       onMessage: showToast,
     }),
-    dropdownChoice: component => window.DropdownChoiceComponent.renderDropdownChoice(component, {
+    dropdownChoice: () => ({
       onSave: state.draftStatus === 'review' ? saveDropdownChoice : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
@@ -158,7 +157,7 @@
       },
       onError: showToast,
     }),
-    gapFill: component => window.GapFillComponent.renderGapFill(component, {
+    gapFill: () => ({
       onSave: state.draftStatus === 'review' ? saveGapFill : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
@@ -166,7 +165,7 @@
       },
       onError: showToast,
     }),
-    fillInBlanks: component => window.FillInBlanksComponent.renderFillInBlanks(component, {
+    fillInBlanks: () => ({
       viewerRole: 'teacher',
       onSave: state.draftStatus === 'review' ? saveFillInBlanks : undefined,
       onDirtyChange: (dirty, componentId) => {
@@ -175,7 +174,7 @@
       },
       onError: showToast,
     }),
-    dragWordsInText: component => window.DragWordsInTextComponent.renderDragWordsInText(component, {
+    dragWordsInText: () => ({
       onSave: state.draftStatus === 'review' ? saveDragWordsInText : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
@@ -183,7 +182,7 @@
       },
       onError: showToast,
     }),
-    personalizedQuestions: component => window.PersonalizedQuestionsComponent.renderPersonalizedQuestions(component, {
+    personalizedQuestions: () => ({
       onSave: state.draftStatus === 'review' ? savePersonalizedQuestions : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
@@ -191,7 +190,7 @@
       },
       onError: showToast,
     }),
-    describeAndGuess: component => window.DescribeAndGuessComponent.renderDescribeAndGuess(component, {
+    describeAndGuess: () => ({
       onSave: state.draftStatus === 'review' ? saveDescribeAndGuess : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
@@ -199,7 +198,7 @@
       },
       onError: showToast,
     }),
-    howToPlay: component => window.HowToPlayComponent.renderHowToPlay(component, {
+    howToPlay: () => ({
       onSave: state.draftStatus === 'review' ? saveHowToPlay : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
@@ -207,7 +206,7 @@
       },
       onError: showToast,
     }),
-    guidedRoleCards: component => window.GuidedRoleCardsComponent.renderGuidedRoleCards(component, {
+    guidedRoleCards: () => ({
       viewerRole: 'teacher',
       onSave: state.draftStatus === 'review' ? saveGuidedRoleCards : undefined,
       onDirtyChange: (dirty, componentId) => {
@@ -216,7 +215,7 @@
       },
       onError: showToast,
     }),
-    speakingSupport: component => window.SpeakingSupportComponent.renderSpeakingSupport(component, {
+    speakingSupport: () => ({
       onSave: state.draftStatus === 'review' ? saveSpeakingSupport : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
@@ -224,7 +223,7 @@
       },
       onError: showToast,
     }),
-    threeTwoOne: component => window.ThreeTwoOneComponent.renderThreeTwoOne(component, {
+    threeTwoOne: () => ({
       onSave: state.draftStatus === 'review' ? saveThreeTwoOne : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
@@ -232,7 +231,7 @@
       },
       onError: showToast,
     }),
-    selfAssessment: component => window.SelfAssessmentComponent.renderSelfAssessment(component, {
+    selfAssessment: () => ({
       onSave: state.draftStatus === 'review' ? saveSelfAssessment : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
@@ -240,7 +239,7 @@
       },
       onError: showToast,
     }),
-    textPanel: component => window.TextPanelComponent.renderTextPanel(component, {
+    textPanel: () => ({
       onSave: state.draftStatus === 'review' ? saveTextPanel : undefined,
       onDirtyChange: (dirty, panelId) => {
         if (dirty) state.dirtyComponents.add(panelId);
@@ -248,7 +247,7 @@
       },
       onMessage: showToast,
     }),
-    illustratedTextPanel: component => window.IllustratedTextPanelComponent.renderIllustratedTextPanel(component, {
+    illustratedTextPanel: () => ({
       onSave: state.draftStatus === 'review' ? saveIllustratedTextPanel : undefined,
       onDirtyChange: (dirty, panelId) => {
         if (dirty) state.dirtyComponents.add(panelId);
@@ -258,7 +257,7 @@
       onDelete: state.draftStatus === 'review' ? deleteIllustratedTextPanelImage : undefined,
       onMessage: showToast,
     }),
-    miniSituation: component => window.MiniSituationComponent.renderMiniSituation(component, {
+    miniSituation: () => ({
       onSave: state.draftStatus === 'review' ? saveMiniSituation : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
@@ -270,7 +269,7 @@
       onSituationDelete: state.draftStatus === 'review' ? deleteIllustratedTextPanelImage : undefined,
       onMessage: showToast,
     }),
-    multipleChoice: component => window.MultipleChoiceComponent.renderMultipleChoice(component, {
+    multipleChoice: () => ({
       viewerRole: 'teacher',
       onSave: state.draftStatus === 'review' ? saveMultipleChoice : undefined,
       onDirtyChange: (dirty, componentId) => {
@@ -279,7 +278,7 @@
       },
       onError: showToast,
     }),
-    checkboxChoice: component => window.CheckboxChoiceComponent.renderCheckboxChoice(component, {
+    checkboxChoice: () => ({
       viewerRole: 'teacher',
       onSave: state.draftStatus === 'review' ? saveCheckboxChoice : undefined,
       onDirtyChange: (dirty, componentId) => {
@@ -288,7 +287,7 @@
       },
       onError: showToast,
     }),
-    textReading: component => window.TextReadingComponent.renderTextReading(component, {
+    textReading: () => ({
       onSave: state.draftStatus === 'review' ? saveTextReading : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
@@ -298,7 +297,7 @@
       onDelete: state.draftStatus === 'review' ? deleteTextReadingImage : undefined,
       onMessage: showToast,
     }),
-    audioPlayer: component => window.AudioPlayerComponent.renderAudioPlayer(component, {
+    audioPlayer: () => ({
       onSave: state.draftStatus === 'review' ? saveAudioPlayer : undefined,
       onDirtyChange: (dirty, componentId) => {
         if (dirty) state.dirtyComponents.add(componentId);
@@ -308,7 +307,7 @@
       onDelete: state.draftStatus === 'review' ? deleteAudioPlayerAudio : undefined,
       onMessage: showToast,
     }),
-    markdownCard: component => window.MarkdownCardComponent.renderMarkdownCard(component, {
+    markdownCard: () => ({
       viewerRole: 'teacher',
       studentVisible: false,
       onSave: state.draftStatus === 'review' ? saveMarkdownCard : undefined,
@@ -318,7 +317,7 @@
       },
       onError: showToast,
     }),
-    cardRow: component => window.CardRowComponent.renderCardRow(component, {
+    cardRow: () => ({
       viewerRole: 'teacher',
       studentVisible: false,
       onSave: state.draftStatus === 'review' ? saveMarkdownCard : undefined,
@@ -329,78 +328,6 @@
       onError: showToast,
     }),
   };
-
-  const svgNS = 'http://www.w3.org/2000/svg';
-  const stageIconShapes = {
-    sparkles: [
-      ['path', { d: 'M10 3.2 11.3 8l4.8 1.3-4.8 1.3L10 15.4 8.7 10.6 3.9 9.3 8.7 8z' }],
-      ['path', { d: 'm18.2 13.2.8 3 3 .8-3 .8-.8 3-.8-3-3-.8 3-.8z' }],
-    ],
-    pencil: [
-      ['path', { d: 'm13.2 5.2 5.6 5.6' }],
-      ['path', { d: 'M4 20.1 5.7 14.4 16.2 3.9a2 2 0 0 1 2.8 0l1.1 1.1a2 2 0 0 1 0 2.8L9.6 18.3z' }],
-      ['path', { d: 'M4 20.1 8.4 18.8' }],
-    ],
-    cards: [
-      ['rect', { x: '5', y: '3.5', width: '14', height: '17', rx: '2.2' }],
-      ['path', { d: 'M8.4 9.2h7.2' }],
-      ['path', { d: 'M8.4 13.4h5' }],
-    ],
-    book: [
-      ['path', { d: 'M12 6.2c-1.8-1.2-4.6-1.8-7.5-1.8v13.8c2.9 0 5.7.6 7.5 1.8 1.8-1.2 4.6-1.8 7.5-1.8V4.4c-2.9 0-5.7.6-7.5 1.8z' }],
-      ['path', { d: 'M12 6.2v13.8' }],
-    ],
-    audio: [
-      ['path', { d: 'M4 13v-1a8 8 0 0 1 16 0v1' }],
-      ['path', { d: 'M4 13v3.5A2.5 2.5 0 0 0 6.5 19H8v-6H4z' }],
-      ['path', { d: 'M20 13v3.5A2.5 2.5 0 0 1 17.5 19H16v-6h4z' }],
-    ],
-    cap: [
-      ['path', { d: 'm3.2 10.4 8.8-4.8 8.8 4.8-8.8 4.8z' }],
-      ['path', { d: 'M7.2 12.6v3.6c1.8 1.6 7.8 1.6 9.6 0v-3.6' }],
-      ['path', { d: 'M20.8 10.4v5.4' }],
-    ],
-    chat: [
-      ['path', { d: 'M14.6 10.8h3.8a2 2 0 0 1 2 2v3.6a2 2 0 0 1-2 2H17v2.2l-3.2-2.2h-1.2a2 2 0 0 1-2-2v-3.6a2 2 0 0 1 2-2z', fill: '#fff' }],
-      ['path', { d: 'M6.4 5.6h7a2.2 2.2 0 0 1 2.2 2.2v4.1a2.2 2.2 0 0 1-2.2 2.2H8.1L4.2 16.8V7.8A2.2 2.2 0 0 1 6.4 5.6z', fill: '#fff' }],
-    ],
-    question: [
-      ['circle', { cx: '12', cy: '12', r: '8.2' }],
-      ['path', { d: 'M9.4 9.5a2.6 2.6 0 1 1 4.4 1.9c-.8.6-1.5 1.1-1.5 2.4' }],
-      ['circle', { cx: '12.3', cy: '16.6', r: '.85', fill: 'currentColor', stroke: 'none' }],
-    ],
-  };
-  const stageIconAliases = {
-    sparkles: 'sparkles',
-    compass: 'pencil',
-    pencil: 'pencil',
-    cards: 'cards',
-    book: 'book',
-    audio: 'audio',
-    cap: 'cap',
-    chat: 'chat',
-    check: 'question',
-    question: 'question',
-  };
-
-  function createStageIcon(name) {
-    const svg = document.createElementNS(svgNS, 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('aria-hidden', 'true');
-    const shapes = stageIconShapes[stageIconAliases[name] || 'sparkles'];
-    for (const [tag, attrs] of shapes) {
-      const node = document.createElementNS(svgNS, tag);
-      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
-      svg.append(node);
-    }
-    return svg;
-  }
-
-  function formatTime(seconds) {
-    const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const remainder = (seconds % 60).toString().padStart(2, '0');
-    return `${minutes}:${remainder}`;
-  }
 
   function showToast(message) {
     toast.textContent = message;
@@ -409,120 +336,16 @@
     toastTimer = window.setTimeout(() => toast.classList.remove('lesson-toast--visible'), 2600);
   }
 
-  function stageButton(stage, index) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'lesson-stage';
-    button.dataset.stageIndex = String(index);
-
-    const number = document.createElement('span');
-    number.className = 'lesson-stage__number';
-    number.textContent = String(stage.number);
-    const icon = document.createElement('span');
-    icon.className = 'lesson-stage__icon';
-    icon.append(createStageIcon(stage.icon));
-    const title = document.createElement('span');
-    title.className = 'lesson-stage__title';
-    title.textContent = stage.title;
-    const duration = document.createElement('span');
-    duration.className = 'lesson-stage__duration';
-    duration.textContent = `${stage.durationMinutes} min`;
-    button.append(icon, number, title, duration);
-    button.addEventListener('click', () => selectStage(index));
-    return button;
-  }
-
-  function selectStage(index) {
-    const lesson = state.lesson;
-    if (!lesson || index < 0 || index >= lesson.stages.length) return;
-    if (state.dirtyComponents.size > 0) {
-      const discard = window.confirm('Есть несохранённые изменения. Отменить их и перейти к другой стадии?');
-      if (!discard) return;
+  const { render, renderStageContent, formatTime } = window.LessonView.create({
+    state,
+    componentOptions: component => componentOptions[component.type]?.() || {},
+    beforeSelect: () => {
+      if (state.dirtyComponents.size === 0) return true;
+      if (!window.confirm('Есть несохранённые изменения. Отменить их и перейти к другой стадии?')) return false;
       state.dirtyComponents.clear();
-    }
-    state.activeIndex = index;
-    const stage = lesson.stages[index];
-    [...stages.children].forEach((button, buttonIndex) => {
-      const active = buttonIndex === index;
-      button.classList.toggle('lesson-stage--active', active);
-      button.setAttribute('aria-current', active ? 'step' : 'false');
-    });
-    byId('stage-number').textContent = `${stage.number}.`;
-    byId('stage-title').textContent = stage.title;
-    const subtitle = typeof stage.subtitle === 'string' ? stage.subtitle.trim() : '';
-    const kicker = byId('stage-kicker');
-    kicker.textContent = subtitle;
-    kicker.hidden = !subtitle;
-    renderStageContent(stage);
-    byId('stage-progress').textContent = `${index + 1} из ${lesson.stages.length}`;
-    byId('previous-stage').disabled = index === 0;
-    byId('next-stage').disabled = index === lesson.stages.length - 1;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function emptyStage(stage) {
-    const section = document.createElement('section');
-    section.className = 'empty-stage';
-    const titleId = `empty-stage-title-${stage.id}`;
-    section.setAttribute('aria-labelledby', titleId);
-    const icon = document.createElement('span');
-    icon.className = 'empty-stage__icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = '✦';
-    const title = document.createElement('h2');
-    title.id = titleId;
-    title.textContent = 'Стадия готова к наполнению';
-    const description = document.createElement('p');
-    description.textContent = 'Структура урока уже создана из JSON. Контент для этой стадии будет сгенерирован на следующем этапе.';
-    section.append(icon, title, description);
-    const meta = document.createElement('div');
-    meta.className = 'empty-stage__meta';
-    const duration = document.createElement('span');
-    duration.textContent = `${stage.durationMinutes} min`;
-    const status = document.createElement('span');
-    status.textContent = 'Контент пока не добавлен';
-    meta.append(duration, status);
-    section.append(meta);
-    return section;
-  }
-
-  function unsupportedComponent(component) {
-    const element = document.createElement('div');
-    element.className = 'unsupported-component';
-    element.textContent = `Компонент «${component?.type || 'unknown'}» пока не поддерживается.`;
-    return element;
-  }
-
-  function renderStageContent(stage) {
-    const container = byId('stage-components');
-    if (!Array.isArray(stage.content) || stage.content.length === 0) {
-      container.replaceChildren(emptyStage(stage));
-      return;
-    }
-    const rendered = stage.content.map((component) => {
-      const renderer = component && componentRenderers[component.type];
-      if (!renderer) return unsupportedComponent(component);
-      try {
-        return renderer(component);
-      } catch (_error) {
-        return unsupportedComponent(component);
-      }
-    }).filter(Boolean);
-    container.replaceChildren(...rendered);
-  }
-
-  function render(lesson) {
-    state.lesson = lesson;
-    const meta = lesson.meta || {};
-    document.title = `${meta.title || meta.topic || 'Урок'} — EasyClass`;
-    byId('lesson-title').textContent = `${meta.title || meta.topic || 'Новый урок'} (${meta.level || 'A2'})`;
-    byId('lesson-number').textContent = `Lesson ${meta.lessonNumber || 1} of 1`;
-    byId('total-time').textContent = formatTime((meta.durationMinutes || 45) * 60);
-    stages.replaceChildren(...lesson.stages.map(stageButton));
-    loading.hidden = true;
-    content.hidden = false;
-    selectStage(0);
-  }
+      return true;
+    },
+  });
 
   // Единая точка поиска компонентов: вложенные дети (например панель внутри
   // miniSituation или карточки внутри cardRow) находит общий обходчик,
@@ -1338,17 +1161,16 @@
 
   async function loadLesson() {
     const libraryMatch = window.location.pathname.match(/^\/library\/([^/]+)\/?$/);
-    const classMatch = window.location.pathname.match(/^\/classes\/([^/]+)\/?$/);
-    const match = classMatch || libraryMatch || window.location.pathname.match(/^\/lesson-drafts\/([^/]+)\/edit\/?$/);
+    const match = libraryMatch || window.location.pathname.match(/^\/lesson-drafts\/([^/]+)\/edit\/?$/);
     if (!match) return showError('Некорректная ссылка на урок.');
     try {
-      const response = await fetch(`/api/${classMatch ? 'classes' : libraryMatch ? 'library' : 'lesson-drafts'}/${encodeURIComponent(decodeURIComponent(match[1]))}`, { cache: 'no-store' });
+      const response = await fetch(`/api/${libraryMatch ? 'library' : 'lesson-drafts'}/${encodeURIComponent(decodeURIComponent(match[1]))}`, { cache: 'no-store' });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Черновик урока не найден.');
-      if (libraryMatch || classMatch) {
+      if (libraryMatch) {
         state.draftStatus = 'readonly';
-        document.querySelector('.end-lesson').href = classMatch ? '/schedule' : '/library.html';
-        document.querySelector('.end-lesson span').textContent = classMatch ? 'В расписание' : 'В библиотеку';
+        document.querySelector('.end-lesson').href = '/library.html';
+        document.querySelector('.end-lesson span').textContent = 'В библиотеку';
         render(payload.lesson.content);
         return;
       }
@@ -1366,21 +1188,10 @@
     }
   }
 
-  function setPlanVisible(visible) {
-    plan.hidden = !visible;
-    byId('show-plan').hidden = visible;
-    document.body.classList.toggle('lesson-plan-hidden', !visible);
-  }
-
   byId('publish-lesson').addEventListener('click', () => window.LessonPublication.open(state.draftId, {
     isDirty: () => state.dirtyComponents.size > 0,
     onChange: () => { byId('publish-lesson').textContent = 'Публикация урока'; },
   }));
-  byId('hide-plan').addEventListener('click', () => setPlanVisible(false));
-  byId('close-plan').addEventListener('click', () => setPlanVisible(false));
-  byId('show-plan').addEventListener('click', () => setPlanVisible(true));
-  byId('previous-stage').addEventListener('click', () => selectStage(state.activeIndex - 1));
-  byId('next-stage').addEventListener('click', () => selectStage(state.activeIndex + 1));
   byId('teacher-screen').addEventListener('click', () => showToast('Экран преподавателя уже открыт.'));
   imageGenerationStop.addEventListener('click', () => changeImageGeneration('stop', imageGenerationStop));
   imageGenerationStart.addEventListener('click', () => changeImageGeneration('start', imageGenerationStart));

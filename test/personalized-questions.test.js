@@ -74,6 +74,7 @@ test('personalized questions is registered with editing, ordering, emphasis, and
   const css = fs.readFileSync(path.join(root, 'assets', 'components', 'personalized-questions.css'), 'utf8');
   const source = fs.readFileSync(path.join(root, 'assets', 'components', 'personalized-questions.js'), 'utf8');
   const editor = fs.readFileSync(path.join(root, 'assets', 'lesson-editor.js'), 'utf8');
+  const view = fs.readFileSync(path.join(root, 'assets', 'lesson-view.js'), 'utf8');
   const page = fs.readFileSync(path.join(root, 'lesson-editor.html'), 'utf8');
   assert.match(css, /counter-reset:\s*personalized-question/);
   assert.match(css, /personalized-questions__question strong/);
@@ -82,7 +83,7 @@ test('personalized questions is registered with editing, ordering, emphasis, and
   assert.match(source, /Переместить вверх/);
   assert.match(source, /Добавить вопрос/);
   assert.match(source, /personalized-questions__remove/);
-  assert.match(editor, /personalizedQuestions: component/);
+  assert.match(view, /personalizedQuestions: \[/);
   assert.match(editor, /savePersonalizedQuestions/);
   assert.match(page, /components\/personalized-questions\.js/);
   assert.match(page, /components\/personalized-questions\.css/);

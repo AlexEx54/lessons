@@ -278,6 +278,7 @@ test('checkbox choice is registered with editing, teacher hint, and responsive s
   const css = fs.readFileSync(path.join(root, 'assets', 'components', 'checkbox-choice.css'), 'utf8');
   const source = fs.readFileSync(path.join(root, 'assets', 'components', 'checkbox-choice.js'), 'utf8');
   const editor = fs.readFileSync(path.join(root, 'assets', 'lesson-editor.js'), 'utf8');
+  const view = fs.readFileSync(path.join(root, 'assets', 'lesson-view.js'), 'utf8');
   const page = fs.readFileSync(path.join(root, 'lesson-editor.html'), 'utf8');
   assert.match(css, /checkbox-choice__option--hint/);
   assert.match(css, /checkbox-choice__option--correct/);
@@ -291,7 +292,7 @@ test('checkbox choice is registered with editing, teacher hint, and responsive s
   assert.match(source, /current\.items\.length === 1/);
   assert.match(source, /settings\.viewerRole \|\| 'teacher'/);
   assert.match(source, /type = 'checkbox'/);
-  assert.match(editor, /checkboxChoice: component/);
+  assert.match(view, /checkboxChoice: \[/);
   assert.match(editor, /viewerRole: 'teacher'/);
   assert.match(editor, /saveCheckboxChoice/);
   assert.match(page, /components\/checkbox-choice\.js/);

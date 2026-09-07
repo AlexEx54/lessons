@@ -58,7 +58,9 @@ Set these environment variables in the production `.env` on the VPS:
 
 ## Video calls
 
-The application handles WebRTC signaling at `/ws/video-calls/:id`. The HTTPS reverse
+The application handles WebRTC signaling at `/ws/video-calls/:id` and live lesson
+synchronization at `/ws/classes/:id`. Both currently require a single application
+process (participant connections are held in memory). The HTTPS reverse
 proxy must forward WebSocket upgrades and keep these connections open. A typical nginx
 location uses HTTP/1.1 together with `Upgrade` and `Connection` proxy headers.
 

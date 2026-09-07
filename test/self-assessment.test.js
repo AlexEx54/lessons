@@ -156,6 +156,7 @@ test('component is registered in the lesson editor with a three-column scale', (
   const css = fs.readFileSync(path.join(root, 'assets', 'components', 'self-assessment.css'), 'utf8');
   const source = fs.readFileSync(path.join(root, 'assets', 'components', 'self-assessment.js'), 'utf8');
   const editor = fs.readFileSync(path.join(root, 'assets', 'lesson-editor.js'), 'utf8');
+  const view = fs.readFileSync(path.join(root, 'assets', 'lesson-view.js'), 'utf8');
   const page = fs.readFileSync(path.join(root, 'lesson-editor.html'), 'utf8');
   assert.match(css, /\.self-assessment \{[^}]*border: 1px solid #e6e7ee/);
   assert.match(css, /grid-template-columns:\s*repeat\(3/);
@@ -163,7 +164,7 @@ test('component is registered in the lesson editor with a three-column scale', (
   assert.match(css, /@media \(max-width: 760px\)/);
   assert.match(source, /I can do it independently/);
   assert.match(source, /I need more practice/);
-  assert.match(editor, /selfAssessment: component/);
+  assert.match(view, /selfAssessment: \[/);
   assert.match(editor, /saveSelfAssessment/);
   assert.match(page, /<script src="\/assets\/components\/self-assessment\.js" defer><\/script>/);
   assert.match(page, /<link rel="stylesheet" href="\/assets\/components\/self-assessment\.css" \/>/);

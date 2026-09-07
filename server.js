@@ -16,7 +16,9 @@ const {
 } = require('./lib/auth.js');
 const { getDatabase } = require('./lib/db.js');
 const { listLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, findLibraryAsset } = require('./lib/library-store.js');
-const { createClass, findClass, findClassByInvite, listClasses, findClassAsset } = require('./lib/class-store.js');
+const { createClass, findClass, listClasses, findClassAsset } = require('./lib/class-store.js');
+const { joinClass, authorizeClass, sessionPayload, guestCanReadAsset } = require('./lib/class-session-store.js');
+const { createClassSessionSignaling } = require('./lib/class-session-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
 const { createUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
@@ -1373,28 +1375,53 @@ const server = http.createServer(async (req, res) => {
 
   const classPage = pathname.match(/^\/classes\/([a-f0-9-]{36})\/?$/i);
   const classDetail = pathname.match(/^\/api\/classes\/([a-f0-9-]{36})$/i);
+  const studentPage = pathname.match(/^\/classes\/([a-f0-9-]{36})\/student\/?$/i);
+  const liveDetail = pathname.match(/^\/api\/classes\/([a-f0-9-]{36})\/live$/i);
   const classInvite = pathname.match(/^\/join\/((?:[a-z0-9][a-z0-9-]{0,47}-)?[a-f0-9]{48})\/?$/i);
-  if (req.method === 'GET' && (classPage || classDetail || classInvite)) {
+  if (req.method === 'GET' && classInvite) {
+    try {
+      const joined = joinClass(req, classInvite[1], database);
+      if (joined.cookie) res.setHeader('Set-Cookie', joined.cookie);
+      redirect(res, `/classes/${joined.id}/student`);
+    } catch (error) { json(res, error.statusCode || 500, { error: error.message }); }
+    return;
+  }
+  if (req.method === 'GET' && (studentPage || liveDetail)) {
+    const role = studentPage ? 'student' : new URL(req.url, 'http://localhost').searchParams.get('role');
+    if (!['teacher', 'student'].includes(role)) { json(res, 400, { error: 'Укажите роль участника.' }); return; }
+    const access = authorizeClass(req, (studentPage || liveDetail)[1], database, role);
+    if (!access) { json(res, 403, { error: 'Откройте действующую ссылку на класс.' }); return; }
+    try {
+      if (studentPage) serveStatic('/lesson-editor.html', res);
+      else json(res, 200, sessionPayload(access, database));
+    } catch (error) { json(res, error.statusCode || 500, { error: error.message }); }
+    return;
+  }
+  if (req.method === 'GET' && (classPage || classDetail)) {
     const user = getAuthenticatedUser(req, database);
     if (!user) {
       if (classDetail) json(res, 401, { error: 'Требуется вход в кабинет преподавателя.' });
       else redirect(res, loginRedirect(pathname));
       return;
     }
-    const lesson = classInvite ? findClassByInvite(classInvite[1], user.id, database)
-      : findClass((classPage || classDetail)[1], user.id, database);
+    const lesson = findClass((classPage || classDetail)[1], user.id, database);
     if (!lesson) { json(res, 404, { error: 'Класс не найден.' }); return; }
-    if (classInvite) redirect(res, lesson.lessonPath);
-    else if (classPage) serveStatic('/lesson-editor.html', res);
+    if (classPage) serveStatic('/lesson-editor.html', res);
     else json(res, 200, { lesson });
     return;
   }
 
   const classAsset = pathname.match(/^\/api\/classes\/([a-f0-9-]{36})\/assets\/([a-f0-9]{64}\.(?:jpg|png|webp|mp3|wav|m4a))$/i);
   if (classAsset && ['GET', 'HEAD'].includes(req.method)) {
-    const user = requireTeacherAuth(req, res);
-    if (!user) return;
-    const data = findClassAsset(classAsset[1], classAsset[2], user.id, database);
+    const user = getAuthenticatedUser(req, database);
+    const guest = authorizeClass(req, classAsset[1], database, 'student');
+    let data = user ? findClassAsset(classAsset[1], classAsset[2], user.id, database) : undefined;
+    if (!data && guest) {
+      try {
+        if (guestCanReadAsset(guest, classAsset[2], database)) data = findClassAsset(classAsset[1], classAsset[2], guest.ownerId, database);
+      } catch {}
+    }
+    if (!user && !guest) { json(res, 401, { error: 'Требуется доступ к классу.' }); return; }
     if (!data) { json(res, 404, { error: 'Файл недоступен.' }); return; }
     if (req.method === 'HEAD') {
       res.writeHead(200, { 'Content-Type': getContentType(classAsset[2]), 'Content-Length': data.length, 'Cache-Control': 'private, no-store' });
@@ -2283,7 +2310,15 @@ const server = http.createServer(async (req, res) => {
   json(res, 405, { error: 'Method not allowed' });
 });
 
-videoCallSignaling = createVideoCallSignaling({ server, database });
+videoCallSignaling = createVideoCallSignaling({ server, database, attachUpgrade: false });
+const classSessionSignaling = createClassSessionSignaling({ database });
+server.on('upgrade', (req, socket, head) => {
+  let pathname;
+  try { pathname = new URL(req.url, 'http://localhost').pathname; }
+  catch { socket.destroy(); return; }
+  if (pathname.startsWith('/ws/classes/')) classSessionSignaling.handleUpgrade(req, socket, head);
+  else videoCallSignaling.handleUpgrade(req, socket, head);
+});
 
 server.listen(PORT, HOST, () => {
   console.log(`EasyClass server running on http://${HOST}:${PORT}`);
