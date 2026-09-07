@@ -16,6 +16,7 @@ const {
 } = require('./lib/auth.js');
 const { getDatabase } = require('./lib/db.js');
 const { listLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, findLibraryAsset } = require('./lib/library-store.js');
+const { createClass, findClass, findClassByInvite, listClasses, findClassAsset } = require('./lib/class-store.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
 const { createUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
@@ -507,37 +508,7 @@ const homeContentMock = {
       isNew: true,
     },
   ],
-  onboardingRecommendations: [
-    {
-      id: 'placement-test',
-      level: 'A1–B2',
-      title: 'Тест на определение уровня',
-      subtitle: 'Placement Test',
-      description: 'Идеальный старт для нового ученика',
-      coverSrc: '/assets/images/recommendation-placement.png',
-    },
-    {
-      id: 'general-english-b1',
-      level: 'B1',
-      title: 'General English B1',
-      subtitle: 'Первый урок',
-      coverSrc: '/assets/images/recommendation-general-english.png',
-    },
-    {
-      id: 'travel-and-transport-b1',
-      level: 'B1–B2',
-      title: 'Travel & Transport',
-      popular: true,
-      coverSrc: '/assets/images/recommendation-travel.png',
-    },
-    {
-      id: 'english-for-it',
-      level: 'B2',
-      title: 'English for IT',
-      subtitle: 'Английский для IT-специалистов',
-      coverSrc: '/assets/images/recommendation-it.png',
-    },
-  ],
+
 };
 
 function json(res, status, payload, extraHeaders = {}) {
@@ -1380,9 +1351,67 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && pathname === '/schedule') {
+    const user = getAuthenticatedUser(req, database);
+    if (!user) { redirect(res, loginRedirect(pathname)); return; }
+    await serveAppPage('schedule', res, { user });
+    return;
+  }
+
+  if (pathname === '/api/classes' && ['GET', 'POST'].includes(req.method)) {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    if (req.method === 'GET') { json(res, 200, { classes: listClasses(user.id, database) }); return; }
+    try {
+      const lesson = createClass(await readJsonBody(req), user.id, database);
+      json(res, 201, { lesson });
+    } catch (error) {
+      json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось создать класс.' });
+    }
+    return;
+  }
+
+  const classPage = pathname.match(/^\/classes\/([a-f0-9-]{36})\/?$/i);
+  const classDetail = pathname.match(/^\/api\/classes\/([a-f0-9-]{36})$/i);
+  const classInvite = pathname.match(/^\/join\/((?:[a-z0-9][a-z0-9-]{0,47}-)?[a-f0-9]{48})\/?$/i);
+  if (req.method === 'GET' && (classPage || classDetail || classInvite)) {
+    const user = getAuthenticatedUser(req, database);
+    if (!user) {
+      if (classDetail) json(res, 401, { error: 'Требуется вход в кабинет преподавателя.' });
+      else redirect(res, loginRedirect(pathname));
+      return;
+    }
+    const lesson = classInvite ? findClassByInvite(classInvite[1], user.id, database)
+      : findClass((classPage || classDetail)[1], user.id, database);
+    if (!lesson) { json(res, 404, { error: 'Класс не найден.' }); return; }
+    if (classInvite) redirect(res, lesson.lessonPath);
+    else if (classPage) serveStatic('/lesson-editor.html', res);
+    else json(res, 200, { lesson });
+    return;
+  }
+
+  const classAsset = pathname.match(/^\/api\/classes\/([a-f0-9-]{36})\/assets\/([a-f0-9]{64}\.(?:jpg|png|webp|mp3|wav|m4a))$/i);
+  if (classAsset && ['GET', 'HEAD'].includes(req.method)) {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    const data = findClassAsset(classAsset[1], classAsset[2], user.id, database);
+    if (!data) { json(res, 404, { error: 'Файл недоступен.' }); return; }
+    if (req.method === 'HEAD') {
+      res.writeHead(200, { 'Content-Type': getContentType(classAsset[2]), 'Content-Length': data.length, 'Cache-Control': 'private, no-store' });
+      res.end();
+    } else sendDraftAsset(res, classAsset[2], Buffer.from(data), req.headers.range);
+    return;
+  }
+
   if (req.method === 'GET' && pathname === '/api/home-content') {
-    if (!requireTeacherAuth(req, res)) return;
-    json(res, 200, homeContentMock);
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    json(res, 200, {
+      ...homeContentMock,
+      hasClasses: Boolean(database.prepare('SELECT 1 FROM classes WHERE owner_id = ? LIMIT 1').get(user.id)),
+      onboardingRecommendations: listLibraryLessons(database).filter(lesson => lesson.is_available)
+        .map(lesson => ({ ...lesson, coverSrc: lesson.cover })),
+    });
     return;
   }
 

@@ -60,6 +60,7 @@
         <li class="class-progress__step">3</li>
       </ol>
 
+      <p id="class-error" class="class-error" role="alert"></p>
       <div class="class-step class-step--active" data-class-step="1">
         <div class="class-dialog__grid">
           <div class="class-dialog__content">
@@ -111,10 +112,15 @@
           <p>Выберите готовый интерактивный урок из быстрых рекомендаций.</p>
         </header>
 
+        <div class="class-picker-fields">
+          <label>Поиск урока<input id="class-lesson-search" type="search" placeholder="Название, тема или уровень" /></label>
+          <label>Дата и время (необязательно)<input id="class-time-input" type="datetime-local" /><small id="class-time-zone"></small></label>
+        </div>
+        <button id="class-retry-lessons" type="button" hidden>Попробовать ещё раз</button>
         <div class="recommendation-status" id="recommendation-status" role="status">Загружаем рекомендации…</div>
         <div class="recommendation-track" id="recommendation-track" role="radiogroup" aria-labelledby="lesson-picker-title"></div>
 
-        <button class="lesson-picker__library" type="button" data-coming-soon="Вся библиотека">
+        <button class="lesson-picker__library" type="button" id="class-all-lessons">
           Не нашли подходящий? Открыть всю библиотеку <span aria-hidden="true">→</span>
         </button>
 
@@ -142,6 +148,7 @@
             </button>
           </section>
 
+          <p id="class-completion-time"></p>
           <p class="class-completion__hint">
             Отправьте эту ссылку ученику. Ему не нужно регистрироваться —<br />
             урок откроется в браузере в один клик.<br />
@@ -157,7 +164,7 @@
         </div>
 
         <footer class="class-completion__footer">
-          <button class="class-completion__launch" type="button" aria-disabled="true">
+          <button class="class-completion__launch" type="button" id="class-launch-button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" /></svg>
             Запустить урок прямо сейчас
           </button>

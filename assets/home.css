@@ -1335,3 +1335,17 @@ body.modal-open {
   }
 
 }
+
+.class-picker-fields { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin:18px 0; }
+.class-picker-fields label { display:grid; align-content:start; gap:8px; color:var(--ink); font-size:13px; font-weight:600; }
+.class-picker-fields input { width:100%; min-width:0; border:1px solid var(--line); border-radius:12px; padding:12px; background:#faf9ff; color:var(--ink); font:inherit; }
+.class-picker-fields small { font-size:11px; color:var(--muted); font-weight:400; }
+.class-error { color:#b32949; font-size:13px; margin:0 0 12px; }
+.class-error:empty { display:none; }
+.class-dialog[aria-busy="true"] { cursor:progress; }
+.class-completion__launch { cursor:pointer; }
+#class-completion-time { color:var(--muted); margin-top:12px; font-size:13px; }
+@media (max-width:600px) { .class-picker-fields { grid-template-columns:1fr; } }
+.class-dialog [hidden] { display:none !important; }
+.class-completion__launch { opacity:1; }
+@media(min-width:721px) { .class-dialog { max-height:calc(100dvh - 48px); overflow-y:auto; } }

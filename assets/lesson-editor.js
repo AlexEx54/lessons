@@ -1338,16 +1338,17 @@
 
   async function loadLesson() {
     const libraryMatch = window.location.pathname.match(/^\/library\/([^/]+)\/?$/);
-    const match = libraryMatch || window.location.pathname.match(/^\/lesson-drafts\/([^/]+)\/edit\/?$/);
+    const classMatch = window.location.pathname.match(/^\/classes\/([^/]+)\/?$/);
+    const match = classMatch || libraryMatch || window.location.pathname.match(/^\/lesson-drafts\/([^/]+)\/edit\/?$/);
     if (!match) return showError('Некорректная ссылка на урок.');
     try {
-      const response = await fetch(`/api/${libraryMatch ? 'library' : 'lesson-drafts'}/${encodeURIComponent(decodeURIComponent(match[1]))}`, { cache: 'no-store' });
+      const response = await fetch(`/api/${classMatch ? 'classes' : libraryMatch ? 'library' : 'lesson-drafts'}/${encodeURIComponent(decodeURIComponent(match[1]))}`, { cache: 'no-store' });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Черновик урока не найден.');
-      if (libraryMatch) {
+      if (libraryMatch || classMatch) {
         state.draftStatus = 'readonly';
-        document.querySelector('.end-lesson').href = '/library.html';
-        document.querySelector('.end-lesson span').textContent = 'В библиотеку';
+        document.querySelector('.end-lesson').href = classMatch ? '/schedule' : '/library.html';
+        document.querySelector('.end-lesson span').textContent = classMatch ? 'В расписание' : 'В библиотеку';
         render(payload.lesson.content);
         return;
       }
