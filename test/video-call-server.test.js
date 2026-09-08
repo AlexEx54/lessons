@@ -76,6 +76,23 @@ test('video call diagnostics retain bounded background-effect measurements', () 
   }), { event: 'background-effect-stats' });
 });
 
+test('background timing diagnostics accept known numeric fields and reject invalid values', () => {
+  const fields = {
+    pipelineVersion: 2, targetFps: 24, blurWidth: 240, blurHeight: 135,
+    averageSegmentationMs: 8, averageReadbackMs: 3, averageMaskMs: 5,
+    averageCompositeMs: 4, maxFrameMs: 40, hiddenFrames: 0,
+    processedFrames: 720, sampleDurationMs: 30_000,
+  };
+  assert.deepEqual(sanitizeVideoCallDiagnostic({ event: 'background-effect-stats', ...fields }),
+    { event: 'background-effect-stats', ...fields });
+  for (const field of Object.keys(fields)) {
+    for (const invalid of [-1, 0.5, '5', Infinity, NaN, 100_000_000]) {
+      assert.deepEqual(sanitizeVideoCallDiagnostic({ event: 'background-effect-stats', [field]: invalid }),
+        { event: 'background-effect-stats' });
+    }
+  }
+});
+
 async function waitForServer(baseUrl, child) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     if (child.exitCode != null) throw new Error(`Server exited with code ${child.exitCode}`);
