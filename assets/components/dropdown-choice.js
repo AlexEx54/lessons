@@ -257,8 +257,8 @@
       select.addEventListener('change', () => {
         if (!interactive || exerciseState.answers?.[choice.id]?.status === 'correct') { paintState(); return; }
         const action = { type: 'choose-word', componentId: current.id, itemId: choice.id, value: select.value };
+        section.updateState(model.apply(current, exerciseState, action));
         if (settings.onAction) settings.onAction(action);
-        else section.updateState(model.apply(current, exerciseState, action));
         const state = exerciseState.answers?.[choice.id]?.status || 'empty';
         if (typeof settings.onActivity === 'function') settings.onActivity(current.id, choice.id, state);
       });

@@ -33,11 +33,30 @@
         targets: component.items.map((item, index) => ({ id: layout.pictureIds[index], ...(item.imageSrc ? { imageSrc: item.imageSrc } : {}) })),
       };
     }
-    if (type === 'dropdownChoice') return { ...base, text: component.text, accentColor: component.accentColor || '#17182D', choices: component.choices.map(({ id, options }) => ({ id, options })) };
+    if (type === 'dropdownChoice') return { ...base, text: component.text, accentColor: component.accentColor || '#17182D', answerKey: Object.fromEntries(component.choices.map(choice => [choice.id, choice.answer])), choices: component.choices.map(({ id, options }) => ({ id, options })) };
     if (type === 'fillInBlanks') return { ...base, items: component.items.map(({ id, before, after }) => ({ id, before, after })), wordBank: layout.order.map(index => component.items[index].answer) };
     return component;
   }
   function apply(component, previous = {}, action, layout) {
+    if (component.type === 'dragWordsInText') {
+      const inline = root.InlineGapText || (typeof require === 'function' ? require('./inline-gap-text.js') : null);
+      const gaps = inline.parseMarkedText(component.text, { maximum: 8 }).filter(part => part.type === 'gap').map(part => part.token);
+      const placed = previous.placed || {};
+      const available = word => component.words.includes(word) && !Object.values(placed).includes(word);
+      if (action.type === 'select-word') {
+        if (action.itemId !== null && !available(action.itemId)) fail('Слово недоступно.');
+        return { ...previous, selectedId: action.itemId };
+      }
+      if (action.type !== 'place-word') fail('Неизвестное действие.');
+      const index = gaps.findIndex((_, index) => action.itemId === `gap-${index + 1}`);
+      if (index < 0 || placed[action.itemId] || !available(action.value)) fail('Пропуск или слово недоступны.');
+      const correct = gaps[index] === action.value;
+      return { ...previous, selectedId: null,
+        placed: correct ? { ...placed, [action.itemId]: action.value } : placed,
+        attempt: { ...(action.attemptId ? { id: action.attemptId } : {}),
+          sequence: (previous.attempt?.sequence || 0) + 1, itemId: action.itemId, value: action.value, correct },
+      };
+    }
     if (component.type === 'matchWords') {
       const words = layout?.wordIds || component.items.map(item => item.id);
       const pictures = layout?.pictureIds || (component.targets || component.items).map(item => item.id);
@@ -83,7 +102,7 @@
       const choice = component.choices.find(item => item.id === action.itemId);
       if (!choice || (action.value !== '' && !choice.options.includes(action.value))) fail('Вариант не найден.');
       if (previous.answers?.[choice.id]?.status === 'correct') fail('Ответ уже верный.');
-      return { ...previous, answers: { ...previous.answers, [choice.id]: { value: action.value, status: selectionState(action.value, choice.answer) } } };
+      return { ...previous, answers: { ...previous.answers, [choice.id]: { value: action.value, status: selectionState(action.value, choice.answer ?? component.answerKey?.[choice.id]) } } };
     }
     if (component.type === 'fillInBlanks') {
       if (action.type !== 'type-answer') fail('Неизвестное действие.');

@@ -5,6 +5,8 @@
     || (typeof require === 'function' ? require('./inline-gap-text.js') : null);
   if (!inlineGapText) throw new Error('DragWordsInText requires InlineGapText.');
 
+  const model = root.ExerciseState || (typeof require === 'function' ? require('./exercise-state.js') : null);
+
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s|^\s*(?:[-*+]\s|\d+\.\s)/m;
   const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'words', 'text'];
@@ -109,7 +111,11 @@
     }
     if (!doc) throw new Error('DragWordsInText requires a document.');
 
-    let current = normalizeDragWordsInText(data);
+    let current = settings.presentation || normalizeDragWordsInText(data);
+    let exerciseState = settings.exerciseState || {};
+    let interactive = settings.interactive !== false;
+    const shownAttempts = new Set();
+    const gapsByIndex = new Map();
     let editing = false;
     let saving = false;
     let initialSnapshot = '';
@@ -174,6 +180,16 @@
       return current.words.filter(word => !used.has(word));
     }
 
+    function selectWord(word) {
+      if (!interactive || editing) return;
+      dispatch({ type: 'select-word', componentId: current.id, itemId: word });
+    }
+
+    function dispatch(action) {
+      section.updateState(model.apply(current, exerciseState, action));
+      if (settings.onAction) settings.onAction(action);
+    }
+
     function setPicked(word) {
       picked = word || null;
       bank.querySelectorAll('.drag-words-in-text__chip').forEach((chip) => {
@@ -185,17 +201,20 @@
 
     function cleanupDrag() {
       if (!drag) return;
-      if (drag.ghost) drag.ghost.remove();
-      drag.chip.classList.remove('drag-words-in-text__chip--dragging');
+      const finished = drag;
+      // Release can emit lostpointercapture: detach the active drag first.
+      drag = null;
+      finished.removeListeners();
+      if (finished.ghost) finished.ghost.remove();
+      finished.chip.classList.remove('drag-words-in-text__chip--dragging');
       try {
-        if (drag.chip.hasPointerCapture && drag.chip.hasPointerCapture(drag.pointerId)) {
-          drag.chip.releasePointerCapture(drag.pointerId);
+        if (finished.chip.hasPointerCapture && finished.chip.hasPointerCapture(finished.pointerId)) {
+          finished.chip.releasePointerCapture(finished.pointerId);
         }
-      } catch (_error) { /* ignore */ }
+      } catch (_error) { /* capture may already have been released */ }
       passage.querySelectorAll('.drag-words-in-text__gap--target').forEach((gap) => {
         gap.classList.remove('drag-words-in-text__gap--target');
       });
-      drag = null;
     }
 
     function gapFromPoint(x, y) {
@@ -216,7 +235,7 @@
     }
 
     function flashGap(index) {
-      const gap = passage.querySelector(`[data-gap-index="${index}"]`);
+      const gap = gapsByIndex.get(index);
       if (!gap) return;
       gap.classList.add('drag-words-in-text__gap--wrong');
       root.clearTimeout(flashTimer);
@@ -226,33 +245,65 @@
     }
 
     function tryPlace(word, index) {
-      if (editing || placed.has(index) || !word) return;
-      const gap = passage.querySelector(`[data-gap-index="${index}"]`);
-      if (!gap || gap.dataset.answer !== word) {
-        flashGap(index);
-        setPicked(null);
-        status.textContent = `Неверный вариант в пропуске ${index + 1}. Попробуйте ещё раз.`;
-        if (typeof settings.onActivity === 'function') {
-          settings.onActivity(current.id, `gap-${index + 1}`, 'wrong');
-        }
-        return;
-      }
-      placed.set(index, word);
-      setPicked(null);
-      paintPlay();
-      const total = passage.querySelectorAll('.drag-words-in-text__gap').length;
-      status.textContent = placed.size === total
-        ? 'Все ответы верны.'
-        : `Верно. ${placed.size} из ${total}.`;
+      if (!interactive || editing || placed.has(index) || !word) return;
+      const action = { type: 'place-word', componentId: current.id,
+        itemId: `gap-${index + 1}`, value: word, attemptId: root.crypto.randomUUID() };
+      dispatch(action);
       if (typeof settings.onActivity === 'function') {
-        settings.onActivity(current.id, `gap-${index + 1}`, 'correct');
+        settings.onActivity(current.id, action.itemId, exerciseState.attempt.correct ? 'correct' : 'wrong');
       }
     }
 
+    function paintState() {
+      placed.clear();
+      Object.entries(exerciseState.placed || {}).forEach(([id, word]) => placed.set(Number(id.slice(4)) - 1, word));
+      bank.querySelectorAll('.drag-words-in-text__chip').forEach(chip => {
+        chip.hidden = Object.values(exerciseState.placed || {}).includes(chip.dataset.word);
+        chip.style.display = chip.hidden ? 'none' : '';
+        chip.tabIndex = interactive && !chip.hidden ? 0 : -1;
+        chip.setAttribute('aria-disabled', String(!interactive || chip.hidden));
+      });
+      gapsByIndex.forEach((gap, index) => {
+        const filled = placed.get(index);
+        gap.classList.toggle('drag-words-in-text__gap--correct', Boolean(filled));
+        gap.textContent = filled || '';
+        gap.tabIndex = interactive && !filled ? 0 : -1;
+        gap.setAttribute('aria-disabled', String(!interactive || Boolean(filled)));
+        gap.setAttribute('aria-label', filled ? `Пропуск ${index + 1}: ${filled}` : `Пропуск ${index + 1}`);
+      });
+      setPicked(exerciseState.selectedId);
+      const attempt = exerciseState.attempt;
+      status.textContent = !attempt ? '' : !attempt.correct
+        ? `Неверный вариант в пропуске ${Number(attempt.itemId.slice(4))}. Попробуйте ещё раз.`
+        : placed.size === gapsByIndex.size ? 'Все ответы верны.' : `Верно. ${placed.size} из ${gapsByIndex.size}.`;
+    }
+
+    section.updateState = (next = {}, options = {}) => {
+      const key = next.attempt && (next.attempt.id || `sequence:${next.attempt.sequence}`);
+      const fresh = key && !shownAttempts.has(key);
+      if (key) shownAttempts.add(key);
+      if (exerciseState.attempt?.id !== next.attempt?.id) {
+        root.clearTimeout(flashTimer);
+        gapsByIndex.forEach(gap => gap.classList.remove('drag-words-in-text__gap--wrong'));
+      }
+      exerciseState = next;
+      paintState();
+      if (fresh && options.feedback !== false && !next.attempt.correct) {
+        flashGap(Number(next.attempt.itemId.slice(4)) - 1);
+      }
+    };
+    section.setInteractive = value => {
+      interactive = Boolean(value);
+      if (!interactive) cleanupDrag();
+      paintState();
+    };
+    section.dispose = () => { cleanupDrag(); root.clearTimeout(flashTimer); };
+
     function bindPlayChip(chip, word) {
       chip.addEventListener('pointerdown', (event) => {
-        if (editing || saving || event.button) return;
+        if (!interactive || editing || saving || event.button || !remainingWords().includes(word)) return;
         event.preventDefault();
+        cleanupDrag();
         try { chip.setPointerCapture(event.pointerId); } catch (_error) { /* ignore */ }
         drag = {
           word,
@@ -263,11 +314,24 @@
           moved: false,
           ghost: null,
           wasPicked: picked === word,
+          removeListeners() {
+            doc.removeEventListener('pointerup', endPointer, true);
+            doc.removeEventListener('pointercancel', cancelPointer, true);
+            doc.removeEventListener('pointermove', movePointer, true);
+            (doc.defaultView || root).removeEventListener?.('blur', cancelOnBlur);
+          },
         };
-        setPicked(word);
+        doc.addEventListener('pointerup', endPointer, true);
+        doc.addEventListener('pointercancel', cancelPointer, true);
+        doc.addEventListener('pointermove', movePointer, true);
+        (doc.defaultView || root).addEventListener?.('blur', cancelOnBlur);
+        selectWord(word);
       });
-      chip.addEventListener('pointermove', (event) => {
-        if (!drag || drag.chip !== chip || prefersReducedMotion()) return;
+      function movePointer(event) {
+        if (!drag || drag.chip !== chip || drag.pointerId !== event.pointerId) return;
+        // Recover if the release happened outside the browser window.
+        if (event.buttons === 0) { cancelPointer(event); return; }
+        if (prefersReducedMotion()) return;
         const dx = event.clientX - drag.startX;
         const dy = event.clientY - drag.startY;
         if (!drag.moved && (dx * dx) + (dy * dy) < 64) return;
@@ -283,9 +347,10 @@
         drag.ghost.style.left = `${event.clientX}px`;
         drag.ghost.style.top = `${event.clientY}px`;
         highlightGapAt(event.clientX, event.clientY);
-      });
+      }
+      chip.addEventListener('pointermove', movePointer);
       function endPointer(event) {
-        if (!drag || drag.chip !== chip) return;
+        if (!drag || drag.chip !== chip || drag.pointerId !== event.pointerId) return;
         const moved = drag.moved;
         const wordValue = drag.word;
         const wasPicked = drag.wasPicked;
@@ -293,20 +358,29 @@
         const y = event.clientY;
         cleanupDrag();
         if (moved) {
-          setPicked(null);
           const gap = gapFromPoint(x, y);
           if (gap) tryPlace(wordValue, Number(gap.dataset.gapIndex));
+          else selectWord(null);
           return;
         }
-        if (wasPicked) setPicked(null);
+        if (wasPicked) selectWord(null);
       }
       chip.addEventListener('pointerup', endPointer);
-      chip.addEventListener('pointercancel', endPointer);
+      function cancelPointer(event) {
+        if (!drag || drag.chip !== chip || drag.pointerId !== event.pointerId) return;
+        cleanupDrag();
+        selectWord(null);
+      }
+      function cancelOnBlur() {
+        if (drag?.chip === chip) cancelPointer({ pointerId: drag.pointerId });
+      }
+      chip.addEventListener('pointercancel', cancelPointer);
+      chip.addEventListener('lostpointercapture', cancelPointer);
       chip.addEventListener('keydown', (event) => {
-        if (editing) return;
+        if (!interactive || editing || !remainingWords().includes(word)) return;
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
-        setPicked(picked === word ? null : word);
+        selectWord(picked === word ? null : word);
       });
     }
 
@@ -323,18 +397,11 @@
       return chip;
     }
 
-    function createPlayGap(answer, index) {
+    function createPlayGap(index) {
       const gap = doc.createElement('span');
       gap.className = 'drag-words-in-text__gap';
       gap.dataset.gapIndex = String(index);
-      gap.dataset.answer = answer;
-      const filled = placed.get(index);
-      if (filled) {
-        gap.classList.add('drag-words-in-text__gap--correct');
-        gap.textContent = filled;
-        gap.setAttribute('aria-label', `Пропуск ${index + 1}: ${filled}`);
-        return gap;
-      }
+      gapsByIndex.set(index, gap);
       gap.setAttribute('role', 'button');
       gap.tabIndex = 0;
       gap.setAttribute('aria-label', `Пропуск ${index + 1}`);
@@ -351,6 +418,7 @@
     }
 
     function paintPlayPassage() {
+      gapsByIndex.clear();
       const paragraphs = inlineGapText.splitParagraphs(parts());
       let gapIndex = 0;
       const nodes = [];
@@ -363,7 +431,7 @@
             inlineGapText.appendTextWithBreaks(paragraph, part.text, doc);
             return;
           }
-          paragraph.append(createPlayGap(part.answer, gapIndex));
+          paragraph.append(createPlayGap(gapIndex));
           gapIndex += 1;
         });
         nodes.push(paragraph);
@@ -372,7 +440,7 @@
     }
 
     function paintPlayBank() {
-      bank.replaceChildren(...remainingWords().map(createPlayChip));
+      bank.replaceChildren(...current.words.map(createPlayChip));
       if (picked && remainingWords().includes(picked)) setPicked(picked);
       else picked = null;
     }
@@ -384,6 +452,7 @@
       instruction.contentEditable = 'false';
       paintPlayBank();
       paintPlayPassage();
+      paintState();
     }
 
     function editorWords() {
@@ -663,6 +732,7 @@
       cleanupDrag();
       editing = true;
       placed.clear();
+      exerciseState = {};
       picked = null;
       section.classList.add('drag-words-in-text--editing');
       toolbar.hidden = false;
@@ -757,6 +827,7 @@
     });
 
     paintPlay();
+    section.updateState(exerciseState, { feedback: false });
     section.append(header, instruction, toolbar, bank, passage, status);
     return section;
   }

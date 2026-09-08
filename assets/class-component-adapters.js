@@ -50,7 +50,7 @@
       },
     }],
   ]);
-  for (const type of ['matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'checkboxChoice']) {
+  for (const type of ['dragWordsInText', 'matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'checkboxChoice']) {
     const canInteract = session => session.connected && (session.role === 'student' || type === 'describeAndGuess');
     adapters.set(type, {
       options(component, session) {
@@ -75,7 +75,7 @@
         const previous = state.exercises?.[action.componentId] || {};
         let next = previous;
         // These exercises include keys for immediate local feedback.
-        if (type === 'matchWords' || type === 'multipleChoice' || type === 'checkboxChoice') {
+        if (type === 'dragWordsInText' || type === 'dropdownChoice' || type === 'matchWords' || type === 'multipleChoice' || type === 'checkboxChoice') {
           next = window.ExerciseState.apply(component.presentation, previous, action);
           state.exercises = { ...state.exercises, [action.componentId]: next };
           return;

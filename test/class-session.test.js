@@ -99,7 +99,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.equal((await get(`/api/classes/${lesson.id}`, cookie)).status, 401);
   const studentPayload = await (await get(`/api/classes/${lesson.id}/live?role=student`, cookie)).json();
   assert.deepEqual(studentPayload.lesson.content.stages[0].content.map(component => component.type), ['markdownCard', 'thisOrThat', 'taskPrompt']);
-  assert.ok(studentPayload.lesson.content.stages.slice(5).every(stage => stage.content === null));
+  assert.ok(studentPayload.lesson.content.stages.slice(6).every(stage => stage.content === null));
   assert.ok(!JSON.stringify(studentPayload).includes('teacherNote'));
   const initialListening = studentPayload.lesson.content.stages.find(stage => stage.id === 'listening');
   assert.deepEqual(initialListening.content.map(component => component.type), ['audioPlayer', 'checkboxChoice', 'audioPlayer', 'multipleChoice']);
@@ -291,6 +291,20 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
     value: detailItem.answer,
   });
   assert.equal(final.state.exercises[detail.id].answers[detailItem.id].status, 'correct');
+  final = await sendTeacher({ type: 'select-stage', stageId: 'grammar-presentation', expectedVersion: final.state.version });
+  const grammar = final.lesson.content.stages.find(stage => stage.id === 'grammar-presentation');
+  assert.deepEqual(grammar.content.map(item => item.type), ['textPanel', 'textPanel', 'dragWordsInText', 'markdownCard', 'dropdownChoice']);
+  const dragRule = grammar.content.find(item => item.type === 'dragWordsInText');
+  await sendStudent({ stageId: grammar.id, type: 'select-word', componentId: dragRule.id, itemId: 'future' });
+  assert.equal(final.state.exercises[dragRule.id].selectedId, 'future');
+  await sendStudent({ stageId: grammar.id, type: 'place-word', componentId: dragRule.id, itemId: 'gap-1', value: 'future', attemptId: 'wrong-rule' });
+  assert.equal(final.state.exercises[dragRule.id].attempt.correct, false);
+  await sendStudent({ stageId: grammar.id, type: 'place-word', componentId: dragRule.id, itemId: 'gap-1', value: 'base verb', attemptId: 'right-rule' });
+  assert.equal(final.state.exercises[dragRule.id].placed['gap-1'], 'base verb');
+  const ruleDropdown = grammar.content.find(item => item.type === 'dropdownChoice');
+  await sendStudent({ stageId: grammar.id, type: 'choose-word', componentId: ruleDropdown.id,
+    itemId: ruleDropdown.presentation.choices[0].id, value: ruleDropdown.presentation.answerKey[ruleDropdown.presentation.choices[0].id] });
+  assert.equal(final.state.exercises[ruleDropdown.id].answers[ruleDropdown.presentation.choices[0].id].status, 'correct');
   const exerciseProgress = structuredClone(final.state.exercises);
   final = await sendTeacher({ type: 'select-stage', stageId: 'lead-in', expectedVersion: final.state.version });
   final = await sendTeacher({ type: 'select-stage', stageId: 'target-vocabulary', expectedVersion: final.state.version });
@@ -312,7 +326,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   reordered.stages.reverse();
   db.prepare('UPDATE classes SET content_json = ? WHERE id = ?').run(JSON.stringify(reordered), otherLesson.id);
   const otherAccess = { role: 'teacher', classId: otherLesson.id, ownerId: teacher.id };
-  assert.equal(sessionPayload(otherAccess, db).state.activeStageId, 'listening');
+  assert.equal(sessionPayload(otherAccess, db).state.activeStageId, 'grammar-presentation');
   applyAction(otherAccess, { type: 'select-stage', stageId: 'warm-up', expectedVersion: 0 }, db);
   const reorderedState = applyAction({ ...otherAccess, role: 'student' }, { ...action, expectedVersion: 1 }, db);
   assert.equal(reorderedState.selections[choice.id][choice.items[0].id], action.optionId);
