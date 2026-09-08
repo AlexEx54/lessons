@@ -14,7 +14,11 @@
   const status = byId('teacher-screen');
   status.disabled = true;
   const statusLabel = status.querySelector('span');
-  const setStatus = text => { statusLabel.textContent = text; };
+  const setStatus = (text, state) => {
+    statusLabel.textContent = text;
+    if (state) status.dataset.state = state;
+    else delete status.dataset.state;
+  };
   const timerButton = byId('lesson-timer');
   timerButton.hidden = role !== 'teacher';
   document.querySelector('.teacher-version').textContent = role === 'teacher' ? 'Teacher version' : 'Student version';
@@ -106,12 +110,15 @@
   }
   function connect() {
     if (stopped) return;
-    setStatus('Подключаемся…');
+    setStatus('Подключаемся…', 'connecting');
     socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/classes/${classId}?role=${role}`);
     socket.addEventListener('message', event => {
       const message = JSON.parse(event.data);
       if (message.type === 'presence') {
-        setStatus(message.peerPresent ? (role === 'teacher' ? 'Ученик подключён' : 'Учитель подключён') : (role === 'teacher' ? 'Ожидаем ученика' : 'Ожидаем учителя'));
+        setStatus(
+          message.peerPresent ? (role === 'teacher' ? 'Ученик подключён' : 'Учитель подключён') : (role === 'teacher' ? 'Ожидаем ученика' : 'Ожидаем учителя'),
+          message.peerPresent ? 'connected' : 'waiting',
+        );
         return;
       }
       if (!['snapshot', 'action', 'action-error'].includes(message.type)) return;
@@ -133,11 +140,11 @@
       if (stopped) return;
       if ([4001, 4003, 4004, 4008].includes(event.code)) {
         stopped = true;
-        setStatus(event.reason || 'Подключение закрыто');
+        setStatus(event.reason || 'Подключение закрыто', 'closed');
         notify(event.reason || 'Откройте ссылку заново.');
         return;
       }
-      setStatus('Связь потеряна. Подключаемся…');
+      setStatus('Связь потеряна. Подключаемся…', 'lost');
       reconnectTimer = window.setTimeout(connect, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 2, 10000);
     });

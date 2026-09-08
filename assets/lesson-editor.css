@@ -113,12 +113,28 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .timer-card__play { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; color: var(--purple); background: var(--purple-soft); font-size: 11px; }
 .timer-card > span:nth-child(2) { text-align: left; }
 .timer-card strong, .timer-card small { display: block; }
-.timer-card strong { font-size: 13px; }
+.timer-card strong { font-size: 13px; font-variant-numeric: tabular-nums; }
 .timer-card em { color: var(--muted); font-style: normal; font-weight: 500; }
 .timer-card small { margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 500; }
 .timer-card svg, .teacher-screen svg, .end-lesson svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .timer-card > svg { margin-left: 8px; color: #777b90; }
 .end-lesson { color: #ef4b57; }
+
+.teacher-screen[data-state] { color: #b45309; background: #fffbeb; border-color: #fbd38d; }
+.teacher-screen[data-state]::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, .18); }
+.teacher-screen[data-state='connected'] { color: #15803d; background: #f0fdf4; border-color: #a7d9b9; }
+.teacher-screen[data-state='connected']::before { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .18); }
+.teacher-screen[data-state='lost'] { color: #b91c1c; background: #fef2f2; border-color: #f3b4b4; }
+.teacher-screen[data-state='lost']::before { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, .18); }
+.teacher-screen[data-state='closed'] { color: #52525b; background: #fafafa; border-color: #d4d4d8; }
+.teacher-screen[data-state='closed']::before { background: #a1a1aa; box-shadow: 0 0 0 3px rgba(161, 161, 170, .15); }
+.teacher-screen[data-state='connecting']::before,
+.teacher-screen[data-state='waiting']::before,
+.teacher-screen[data-state='lost']::before { animation: status-pulse 1.6s ease-in-out infinite; }
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .4; transform: scale(.78); }
+}
 
 .lesson-layout { position: relative; display: grid; grid-template-columns: var(--lesson-plan-width) minmax(0, 1fr); min-height: calc(100vh - 88px - var(--image-generation-banner-height)); }
 .lesson-plan { position: sticky; top: 88px; display: flex; flex-direction: column; height: calc(100vh - 88px - var(--image-generation-banner-height)); padding: 24px 15px 20px; border-right: 1px solid var(--line); background: #fff; overflow: auto; }

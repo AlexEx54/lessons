@@ -90,7 +90,9 @@
 .teacher-note__format:disabled { opacity: .5; cursor: wait; }
 
 .teacher-note__toggle:hover { background: #fcfbff; }
-.teacher-note__chevron { font-size: 14px; line-height: 1; }
+.teacher-note__chevron { display: inline-flex; line-height: 1; }
+.teacher-note__chevron svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform 180ms ease; }
+.teacher-note__toggle[aria-expanded='false'] .teacher-note__chevron svg { transform: rotate(180deg); }
 
 .teacher-note__body {
   padding: 0 4px 0 34px;

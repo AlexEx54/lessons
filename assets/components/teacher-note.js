@@ -50,6 +50,17 @@
     return svg;
   }
 
+  function createChevronIcon(documentRef) {
+    const namespace = 'http://www.w3.org/2000/svg';
+    const svg = documentRef.createElementNS(namespace, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = documentRef.createElementNS(namespace, 'path');
+    path.setAttribute('d', 'm6 15 6-6 6 6');
+    svg.append(path);
+    return svg;
+  }
+
   function renderTeacherNote(data, options, documentRef) {
     let settings = options || {};
     let doc = documentRef || root.document;
@@ -147,14 +158,13 @@
     buttonLabel.textContent = 'Скрыть';
     const chevron = doc.createElement('span');
     chevron.className = 'teacher-note__chevron';
-    chevron.textContent = '⌃';
     chevron.setAttribute('aria-hidden', 'true');
+    chevron.append(createChevronIcon(doc));
     button.append(buttonLabel, chevron);
     button.addEventListener('click', () => {
       const expanded = button.getAttribute('aria-expanded') === 'true';
       button.setAttribute('aria-expanded', String(!expanded));
       buttonLabel.textContent = expanded ? 'Показать' : 'Скрыть';
-      chevron.textContent = expanded ? '⌄' : '⌃';
       content.hidden = expanded;
       note.classList.toggle('teacher-note--collapsed', expanded);
     });
