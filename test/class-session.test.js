@@ -102,8 +102,21 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.equal((await get(`/api/classes/${lesson.id}`, cookie)).status, 401);
   const studentPayload = await (await get(`/api/classes/${lesson.id}/live?role=student`, cookie)).json();
   assert.deepEqual(studentPayload.lesson.content.stages[0].content.map(component => component.type), ['markdownCard', 'thisOrThat', 'taskPrompt']);
-  assert.ok(studentPayload.lesson.content.stages.slice(7).every(stage => stage.content === null));
+  assert.ok(studentPayload.lesson.content.stages.slice(8).every(stage => stage.content === null));
   assert.ok(!JSON.stringify(studentPayload).includes('teacherNote'));
+  function assertGuidedStudent(payload) {
+    assert.ok(payload.availableStageIds.includes('guided-speaking'));
+    const guided = payload.lesson.content.stages.find(stage => stage.id === 'guided-speaking');
+    assert.deepEqual(guided.content.map(item => item.type), ['textPanel', 'howToPlay', 'guidedRoleCards', 'speakingSupport', 'markdownCard']);
+    const cards = guided.content.find(item => item.type === 'guidedRoleCards');
+    assert.deepEqual(Object.keys(cards), ['type', 'id', 'presentation']);
+    assert.deepEqual(Object.keys(cards.presentation.roles), ['student']);
+    assert.equal(JSON.stringify(guided).includes('Bike rental closes'), false);
+  }
+  assertGuidedStudent(studentPayload);
+  const teacherPayload = await (await get(`/api/classes/${lesson.id}/live?role=teacher`, teacherCookie)).json();
+  assert.deepEqual(Object.keys(teacherPayload.lesson.content.stages.find(stage => stage.id === 'guided-speaking')
+    .content.find(item => item.type === 'guidedRoleCards').presentation.roles), ['student', 'teacher']);
   const initialListening = studentPayload.lesson.content.stages.find(stage => stage.id === 'listening');
   assert.deepEqual(initialListening.content.map(component => component.type), ['audioPlayer', 'checkboxChoice', 'audioPlayer', 'multipleChoice']);
   assert.ok(initialListening.content.filter(component => component.type === 'audioPlayer').every(component => !Object.hasOwn(component.presentation, 'script')));
@@ -120,7 +133,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   const teacherSocket = connect('teacher', teacherCookie);
   assert.equal((await teacherSocket.next('snapshot')).state.version, 0);
   const studentSocket = connect('student', cookie);
-  await studentSocket.next('snapshot');
+  assertGuidedStudent(await studentSocket.next('snapshot'));
   const action = { type: 'select-option', stageId: 'warm-up', componentId: choice.id, itemId: choice.items[0].id, optionId: choice.items[0].options[0].id, expectedVersion: 0 };
   studentSocket.send(JSON.stringify(action));
   const first = (await teacherSocket.next('action')).state;
@@ -334,6 +347,15 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
     visible: true, expectedVersion: final.state.version }));
   assert.match((await teacherSocket.next('action-error')).error, /видимость/);
 
+  final = await sendTeacher({ type: 'select-stage', stageId: 'guided-speaking', expectedVersion: final.state.version });
+  assertGuidedStudent(final);
+  for (const socket of [teacherSocket, replacement]) {
+    socket.send(JSON.stringify({ type: 'flip-card', stageId: 'guided-speaking', componentId: 'guided-speaking-role-cards',
+      expectedVersion: final.state.version }));
+    const rejected = await socket.next('action-error');
+    assert.match(rejected.error, /не поддерживает/);
+    assert.equal(rejected.state.version, final.state.version);
+  }
   const exerciseProgress = structuredClone(final.state.exercises);
   final = await sendTeacher({ type: 'select-stage', stageId: 'lead-in', expectedVersion: final.state.version });
   final = await sendTeacher({ type: 'select-stage', stageId: 'target-vocabulary', expectedVersion: final.state.version });
@@ -344,6 +366,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   const restored = connect('student', cookie);
   const snapshot = await restored.next('snapshot');
   assert.deepEqual(snapshot.state, final.state);
+  assertGuidedStudent(snapshot);
   assert.equal(JSON.stringify(snapshot.lesson.content.stages[2].content), layoutBefore);
   assert.ok(snapshot.lesson.content.stages[1].content.some(c => c.id === answersId));
   const restoredListening = snapshot.lesson.content.stages.find(stage => stage.id === 'listening');
@@ -355,7 +378,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   reordered.stages.reverse();
   db.prepare('UPDATE classes SET content_json = ? WHERE id = ?').run(JSON.stringify(reordered), otherLesson.id);
   const otherAccess = { role: 'teacher', classId: otherLesson.id, ownerId: teacher.id };
-  assert.equal(sessionPayload(otherAccess, db).state.activeStageId, 'grammar-focus');
+  assert.equal(sessionPayload(otherAccess, db).state.activeStageId, 'guided-speaking');
   applyAction(otherAccess, { type: 'select-stage', stageId: 'warm-up', expectedVersion: 0 }, db);
   const reorderedState = applyAction({ ...otherAccess, role: 'student' }, { ...action, expectedVersion: 1 }, db);
   assert.equal(reorderedState.selections[choice.id][choice.items[0].id], action.optionId);

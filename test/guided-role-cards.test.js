@@ -4,6 +4,8 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
   normalizeGuidedRoleCards,
+  normalizeGuidedRoleCardsPresentation,
+  guidedRoleCardsPresentation,
   renderGuidedRoleCards,
   visibleRoleKeys,
 } = require('../assets/components/guided-role-cards.js');
@@ -164,4 +166,22 @@ test('review render exposes markdown-style edit controls', () => {
   assert.equal(rendered.classList.contains('guided-role-cards--editing'), true);
   assert.equal(descendants(rendered).filter(node => node.contentEditable === 'true').length, 12);
   assert.ok(descendants(rendered).some(node => node.classList?.contains('guided-role-cards__toolbar')));
+});
+
+test('presentation preserves strict author schema and renders only the permitted roles', () => {
+  const student = guidedRoleCardsPresentation(component(), 'student');
+  assert.deepEqual(Object.keys(student.roles), ['student']);
+  assert.throws(() => normalizeGuidedRoleCards(student), /exactly student and teacher/);
+  assert.throws(() => normalizeGuidedRoleCardsPresentation(component(), 'student'), /exactly student/);
+  const invalid = structuredClone(student);
+  delete invalid.roles.student.sections.secret;
+  assert.throws(() => normalizeGuidedRoleCardsPresentation(invalid, 'student'), /fixed section/);
+  for (const role of ['student', 'teacher']) {
+    const presentation = guidedRoleCardsPresentation(component(), role);
+    const rendered = renderGuidedRoleCards({ type: presentation.type, id: presentation.id }, {
+      viewerRole: role, presentation, onSave() { throw new Error('Session cannot edit'); },
+    }, fakeDocument());
+    assert.equal(descendants(rendered).filter(node => node.classList?.contains('guided-role-card')).length, role === 'student' ? 1 : 2);
+    assert.equal(descendants(rendered).some(node => node.classList?.contains('guided-role-cards__edit')), false);
+  }
 });

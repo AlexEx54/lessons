@@ -29,19 +29,19 @@
     return keys.length === expectedKeys.length && keys.every((key, index) => key === expectedKeys[index]);
   }
 
-  function normalizeGuidedRoleCards(data) {
+  function normalizeRoleCards(data, roleKeys) {
     if (!data || data.type !== 'guidedRoleCards' || !KEBAB_CASE.test(String(data.id || ''))) {
       throw new Error('GuidedRoleCards requires type "guidedRoleCards" and a kebab-case id.');
     }
     if (!exactKeys(data, ['type', 'id', 'roles'])) {
       throw new Error('GuidedRoleCards contains unsupported fields.');
     }
-    if (!exactKeys(data.roles, ROLE_KEYS)) {
-      throw new Error('GuidedRoleCards requires exactly student and teacher roles.');
+    if (!exactKeys(data.roles, roleKeys)) {
+      throw new Error(`GuidedRoleCards requires exactly ${roleKeys.join(' and ')} roles.`);
     }
 
     const roles = {};
-    ROLE_KEYS.forEach((roleKey) => {
+    roleKeys.forEach((roleKey) => {
       const role = data.roles[roleKey];
       if (!exactKeys(role, ['title', 'sections'])) {
         throw new Error(`GuidedRoleCards ${roleKey} role has an invalid schema.`);
@@ -63,6 +63,20 @@
     return { type: 'guidedRoleCards', id: data.id, roles };
   }
 
+  function normalizeGuidedRoleCards(data) {
+    return normalizeRoleCards(data, ROLE_KEYS);
+  }
+
+  function normalizeGuidedRoleCardsPresentation(data, viewerRole) {
+    return normalizeRoleCards(data, visibleRoleKeys(viewerRole));
+  }
+
+  function guidedRoleCardsPresentation(data, viewerRole) {
+    const normalized = normalizeGuidedRoleCards(data);
+    const roles = Object.fromEntries(visibleRoleKeys(viewerRole).map(key => [key, normalized.roles[key]]));
+    return { type: normalized.type, id: normalized.id, roles };
+  }
+
   function visibleRoleKeys(viewerRole) {
     const role = viewerRole || 'teacher';
     if (!VIEWER_ROLES.has(role)) throw new Error('GuidedRoleCards requires a supported viewer role.');
@@ -78,10 +92,12 @@
     }
     if (!doc) throw new Error('GuidedRoleCards requires a document.');
 
-    let current = normalizeGuidedRoleCards(data);
     const viewerRole = settings.viewerRole || 'teacher';
+    let current = settings.presentation
+      ? normalizeGuidedRoleCardsPresentation(settings.presentation, viewerRole)
+      : normalizeGuidedRoleCards(data);
     const renderedRoles = visibleRoleKeys(viewerRole);
-    const canEdit = viewerRole === 'teacher' && typeof settings.onSave === 'function';
+    const canEdit = !settings.presentation && viewerRole === 'teacher' && typeof settings.onSave === 'function';
     const openRoles = new Set();
     let editing = false;
     let saving = false;
@@ -331,7 +347,7 @@
     return component;
   }
 
-  const api = { ROLE_KEYS, SECTIONS, normalizeGuidedRoleCards, visibleRoleKeys, renderGuidedRoleCards };
+  const api = { ROLE_KEYS, SECTIONS, normalizeGuidedRoleCards, normalizeGuidedRoleCardsPresentation, guidedRoleCardsPresentation, visibleRoleKeys, renderGuidedRoleCards };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.GuidedRoleCardsComponent = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -40,6 +40,7 @@ async function fixture(role = 'student', quiz = null) {
     clearInterval(id) { intervals.delete(id); },
     scrollTo() {},
     ComponentTree: require('../assets/components/component-tree.js'),
+    GuidedRoleCardsComponent: { renderGuidedRoleCards: (data, options) => require('../assets/components/guided-role-cards.js').renderGuidedRoleCards(data, options, document) },
     GapFillComponent: { renderGapFill() { return mounted.get('choice'); } },
     MiniSituationComponent: { renderMiniSituation() { return mounted.get('choice'); } },
     ExerciseState: require('../assets/components/exercise-state.js'),
@@ -218,4 +219,33 @@ for (const type of ['gapFill', 'miniSituation']) test(`${type}: every text chang
   socket.close();
   assert.equal(f.frames.at(-1).answers['sentence-1'].value, 'ab');
   assert.equal(f.isInteractive(), false);
+});
+
+test('guided cards flip locally and survive session confirmations and reconnect snapshots', async () => {
+  const { guidedRoleCardsPresentation } = require('../assets/components/guided-role-cards.js');
+  const lesson = require('../lib/synthetic-lesson.js').createSyntheticLesson('Guided');
+  const source = lesson.stages.find(stage => stage.id === 'guided-speaking').content.find(item => item.type === 'guidedRoleCards');
+  const fixtures = [];
+  for (const role of ['student', 'teacher']) {
+    const component = { type: source.type, id: source.id, presentation: guidedRoleCardsPresentation(source, role) };
+    const f = await fixture(role, component);
+    fixtures.push(f);
+    const socket = f.sockets[0];
+    socket.receive({ type: 'snapshot', state: f.initial });
+    const container = f.document.getElementById('stage-components');
+    const node = container.children[0];
+    const card = node.children[0].children[0];
+    const flipper = card.children[0];
+    flipper.click();
+    assert.equal(flipper.getAttribute('aria-expanded'), 'true');
+    assert.equal(socket.sent.length, 0);
+    socket.receive({ type: 'action', state: { ...f.initial, version: 1 } });
+    socket.close();
+    socket.receive({ type: 'snapshot', state: { ...f.initial, version: 1 } });
+    assert.equal(container.children[0], node);
+    assert.equal(flipper.getAttribute('aria-expanded'), 'true');
+    assert.equal(socket.sent.length, 0);
+  }
+  const teacherCards = fixtures[1].document.getElementById('stage-components').children[0].children[0].children;
+  assert.equal(teacherCards[1].children[0].getAttribute('aria-expanded'), 'false');
 });

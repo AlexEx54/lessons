@@ -1,6 +1,9 @@
 (() => {
   'use strict';
   const adapters = new Map([
+    ['guidedRoleCards', {
+      options: component => ({ presentation: component.presentation }),
+    }],
     ['thisOrThat', {
       options(component, session) {
         return {
@@ -119,7 +122,7 @@
     options(component, session) {
       return { viewerRole: session.role, showImagePrompts: false, ...adapters.get(component.type)?.options(component, session) };
     },
-    preview(component, state, action) { adapters.get(component.type)?.preview(state, action, component); },
-    update(node, component, session) { adapters.get(component.type)?.update(node, component, session); },
+    preview(component, state, action) { adapters.get(component.type)?.preview?.(state, action, component); },
+    update(node, component, session) { adapters.get(component.type)?.update?.(node, component, session); },
   };
 })();
