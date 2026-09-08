@@ -11,6 +11,7 @@
   let availableStageIds = [];
   let feedback = false;
   const adapters = window.ClassComponentAdapters;
+  const cursors = window.ClassCursors?.create({ classId, role });
   const status = byId('teacher-screen');
   status.disabled = true;
   const statusLabel = status.querySelector('span');
@@ -89,6 +90,7 @@
       if (node) adapters.update(node, component, session(state));
     }
     view.refreshNavigation();
+    cursors?.setContext({ connected, stageId: confirmed.activeStageId });
   }
   function receiveState(payload) {
     feedback = payload.type === 'action';
@@ -167,6 +169,7 @@
     window.clearInterval(lessonTimer);
     window.clearTimeout(reconnectTimer);
     window.clearTimeout(toastTimer);
+    cursors?.dispose();
     socket?.close();
   });
   window.addEventListener('pageshow', event => { if (event.persisted) window.location.reload(); });

@@ -1,0 +1,12 @@
+.class-cursor { position: fixed; top: 0; left: 0; width: 20px; height: 24px; z-index: 1000; pointer-events: none; color: #6545f5; }
+.class-cursor--student { color: #168650; }
+.class-cursor__arrow { display: block; width: 20px; height: 20px; font: 22px/1 sans-serif; transform: rotate(-125deg); transform-origin: center; }
+.class-cursor__label { position: absolute; top: 20px; left: 13px; padding: 4px 8px; border-radius: 6px; background: #6545f5; color: white; font: 600 12px/1.3 sans-serif; white-space: nowrap; }
+.class-cursor--student .class-cursor__label { background: #168650; }
+.class-cursor--label-left .class-cursor__label { left: auto; right: 4px; }
+.class-cursor--touch .class-cursor__arrow { width: 22px; height: 22px; margin: -11px; border: 3px solid currentColor; border-radius: 50%; font-size: 0; background: #ffffff80; }
+.class-cursor-jump { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 1001; max-width: calc(100vw - 24px); padding: 12px 18px; border: 1px solid #d8d0ef; border-radius: 24px; background: white; color: #473581; box-shadow: 0 3px 18px #30215b24; font: 600 13px/1.4 sans-serif; cursor: pointer; }
+.class-cursor[hidden], .class-cursor-jump[hidden] { display: none; }
+
+.class-cursor--smooth { transition: transform 60ms linear; }
+@media (prefers-reduced-motion: reduce) { .class-cursor--smooth { transition: none; } }

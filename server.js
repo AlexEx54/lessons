@@ -18,6 +18,7 @@ const { getDatabase } = require('./lib/db.js');
 const { listLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, findLibraryAsset } = require('./lib/library-store.js');
 const { createClass, findClass, listClasses, findClassAsset } = require('./lib/class-store.js');
 const { joinClass, authorizeClass, sessionPayload, guestCanReadAsset } = require('./lib/class-session-store.js');
+const { createClassCursorSignaling } = require('./lib/class-cursor-signaling.js');
 const { createClassSessionSignaling } = require('./lib/class-session-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
@@ -2312,11 +2313,13 @@ const server = http.createServer(async (req, res) => {
 
 videoCallSignaling = createVideoCallSignaling({ server, database, attachUpgrade: false });
 const classSessionSignaling = createClassSessionSignaling({ database });
+const classCursorSignaling = createClassCursorSignaling({ database, sessionRooms: classSessionSignaling.rooms });
 server.on('upgrade', (req, socket, head) => {
   let pathname;
   try { pathname = new URL(req.url, 'http://localhost').pathname; }
   catch { socket.destroy(); return; }
-  if (pathname.startsWith('/ws/classes/')) classSessionSignaling.handleUpgrade(req, socket, head);
+  if (/^\/ws\/classes\/[^/]+\/cursors$/.test(pathname)) classCursorSignaling.handleUpgrade(req, socket, head);
+  else if (pathname.startsWith('/ws/classes/')) classSessionSignaling.handleUpgrade(req, socket, head);
   else videoCallSignaling.handleUpgrade(req, socket, head);
 });
 

@@ -109,11 +109,13 @@
     headingBlock.className = 'text-reading__heading-block';
     const title = doc.createElement('h2');
     title.className = 'text-reading__title';
+    title.dataset.cursorText = 'title';
     title.dataset.placeholder = 'Введите заголовок';
     const subtitleRow = doc.createElement('div');
     subtitleRow.className = 'text-reading__subtitle-row';
     const subtitle = doc.createElement('p');
     subtitle.className = 'text-reading__subtitle';
+    subtitle.dataset.cursorText = 'subtitle';
     subtitle.dataset.placeholder = 'Введите серый подзаголовок';
     const subtitleActions = doc.createElement('span');
     subtitleActions.className = 'text-reading__subtitle-actions';
@@ -185,6 +187,7 @@
     bodyLayout.className = 'text-reading__body-layout';
     const body = doc.createElement('div');
     body.className = 'text-reading__text';
+    body.dataset.cursorText = 'body';
     body.dataset.placeholder = 'Введите текст';
     const textMedia = doc.createElement('div');
     textMedia.className = 'text-reading__text-media';
@@ -297,6 +300,7 @@
       if (mode === 'image') {
         const image = doc.createElement('img');
         image.src = picture.imageSrc;
+        image.dataset.cursorTarget = side === 'header' ? 'headerImage' : 'textImage';
         image.alt = '';
         image.loading = 'lazy';
         media.append(image);
