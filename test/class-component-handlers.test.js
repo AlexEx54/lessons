@@ -26,6 +26,36 @@ test('visibility actions cannot reveal teacher-only cards or change static compo
   assert.deepEqual(state, { selections: {} });
 });
 
+test('wrap-up content is shared safely and only the student can change self-assessment', () => {
+  const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+  const content = createSyntheticLesson('Wrap-up').stages.find(stage => stage.id === 'wrap-up').content;
+  const note = content.find(component => component.type === 'teacherNote');
+  const reflection = content.find(component => component.type === 'threeTwoOne');
+  const assessment = content.find(component => component.type === 'selfAssessment');
+  assert.equal(studentComponent(note, {}), null);
+  assert.equal(studentComponent(reflection, {}), reflection);
+  assert.equal(studentComponent(assessment, {}), assessment);
+
+  const state = {};
+  const action = { type: 'select-assessment', componentId: assessment.id, selectedId: 'withHelp' };
+  const fs = require('node:fs');
+  const vm = require('node:vm');
+  const window = { ExerciseState: require('../assets/components/exercise-state.js') };
+  vm.runInNewContext(fs.readFileSync(require.resolve('../assets/class-component-adapters.js'), 'utf8'), { window });
+  const preview = {};
+  window.ClassComponentAdapters.preview(assessment, preview, action);
+  applyComponentAction({ role: 'student', component: assessment, state, action });
+  assert.equal(JSON.stringify(preview), JSON.stringify(state));
+  assert.equal(state.selfAssessments[assessment.id], 'withHelp');
+  assert.throws(() => applyComponentAction({ role: 'teacher', component: assessment, state, action }), { statusCode: 403 });
+  assert.throws(() => applyComponentAction({ role: 'student', component: assessment, state,
+    action: { ...action, selectedId: 'invented' } }), { statusCode: 400 });
+  assert.equal(state.selfAssessments[assessment.id], 'withHelp');
+  applyComponentAction({ role: 'student', component: assessment, state,
+    action: { ...action, selectedId: null } });
+  assert.equal(state.selfAssessments[assessment.id], undefined);
+});
+
 test('vocabulary handlers reject observer edits, invalid targets, oversized input and hidden game actions', () => {
   const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
   const model = require('../assets/components/exercise-state.js');

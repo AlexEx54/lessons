@@ -52,6 +52,25 @@
         node.setVisibilityInteractive(session.role === 'teacher' && session.connected);
       },
     }],
+    ['selfAssessment', {
+      options(component, session) {
+        return {
+          selectedId: session.state.selfAssessments?.[component.id],
+          interactive: session.role === 'student' && session.connected,
+          onAction: session.send,
+        };
+      },
+      preview(state, action) {
+        const next = { ...state.selfAssessments };
+        if (action.selectedId == null) delete next[action.componentId];
+        else next[action.componentId] = action.selectedId;
+        state.selfAssessments = next;
+      },
+      update(node, component, session) {
+        node.updateState(session.state.selfAssessments?.[component.id]);
+        node.setInteractive(session.role === 'student' && session.connected);
+      },
+    }],
   ]);
   for (const type of ['dragWordsInText', 'matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'checkboxChoice', 'gapFill', 'miniSituation']) {
     const canInteract = session => session.connected && (session.role === 'student' || type === 'describeAndGuess');

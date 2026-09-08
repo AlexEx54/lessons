@@ -119,12 +119,14 @@ function descendants(node, result = []) {
 
 test('renders the fixed scale, keeps selection local, and allows changing the title', async () => {
   let saved = null;
+  const actions = [];
   const rendered = renderSelfAssessment(component(), {
     onSave: async (changes) => {
       saved = changes;
       return { type: 'selfAssessment', id: 'wrap-up-self-assessment', title: changes.title };
     },
     onDirtyChange: () => {},
+    onAction: action => actions.push(action),
   }, fakeDocument());
   const options = descendants(rendered).filter(node => node.classList?.contains('self-assessment__option'));
   assert.equal(options.length, 3);
@@ -132,6 +134,11 @@ test('renders the fixed scale, keeps selection local, and allows changing the ti
   assert.match(options[0].textContent, /independently/);
   assert.equal(options[0].getAttribute('aria-checked'), 'false');
   options[0].click();
+  assert.deepEqual(actions[0], {
+    type: 'select-assessment',
+    componentId: 'wrap-up-self-assessment',
+    selectedId: 'independent',
+  });
   const selected = descendants(rendered).filter(node => node.classList?.contains('self-assessment__option'));
   assert.equal(selected[0].getAttribute('aria-checked'), 'true');
   assert.ok(descendants(selected[0]).some(node => node.classList?.contains('self-assessment__check')));
@@ -139,6 +146,18 @@ test('renders the fixed scale, keeps selection local, and allows changing the ti
   const switched = descendants(rendered).filter(node => node.classList?.contains('self-assessment__option'));
   assert.equal(switched[0].getAttribute('aria-checked'), 'false');
   assert.equal(switched[1].getAttribute('aria-checked'), 'true');
+  assert.equal(actions[1].selectedId, 'withHelp');
+
+  rendered.updateState('needPractice');
+  const externallyUpdated = descendants(rendered).filter(node => node.classList?.contains('self-assessment__option'));
+  assert.equal(externallyUpdated[2].getAttribute('aria-checked'), 'true');
+  rendered.setInteractive(false);
+  const observerOption = descendants(rendered).find(node => node.dataset?.option === 'independent');
+  assert.equal(observerOption.disabled, false, 'observer mode keeps the normal visual treatment');
+  assert.equal(observerOption.getAttribute('aria-disabled'), 'true');
+  observerOption.click();
+  assert.equal(actions.length, 2, 'observer clicks do not change or emit state');
+  rendered.setInteractive(true);
 
   descendants(rendered).find(node => node.classList?.contains('self-assessment__edit')).click();
   assert.equal(rendered.classList.contains('self-assessment--editing'), true);

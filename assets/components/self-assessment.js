@@ -95,7 +95,8 @@
     const canEdit = typeof settings.onSave === 'function';
     let editing = false;
     let saving = false;
-    let selectedId = '';
+    let selectedId = OPTIONS.some(option => option.id === settings.selectedId) ? settings.selectedId : '';
+    let interactive = settings.interactive !== false;
     let initialSnapshot = '';
     let titleEditor = null;
 
@@ -196,15 +197,24 @@
         button.setAttribute('aria-checked', selected ? 'true' : 'false');
         if (selected) button.classList.add('self-assessment__option--selected');
         button.disabled = editing;
+        button.setAttribute('aria-disabled', interactive ? 'false' : 'true');
+        button.tabIndex = interactive ? 0 : -1;
         const caption = doc.createElement('span');
         caption.className = 'self-assessment__caption';
         caption.textContent = option.text;
         button.append(faceIcon(doc, option.id), caption);
         if (selected) button.append(checkIcon(doc));
         button.addEventListener('click', () => {
-          if (editing) return;
+          if (editing || !interactive) return;
           selectedId = selectedId === option.id ? '' : option.id;
           render();
+          if (typeof settings.onAction === 'function') {
+            settings.onAction({
+              type: 'select-assessment',
+              componentId: current.id,
+              selectedId: selectedId || null,
+            });
+          }
         });
         group.append(button);
       });
@@ -236,6 +246,18 @@
       component.replaceChildren(...children);
     }
 
+    component.updateState = (value) => {
+      const next = OPTIONS.some(option => option.id === value) ? value : '';
+      if (next === selectedId) return;
+      selectedId = next;
+      render();
+    };
+    component.setInteractive = (value) => {
+      const next = Boolean(value);
+      if (next === interactive) return;
+      interactive = next;
+      render();
+    };
     render();
     return component;
   }
