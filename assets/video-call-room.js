@@ -68,6 +68,12 @@
   let iceServers = [];
   let localStream = new MediaStream();
   let remoteStream = new MediaStream();
+  let remoteMediaState = {};
+  let mediaStatsTimer = null;
+  let peerGeneration = 0;
+  let replacementSequence = 0;
+  const diagnosticTrackIds = new WeakMap();
+  let diagnosticTrackSequence = 0;
   let screenTrack = null;
   let socket = null;
   let peerConnection = null;
@@ -118,8 +124,9 @@
   elements.guestNameField.hidden = role !== 'guest';
   elements.remoteName.textContent = role === 'teacher' ? 'Ученик' : 'Преподаватель';
   elements.remoteVideo.addEventListener('playing', () => {
-    elements.remotePlaceholder.hidden = true;
+    updateRemoteVideoVisibility('playing');
   });
+  document.addEventListener('visibilitychange', () => reportMediaStats(peerConnection, 'visibility'));
 
   function setConnection(text, state = '') {
     elements.connection.dataset.state = state;
@@ -309,7 +316,21 @@
   }
 
   async function applyOutboundVideoTrack() {
-    if (videoTransceiver) await videoTransceiver.sender.replaceTrack(outboundVideoTrack());
+    if (!videoTransceiver) return;
+    const sender = videoTransceiver.sender;
+    const next = outboundVideoTrack();
+    const operation = ++replacementSequence;
+    const details = { peerGeneration, operation, previousTrack: diagnosticTrackId(sender.track),
+      nextTrack: diagnosticTrackId(next), source: !next ? 'none' : next === screenTrack ? 'screen' : next === effectTrack ? 'effect' : 'camera' };
+    sendDiagnostic('video-track-replace', { ...details, state: 'start' });
+    try {
+      await sender.replaceTrack(next);
+      sendDiagnostic('video-track-replace', { ...details, state: 'success', ...videoTrackDetails(sender.track) });
+    } catch (error) {
+      sendDiagnostic('video-track-replace', { ...details, state: 'failure',
+        ...videoTrackDetails(sender.track), errorText: `${error.name}: ${error.message}` });
+      throw error;
+    }
   }
 
   function effectMode() {
@@ -615,6 +636,7 @@
 
   async function selectVideoBackground(value, { persist = true } = {}) {
     if (!BACKGROUND_IDS.has(value)) value = 'none';
+    sendDiagnostic('video-background-selection', { state: value === 'none' ? 'none' : value === 'blur' ? 'blur' : 'replacement' });
     selectedBackground = value;
     if (persist) writeStoredBackground(value);
     updateBackgroundControls();
@@ -724,7 +746,51 @@
   }
 
   function sendDiagnostic(event, details = {}) {
-    send({ type: 'diagnostic', event, ...details });
+    send({ type: 'diagnostic', event, peerGeneration, pageHidden: document.hidden, ...details });
+  }
+
+  function diagnosticTrackId(track) {
+    if (!track) return 0;
+    if (!diagnosticTrackIds.has(track)) diagnosticTrackIds.set(track, ++diagnosticTrackSequence);
+    return diagnosticTrackIds.get(track);
+  }
+
+  function videoTrackDetails(track) {
+    return { trackNumber: diagnosticTrackId(track), trackState: track?.readyState || 'absent',
+      trackMuted: Boolean(track?.muted), trackEnabled: Boolean(track?.enabled) };
+  }
+
+  function updateRemoteVideoVisibility(reason) {
+    const tracks = remoteStream.getVideoTracks();
+    const active = tracks.find(track => track.readyState === 'live' && !track.muted);
+    const explicitlyOff = remoteMediaState.video === false && !remoteMediaState.screen;
+    elements.remotePlaceholder.hidden = !explicitlyOff && Boolean(active);
+    if (!elements.remotePlaceholder.hidden) {
+      elements.remotePlaceholderText.textContent = explicitlyOff
+        ? 'Камера участника выключена' : 'Ожидаем видео участника…';
+    }
+    sendDiagnostic('remote-video-state', { state: reason, video: remoteMediaState.video,
+      screen: remoteMediaState.screen, placeholderVisible: !elements.remotePlaceholder.hidden,
+      ...videoTrackDetails(active || tracks[0]), videoReadyState: elements.remoteVideo.readyState });
+  }
+
+  async function reportMediaStats(connection, reason = 'periodic') {
+    if (!connection || connection !== peerConnection) return;
+    try {
+      const reports = await connection.getStats();
+      if (connection !== peerConnection) return;
+      reports.forEach(report => {
+        if ((report.kind || report.mediaType) !== 'video' || !['inbound-rtp', 'outbound-rtp'].includes(report.type)) return;
+        const details = { state: reason, direction: report.type, ssrc: report.ssrc,
+          placeholderVisible: !elements.remotePlaceholder.hidden };
+        for (const field of ['framesEncoded', 'framesSent', 'framesReceived', 'framesDecoded', 'bytesSent', 'bytesReceived', 'packetsLost']) {
+          if (Number.isFinite(report[field]) && report[field] >= 0) details[field] = Math.round(report[field]);
+        }
+        sendDiagnostic('video-rtp-stats', details);
+      });
+    } catch (error) {
+      if (connection === peerConnection) sendDiagnostic('stats-error', { state: 'video', errorText: error.message });
+    }
   }
 
   function candidateType(candidate) {
@@ -782,6 +848,7 @@
   }
 
   function sendMediaState() {
+    sendDiagnostic('local-media-state', { video: Boolean(track('video')?.enabled) && mediaState.video, screen: Boolean(screenTrack) });
     send({
       type: 'media-state',
       audio: Boolean(track('audio')?.enabled) && mediaState.audio,
@@ -792,6 +859,9 @@
   }
 
   function closePeerConnection() {
+    window.clearInterval(mediaStatsTimer);
+    mediaStatsTimer = null;
+    remoteMediaState = {};
     peerConnection?.close();
     peerConnection = null;
     audioTransceiver = null;
@@ -816,6 +886,8 @@
       throw error;
     }
     peerConnection = connection;
+    peerGeneration += 1;
+    mediaStatsTimer = window.setInterval(() => reportMediaStats(connection), 30_000);
     makingOffer = false;
     ignoreOffer = false;
     isSettingRemoteAnswerPending = false;
@@ -853,24 +925,26 @@
       }
     };
     connection.ontrack = event => {
+      if (peerConnection !== connection) return;
       if (!remoteStream.getTracks().some(item => item.id === event.track.id)) remoteStream.addTrack(event.track);
-      elements.remoteVideo.srcObject = remoteStream;
-      elements.remotePlaceholder.hidden = false;
+      if (elements.remoteVideo.srcObject !== remoteStream) elements.remoteVideo.srcObject = remoteStream;
       if (event.track.kind === 'video') {
-        event.track.addEventListener('unmute', () => {
-          elements.remotePlaceholder.hidden = true;
-        });
-        event.track.addEventListener('mute', () => {
-          if (remoteStream.getVideoTracks().every(item => item.muted)) elements.remotePlaceholder.hidden = false;
-        });
+        for (const type of ['unmute', 'mute', 'ended']) {
+          event.track.addEventListener(type, () => {
+            if (peerConnection !== connection) return;
+            updateRemoteVideoVisibility(type);
+            reportMediaStats(connection, type);
+          });
+        }
       }
+      updateRemoteVideoVisibility(event.track.kind === 'video' ? 'video-track' : 'audio-track');
     };
     connection.onconnectionstatechange = () => {
       if (peerConnection !== connection) return;
       sendDiagnostic('peer-connection-state', { state: connection.connectionState });
       if (connection.connectionState === 'connected') {
         setConnection('Соединение установлено', 'connected');
-        elements.remotePlaceholderText.textContent = 'Камера участника выключена';
+        updateRemoteVideoVisibility('connected');
         window.setTimeout(() => reportSelectedCandidate(connection), 500);
       } else if (['failed', 'disconnected'].includes(connection.connectionState)) {
         setConnection('Соединение прервано, восстанавливаем…', 'error');
@@ -892,7 +966,7 @@
     audioTransceiver = connection.addTransceiver('audio', { direction: 'sendrecv' });
     videoTransceiver = connection.addTransceiver('video', { direction: 'sendrecv' });
     await audioTransceiver.sender.replaceTrack(track('audio') || null);
-    await videoTransceiver.sender.replaceTrack(outboundVideoTrack());
+    await applyOutboundVideoTrack();
     return connection;
   }
 
@@ -989,10 +1063,9 @@
         } else if (message.type === 'media-state') {
           if (message.name) elements.remoteName.textContent = String(message.name).slice(0, 60);
           elements.remoteMuted.hidden = message.audio !== false;
-          if (message.video === false && !message.screen) {
-            elements.remotePlaceholder.hidden = false;
-            elements.remotePlaceholderText.textContent = 'Камера участника выключена';
-          }
+          remoteMediaState = { video: message.video, screen: message.screen };
+          updateRemoteVideoVisibility('media-state');
+          reportMediaStats(peerConnection, 'media-state');
         } else if (message.type === 'call-ended') {
           finishCall('Преподаватель завершил видеозвонок.');
         }
@@ -1085,7 +1158,7 @@
       screenTrack.onended = stopScreenShare;
       backgroundEffectGeneration += 1;
       stopBackgroundEffect();
-      if (videoTransceiver) await videoTransceiver.sender.replaceTrack(screenTrack);
+      await applyOutboundVideoTrack();
       mediaState.screen = true;
       if (selectedBackground !== 'none') setBackgroundStatus('Фон включится после демонстрации экрана');
       updateButtons();

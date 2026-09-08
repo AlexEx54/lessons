@@ -231,3 +231,13 @@ test('admin creates a call, guest joins by invite, and signaling relays messages
   assert.equal(ended.status, 200);
   assert.equal((await ended.json()).call.status, 'ended');
 });
+
+
+test('media diagnostics preserve counters and flags without track labels or arbitrary fields', () => {
+  assert.deepEqual(sanitizeVideoCallDiagnostic({
+    event: 'video-rtp-stats', direction: 'inbound-rtp', framesDecoded: 120,
+    bytesReceived: 5000, pageHidden: false, placeholderVisible: true, peerGeneration: 2,
+    trackLabel: 'private device', framesSent: -1, trackNumber: Infinity, source: 'arbitrary',
+  }), { event: 'video-rtp-stats', pageHidden: false, placeholderVisible: true,
+    peerGeneration: 2, framesDecoded: 120, bytesReceived: 5000, direction: 'inbound-rtp' });
+});
