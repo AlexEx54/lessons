@@ -50,7 +50,7 @@
       },
     }],
   ]);
-  for (const type of ['dragWordsInText', 'matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'checkboxChoice']) {
+  for (const type of ['dragWordsInText', 'matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'checkboxChoice', 'gapFill', 'miniSituation']) {
     const canInteract = session => session.connected && (session.role === 'student' || type === 'describeAndGuess');
     adapters.set(type, {
       options(component, session) {
@@ -74,8 +74,8 @@
         }
         const previous = state.exercises?.[action.componentId] || {};
         let next = previous;
-        // These exercises include keys for immediate local feedback.
-        if (type === 'dragWordsInText' || type === 'dropdownChoice' || type === 'matchWords' || type === 'multipleChoice' || type === 'checkboxChoice') {
+        // Reapply queued actions with the same rules as the component and server.
+        if (type === 'gapFill' || type === 'miniSituation' || type === 'dragWordsInText' || type === 'dropdownChoice' || type === 'matchWords' || type === 'multipleChoice' || type === 'checkboxChoice') {
           next = window.ExerciseState.apply(component.presentation, previous, action);
           state.exercises = { ...state.exercises, [action.componentId]: next };
           return;
@@ -103,6 +103,18 @@
       },
     });
   }
+  adapters.set('cardRow', {
+    options(component, session) {
+      return { presentation: component.presentation,
+        componentOptions: child => window.ClassComponentAdapters.options(child, session) };
+    },
+    update(node, component, session) {
+      for (const child of window.ComponentTree.childComponentsOf(component)) {
+        const childNode = node.componentNodes.get(child.id);
+        if (childNode) window.ClassComponentAdapters.update(childNode, child, session);
+      }
+    },
+  });
   window.ClassComponentAdapters = {
     options(component, session) {
       return { viewerRole: session.role, showImagePrompts: false, ...adapters.get(component.type)?.options(component, session) };

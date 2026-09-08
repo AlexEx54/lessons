@@ -5,6 +5,8 @@
     || (typeof require === 'function' ? require('./inline-gap-text.js') : null);
   if (!inlineGapText) throw new Error('GapFill requires InlineGapText.');
 
+  const model = root.ExerciseState || (typeof require === 'function' ? require('./exercise-state.js') : null);
+
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const HEX_COLOR = /^#[0-9A-F]{6}$/;
   const DEFAULT_ACCENT_COLOR = '#17182D';
@@ -83,15 +85,7 @@
     return parts;
   }
 
-  function comparableAnswer(value) {
-    return typeof value === 'string'
-      ? value.trim().replace(/\s+/g, ' ').replace(/[\u2018\u2019\u02BC]/g, "'").toLocaleLowerCase()
-      : '';
-  }
-
-  function answersMatch(value, answer) {
-    return Boolean(comparableAnswer(value)) && comparableAnswer(value) === comparableAnswer(answer);
-  }
+  const answersMatch = model.gapAnswersMatch;
 
   function normalizeGaps(gaps) {
     if (!Array.isArray(gaps) || gaps.length < 1 || gaps.length > 12) {
@@ -170,7 +164,10 @@
     if (options && typeof options.createElement === 'function') { doc = options; settings = {}; }
     if (!doc) throw new Error('GapFill requires a document.');
 
-    let current = normalizeGapFill(data);
+    let current = normalizeGapFill(settings.presentation || data);
+    let exerciseState = settings.exerciseState || {};
+    let interactive = settings.interactive !== false;
+    const fields = new Map();
     let editing = false;
     let saving = false;
     let initialSnapshot = '';
@@ -249,20 +246,39 @@
       const status = doc.createElement('span');
       status.className = 'gap-fill__sr-status';
       status.setAttribute('aria-live', 'polite');
+      input.maxLength = 1000;
+      fields.set(gap.id, { input, field, check, status, index });
       input.addEventListener('input', () => {
-        const correct = answersMatch(input.value, gap.answer);
-        field.classList.toggle('gap-fill__field--correct', correct);
-        check.hidden = !correct;
-        status.textContent = correct ? `Ответ ${index + 1} верный.` : '';
+        if (!interactive) { paintState(); return; }
+        const action = { type: 'type-answer', componentId: current.id, itemId: gap.id, value: input.value };
+        section.updateState(model.apply(current, exerciseState, action));
+        if (typeof settings.onAction === 'function') settings.onAction(action);
         if (typeof settings.onActivity === 'function') {
-          settings.onActivity(current.id, gap.id, correct ? 'correct' : 'pending');
+          settings.onActivity(current.id, gap.id, exerciseState.answers[gap.id].status);
         }
       });
       field.append(input, check, status);
       return field;
     }
 
+    function paintState() {
+      if (editing) return;
+      fields.forEach(({ input, field, check, status, index }, id) => {
+        const answer = exerciseState.answers?.[id];
+        const value = answer?.value || '';
+        if (input.value !== value) input.value = value;
+        input.readOnly = !interactive;
+        const correct = answer?.status === 'correct';
+        field.classList.toggle('gap-fill__field--correct', correct);
+        check.hidden = !correct;
+        status.textContent = correct ? `Ответ ${index + 1} верный.` : '';
+      });
+    }
+    section.updateState = (next = {}) => { exerciseState = next; paintState(); };
+    section.setInteractive = value => { interactive = Boolean(value); paintState(); };
+
     function paintPlay() {
+      fields.clear();
       section.style.setProperty('--gap-fill-accent', current.accentColor);
       section.setAttribute('aria-label', stripAccentMarkdown(current.title));
       title.replaceChildren();
@@ -283,6 +299,7 @@
         });
         return paragraph;
       }));
+      paintState();
     }
 
     function makeTextSpan(text) {
@@ -483,6 +500,7 @@
       editButton.setAttribute('aria-label', 'Редактировать Gap Fill');
       cancelButton.hidden = true;
       setDirty(false);
+      exerciseState = {};
       paintPlay();
     }
 

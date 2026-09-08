@@ -15,6 +15,8 @@
     ));
   }
 
+  const model = root.ExerciseState || (typeof require === 'function' ? require('./exercise-state.js') : null);
+
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s|^\s*(?:[-*+]\s|\d+\.\s)/m;
   const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'sentenceCount', 'situation'];
@@ -77,7 +79,9 @@
     }
     if (!doc) throw new Error('MiniSituation requires a document.');
 
-    let current = normalizeMiniSituation(data);
+    let current = normalizeMiniSituation(settings.presentation || data);
+    let exerciseState = settings.exerciseState || {};
+    let interactive = settings.interactive !== false;
     let editing = false;
     let saving = false;
     let workingCount = current.sentenceCount;
@@ -117,6 +121,8 @@
     const situationMount = doc.createElement('div');
     situationMount.className = 'mini-situation__situation';
     const situationNode = illustrated.renderIllustratedTextPanel(current.situation, {
+      viewerRole: settings.viewerRole,
+      showImagePrompts: settings.showImagePrompts,
       onSave: settings.onSituationSave,
       onUpload: settings.onSituationUpload,
       onDelete: settings.onSituationDelete,
@@ -179,6 +185,16 @@
         input.placeholder = `Type sentence ${index + 1}...`;
         input.setAttribute('aria-label', `Предложение ${index + 1}`);
         input.value = values[index] || '';
+        input.maxLength = 1000;
+        input.readOnly = !interactive;
+        input.addEventListener('input', () => {
+          if (editing) return;
+          if (!interactive) { paintState(); return; }
+          const action = { type: 'type-answer', componentId: current.id,
+            itemId: `sentence-${index + 1}`, value: input.value };
+          section.updateState(model.apply(current, exerciseState, action));
+          if (typeof settings.onAction === 'function') settings.onAction(action);
+        });
         row.append(number, input);
         if (editing) {
           const remove = doc.createElement('button');
@@ -196,6 +212,17 @@
       addSlot.hidden = !editing;
       addSlot.disabled = saving || count >= MAX_SENTENCES;
     }
+
+    function paintState() {
+      if (editing) return;
+      [...slots.querySelectorAll('.mini-situation__input')].forEach((input, index) => {
+        const value = exerciseState.answers?.[`sentence-${index + 1}`]?.value || '';
+        if (input.value !== value) input.value = value;
+        input.readOnly = !interactive;
+      });
+    }
+    section.updateState = (next = {}) => { exerciseState = next; paintState(); };
+    section.setInteractive = value => { interactive = Boolean(value); paintState(); };
 
     function addSentence() {
       if (!editing || saving || workingCount >= MAX_SENTENCES) return;
@@ -247,7 +274,10 @@
       cancelButton.hidden = true;
       cancelButton.disabled = false;
       paintCopy();
-      paintSlots(current.sentenceCount, slotValues());
+      const values = slotValues();
+      exerciseState = { answers: Object.fromEntries(values.slice(0, current.sentenceCount)
+        .map((value, index) => [`sentence-${index + 1}`, { value }])) };
+      paintSlots(current.sentenceCount, values);
       setDirty(false);
     }
 
@@ -339,6 +369,7 @@
 
     paintCopy();
     paintSlots(current.sentenceCount, []);
+    paintState();
     section.append(header, instruction, situationMount, slots, addSlot, check);
     return section;
   }

@@ -11,8 +11,8 @@
   const componentTree = root.ComponentTree
     || (typeof require === 'function' ? require('./component-tree.js') : null);
   if (componentTree && typeof componentTree.registerChildSlots === 'function') {
-    componentTree.registerChildSlots('cardRow', component => (component && Array.isArray(component.items)
-      ? component.items
+    componentTree.registerChildSlots('cardRow', component => (component && Array.isArray(component.presentation?.items || component.items)
+      ? (component.presentation?.items || component.items)
       : []));
   }
 
@@ -21,15 +21,15 @@
   const MIN_ITEMS = 2;
   const MAX_ITEMS = 3;
 
-  function normalizeCardRow(data) {
+  function normalizeRow(data, minimum) {
     if (!data || data.type !== 'cardRow' || !KEBAB_CASE.test(String(data.id || ''))) {
       throw new Error('CardRow requires type "cardRow" and a kebab-case id.');
     }
     if (Object.keys(data).some(key => !COMPONENT_KEYS.includes(key))) {
       throw new Error('CardRow contains unsupported fields.');
     }
-    if (!Array.isArray(data.items) || data.items.length < MIN_ITEMS || data.items.length > MAX_ITEMS) {
-      throw new Error(`CardRow requires between ${MIN_ITEMS} and ${MAX_ITEMS} items.`);
+    if (!Array.isArray(data.items) || data.items.length < minimum || data.items.length > MAX_ITEMS) {
+      throw new Error(`CardRow requires between ${minimum} and ${MAX_ITEMS} items.`);
     }
     const items = data.items.map((item) => {
       if (!item || item.type !== 'markdownCard') {
@@ -44,6 +44,8 @@
     return { type: 'cardRow', id: data.id, items };
   }
 
+  function normalizeCardRow(data) { return normalizeRow(data, MIN_ITEMS); }
+
   function renderCardRow(data, options, documentRef) {
     let settings = options || {};
     let doc = documentRef || root.document;
@@ -53,12 +55,13 @@
     }
     if (!doc) throw new Error('CardRow requires a document.');
 
-    const current = normalizeCardRow(data);
+    const current = settings.presentation ? normalizeRow(settings.presentation, 0) : normalizeCardRow(data);
 
     const section = doc.createElement('section');
     section.className = 'card-row';
     section.dataset.componentId = current.id;
 
+    section.componentNodes = new Map();
     current.items.forEach((item) => {
       const node = markdown.renderMarkdownCard(item, {
         viewerRole: settings.viewerRole || 'teacher',
@@ -66,13 +69,16 @@
         onSave: settings.onSave,
         onDirtyChange: settings.onDirtyChange,
         onError: settings.onError,
+        ...settings.componentOptions?.(item),
       }, doc);
-      if (node) section.append(node);
+      if (node) { section.append(node); section.componentNodes.set(item.id, node); }
     });
+
+    section.dispose = () => section.componentNodes.forEach(node => node.dispose?.());
 
     // Если не видна ни одна карточка (например все teacherOnly в student view),
     // ряд целиком не отображается.
-    if (section.childNodes.length === 0) return null;
+    if (section.componentNodes.size === 0) return null;
     return section;
   }
 

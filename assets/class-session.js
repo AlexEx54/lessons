@@ -42,7 +42,8 @@
     link.textContent = role === 'teacher' ? 'В расписание' : 'Повторить подключение';
   }
   function componentFor(action) {
-    return viewState.lesson?.stages.find(stage => stage.id === action.stageId)?.content?.find(component => component.id === action.componentId);
+    const stage = viewState.lesson?.stages.find(stage => stage.id === action.stageId);
+    return stage && window.ComponentTree.collectComponents([stage]).find(component => component.id === action.componentId);
   }
   function session(state = confirmed) { return { role, connected, state, send: enqueue, pendingActions: pending, feedback }; }
   function enqueue(action) {

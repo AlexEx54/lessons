@@ -14,6 +14,10 @@
     const comparable = text => typeof text === 'string' ? text.trim().replace(/\s+/g, ' ').toLocaleLowerCase() : '';
     return Boolean(comparable(value)) && comparable(value) === comparable(answer);
   }
+  function gapAnswersMatch(value, answer) {
+    const apostrophes = text => typeof text === 'string' ? text.replace(/[\u2018\u2019\u02BC]/g, "'") : '';
+    return answersMatch(apostrophes(value), apostrophes(answer));
+  }
   function selectionState(value, answer) { return !value ? 'empty' : value === answer ? 'correct' : 'wrong'; }
   // Stable layouts keep word order and identifiers consistent across clients.
   function createLayout(component, id = () => root.crypto.randomUUID()) {
@@ -104,6 +108,17 @@
       if (previous.answers?.[choice.id]?.status === 'correct') fail('Ответ уже верный.');
       return { ...previous, answers: { ...previous.answers, [choice.id]: { value: action.value, status: selectionState(action.value, choice.answer ?? component.answerKey?.[choice.id]) } } };
     }
+    if (component.type === 'gapFill' || component.type === 'miniSituation') {
+      if (action.type !== 'type-answer' || typeof action.value !== 'string' || action.value.length > 1000) fail('Некорректный ответ.');
+      const gap = component.type === 'gapFill' && component.gaps.find(item => item.id === action.itemId);
+      const valid = component.type === 'gapFill' ? gap
+        : Array.from({ length: component.sentenceCount }, (_, index) => `sentence-${index + 1}`).includes(action.itemId);
+      if (!valid) fail('Поле не найдено.');
+      return { ...previous, answers: { ...previous.answers, [action.itemId]: {
+        value: action.value,
+        ...(gap ? { status: gapAnswersMatch(action.value, gap.answer) ? 'correct' : 'pending' } : {}),
+      } } };
+    }
     if (component.type === 'fillInBlanks') {
       if (action.type !== 'type-answer') fail('Неизвестное действие.');
       const item = component.items.find(item => item.id === action.itemId);
@@ -116,7 +131,7 @@
     }
     fail('Неизвестное упражнение.');
   }
-  const api = { apply, presentation, createLayout, shuffle, answersMatch, selectionState };
+  const api = { apply, presentation, createLayout, shuffle, answersMatch, gapAnswersMatch, selectionState };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.ExerciseState = api;
 })(typeof window !== 'undefined' ? window : globalThis);

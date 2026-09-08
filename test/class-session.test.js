@@ -33,6 +33,9 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   const content = createSyntheticLesson('Live lesson');
   const publicAsset = `${'c'.repeat(64)}.png`, privateAsset = `${'d'.repeat(64)}.png`, leadAsset = `${'e'.repeat(64)}.png`;
   const audioAsset = `${'f'.repeat(64)}.mp3`;
+  const supportRow = content.stages.find(stage => stage.id === 'grammar-focus').content.find(item => item.type === 'cardRow');
+  supportRow.items[1].studentVisibility = 'controlled';
+  supportRow.items[2].studentVisibility = 'teacherOnly';
   const choice = content.stages[0].content.find(component => component.type === 'thisOrThat');
   choice.items[0].options[0].imageSrc = `/api/library/superhero/assets/${publicAsset}`;
   content.stages[1].content.find(c => c.type === 'illustratedTextPanel').leadingPicture.imageSrc = `/api/library/superhero/assets/${leadAsset}`;
@@ -99,7 +102,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.equal((await get(`/api/classes/${lesson.id}`, cookie)).status, 401);
   const studentPayload = await (await get(`/api/classes/${lesson.id}/live?role=student`, cookie)).json();
   assert.deepEqual(studentPayload.lesson.content.stages[0].content.map(component => component.type), ['markdownCard', 'thisOrThat', 'taskPrompt']);
-  assert.ok(studentPayload.lesson.content.stages.slice(6).every(stage => stage.content === null));
+  assert.ok(studentPayload.lesson.content.stages.slice(7).every(stage => stage.content === null));
   assert.ok(!JSON.stringify(studentPayload).includes('teacherNote'));
   const initialListening = studentPayload.lesson.content.stages.find(stage => stage.id === 'listening');
   assert.deepEqual(initialListening.content.map(component => component.type), ['audioPlayer', 'checkboxChoice', 'audioPlayer', 'multipleChoice']);
@@ -305,6 +308,32 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   await sendStudent({ stageId: grammar.id, type: 'choose-word', componentId: ruleDropdown.id,
     itemId: ruleDropdown.presentation.choices[0].id, value: ruleDropdown.presentation.answerKey[ruleDropdown.presentation.choices[0].id] });
   assert.equal(final.state.exercises[ruleDropdown.id].answers[ruleDropdown.presentation.choices[0].id].status, 'correct');
+  final = await sendTeacher({ type: 'select-stage', stageId: 'grammar-focus', expectedVersion: final.state.version });
+  const focus = final.lesson.content.stages.find(stage => stage.id === 'grammar-focus');
+  assert.deepEqual(focus.content.map(item => item.type), ['dropdownChoice', 'gapFill', 'miniSituation', 'cardRow']);
+  const gapFill = focus.content.find(item => item.type === 'gapFill');
+  const gap = gapFill.presentation.gaps[0];
+  await sendStudent({ stageId: focus.id, type: 'type-answer', componentId: gapFill.id, itemId: gap.id, value: gap.answer });
+  assert.equal(final.state.exercises[gapFill.id].answers[gap.id].status, 'correct');
+  await sendStudent({ stageId: focus.id, type: 'type-answer', componentId: gapFill.id, itemId: gap.id, value: 'unfinished' });
+  assert.equal(final.state.exercises[gapFill.id].answers[gap.id].status, 'pending');
+  const mini = focus.content.find(item => item.type === 'miniSituation');
+  await sendStudent({ stageId: focus.id, type: 'type-answer', componentId: mini.id, itemId: 'sentence-1', value: 'I am learning.' });
+  assert.deepEqual(final.state.exercises[mini.id].answers['sentence-1'], { value: 'I am learning.' });
+  const row = focus.content.find(item => item.type === 'cardRow');
+  assert.equal(row.presentation.items.length, 1);
+  final = await sendTeacher({ type: 'set-visibility', stageId: focus.id, componentId: supportRow.items[1].id,
+    visible: true, expectedVersion: final.state.version });
+  const currentRow = () => final.lesson.content.stages.find(stage => stage.id === focus.id).content.find(item => item.id === row.id);
+  assert.equal(currentRow().presentation.items.length, 2);
+  assert.equal(JSON.stringify(currentRow()).includes(supportRow.items[2].text), false);
+  replacement.send(JSON.stringify({ type: 'set-visibility', stageId: focus.id, componentId: supportRow.items[1].id,
+    visible: false, expectedVersion: final.state.version }));
+  assert.match((await replacement.next('action-error')).error, /преподаватель/);
+  teacherSocket.send(JSON.stringify({ type: 'set-visibility', stageId: focus.id, componentId: supportRow.items[2].id,
+    visible: true, expectedVersion: final.state.version }));
+  assert.match((await teacherSocket.next('action-error')).error, /видимость/);
+
   const exerciseProgress = structuredClone(final.state.exercises);
   final = await sendTeacher({ type: 'select-stage', stageId: 'lead-in', expectedVersion: final.state.version });
   final = await sendTeacher({ type: 'select-stage', stageId: 'target-vocabulary', expectedVersion: final.state.version });
@@ -326,7 +355,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   reordered.stages.reverse();
   db.prepare('UPDATE classes SET content_json = ? WHERE id = ?').run(JSON.stringify(reordered), otherLesson.id);
   const otherAccess = { role: 'teacher', classId: otherLesson.id, ownerId: teacher.id };
-  assert.equal(sessionPayload(otherAccess, db).state.activeStageId, 'grammar-presentation');
+  assert.equal(sessionPayload(otherAccess, db).state.activeStageId, 'grammar-focus');
   applyAction(otherAccess, { type: 'select-stage', stageId: 'warm-up', expectedVersion: 0 }, db);
   const reorderedState = applyAction({ ...otherAccess, role: 'student' }, { ...action, expectedVersion: 1 }, db);
   assert.equal(reorderedState.selections[choice.id][choice.items[0].id], action.optionId);

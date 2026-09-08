@@ -39,6 +39,9 @@ async function fixture(role = 'student', quiz = null) {
     setInterval(fn) { intervals.set(++timerId, fn); return timerId; },
     clearInterval(id) { intervals.delete(id); },
     scrollTo() {},
+    ComponentTree: require('../assets/components/component-tree.js'),
+    GapFillComponent: { renderGapFill() { return mounted.get('choice'); } },
+    MiniSituationComponent: { renderMiniSituation() { return mounted.get('choice'); } },
     ExerciseState: require('../assets/components/exercise-state.js'),
     MultipleChoiceComponent: { renderMultipleChoice() { return mounted.get('choice'); } },
     ThisOrThatComponent: { renderThisOrThat() { return mounted.get('choice'); } },
@@ -191,5 +194,28 @@ test('reading queue preserves local correct feedback while an earlier wrong answ
   assert.equal(f.frames.at(-1).answers.question.status, 'wrong');
   assert.equal(socket.sent.length, 2);
   socket.close();
+  assert.equal(f.isInteractive(), false);
+});
+
+for (const type of ['gapFill', 'miniSituation']) test(`${type}: every text change is queued, acknowledgements preserve newer text and disconnect rolls back`, async () => {
+  const quiz = { type, id: 'choice', presentation: { type, id: 'choice',
+    gaps: [{ id: 'sentence-1', answer: 'abc' }], sentenceCount: 3 } };
+  const f = await fixture('student', quiz), socket = f.sockets[0];
+  socket.receive({ type: 'snapshot', state: f.initial });
+  const { onAction } = f.settings.componentOptions(quiz);
+  for (const value of ['a', 'ab', 'abc']) onAction({ type: 'type-answer', componentId: 'choice', itemId: 'sentence-1', value });
+  assert.equal(socket.sent.length, 1);
+  assert.equal(f.frames.at(-1).answers['sentence-1'].value, 'abc');
+  let confirmed = {};
+  for (const [index, value] of ['a', 'ab'].entries()) {
+    assert.equal(socket.sent[index].value, value);
+    confirmed = require('../assets/components/exercise-state.js').apply(quiz.presentation, confirmed, socket.sent[index]);
+    socket.receive({ type: 'action', state: { ...f.initial, version: index + 1, exercises: { choice: confirmed } } });
+    assert.equal(f.frames.at(-1).answers['sentence-1'].value, 'abc');
+  }
+  assert.equal(socket.sent.length, 3);
+  assert.equal(socket.sent[2].value, 'abc');
+  socket.close();
+  assert.equal(f.frames.at(-1).answers['sentence-1'].value, 'ab');
   assert.equal(f.isInteractive(), false);
 });
