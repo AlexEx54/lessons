@@ -7,7 +7,7 @@ const test = require('node:test');
 const { createDocument } = require('./helpers/lesson-dom.js');
 const source = fs.readFileSync(path.join(__dirname, '../assets/class-session.js'), 'utf8');
 async function fixture(role = 'student', quiz = null) {
-  const document = createDocument(), sockets = [], timers = new Map(), frames = [];
+  const document = createDocument(), sockets = [], timers = new Map(), intervals = new Map(), frames = [];
   const id = '11111111-1111-4111-8111-111111111111';
   let settings, interactive;
   const lesson = { content: { stages: [
@@ -36,6 +36,8 @@ async function fixture(role = 'student', quiz = null) {
     location: { pathname: `/classes/${id}${role === 'student' ? '/student' : ''}`, protocol: 'http:', host: 'localhost' },
     setTimeout(fn) { timers.set(++timerId, fn); return timerId; },
     clearTimeout(id) { timers.delete(id); }, addEventListener() {},
+    setInterval(fn) { intervals.set(++timerId, fn); return timerId; },
+    clearInterval(id) { intervals.delete(id); },
     scrollTo() {},
     ExerciseState: require('../assets/components/exercise-state.js'),
     MultipleChoiceComponent: { renderMultipleChoice() { return mounted.get('choice'); } },
@@ -49,8 +51,26 @@ async function fixture(role = 'student', quiz = null) {
   window.LessonView.create = value => { settings = value; return createView(value); };
   vm.runInNewContext(source, { window, document, WebSocket: Socket, structuredClone, fetch: async () => ({ ok: true, json: async () => ({ state: initial, lesson, availableStageIds }) }) });
   await new Promise(resolve => setImmediate(resolve));
-  return { settings, sockets, timers, frames, initial, lesson, document, isInteractive: () => interactive, status };
+  return { settings, sockets, timers, intervals, frames, initial, lesson, document, isInteractive: () => interactive, status };
 }
+test('lesson timer is local to the teacher view and stays hidden from the student', async () => {
+  const teacher = await fixture('teacher');
+  const teacherTimer = teacher.document.getElementById('lesson-timer');
+  assert.equal(teacherTimer.hidden, false);
+  teacherTimer.click();
+  assert.equal(teacher.intervals.size, 1);
+  [...teacher.intervals.values()][0]();
+  assert.equal(teacher.document.getElementById('elapsed-time').textContent, '00:01');
+  assert.equal(teacher.document.getElementById('timer-icon').textContent, 'Ⅱ');
+  teacherTimer.click();
+  assert.equal(teacher.intervals.size, 0);
+  assert.equal(teacher.document.getElementById('timer-icon').textContent, '▶');
+
+  const student = await fixture('student');
+  assert.equal(student.document.getElementById('lesson-timer').hidden, true);
+  student.document.getElementById('lesson-timer').click();
+  assert.equal(student.intervals.size, 0);
+});
 test('rapid selections are sent in order with acknowledged versions and remote updates do not echo', async () => {
   const f = await fixture(), socket = f.sockets[0];
   socket.receive({ type: 'snapshot', state: f.initial });
