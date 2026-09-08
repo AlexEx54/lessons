@@ -32,12 +32,17 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   const teacherCookie = `teach_session=${createSession(teacher.id, db).token}`;
   const content = createSyntheticLesson('Live lesson');
   const publicAsset = `${'c'.repeat(64)}.png`, privateAsset = `${'d'.repeat(64)}.png`, leadAsset = `${'e'.repeat(64)}.png`;
+  const audioAsset = `${'f'.repeat(64)}.mp3`;
   const choice = content.stages[0].content.find(component => component.type === 'thisOrThat');
   choice.items[0].options[0].imageSrc = `/api/library/superhero/assets/${publicAsset}`;
   content.stages[1].content.find(c => c.type === 'illustratedTextPanel').leadingPicture.imageSrc = `/api/library/superhero/assets/${leadAsset}`;
   content.stages[1].content.push({ type: 'teacherNote', id: 'private-note', text: `/api/library/superhero/assets/${privateAsset}` });
+  for (const audio of content.stages.find(stage => stage.id === 'listening').content.filter(component => component.type === 'audioPlayer')) {
+    audio.audioSrc = `/api/library/superhero/assets/${audioAsset}`;
+  }
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
   for (const name of [publicAsset, privateAsset, leadAsset]) db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', name, Buffer.from('image'));
+  db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', audioAsset, Buffer.from('audio'));
   const makeClass = () => createClass({ name: 'Live test', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID() }, teacher.id, db);
   const lesson = makeClass(), otherLesson = makeClass();
   const probe = require('node:net').createServer();
@@ -94,11 +99,15 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.equal((await get(`/api/classes/${lesson.id}`, cookie)).status, 401);
   const studentPayload = await (await get(`/api/classes/${lesson.id}/live?role=student`, cookie)).json();
   assert.deepEqual(studentPayload.lesson.content.stages[0].content.map(component => component.type), ['markdownCard', 'thisOrThat', 'taskPrompt']);
-  assert.ok(studentPayload.lesson.content.stages.slice(4).every(stage => stage.content === null));
+  assert.ok(studentPayload.lesson.content.stages.slice(5).every(stage => stage.content === null));
   assert.ok(!JSON.stringify(studentPayload).includes('teacherNote'));
+  const initialListening = studentPayload.lesson.content.stages.find(stage => stage.id === 'listening');
+  assert.deepEqual(initialListening.content.map(component => component.type), ['audioPlayer', 'checkboxChoice', 'audioPlayer', 'multipleChoice']);
+  assert.ok(initialListening.content.filter(component => component.type === 'audioPlayer').every(component => !Object.hasOwn(component.presentation, 'script')));
   assert.equal((await get(`/api/classes/${lesson.id}/assets/${publicAsset}`, cookie)).status, 200);
   assert.equal((await get(`/api/classes/${lesson.id}/assets/${privateAsset}`, cookie)).status, 404);
   assert.equal((await get(`/api/classes/${lesson.id}/assets/${leadAsset}`, cookie)).status, 200);
+  assert.equal((await get(`/api/classes/${lesson.id}/assets/${audioAsset}`, cookie)).status, 200);
   assert.equal((await get(`/api/classes/${otherLesson.id}/assets/${publicAsset}`, cookie)).status, 401);
   for (const [role, auth, origin] of [['teacher', cookie, base], ['student', '', base], ['student', cookie, 'https://evil.test']]) {
     const denied = connect(role, auth, lesson.id, origin);
@@ -123,8 +132,6 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.match((await studentSocket.next('action-error')).error, /преподаватель/);
   teacherSocket.send(JSON.stringify({ ...action, expectedVersion: 1 }));
   assert.match((await teacherSocket.next('action-error')).error, /ученик/);
-  teacherSocket.send(JSON.stringify({ type: 'select-stage', stageId: 'listening', expectedVersion: 1 }));
-  assert.match((await teacherSocket.next('action-error')).error, /недоступна/);
   const duplicate = connect('student', secondCookie);
   assert.equal((await once(duplicate, 'close'))[0], 4003);
   const replaced = once(studentSocket, 'close');
@@ -235,6 +242,55 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
     replacement.send(JSON.stringify({ ...answerAction, value: item.options[0], expectedVersion: final.state.version }));
     assert.match((await replacement.next('action-error')).error, /уже верный/);
   }
+  final = await sendTeacher({ type: 'select-stage', stageId: 'listening', expectedVersion: final.state.version });
+  const listening = final.lesson.content.stages.find(stage => stage.id === 'listening');
+  const sourceListening = content.stages.find(stage => stage.id === 'listening');
+  assert.deepEqual(listening.content.map(component => component.type), ['audioPlayer', 'checkboxChoice', 'audioPlayer', 'multipleChoice']);
+  const audio = listening.content.find(component => component.type === 'audioPlayer');
+  const sourceAudio = sourceListening.content.find(component => component.id === audio.id);
+  assert.equal(audio.presentation.audioSrc, `/api/classes/${lesson.id}/assets/${audioAsset}`);
+  assert.equal(Object.hasOwn(audio.presentation, 'script'), false);
+  final = await sendTeacher({
+    type: 'set-visibility', stageId: 'listening', componentId: audio.id,
+    visible: true, expectedVersion: final.state.version,
+  });
+  const revealedAudio = final.lesson.content.stages.find(stage => stage.id === 'listening').content.find(component => component.id === audio.id);
+  assert.equal(revealedAudio.presentation.script, sourceAudio.script);
+  const otherAudio = final.lesson.content.stages.find(stage => stage.id === 'listening').content.find(component => component.type === 'audioPlayer' && component.id !== audio.id);
+  assert.equal(Object.hasOwn(otherAudio.presentation, 'script'), false, 'each transcript has independent visibility');
+  replacement.send(JSON.stringify({
+    type: 'set-visibility', stageId: 'listening', componentId: otherAudio.id,
+    visible: true, expectedVersion: final.state.version,
+  }));
+  assert.match((await replacement.next('action-error')).error, /преподаватель/);
+
+  const gist = listening.content.find(component => component.type === 'checkboxChoice');
+  const sourceGist = sourceListening.content.find(component => component.id === gist.id);
+  const gistItem = sourceGist.items[0];
+  const wrongGist = gistItem.options.find(value => !gistItem.answers.includes(value));
+  await sendStudent({ stageId: 'listening', type: 'choose-option', componentId: gist.id, itemId: gistItem.id, value: wrongGist });
+  assert.equal(final.state.exercises[gist.id].answers[gistItem.id].status, 'wrong');
+  await sendStudent({ stageId: 'listening', type: 'choose-option', componentId: gist.id, itemId: gistItem.id, value: gistItem.answers[0] });
+  assert.equal(final.state.exercises[gist.id].answers[gistItem.id].status, 'correct');
+  assert.deepEqual(final.state.exercises[gist.id].answers[gistItem.id].values, [wrongGist, gistItem.answers[0]]);
+  teacherSocket.send(JSON.stringify({
+    stageId: 'listening', type: 'choose-option', componentId: gist.id, itemId: gistItem.id,
+    value: gistItem.answers[0], expectedVersion: final.state.version,
+  }));
+  assert.match((await teacherSocket.next('action-error')).error, /ученик/);
+
+  const detail = listening.content.find(component => component.type === 'multipleChoice');
+  const detailItem = detail.presentation.items[0];
+  await sendStudent({
+    stageId: 'listening', type: 'choose-option', componentId: detail.id, itemId: detailItem.id,
+    value: detailItem.options.find(value => value !== detailItem.answer),
+  });
+  assert.equal(final.state.exercises[detail.id].answers[detailItem.id].status, 'wrong');
+  await sendStudent({
+    stageId: 'listening', type: 'choose-option', componentId: detail.id, itemId: detailItem.id,
+    value: detailItem.answer,
+  });
+  assert.equal(final.state.exercises[detail.id].answers[detailItem.id].status, 'correct');
   const exerciseProgress = structuredClone(final.state.exercises);
   final = await sendTeacher({ type: 'select-stage', stageId: 'lead-in', expectedVersion: final.state.version });
   final = await sendTeacher({ type: 'select-stage', stageId: 'target-vocabulary', expectedVersion: final.state.version });
@@ -247,13 +303,16 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.deepEqual(snapshot.state, final.state);
   assert.equal(JSON.stringify(snapshot.lesson.content.stages[2].content), layoutBefore);
   assert.ok(snapshot.lesson.content.stages[1].content.some(c => c.id === answersId));
+  const restoredListening = snapshot.lesson.content.stages.find(stage => stage.id === 'listening');
+  assert.equal(restoredListening.content.find(component => component.id === audio.id).presentation.script, sourceAudio.script);
+  assert.equal(Object.hasOwn(restoredListening.content.find(component => component.id === otherAudio.id).presentation, 'script'), false);
   const access = authorizeClass({ headers: { cookie } }, lesson.id, db, 'student');
   assert.throws(() => applyAction(access, { ...action, expectedVersion: 2, stageId: 'lead-in' }, db), { statusCode: 409 });
   const reordered = structuredClone(content);
   reordered.stages.reverse();
   db.prepare('UPDATE classes SET content_json = ? WHERE id = ?').run(JSON.stringify(reordered), otherLesson.id);
   const otherAccess = { role: 'teacher', classId: otherLesson.id, ownerId: teacher.id };
-  assert.equal(sessionPayload(otherAccess, db).state.activeStageId, 'reading');
+  assert.equal(sessionPayload(otherAccess, db).state.activeStageId, 'listening');
   applyAction(otherAccess, { type: 'select-stage', stageId: 'warm-up', expectedVersion: 0 }, db);
   const reorderedState = applyAction({ ...otherAccess, role: 'student' }, { ...action, expectedVersion: 1 }, db);
   assert.equal(reorderedState.selections[choice.id][choice.items[0].id], action.optionId);

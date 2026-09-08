@@ -5,6 +5,7 @@
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s|^\s*(?:[-*+]\s|\d+\.\s)/m;
   const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'items'];
   const ITEM_KEYS = ['id', 'question', 'options', 'answers'];
+  const model = root.ExerciseState || (typeof require === 'function' ? require('./exercise-state.js') : null);
 
   function plainText(value, field, allowEmpty = false) {
     const normalized = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
@@ -109,13 +110,15 @@
     }
     if (!doc) throw new Error('CheckboxChoice requires a document.');
 
-    let current = normalizeCheckboxChoice(data);
+    let current = normalizeCheckboxChoice(settings.presentation || data);
     const viewerRole = settings.viewerRole || 'teacher';
     const hintCorrect = shouldHintCorrect(viewerRole);
+    let exerciseState = settings.exerciseState || {};
+    let interactive = settings.interactive !== false;
     let draft = null;
     let initialSnapshot = '';
     let saving = false;
-    const revealed = new Map();
+    const itemNodes = new Map();
 
     const section = doc.createElement('section');
     section.className = 'checkbox-choice';
@@ -155,8 +158,7 @@
     }
 
     function revealedFor(itemId) {
-      if (!revealed.has(itemId)) revealed.set(itemId, new Set());
-      return revealed.get(itemId);
+      return new Set(exerciseState.answers?.[itemId]?.values || []);
     }
 
     function isComplete(item) {
@@ -174,7 +176,7 @@
         button.classList.toggle('checkbox-choice__option--correct', isSeen && isCorrect);
         button.classList.toggle('checkbox-choice__option--wrong', isSeen && !isCorrect);
         button.classList.toggle('checkbox-choice__option--hint', hintCorrect && isCorrect && !isSeen);
-        button.disabled = isSeen || complete;
+        button.disabled = !interactive || isSeen || complete;
         button.setAttribute('aria-checked', String(isSeen && isCorrect));
         nodes.ticks[index].hidden = !(isSeen && isCorrect);
       });
@@ -225,9 +227,11 @@
         button.append(box, label);
         button.addEventListener('click', () => {
           const seen = revealedFor(item.id);
-          if (seen.has(option)) return;
-          seen.add(option);
-          applyItemState(item, nodes);
+          if (!interactive || seen.has(option) || isComplete(item)) return;
+          const action = { type: 'choose-option', componentId: current.id, itemId: item.id, value: option };
+          exerciseState = model.apply(current, exerciseState, action);
+          updateState(exerciseState);
+          if (typeof settings.onAction === 'function') settings.onAction(action);
           if (typeof settings.onActivity === 'function') {
             settings.onActivity(current.id, item.id, item.answers.includes(option) ? 'correct' : 'wrong');
           }
@@ -242,6 +246,7 @@
       status.setAttribute('role', 'status');
       status.setAttribute('aria-live', 'polite');
       nodes.status = status;
+      itemNodes.set(item.id, nodes);
 
       block.append(question, group, status);
       applyItemState(item, nodes);
@@ -249,6 +254,7 @@
     }
 
     function paintView() {
+      itemNodes.clear();
       title.textContent = current.title;
       instruction.textContent = current.instruction;
       if (current.items.length === 1) {
@@ -480,7 +486,7 @@
         };
         const saved = await settings.onSave(changes, current.id);
         current = normalizeCheckboxChoice(saved || { ...current, ...candidate });
-        revealed.clear();
+        exerciseState = {};
         paintView();
         saving = false;
         leaveEditMode();
@@ -494,6 +500,19 @@
     }
 
     edit.addEventListener('click', enterEditMode);
+    function updateState(next = {}) {
+      exerciseState = next;
+      current.items.forEach(item => {
+        const nodes = itemNodes.get(item.id);
+        if (nodes) applyItemState(item, nodes);
+      });
+    }
+    function setInteractive(value) {
+      interactive = Boolean(value);
+      updateState(exerciseState);
+    }
+    section.updateState = updateState;
+    section.setInteractive = setInteractive;
     paintView();
     section.append(header, instruction, view, editor);
     return section;

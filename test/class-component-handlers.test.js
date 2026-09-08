@@ -75,3 +75,38 @@ test('reading validates choices on server and local preview uses the same rules'
   assert.equal(JSON.stringify(preview), JSON.stringify(state));
   assert.throws(() => applyComponentAction({ role: 'student', component, state, action }), { statusCode: 400 });
 });
+
+test('listening projects hidden transcripts and validates checkbox choices with the shared reducer', () => {
+  const fs = require('node:fs');
+  const vm = require('node:vm');
+  const model = require('../assets/components/exercise-state.js');
+  const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+  const content = createSyntheticLesson('Listening').stages.find(stage => stage.id === 'listening').content;
+  const audio = content.find(component => component.type === 'audioPlayer');
+  const checkbox = content.find(component => component.type === 'checkboxChoice');
+  const hidden = studentComponent(audio, {});
+  assert.equal(hidden.presentation.script, undefined);
+  assert.equal(JSON.stringify(hidden).includes(audio.script), false);
+  const revealed = studentComponent(audio, { visibleCards: { [audio.id]: true } });
+  assert.equal(revealed.presentation.script, audio.script);
+
+  const item = checkbox.items[0];
+  const wrong = item.options.find(value => !item.answers.includes(value));
+  const state = {};
+  const action = { type: 'choose-option', componentId: checkbox.id, itemId: item.id, value: wrong };
+  const window = { ExerciseState: model };
+  vm.runInNewContext(fs.readFileSync(require.resolve('../assets/class-component-adapters.js'), 'utf8'), { window });
+  const projected = studentComponent(checkbox, state);
+  const preview = {};
+  window.ClassComponentAdapters.preview(projected, preview, action);
+  applyComponentAction({ role: 'student', component: checkbox, state, action });
+  assert.equal(JSON.stringify(preview), JSON.stringify(state));
+  assert.equal(state.exercises[checkbox.id].answers[item.id].status, 'wrong');
+
+  const correct = { ...action, value: item.answers[0] };
+  window.ClassComponentAdapters.preview(projected, preview, correct);
+  applyComponentAction({ role: 'student', component: checkbox, state, action: correct });
+  assert.equal(JSON.stringify(preview), JSON.stringify(state));
+  assert.equal(state.exercises[checkbox.id].answers[item.id].status, 'correct');
+  assert.throws(() => applyComponentAction({ role: 'teacher', component: checkbox, state, action: correct }), { statusCode: 403 });
+});

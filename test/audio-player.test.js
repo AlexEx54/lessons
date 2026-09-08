@@ -10,6 +10,7 @@ const {
   formatPlayerTime,
   nextPlaybackRate,
   normalizeAudioPlayer,
+  normalizeAudioPlayerPresentation,
   previewScript,
   renderAudioPlayer,
   slotRenderMode,
@@ -140,6 +141,17 @@ test('audioPlayer rejects invalid fields, markup, and extra keys', () => {
   assert.throws(() => normalizeAudioPlayer(player({ script: '- Hello' })), /HTML or Markdown in script/);
   assert.throws(() => normalizeAudioPlayer(player({ audioSrc: '   ' })), /non-empty audioSrc/);
   assert.throws(() => normalizeAudioPlayer({ ...player(), extra: true }), /unsupported fields/);
+});
+
+test('audioPlayer presentation can omit a hidden transcript without weakening stored content validation', () => {
+  assert.deepEqual(normalizeAudioPlayerPresentation({
+    type: 'audioPlayer', id: 'listening-audio', title: 'Listen', audioSrc: '/audio.mp3',
+  }), {
+    type: 'audioPlayer', id: 'listening-audio', title: 'Listen', audioSrc: '/audio.mp3',
+  });
+  assert.throws(() => normalizeAudioPlayer({
+    type: 'audioPlayer', id: 'listening-audio', title: 'Listen', audioSrc: '/audio.mp3',
+  }), /requires script/);
 });
 
 test('audioPlayer switches the slot to player mode only after an audio file is uploaded', () => {
@@ -279,6 +291,36 @@ test('audioPlayer shows a player when audioSrc is present', () => {
   const fileActions = byClass(editor, 'audio-player__file-actions')[0];
   assert.ok(descendants(transcript).includes(fileActions));
   assert.equal(byClass(editor, 'audio-player__file-action')[0].textContent, 'Заменить');
+});
+
+test('live audio keeps playback local and exposes transcript only through teacher visibility control', () => {
+  const hiddenPresentation = {
+    type: 'audioPlayer', id: 'listening-audio', title: 'Listen', audioSrc: '/audio.mp3',
+  };
+  const student = renderAudioPlayer(
+    { type: 'audioPlayer', id: 'listening-audio', presentation: hiddenPresentation },
+    { viewerRole: 'student', presentation: hiddenPresentation },
+    createFakeDocument(),
+  );
+  assert.equal(byClass(student, 'audio-player__controls').length, 1);
+  assert.equal(byClass(student, 'audio-player__script').length, 0);
+  assert.equal(byClass(student, 'audio-player__show').length, 0);
+
+  const changes = [];
+  const teacher = renderAudioPlayer(player({ audioSrc: '/audio.mp3' }), {
+    viewerRole: 'teacher',
+    studentVisible: false,
+    visibilityInteractive: true,
+    onStudentVisibilityChange: visible => changes.push(visible),
+  }, createFakeDocument());
+  const control = byClass(teacher, 'audio-player__show')[0];
+  control.click();
+  assert.deepEqual(changes, [true]);
+  assert.equal(control.textContent, 'Скрыть');
+  teacher.updateStudentVisibility(false);
+  assert.equal(control.textContent, 'Показать');
+  teacher.setVisibilityInteractive(false);
+  assert.equal(control.disabled, true);
 });
 
 test('audioPlayer CSS draws a card background and tick marks instead of a solid seek line', () => {

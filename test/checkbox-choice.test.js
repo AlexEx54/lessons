@@ -212,9 +212,41 @@ test('teacher view hints answers, locks a wrong pick, and keeps other options op
   assert.equal(options[1].getAttribute('aria-checked'), 'true');
   assert.equal(ticks[1].hidden, false);
 
+  assert.equal(options[2].disabled, true);
   options[2].click();
-  assert.equal(options[2].classList.contains('checkbox-choice__option--wrong'), true);
+  assert.equal(options[2].classList.contains('checkbox-choice__option--wrong'), false);
   assert.equal(options[1].classList.contains('checkbox-choice__option--correct'), true);
+});
+
+test('checkbox choice applies controlled state locally, emits an action, and accepts reconciliation', () => {
+  const actions = [];
+  const section = renderCheckboxChoice(component(), {
+    viewerRole: 'student',
+    exerciseState: {},
+    onAction: action => actions.push(action),
+  }, createFakeDocument());
+  const options = byClass(section, 'checkbox-choice__option');
+
+  options[0].click();
+  assert.deepEqual(actions, [{
+    type: 'choose-option',
+    componentId: 'listening-gist-quiz',
+    itemId: 'conversation-place',
+    value: 'At home',
+  }]);
+  assert.equal(options[0].classList.contains('checkbox-choice__option--wrong'), true);
+
+  section.updateState({});
+  assert.equal(options[0].classList.contains('checkbox-choice__option--wrong'), false);
+  assert.equal(options[0].disabled, false);
+
+  section.updateState({ answers: { 'conversation-place': {
+    values: ['At the AFK Summer camp office'], status: 'correct',
+  } } });
+  assert.equal(options[1].classList.contains('checkbox-choice__option--correct'), true);
+  assert.equal(options.every(option => option.disabled), true);
+  section.setInteractive(false);
+  assert.equal(options.every(option => option.disabled), true);
 });
 
 test('student view does not hint answers, and several correct options stay independently lockable', () => {

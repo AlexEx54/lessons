@@ -64,6 +64,20 @@
         value: action.value, status: selectionState(action.value, item.answer),
       } } };
     }
+    if (component.type === 'checkboxChoice') {
+      if (action.type !== 'choose-option') fail('Неизвестное действие.');
+      const item = component.items.find(item => item.id === action.itemId);
+      if (!item || !item.options.includes(action.value)) fail('Вариант не найден.');
+      const answer = previous.answers?.[item.id];
+      const values = answer?.values || [];
+      if (answer?.status === 'correct') fail('Ответ уже верный.');
+      if (values.includes(action.value)) fail('Вариант уже выбран.');
+      const nextValues = [...values, action.value];
+      return { ...previous, answers: { ...previous.answers, [item.id]: {
+        values: nextValues,
+        status: item.answers.every(value => nextValues.includes(value)) ? 'correct' : 'wrong',
+      } } };
+    }
     if (component.type === 'dropdownChoice') {
       if (action.type !== 'choose-word') fail('Неизвестное действие.');
       const choice = component.choices.find(item => item.id === action.itemId);

@@ -30,7 +30,7 @@
     return normalized;
   }
 
-  function normalizeAudioPlayer(data) {
+  function normalizeAudioPlayerPresentation(data) {
     if (!data || data.type !== 'audioPlayer' || !KEBAB_CASE.test(String(data.id || ''))) {
       throw new Error('AudioPlayer requires type "audioPlayer" and a kebab-case id.');
     }
@@ -41,16 +41,22 @@
       type: 'audioPlayer',
       id: data.id,
       title: normalizeTitle(data.title),
-      script: normalizeScript(data.script),
     };
+    if (Object.hasOwn(data, 'script')) normalized.script = normalizeScript(data.script);
     const audioSrc = normalizeAudioSrc(data.audioSrc);
     if (audioSrc) normalized.audioSrc = audioSrc;
     return normalized;
   }
 
+  function normalizeAudioPlayer(data) {
+    const normalized = normalizeAudioPlayerPresentation(data);
+    if (!normalized.script) throw new Error('AudioPlayer requires script.');
+    return normalized;
+  }
+
   function slotRenderMode(data) {
     if (data && data.audioSrc) return 'player';
-    return 'script';
+    return data && data.script ? 'script' : 'hidden';
   }
 
   function previewScript(script) {
@@ -151,7 +157,12 @@
     }
     if (!doc) throw new Error('AudioPlayer requires a document.');
 
-    let current = normalizeAudioPlayer(data);
+    let current = settings.presentation
+      ? normalizeAudioPlayerPresentation(settings.presentation)
+      : normalizeAudioPlayer(data);
+    const viewerRole = settings.viewerRole || 'teacher';
+    let studentVisible = Boolean(settings.studentVisible);
+    let visibilityInteractive = settings.visibilityInteractive !== false;
     let editing = false;
     let saving = false;
     let audioBusy = false;
@@ -162,6 +173,7 @@
     let objectUrlFor = '';
     let sourcePromise = null;
     let scriptText = null;
+    let visibilityControl = null;
 
     const section = doc.createElement('section');
     section.className = 'audio-player';
@@ -483,7 +495,7 @@
       icon.append(createAudioIcon(doc));
       scriptText = doc.createElement('pre');
       scriptText.className = 'audio-player__script-text';
-      scriptText.textContent = current.script;
+      scriptText.textContent = current.script || '';
       scriptText.contentEditable = editing ? 'true' : 'false';
       if (editing) {
         scriptText.setAttribute('role', 'textbox');
@@ -503,8 +515,28 @@
       showTranscriptButton.type = 'button';
       showTranscriptButton.className = 'audio-player__show';
       showTranscriptButton.dataset.studentVisibilityControl = '';
-      showTranscriptButton.append(createEyeIcon(doc), doc.createTextNode('Показать'));
-      showTranscriptButton.setAttribute('aria-label', 'Показать транскрипцию ученику');
+      function paintStudentVisibility() {
+        const label = studentVisible ? 'Скрыть' : 'Показать';
+        showTranscriptButton.replaceChildren(createEyeIcon(doc), doc.createTextNode(label));
+        showTranscriptButton.setAttribute('aria-label', `${label} транскрипцию ученику`);
+        showTranscriptButton.disabled = !visibilityInteractive;
+      }
+      showTranscriptButton.addEventListener('click', () => {
+        if (!visibilityInteractive || typeof settings.onStudentVisibilityChange !== 'function') return;
+        studentVisible = !studentVisible;
+        paintStudentVisibility();
+        settings.onStudentVisibilityChange(studentVisible);
+      });
+      showTranscriptButton.updateStudentVisibility = (visible) => {
+        studentVisible = Boolean(visible);
+        paintStudentVisibility();
+      };
+      showTranscriptButton.setVisibilityInteractive = (value) => {
+        visibilityInteractive = Boolean(value);
+        paintStudentVisibility();
+      };
+      paintStudentVisibility();
+      visibilityControl = showTranscriptButton;
       const copy = doc.createElement('button');
       copy.type = 'button';
       copy.className = 'audio-player__copy';
@@ -513,7 +545,8 @@
       copy.setAttribute('aria-label', 'Скопировать текст для озвучки');
       copy.addEventListener('click', () => copyScript(copy));
       scriptActions.append(copy);
-      scriptBox.append(icon, scriptText, scriptActions, showTranscriptButton);
+      scriptBox.append(icon, scriptText, scriptActions);
+      if (viewerRole === 'teacher') scriptBox.append(showTranscriptButton);
       if (includeFileControls && typeof settings.onUpload === 'function') {
         scriptBox.append(fileControls(hasAudio));
       }
@@ -526,6 +559,7 @@
       slot.hidden = mode === 'hidden';
       slot.replaceChildren();
       scriptText = null;
+      visibilityControl = null;
       if (mode === 'hidden') {
         resetAudioElement();
         return;
@@ -537,7 +571,8 @@
         applyPlaybackRate();
         paintPlayButton(false);
         paintProgress();
-        slot.append(player, audio, renderScriptBox(true, editing && canUpload, true));
+        slot.append(player, audio);
+        if (current.script) slot.append(renderScriptBox(true, editing && canUpload, true));
         return;
       }
 
@@ -545,7 +580,9 @@
     }
 
     function paint(value, replaceCurrent = false) {
-      current = normalizeAudioPlayer(replaceCurrent ? value : { ...current, ...value });
+      current = settings.presentation
+        ? normalizeAudioPlayerPresentation(replaceCurrent ? value : { ...current, ...value })
+        : normalizeAudioPlayer(replaceCurrent ? value : { ...current, ...value });
       title.textContent = current.title;
       section.classList.toggle('audio-player--editing', editing);
       renderSlot();
@@ -633,6 +670,14 @@
         cancelEditing();
       }
     });
+    section.updateStudentVisibility = (visible) => {
+      studentVisible = Boolean(visible);
+      visibilityControl?.updateStudentVisibility(studentVisible);
+    };
+    section.setVisibilityInteractive = (value) => {
+      visibilityInteractive = Boolean(value);
+      visibilityControl?.setVisibilityInteractive(visibilityInteractive);
+    };
 
     paint(current);
     if (typeof settings.onSave === 'function') actions.append(editButton);
@@ -642,6 +687,7 @@
 
   const api = {
     normalizeAudioPlayer,
+    normalizeAudioPlayerPresentation,
     previewScript,
     slotRenderMode,
     formatPlayerTime,

@@ -32,8 +32,25 @@
         node.setVisibilityInteractive(session.role === 'teacher' && session.connected);
       },
     }],
+    ['audioPlayer', {
+      options(component, session) {
+        return {
+          presentation: component.presentation,
+          studentVisible: Boolean(session.state.visibleCards?.[component.id]),
+          visibilityInteractive: session.role === 'teacher' && session.connected,
+          onStudentVisibilityChange: visible => session.send({ type: 'set-visibility', componentId: component.id, visible }),
+        };
+      },
+      preview(state, action) {
+        state.visibleCards = { ...state.visibleCards, [action.componentId]: action.visible };
+      },
+      update(node, component, session) {
+        node.updateStudentVisibility(Boolean(session.state.visibleCards?.[component.id]));
+        node.setVisibilityInteractive(session.role === 'teacher' && session.connected);
+      },
+    }],
   ]);
-  for (const type of ['matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice']) {
+  for (const type of ['matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'checkboxChoice']) {
     const canInteract = session => session.connected && (session.role === 'student' || type === 'describeAndGuess');
     adapters.set(type, {
       options(component, session) {
@@ -58,7 +75,7 @@
         const previous = state.exercises?.[action.componentId] || {};
         let next = previous;
         // These exercises include keys for immediate local feedback.
-        if (type === 'matchWords' || type === 'multipleChoice') {
+        if (type === 'matchWords' || type === 'multipleChoice' || type === 'checkboxChoice') {
           next = window.ExerciseState.apply(component.presentation, previous, action);
           state.exercises = { ...state.exercises, [action.componentId]: next };
           return;
