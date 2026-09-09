@@ -7,6 +7,8 @@ const test = require('node:test');
 
 const root = path.join(__dirname, '..');
 const roomHtml = fs.readFileSync(path.join(root, 'video-call-room.html'), 'utf8');
+const rendererScript = fs.readFileSync(path.join(root, 'assets', 'video-background-renderer.mjs'), 'utf8');
+const pipelineScript = fs.readFileSync(path.join(root, 'assets', 'video-background-pipeline.mjs'), 'utf8');
 const roomScript = fs.readFileSync(path.join(root, 'assets', 'video-call-room.js'), 'utf8');
 
 test('teacher and guest share the same virtual-background controls', () => {
@@ -19,8 +21,8 @@ test('teacher and guest share the same virtual-background controls', () => {
   );
   assert.ok(backgroundImplementation.length > 0);
   assert.doesNotMatch(backgroundImplementation, /role\s*===/);
-  assert.match(backgroundImplementation, /canvas\.captureStream/);
-  assert.match(backgroundImplementation, /segmenter\.segmentForVideo/);
+  assert.match(pipelineScript, /canvas\.captureStream/);
+  assert.match(rendererScript, /segmenter\.segmentForVideo/);
 });
 
 test('virtual-background runtime and the three bundled backgrounds are present', () => {
@@ -41,10 +43,10 @@ test('virtual-background runtime and the three bundled backgrounds are present',
 test('desktop background processing uses the higher-resolution square model and stabilizes its mask', () => {
   assert.match(roomScript, /MOBILE_DEVICE[\s\S]*?selfie_segmenter_landscape\.tflite/);
   assert.match(roomScript, /selfie_segmenter\.tflite/);
-  assert.match(roomScript, /function stabilizeMask/);
-  assert.match(roomScript, /function erodeUncertainEdges/);
-  assert.match(roomScript, /replacement: \{ low: 0\.35, high: 0\.72/);
-  assert.doesNotMatch(roomScript, /values\[index\] - 0\.12/);
+  assert.match(rendererScript, /function stabilizeMask/);
+  assert.match(rendererScript, /function erodeUncertainEdges/);
+  assert.match(rendererScript, /replacement: \{ low: 0\.35, high: 0\.72/);
+  assert.doesNotMatch(rendererScript, /values\[index\] - 0\.12/);
 });
 
 test('screen sharing and camera effects use the same outbound video selector', () => {
@@ -111,82 +113,36 @@ test('video replacement records success and rejection with the actual sender tra
 // Exercise the actual production functions with a deterministic display clock.
 const vm = require('node:vm');
 function effectFunction(name) {
-  const start = roomScript.indexOf(`  function ${name}(`);
+  const script = rendererScript.includes(`  function ${name}(`) ? rendererScript : roomScript;
+  const start = script.indexOf(`  function ${name}(`);
   assert.ok(start >= 0, `${name} exists`);
-  const end = roomScript.indexOf('\n  function ', start + 1);
-  return roomScript.slice(start, end);
+  const end = script.indexOf('\n  function ', start + 1);
+  return script.slice(start, end);
 }
 
-function frameHarness(targetFps = 24, delegate = 'GPU') {
-  const context = vm.createContext({
-    EFFECT_FRAME_INTERVAL_MS: 1000 / targetFps,
-    EFFECT_STATS_INTERVAL_MS: 30_000,
-    segmenterDelegate: delegate,
-    effectTrack: { requestFrame() {} }, effectSourceVideo: {}, selectedBackground: 'blur',
-    effectLastFrameAt: 0, effectFrameRequest: 0, effectFailureCount: 0,
-    effectStatsStartedAt: 0, effectProcessedFrames: 0, effectFrameTotalMs: 0,
-    effectStageTotals: { segmentation: 0, readback: 0, mask: 0, composite: 0 },
-    effectMaxFrameMs: 0, effectHiddenFrames: 0, effectMaskCanvas: {},
-    document: { hidden: false },
-    window: { requestAnimationFrame() { return 1; } },
-    now: 0, frames: 0, diagnostics: [],
-  });
-  vm.runInContext(`
-    performance = { now: () => now };
-    segmenter = { segmentForVideo(source, timestamp, callback) {
-      frames += 1; now += 3;
-      callback({ confidenceMasks: [{}] });
-      now += 2;
-    } };
-    updateEffectMask = () => { now += 7; return 4; };
-    renderEffectComposite = () => { now += 8; };
-    effectDiagnosticDetails = details => details;
-    sendDiagnostic = (event, details) => diagnostics.push({ event, ...details });
-    handleEffectFailure = error => { throw error; };
-    ${effectFunction('effectFrameInterval')}
-    ${effectFunction('reportEffectStats')}
-    ${effectFunction('renderEffectFrame')}
-  `, context);
-  return context;
-}
-
-test('frame scheduler retains target cadence at 60 and 120 Hz without catch-up bursts', () => {
-  for (const displayHz of [60, 120]) {
-    for (const [target, delegate, expected] of [[24, 'GPU', 24], [18, 'GPU', 18], [24, 'CPU', 15]]) {
-      const ctx = frameHarness(target, delegate);
-      for (let tick = 1; tick <= displayHz * 10; tick += 1) {
-        ctx.now = tick * 1000 / displayHz;
-        ctx.renderEffectFrame(ctx.now);
-      }
-      assert.ok(Math.abs(ctx.frames - expected * 10) <= 1, `${displayHz} Hz, ${target} ${delegate}: ${ctx.frames}`);
-      const before = ctx.frames;
-      ctx.now = 120_000;
-      ctx.renderEffectFrame(120_000);
-      assert.equal(ctx.frames, before + 1);
-      ctx.renderEffectFrame(120_000);
-      assert.equal(ctx.frames, before + 1);
+test('frame admission retains cadence and never catches up in a burst', async () => {
+  const { createFrameGate } = await import('../assets/video-background-renderer.mjs');
+  for (const hz of [30, 60, 120]) {
+    for (const fps of [15, 18, 24]) {
+      const accept = createFrameGate();
+      let count = 0;
+      for (let tick = 1; tick <= hz * 10; tick++) if (accept(tick * 1000 / hz, 1000 / fps)) count++;
+      assert.ok(Math.abs(count - fps * 10) <= 1);
+      assert.equal(accept(120000, 1000 / fps), true);
+      assert.equal(accept(120000, 1000 / fps), false);
     }
   }
 });
 
-test('diagnostics split readback, mask, composite and segmentation including task cleanup', () => {
-  const ctx = frameHarness();
-  ctx.now = 100;
-  ctx.renderEffectFrame(100);
-  ctx.document.hidden = true;
-  ctx.now = 30_100;
-  ctx.renderEffectFrame(30_100);
-  const stats = ctx.diagnostics[0];
-  assert.equal(stats.averageFrameMs, 20);
-  assert.equal(stats.averageSegmentationMs, 5);
-  assert.equal(stats.averageReadbackMs, 4);
-  assert.equal(stats.averageMaskMs, 3);
-  assert.equal(stats.averageCompositeMs, 8);
-  assert.equal(stats.maxFrameMs, 20);
-  assert.equal(stats.processedFrames, 2);
-  assert.equal(stats.hiddenFrames, 1);
-  assert.equal(ctx.effectProcessedFrames, 0);
-  assert.equal(ctx.effectStageTotals.readback, 0);
+test('software blur mixes adjacent pixels and preserves opaque uniform images', async () => {
+  const { boxBlur } = await import('../assets/video-background-renderer.mjs');
+  const uniform = new Uint8ClampedArray(4 * 3 * 2).fill(255);
+  boxBlur(uniform, 3, 2, 2);
+  assert.ok(uniform.every(value => value === 255));
+  const impulse = new Uint8ClampedArray([0,0,0,255, 255,255,255,255, 0,0,0,255]);
+  boxBlur(impulse, 3, 1, 1);
+  assert.ok(impulse[0] > 0 && impulse[4] < 255);
+  assert.equal(impulse[3], 255);
 });
 
 test('background blur filters a reduced source while foreground stays full resolution', () => {
@@ -204,7 +160,7 @@ test('background blur filters a reduced source while foreground stays full resol
     effectSourceVideo: { name: 'camera', videoWidth: 1280, videoHeight: 720 },
     effectBlurSourceCanvas: canvas('small', 240, 135),
     effectBlurCanvas: canvas('blur', 240, 135),
-    selectedBackground: 'blur', MASK_PROFILES: { blur: { feather: 1.2 } },
+    supportsCanvasFilter: true, selectedBackground: 'blur', MASK_PROFILES: { blur: { feather: 1.2 } },
     effectMode: () => 'blur',
   });
   vm.runInContext(`${effectFunction('drawCover')}\n${effectFunction('renderEffectComposite')}`, ctx);

@@ -241,3 +241,16 @@ test('media diagnostics preserve counters and flags without track labels or arbi
   }), { event: 'video-rtp-stats', pageHidden: false, placeholderVisible: true,
     peerGeneration: 2, framesDecoded: 120, bytesReceived: 5000, direction: 'inbound-rtp' });
 });
+
+
+test('background health retains bounded transport and frame counters', () => {
+  assert.deepEqual(sanitizeVideoCallDiagnostic({ event: 'background-effect-health', pipelineVersion: 3,
+    transport: 'worker-track', receivedFrames: 100, emittedFrames: 90, skippedFrames: 10,
+    lastFrameAgeMs: 40, pageHidden: true }), {
+    event: 'background-effect-health', pipelineVersion: 3, transport: 'worker-track',
+    receivedFrames: 100, emittedFrames: 90, skippedFrames: 10, lastFrameAgeMs: 40, pageHidden: true,
+  });
+  assert.deepEqual(sanitizeVideoCallDiagnostic({ event: 'background-effect-health',
+    transport: 'untrusted', receivedFrames: -1, emittedFrames: Infinity, lastFrameAgeMs: 1e10 }),
+    { event: 'background-effect-health' });
+});

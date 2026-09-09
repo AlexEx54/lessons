@@ -57,12 +57,7 @@
     ? { id: 'landscape', filename: 'selfie_segmenter_landscape.tflite' }
     : { id: 'square', filename: 'selfie_segmenter.tflite' };
   const EFFECT_FRAME_INTERVAL_MS = MOBILE_DEVICE ? 1000 / 18 : 1000 / 24;
-  const EFFECT_STATS_INTERVAL_MS = 30_000;
-  const BLUR_DOWNSAMPLE = 4;
-  const MASK_PROFILES = Object.freeze({
-    blur: { low: 0.25, high: 0.65, feather: 1.2, erode: false },
-    replacement: { low: 0.35, high: 0.72, feather: 0.8, erode: true },
-  });
+
 
   let room = null;
   let iceServers = [];
@@ -81,31 +76,9 @@
   let videoTransceiver = null;
   let selectedBackground = readStoredBackground();
   let backgroundEffectGeneration = 0;
-  let segmenterPromise = null;
-  let segmenter = null;
-  let segmenterDelegate = 'GPU';
-  let effectSourceVideo = null;
-  let effectOutputCanvas = null;
-  let effectForegroundCanvas = null;
-  let effectMaskCanvas = null;
-  let effectBlurSourceCanvas = null;
-  let effectBlurCanvas = null;
-  let effectStream = null;
+  let effectSession = null;
   let effectTrack = null;
-  let effectFrameRequest = 0;
-  let effectLastFrameAt = 0;
-  let effectFailureCount = 0;
-  let effectTemporalMask = null;
-  let effectSpatialMask = null;
-  let effectMaskPixels = null;
-  let effectMaskImageData = null;
-  let effectProcessedFrames = 0;
-  let effectFrameTotalMs = 0;
-  let effectStageTotals = { segmentation: 0, readback: 0, mask: 0, composite: 0 };
-  let effectMaxFrameMs = 0;
-  let effectHiddenFrames = 0;
-  let effectStatsStartedAt = 0;
-  const backgroundImages = new Map();
+  let effectStartController = null;
   let joined = false;
   let leaving = false;
   let reconnectAttempts = 0;
@@ -126,7 +99,10 @@
   elements.remoteVideo.addEventListener('playing', () => {
     updateRemoteVideoVisibility('playing');
   });
-  document.addEventListener('visibilitychange', () => reportMediaStats(peerConnection, 'visibility'));
+  document.addEventListener('visibilitychange', () => {
+    effectSession?.visibility(document.hidden);
+    reportMediaStats(peerConnection, 'visibility');
+  });
 
   function setConnection(text, state = '') {
     elements.connection.dataset.state = state;
@@ -197,112 +173,15 @@
   }
 
   function backgroundEffectsSupported() {
-    const canvas = document.createElement('canvas');
-    return Boolean(window.WebAssembly && canvas.captureStream);
+    return Boolean(window.WebAssembly && window.Worker);
   }
 
-  function drawCover(context, source, width, height, overscan = 0) {
-    const sourceWidth = source.videoWidth || source.naturalWidth || source.width;
-    const sourceHeight = source.videoHeight || source.naturalHeight || source.height;
-    if (!sourceWidth || !sourceHeight) return;
-    const destinationWidth = width + overscan * 2;
-    const destinationHeight = height + overscan * 2;
-    const scale = Math.max(destinationWidth / sourceWidth, destinationHeight / sourceHeight);
-    const cropWidth = destinationWidth / scale;
-    const cropHeight = destinationHeight / scale;
-    const sourceX = (sourceWidth - cropWidth) / 2;
-    const sourceY = (sourceHeight - cropHeight) / 2;
-    context.drawImage(
-      source,
-      sourceX,
-      sourceY,
-      cropWidth,
-      cropHeight,
-      -overscan,
-      -overscan,
-      destinationWidth,
-      destinationHeight,
-    );
-  }
-
-  function loadBackgroundImage(option) {
-    if (!option?.src) return Promise.resolve(null);
-    if (backgroundImages.has(option.id)) return Promise.resolve(backgroundImages.get(option.id));
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.decoding = 'async';
-      image.addEventListener('load', () => {
-        backgroundImages.set(option.id, image);
-        resolve(image);
-      }, { once: true });
-      image.addEventListener('error', () => reject(new Error('Не удалось загрузить изображение фона.')), { once: true });
-      image.src = option.src;
-    });
-  }
-
-  async function ensureSegmenter() {
-    if (segmenter) return segmenter;
-    if (segmenterPromise) return segmenterPromise;
-    segmenterPromise = (async () => {
-      const { FilesetResolver, ImageSegmenter } = await import(`${MEDIAPIPE_BASE}/vision_bundle.mjs`);
-      const vision = await FilesetResolver.forVisionTasks(`${MEDIAPIPE_BASE}/wasm`);
-      const options = {
-        baseOptions: {
-          modelAssetPath: `${MEDIAPIPE_BASE}/models/${SEGMENTER_MODEL.filename}`,
-          delegate: 'GPU',
-        },
-        runningMode: 'VIDEO',
-        outputConfidenceMasks: true,
-        outputCategoryMask: false,
-      };
-      try {
-        segmenter = await ImageSegmenter.createFromOptions(vision, options);
-        segmenterDelegate = 'GPU';
-      } catch (_gpuError) {
-        options.baseOptions.delegate = 'CPU';
-        segmenter = await ImageSegmenter.createFromOptions(vision, options);
-        segmenterDelegate = 'CPU';
-      }
-      return segmenter;
-    })().catch(error => {
-      segmenterPromise = null;
-      throw error;
-    });
-    return segmenterPromise;
-  }
-
-  function stopBackgroundEffect({ closeSegmenter = false } = {}) {
-    window.cancelAnimationFrame(effectFrameRequest);
-    effectFrameRequest = 0;
-    effectTrack?.stop();
-    effectStream?.getTracks().forEach(item => item.stop());
-    effectSourceVideo?.pause();
-    if (effectSourceVideo) effectSourceVideo.srcObject = null;
-    effectSourceVideo = null;
-    effectOutputCanvas = null;
-    effectForegroundCanvas = null;
-    effectMaskCanvas = null;
-    effectBlurSourceCanvas = null;
-    effectBlurCanvas = null;
-    effectStream = null;
+  function stopBackgroundEffect() {
+    effectStartController?.abort();
+    effectStartController = null;
+    effectSession?.stop();
+    effectSession = null;
     effectTrack = null;
-    effectLastFrameAt = 0;
-    effectFailureCount = 0;
-    effectTemporalMask = null;
-    effectSpatialMask = null;
-    effectMaskPixels = null;
-    effectMaskImageData = null;
-    effectProcessedFrames = 0;
-    effectFrameTotalMs = 0;
-    effectStageTotals = { segmentation: 0, readback: 0, mask: 0, composite: 0 };
-    effectMaxFrameMs = 0;
-    effectHiddenFrames = 0;
-    effectStatsStartedAt = 0;
-    if (closeSegmenter && segmenter) {
-      segmenter.close();
-      segmenter = null;
-      segmenterPromise = null;
-    }
   }
 
   function cameraTrack() {
@@ -312,7 +191,7 @@
   function outboundVideoTrack() {
     if (screenTrack) return screenTrack;
     if (!mediaState.video || !cameraTrack()?.enabled) return null;
-    return selectedBackground === 'none' ? cameraTrack() : (effectTrack || cameraTrack());
+    return selectedBackground === 'none' ? cameraTrack() : effectTrack;
   }
 
   async function applyOutboundVideoTrack() {
@@ -338,300 +217,67 @@
   }
 
   function effectDiagnosticDetails(extra = {}) {
-    return {
-      pipelineVersion: 2,
-      targetFps: Math.round(1000 / effectFrameInterval()),
-      blurWidth: selectedBackground === 'blur' ? (effectBlurCanvas?.width || 0) : 0,
-      blurHeight: selectedBackground === 'blur' ? (effectBlurCanvas?.height || 0) : 0,
-      model: SEGMENTER_MODEL.id,
-      delegate: segmenterDelegate.toLowerCase(),
-      mode: effectMode(),
-      outputWidth: effectOutputCanvas?.width || 0,
-      outputHeight: effectOutputCanvas?.height || 0,
-      maskWidth: effectMaskCanvas?.width || 0,
-      maskHeight: effectMaskCanvas?.height || 0,
-      ...extra,
-    };
-  }
-
-  function smoothstep(low, high, value) {
-    const normalized = Math.max(0, Math.min(1, (value - low) / (high - low)));
-    return normalized * normalized * (3 - 2 * normalized);
-  }
-
-  function ensureMaskBuffers(width, height) {
-    const length = width * height;
-    if (effectTemporalMask?.length === length && effectMaskImageData) return;
-    effectTemporalMask = null;
-    effectSpatialMask = new Float32Array(length);
-    effectMaskPixels = new Uint8ClampedArray(length * 4);
-    for (let index = 0; index < length; index += 1) {
-      const offset = index * 4;
-      effectMaskPixels[offset] = 255;
-      effectMaskPixels[offset + 1] = 255;
-      effectMaskPixels[offset + 2] = 255;
-    }
-    effectMaskImageData = new ImageData(effectMaskPixels, width, height);
-  }
-
-  function stabilizeMask(values) {
-    if (!effectTemporalMask) {
-      effectTemporalMask = new Float32Array(values);
-      return effectTemporalMask;
-    }
-    for (let index = 0; index < values.length; index += 1) {
-      const previous = effectTemporalMask[index];
-      const current = values[index];
-      const response = Math.abs(current - previous) > 0.18 ? 0.7 : 0.3;
-      effectTemporalMask[index] = previous + (current - previous) * response;
-    }
-    return effectTemporalMask;
-  }
-
-  function erodeUncertainEdges(values, width, height) {
-    effectSpatialMask.set(values);
-    for (let y = 1; y < height - 1; y += 1) {
-      for (let x = 1; x < width - 1; x += 1) {
-        const index = y * width + x;
-        const center = values[index];
-        if (center >= 0.88) continue;
-        const neighborMinimum = Math.min(
-          values[index - 1],
-          values[index + 1],
-          values[index - width],
-          values[index + width],
-        );
-        effectSpatialMask[index] = center * 0.65 + neighborMinimum * 0.35;
-      }
-    }
-    return effectSpatialMask;
-  }
-
-  function updateEffectMask(confidenceMask) {
-    const { width, height } = confidenceMask;
-    if (effectMaskCanvas.width !== width || effectMaskCanvas.height !== height) {
-      effectMaskCanvas.width = width;
-      effectMaskCanvas.height = height;
-    }
-    ensureMaskBuffers(width, height);
-    const profile = MASK_PROFILES[effectMode()];
-    const readbackStartedAt = performance.now();
-    const rawValues = confidenceMask.getAsFloat32Array();
-    const readbackMs = performance.now() - readbackStartedAt;
-    let values = stabilizeMask(rawValues);
-    if (profile.erode) values = erodeUncertainEdges(values, width, height);
-    for (let index = 0; index < values.length; index += 1) {
-      effectMaskPixels[index * 4 + 3] = Math.round(smoothstep(profile.low, profile.high, values[index]) * 255);
-    }
-    effectMaskCanvas.getContext('2d').putImageData(effectMaskImageData, 0, 0);
-    return readbackMs;
-  }
-
-  function reportEffectStats(now) {
-    if (!effectStatsStartedAt) effectStatsStartedAt = now;
-    const elapsed = now - effectStatsStartedAt;
-    if (elapsed < EFFECT_STATS_INTERVAL_MS || effectProcessedFrames === 0) return;
-    sendDiagnostic('background-effect-stats', effectDiagnosticDetails({
-      state: 'running',
-      fps: Math.round(effectProcessedFrames * 1000 / elapsed),
-      averageFrameMs: Math.round(effectFrameTotalMs / effectProcessedFrames),
-      averageSegmentationMs: Math.round(effectStageTotals.segmentation / effectProcessedFrames),
-      averageReadbackMs: Math.round(effectStageTotals.readback / effectProcessedFrames),
-      averageMaskMs: Math.round(effectStageTotals.mask / effectProcessedFrames),
-      averageCompositeMs: Math.round(effectStageTotals.composite / effectProcessedFrames),
-      maxFrameMs: Math.round(effectMaxFrameMs),
-      hiddenFrames: effectHiddenFrames,
-      processedFrames: effectProcessedFrames,
-      sampleDurationMs: Math.round(elapsed),
-    }));
-    effectProcessedFrames = 0;
-    effectFrameTotalMs = 0;
-    effectStageTotals = { segmentation: 0, readback: 0, mask: 0, composite: 0 };
-    effectMaxFrameMs = 0;
-    effectHiddenFrames = 0;
-    effectStatsStartedAt = now;
-  }
-
-  function renderEffectComposite(mask) {
-    const output = effectOutputCanvas;
-    const foreground = effectForegroundCanvas;
-    const source = effectSourceVideo;
-    if (!output || !foreground || !source) return;
-    const outputContext = output.getContext('2d');
-    const foregroundContext = foreground.getContext('2d');
-    const width = output.width;
-    const height = output.height;
-
-    outputContext.clearRect(0, 0, width, height);
-    if (selectedBackground === 'blur') {
-      // Downsample BEFORE filtering: both the filter input and its destination
-      // are small. Keep the foreground and final video at their original size.
-      const smallSource = effectBlurSourceCanvas;
-      const blurred = effectBlurCanvas;
-      const smallContext = smallSource.getContext('2d');
-      const blurContext = blurred.getContext('2d');
-      const scale = blurred.width / width;
-      smallContext.clearRect(0, 0, smallSource.width, smallSource.height);
-      drawCover(smallContext, source, smallSource.width, smallSource.height);
-      blurContext.clearRect(0, 0, blurred.width, blurred.height);
-      blurContext.save();
-      blurContext.filter = `blur(${18 * scale}px)`;
-      drawCover(blurContext, smallSource, blurred.width, blurred.height, 24 * scale);
-      blurContext.restore();
-      outputContext.imageSmoothingEnabled = true;
-      outputContext.drawImage(blurred, 0, 0, width, height);
-    } else {
-      const image = backgroundImages.get(selectedBackground);
-      if (image) drawCover(outputContext, image, width, height);
-      else {
-        outputContext.fillStyle = '#242136';
-        outputContext.fillRect(0, 0, width, height);
-      }
-    }
-
-    foregroundContext.clearRect(0, 0, width, height);
-    foregroundContext.globalCompositeOperation = 'source-over';
-    foregroundContext.filter = 'none';
-    foregroundContext.imageSmoothingEnabled = true;
-    foregroundContext.imageSmoothingQuality = 'high';
-    drawCover(foregroundContext, source, width, height);
-    foregroundContext.globalCompositeOperation = 'destination-in';
-    foregroundContext.filter = `blur(${MASK_PROFILES[effectMode()].feather}px)`;
-    drawCover(foregroundContext, mask, width, height);
-    foregroundContext.globalCompositeOperation = 'source-over';
-    foregroundContext.filter = 'none';
-    outputContext.drawImage(foreground, 0, 0);
+    return { pipelineVersion: 3, effectGeneration: backgroundEffectGeneration, mode: effectMode(), model: SEGMENTER_MODEL.id,
+      ...effectSession?.details, ...extra };
   }
 
   function handleEffectFailure(error) {
+    if (error?.name === 'AbortError') return;
     console.error('Video background processing failed:', error);
-    sendDiagnostic('background-effect-failure', effectDiagnosticDetails({
-      state: 'failed',
-      errorText: `${error?.name || 'Error'}: ${error?.message || 'Background processing failed'}`,
-    }));
+    sendDiagnostic('background-effect-failure', effectDiagnosticDetails({ state: 'failed',
+      errorText: `${error?.name || 'Error'}: ${error?.message || 'Background processing failed'}` }));
     backgroundEffectGeneration += 1;
     stopBackgroundEffect();
-    setBackgroundStatus('Эффект недоступен — показываем обычную камеру', 'error');
-    applyOutboundVideoTrack();
+    setBackgroundStatus('Эффект недоступен — видео приостановлено. Выберите фон повторно или «Без фона».', 'error');
+    void applyOutboundVideoTrack().catch(error => console.error('Video replacement failed:', error));
     updateLocalPreview();
-  }
-
-  function effectFrameInterval() {
-    return segmenterDelegate === 'CPU' ? Math.max(EFFECT_FRAME_INTERVAL_MS, 1000 / 15) : EFFECT_FRAME_INTERVAL_MS;
-  }
-
-  function renderEffectFrame(timestamp) {
-    if (!effectTrack || !effectSourceVideo || selectedBackground === 'none') return;
-    const frameInterval = effectFrameInterval();
-    if (timestamp - effectLastFrameAt < frameInterval) {
-      effectFrameRequest = window.requestAnimationFrame(renderEffectFrame);
-      return;
-    }
-    // Preserve the remainder instead of rounding every interval up to a display
-    // refresh. After a long pause process only one frame, never a catch-up burst.
-    const elapsed = timestamp - effectLastFrameAt;
-    effectLastFrameAt = timestamp - (elapsed % frameInterval);
-    try {
-      const frameStartedAt = performance.now();
-      if (!effectStatsStartedAt) effectStatsStartedAt = frameStartedAt;
-      let maskMs = 0;
-      let readbackMs = 0;
-      let compositeMs = 0;
-      segmenter.segmentForVideo(effectSourceVideo, timestamp, result => {
-        const confidenceMask = result.confidenceMasks?.[0];
-        if (!confidenceMask) throw new Error('Модель не вернула маску человека.');
-        const maskStartedAt = performance.now();
-        readbackMs = updateEffectMask(confidenceMask);
-        const compositeStartedAt = performance.now();
-        maskMs = compositeStartedAt - maskStartedAt - readbackMs;
-        renderEffectComposite(effectMaskCanvas);
-        effectTrack.requestFrame?.();
-        compositeMs = performance.now() - compositeStartedAt;
-      });
-      // Include synchronous task cleanup after its callback. Canvas timings are
-      // submission/wait time on this thread, not a GPU completion measurement.
-      const now = performance.now();
-      const frameMs = now - frameStartedAt;
-      effectProcessedFrames += 1;
-      effectFrameTotalMs += frameMs;
-      effectStageTotals.segmentation += Math.max(0, frameMs - maskMs - readbackMs - compositeMs);
-      effectStageTotals.readback += readbackMs;
-      effectStageTotals.mask += maskMs;
-      effectStageTotals.composite += compositeMs;
-      effectMaxFrameMs = Math.max(effectMaxFrameMs, frameMs);
-      if (document.hidden) effectHiddenFrames += 1;
-      reportEffectStats(now);
-      effectFailureCount = 0;
-    } catch (error) {
-      effectFailureCount += 1;
-      if (effectFailureCount >= 3) {
-        handleEffectFailure(error);
-        return;
-      }
-    }
-    effectFrameRequest = window.requestAnimationFrame(renderEffectFrame);
   }
 
   async function startBackgroundEffect() {
     const generation = ++backgroundEffectGeneration;
     stopBackgroundEffect();
-    await applyOutboundVideoTrack();
-    updateLocalPreview();
-    if (selectedBackground === 'none' || !mediaState.video || !cameraTrack()?.enabled || screenTrack) return;
-    if (!backgroundEffectsSupported()) throw new Error('Браузер не поддерживает обработку видеофона.');
-
-    setBackgroundStatus('Готовим эффект…');
-    const option = backgroundOption();
-    const sourceVideo = document.createElement('video');
-    sourceVideo.muted = true;
-    sourceVideo.playsInline = true;
-    sourceVideo.srcObject = new MediaStream([cameraTrack()]);
-    const videoReady = new Promise(resolve => {
-      if (sourceVideo.readyState >= HTMLMediaElement.HAVE_METADATA) {
-        resolve();
+    const controller = new AbortController();
+    effectStartController = controller;
+    try {
+      await applyOutboundVideoTrack();
+      updateLocalPreview();
+      if (controller.signal.aborted || generation !== backgroundEffectGeneration) return;
+      if (selectedBackground === 'none' || !mediaState.video || !cameraTrack()?.enabled || screenTrack) return;
+      if (!backgroundEffectsSupported()) throw new Error('Браузер не поддерживает обработку видеофона.');
+      setBackgroundStatus('Готовим эффект…');
+      const { createBackgroundPipeline } = await import('/assets/video-background-pipeline.mjs');
+      if (controller.signal.aborted || generation !== backgroundEffectGeneration) return;
+      const session = createBackgroundPipeline({
+        camera: cameraTrack(),
+        config: { model: SEGMENTER_MODEL, mode: selectedBackground,
+          backgroundUrl: backgroundOption().src, targetFps: 1000 / EFFECT_FRAME_INTERVAL_MS,
+          maxWidth: MOBILE_DEVICE ? 640 : 960, hidden: document.hidden },
+        onDiagnostic: (event, details) => {
+          if (generation === backgroundEffectGeneration && !controller.signal.aborted) sendDiagnostic(event, { ...details, effectGeneration: generation });
+        },
+        onFailure: error => {
+          if (generation === backgroundEffectGeneration && !controller.signal.aborted) handleEffectFailure(error);
+        },
+      });
+      effectSession = session;
+      try { await session.ready; }
+      catch (error) {
+        session.stop();
+        if (generation === backgroundEffectGeneration && !controller.signal.aborted) throw error;
         return;
       }
-      sourceVideo.addEventListener('loadedmetadata', resolve, { once: true });
-      window.setTimeout(resolve, 2500);
-    });
-    const playPromise = sourceVideo.play().catch(() => {});
-    await Promise.all([ensureSegmenter(), loadBackgroundImage(option), videoReady, playPromise]);
-    if (generation !== backgroundEffectGeneration || selectedBackground === 'none') {
-      sourceVideo.pause();
-      sourceVideo.srcObject = null;
-      return;
+      if (generation !== backgroundEffectGeneration || controller.signal.aborted) { session.stop(); return; }
+      effectTrack = session.track;
+      effectTrack.enabled = mediaState.video;
+      await applyOutboundVideoTrack();
+      if (generation !== backgroundEffectGeneration || controller.signal.aborted) return;
+      updateLocalPreview();
+      sendDiagnostic('background-effect-ready', effectDiagnosticDetails({ state: 'ready' }));
+      setBackgroundStatus(session.details.transport === 'canvas-worker'
+        ? 'Эффект включён — совместимый режим' : 'Эффект включён', 'ready');
+    } catch (error) {
+      if (generation === backgroundEffectGeneration && !controller.signal.aborted) throw error;
     }
-
-    const sourceWidth = sourceVideo.videoWidth || 1280;
-    const sourceHeight = sourceVideo.videoHeight || 720;
-    const maxWidth = window.innerWidth <= 820 ? 640 : 960;
-    const width = Math.max(2, Math.round(Math.min(sourceWidth, maxWidth) / 2) * 2);
-    const height = Math.max(2, Math.round((width * sourceHeight / sourceWidth) / 2) * 2);
-    effectSourceVideo = sourceVideo;
-    effectOutputCanvas = document.createElement('canvas');
-    effectForegroundCanvas = document.createElement('canvas');
-    effectMaskCanvas = document.createElement('canvas');
-    effectBlurSourceCanvas = document.createElement('canvas');
-    effectBlurCanvas = document.createElement('canvas');
-    effectBlurSourceCanvas.width = effectBlurCanvas.width = Math.max(1, Math.ceil(width / BLUR_DOWNSAMPLE));
-    effectBlurSourceCanvas.height = effectBlurCanvas.height = Math.max(1, Math.ceil(height / BLUR_DOWNSAMPLE));
-    effectOutputCanvas.width = effectForegroundCanvas.width = width;
-    effectOutputCanvas.height = effectForegroundCanvas.height = height;
-    const outputContext = effectOutputCanvas.getContext('2d');
-    drawCover(outputContext, sourceVideo, width, height);
-    // Capture each completed frame explicitly so irregular RAF intervals don't
-    // collide with a second, independent captureStream FPS limiter.
-    const manualCapture = typeof CanvasCaptureMediaStreamTrack !== 'undefined'
-      && typeof CanvasCaptureMediaStreamTrack.prototype.requestFrame === 'function';
-    effectStream = effectOutputCanvas.captureStream(manualCapture ? 0 : 1000 / effectFrameInterval());
-    effectTrack = effectStream.getVideoTracks()[0];
-    if (!effectTrack) throw new Error('Браузер не создал обработанный видеотрек.');
-    effectTrack.enabled = mediaState.video;
-    effectFrameRequest = window.requestAnimationFrame(renderEffectFrame);
-    await applyOutboundVideoTrack();
-    updateLocalPreview();
-    sendDiagnostic('background-effect-ready', effectDiagnosticDetails({ state: 'ready' }));
-    setBackgroundStatus(segmenterDelegate === 'CPU' ? 'Энергосберегающий режим' : 'Эффект включён', 'ready');
   }
 
   async function selectVideoBackground(value, { persist = true } = {}) {
@@ -673,7 +319,7 @@
     elements.previewVideo.srcObject = previewStream;
     elements.localVideo.srcObject = previewStream;
     const cameraVisible = Boolean(previewTrack);
-    elements.previewPlaceholder.hidden = Boolean(mediaState.video && cameraTrack()?.enabled);
+    elements.previewPlaceholder.hidden = cameraVisible;
     elements.localPlaceholder.hidden = cameraVisible;
   }
 
@@ -1171,7 +817,7 @@
   function stopMedia() {
     window.clearTimeout(reconnectTimer);
     backgroundEffectGeneration += 1;
-    stopBackgroundEffect({ closeSegmenter: true });
+    stopBackgroundEffect();
     screenTrack?.stop();
     localStream.getTracks().forEach(item => item.stop());
     closePeerConnection();

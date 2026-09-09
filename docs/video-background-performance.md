@@ -1,60 +1,99 @@
-# Video background performance measurements
+# Проверка видеофона — pipelineVersion 3
 
-Pipeline version 2 downsamples the background by 4 on each axis before applying
-blur, keeps the foreground at output resolution, preserves the RAF scheduling
-remainder, and requests completed canvas frames explicitly where supported.
+Изменения подготовлены локально. Развёртывание выполняется отдельно по команде
+владельца; этот документ не является инструкцией автоматически выкладывать код.
 
-## Reproduce
+## Устройство
 
-Reload the call page after deployment, join a call (prejoin has no signaling
-socket for diagnostics), and keep the call tab visible. On the same machine and
-browser, try no background, blur, and a replacement background for 2 minutes each.
-Note wall-clock time, browser, and perceived smoothness/edge quality. No-effect
-mode does not produce background processing statistics; use it as a visual
-baseline. Repeat on the other participant's machine if possible.
+Сегментация MediaPipe, обработка маски и композиция выполняются в отдельном
+classic Worker. Модель и WASM остаются локальными ресурсами приложения. Classic
+Worker нужен загрузчику MediaPipe, использующему importScripts. RAF в обработке
+видеофона больше не используется.
 
-The existing server log event `[video-call-diagnostic]` /
-`background-effect-stats` is emitted approximately every 30 seconds while an
-effect is running and the signaling socket is connected. `callId`, `role`, and
-the `ice-config` user agent identify the participant/browser. `pipelineVersion: 2`
-distinguishes this version from older measurements. No video or mask pixels are
-logged.
+Транспорт выбирается по наличию API, без определения браузера по User-Agent:
 
-New timing fields (rounded milliseconds per successfully processed frame):
+| transport | Путь | Ожидаемая область применения |
+| --- | --- | --- |
+| worker-track | Клон камеры передаётся Worker; MediaStreamTrackProcessor → VideoTrackGenerator | Safari 18+ / iOS 18+ с соответствующими API |
+| transferred-streams | Processor и Generator создаются в Window; readable/writable передаются Worker | Chromium с нестандартными API |
+| canvas-worker | Worker запрашивает ImageBitmap из video, обрабатывает и возвращает bitmap в captureStream | Firefox и браузеры без прямых API |
 
-- `averageSegmentationMs`: synchronous MediaPipe call outside the mask/composite
-  callback, including task cleanup; includes preprocessing and synchronization,
-  not just neural-network inference.
-- `averageReadbackMs`: `getAsFloat32Array()` conversion/access; may include GPU
-  synchronization and transfer.
-- `averageMaskMs`: mask buffers, temporal/spatial processing and `putImageData`,
-  excluding readback.
-- `averageCompositeMs`: background rendering, foreground masking, final drawing
-  and the request to capture the finished frame.
-- `averageFrameMs`, `maxFrameMs`: total synchronous processing time; average now
-  also includes task cleanup after the callback (older logs ended inside it).
+Первые два пути запускаются по поступлению кадров камеры. На входе Processor
+запрашивается maxBufferSize: 1, запись ожидается перед чтением следующего кадра.
+Старые кадры не догоняются пачкой. VideoFrame закрываются и при пропуске, и при
+ошибке. Timestamp камеры сохраняется в выходном VideoFrame.
 
-Canvas timings measure main-thread submission/wait time, not GPU completion.
-Rounded stage averages can differ slightly from the rounded total. `fps` counts
-processed frames, not remote decoded frames or necessarily unique camera frames.
-`processedFrames`, `sampleDurationMs`, and `hiddenFrames` help interpret throttled
-or interrupted windows. A hidden interval may contain no processed frames, so
-`hiddenFrames: 0` alone does not prove the tab stayed visible.
+Canvas-путь допускает только один обмен кадром за раз. Следующий запрос Worker
+посылает после подтверждения отрисовки предыдущего. Частота учитывает время
+обработки и обмена, а не прибавляет к нему полный интервал. Этот путь по-прежнему
+зависит от фонового поведения video/canvas и доставки сообщений главному потоку:
+15 FPS в скрытом Firefox или старом Safari пока не гарантированы. При отсутствии
+OffscreenCanvas эффект недоступен. Приостановка приложения ОС, блокировка экрана
+и сон устройства также не покрываются обещанием непрерывного видео.
 
-`targetFps` is 24 for desktop GPU, 18 for mobile GPU, and at most 15 for CPU.
-`blurWidth`/`blurHeight` describe the small blur canvas; output and mask dimensions
-retain their existing meanings. `delegate: gpu` reports the selected MediaPipe
-backend, not a measurement of physical hardware acceleration.
+В браузерах без Canvas2D.filter размытие уменьшенного фона выполняется программно.
+Сглаживание маски сохранено; дополнительное filter-feathering контура зависит от
+поддержки Canvas2D.filter. Целевые частоты: 24 FPS desktop GPU, 18 mobile GPU,
+15 CPU. Это ограничители нагрузки, а не гарантия производительности устройства.
 
-The existing server limit of 100 diagnostic messages per WebSocket connection
-still applies; use a freshly joined call for measurements. Long calls can exhaust
-that quota. No-effect intervals, prejoin, disconnected sockets, and switching
-an effect before 30 seconds may have no statistics.
+Во время запуска и при ошибке выбранного эффекта исходная камера не подставляется
+автоматически. Выходной трек подключается после первого обработанного кадра.
+Для продолжения можно выбрать эффект повторно либо явно выбрать «Без фона».
+Выключение эффекта, камеры, смена режима и выход отменяют сессию; оригинальный
+трек камеры не передаётся Worker и не останавливается вместе с его клоном.
 
-Read production measurements with:
+## Матрица ручной проверки
+
+Для каждой комбинации устройство / ОС / версия браузера записать время, callId,
+роль участника, режим эффекта, transport и delegate. Проверять Safari macOS/iOS,
+Chrome desktop/Android и Firefox desktop/Android. На iPhone название браузера
+само по себе не определяет движок — ориентироваться на фактический transport.
+
+1. На двух устройствах подключиться к звонку; камера без эффекта — контроль.
+2. Проверить размытие и замену фона по 2 минуты на видимой вкладке.
+3. Для каждого эффекта скрыть вкладку на 30 секунд, затем на 10 минут.
+   Отдельно проверить сворачивание окна и переключение приложения на телефоне.
+   Человек перед камерой должен двигаться: повтор одного кадра не считается успехом.
+4. Вернуться во вкладку: не должно быть пачки старых кадров или второго цикла обработки.
+5. Быстро сменить эффекты, выключить/включить камеру, начать/закончить демонстрацию
+   экрана, переподключиться и выйти. Проверить освобождение камеры и отсутствие
+   неожиданных кадров с настоящим фоном при выбранном эффекте.
+6. Ориентир приёмки на согласованном устройстве — не менее 15 декодированных FPS
+   у собеседника, без заметных остановок и роста задержки. Записывать также качество
+   контура и загрузку/нагрев устройства. Блокировку экрана отмечать отдельно.
+
+## Логи
+
+Все записи проходят существующий серверный allowlist, без пикселей и масок.
+effectGeneration отличает перезапуски эффекта в одной странице.
+События доступны только при подключённом signaling socket (в prejoin их нет).
+Лимит сервера — 100 диагностических сообщений за минуту на соединение.
+
+- background-effect-ready: starting/ready, transport, pipelineVersion: 3, модель,
+  режим, delegate, размеры и targetFps. ready означает готовность первого кадра.
+- background-effect-stats: примерно каждые 30 секунд; fps, processedFrames,
+  sampleDurationMs, hiddenFrames и средние времена segmentation/readback/mask/composite.
+  В отличие от v2 composite исключает передачу выходного кадра. Времена отражают
+  синхронную работу/ожидание в Worker, а не GPU-профилирование.
+- background-effect-health: каждые 10 секунд, даже при отсутствии новых кадров,
+  пока Worker и обмен сообщениями работают. receivedFrames, emittedFrames,
+  skippedFrames — накопительные счётчики текущей сессии; lastFrameAgeMs — время
+  с последнего выданного кадра, до первого кадра — со старта Worker.
+  skippedFrames учитывает ограничение FPS, но не все пропуски внутри браузера.
+  cpu-fallback содержит причину неудачи инициализации GPU.
+- background-effect-failure: ошибка запуска, обработки или транспорта. Таймаут
+  первого кадра — 30 секунд; остановка сессии принудительно завершает Worker
+  через секунду, если штатное освобождение ресурсов не закончилось.
+- video-rtp-stats: сопоставлять прирост framesEncoded/framesSent у отправителя и
+  framesReceived/framesDecoded у получателя за одинаковые интервалы.
+
+processedFrames и emittedFrames сами по себе не доказывают получение свежего
+изображения собеседником. pageHidden — состояние главной страницы при записи;
+hiddenFrames — счётчик Worker с учётом доставленных событий visibilitychange.
+Полная заморозка процесса останавливает и диагностику; разрыв в логах также важен.
 
 ```sh
-ssh -p 4537 root@144.31.76.176 'journalctl -u teach-platform.service --since "today" --no-pager -o cat' | rg 'background-effect-(stats|ready|failure)'
+ssh -p 4537 root@144.31.76.176 'journalctl -u teach-platform.service --since "today" --no-pager -o cat' | rg 'background-effect-|video-rtp-stats|video-track-replace'
 ```
 
 ## Диагностика пропавшего удалённого видео
@@ -89,3 +128,20 @@ ssh -p 4537 root@144.31.76.176 'journalctl -u teach-platform.service --since "to
 `video:false`, включение экрана, mute/unmute/ended, поздний аудиотрек, события
 старого соединения, ошибки замены и фильтрацию RTP-данных. Это не воспроизведение
 инцидента в двух браузерах; после выкладки нужен отдельный контрольный звонок.
+
+## Локальная проверка изменений
+
+Проверены Node-тесты жизненного цикла, выбора транспорта, ожидания записи,
+освобождения кадров при ошибке/отмене, ограничения FPS, программного размытия,
+маршрутизации исходящего видео и серверной фильтрации диагностики.
+
+В установленном Chrome на этом Mac проведён локальный звонок между двумя
+RTCPeerConnection с искусственной камерой, настоящим MediaPipe/GPU и landscape
+моделью при 640×480, targetFps 18. За 10 секунд у получателя: 180 декодированных
+кадров на transferred-streams и 171 на принудительном canvas-worker. Это короткая
+проверка видимой страницы, не измерение качества маски на человеке и не гарантия
+15 FPS на других устройствах. Автоматизация не смогла добиться подтверждённого
+document.hidden=true, поэтому скрытая вкладка остаётся обязательной ручной
+проверкой. Safari, Firefox и реальные телефоны локально не проверены.
+
+Справка по различиям API: [MDN MediaStreamTrackProcessor](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrackProcessor).
