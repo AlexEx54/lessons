@@ -221,3 +221,89 @@ test('audio ontrack cannot cover active video and old connection events are igno
   listeners.mute();
   assert.equal(context.elements.remotePlaceholder.hidden, true);
 });
+
+test('RTP FPS uses elapsed sample time, reports stalls and resets on counter or SSRC changes', async () => {
+  const events = [];
+  const report = { type: 'inbound-rtp', kind: 'video', ssrc: 12, framesDecoded: 100, timestamp: 1000 };
+  const outgoing = { type: 'outbound-rtp', kind: 'video', ssrc: 13, framesSent: 200, timestamp: 1000 };
+  const connection = { getStats: async () => new Map([['v', report], ['out', outgoing]]) };
+  const context = vm.createContext({ peerConnection: connection,
+    elements: { remotePlaceholder: { hidden: true } },
+    sendDiagnostic: (event, details) => events.push({ event, ...details }),
+  });
+  const start = roomScript.indexOf('  async function reportMediaStats(');
+  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  function candidateType(', start)), context);
+  await context.reportMediaStats(connection);
+  assert.equal(events[0].averageFps, undefined);
+  report.timestamp = outgoing.timestamp = 31000;
+  report.framesDecoded = 820; outgoing.framesSent = 1100;
+  await context.reportMediaStats(connection);
+  assert.equal(events.at(-2).averageFps, 24);
+  assert.equal(events.at(-1).averageFps, 30);
+  assert.equal(events.at(-1).sampleDurationMs, 30000);
+  report.timestamp = 61000;
+  await context.reportMediaStats(connection);
+  assert.equal(events.at(-2).averageFps, 0);
+  report.timestamp = 91000; report.framesDecoded = 10;
+  await context.reportMediaStats(connection);
+  assert.equal(events.at(-2).averageFps, undefined);
+  report.timestamp = 121000; report.ssrc = 99; report.framesDecoded = 730;
+  await context.reportMediaStats(connection);
+  assert.equal(events.at(-2).averageFps, undefined);
+  let release;
+  connection.getStats = () => new Promise(resolve => { release = resolve; });
+  const pending = context.reportMediaStats(connection);
+  await context.reportMediaStats(connection);
+  release(new Map());
+  await pending;
+  assert.equal(connection.diagnosticStatsPending, false);
+});
+
+test('ICE error storm sends distinct errors only and reports suppression on gathering completion', () => {
+  const connection = {}, events = [];
+  const context = vm.createContext({ connection, peerConnection: connection, gatheredCandidateTypes: new Set(['relay']),
+    sendDiagnostic: (event, details) => events.push({ event, ...details }) });
+  vm.runInContext(roomScript.slice(roomScript.indexOf('    const iceErrors = new Set();'),
+    roomScript.indexOf('    connection.oniceconnectionstatechange =')), context);
+  for (let i = 0; i < 100; i++) connection.onicecandidateerror({ errorCode: 701, errorText: 'lookup failed' });
+  connection.iceGatheringState = 'complete';
+  connection.onicegatheringstatechange();
+  assert.equal(events.length, 2);
+  assert.equal(events[1].suppressedErrors, 99);
+  context.peerConnection = {};
+  connection.onicecandidateerror({ errorCode: 486, errorText: 'old connection' });
+  assert.equal(events.length, 2);
+});
+
+test('socket reconnect reports the previous close after reopening and ignores stale close events', () => {
+  const sockets = [], events = [];
+  const context = vm.createContext({
+    socket: null, socketAttempt: 0, lastSocketClose: null, reconnectAttempts: 0, reconnectTimer: null,
+    leaving: false, effectTrack: null, iceServers: [], navigator: { onLine: true },
+    performance: { getEntriesByType: () => [{ type: 'reload' }] },
+    window: { clearTimeout() {} }, closePeerConnection() {}, websocketUrl: () => 'ws://example.test',
+    setConnection() {}, sendMediaState() {}, scheduleReconnect() {},
+    sendDiagnostic: (event, details) => events.push({ event, ...details }),
+    WebSocket: class {
+      constructor() { this.handlers = {}; sockets.push(this); }
+      addEventListener(type, handler) { this.handlers[type] = handler; }
+    },
+  });
+  const start = roomScript.indexOf('  function connectSocket()');
+  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  async function toggleKind(', start)), context);
+  context.connectSocket();
+  sockets[0].handlers.open();
+  assert.equal(events[0].state, 'initial');
+  assert.equal(events[0].navigationType, 'reload');
+  sockets[0].handlers.close({ code: 1006, wasClean: false });
+  context.connectSocket();
+  sockets[1].handlers.open();
+  const reopened = events.filter(event => event.event === 'socket-open')[1];
+  assert.equal(reopened.state, 'reconnected');
+  assert.equal(reopened.socketAttempt, 2);
+  assert.equal(reopened.closeCode, 1006);
+  assert.equal(reopened.wasClean, false);
+  assert.equal(reopened.reconnectDelayMs, 1000);
+  sockets[0].handlers.close({ code: 4001, wasClean: true });
+  assert.equal(context.lastSocketClose, null);
+});

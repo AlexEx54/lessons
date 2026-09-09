@@ -71,6 +71,9 @@
   let diagnosticTrackSequence = 0;
   let screenTrack = null;
   let socket = null;
+  const pageSession = crypto.randomUUID();
+  let socketAttempt = 0;
+  let lastSocketClose = null;
   let peerConnection = null;
   let audioTransceiver = null;
   let videoTransceiver = null;
@@ -392,7 +395,7 @@
   }
 
   function sendDiagnostic(event, details = {}) {
-    send({ type: 'diagnostic', event, peerGeneration, pageHidden: document.hidden, ...details });
+    send({ type: 'diagnostic', event, pageSession, peerGeneration, pageHidden: document.hidden, ...details });
   }
 
   function diagnosticTrackId(track) {
@@ -422,9 +425,12 @@
 
   async function reportMediaStats(connection, reason = 'periodic') {
     if (!connection || connection !== peerConnection) return;
+    if (connection.diagnosticStatsPending) return;
+    connection.diagnosticStatsPending = true;
     try {
       const reports = await connection.getStats();
       if (connection !== peerConnection) return;
+      const nextSamples = new Map();
       reports.forEach(report => {
         if ((report.kind || report.mediaType) !== 'video' || !['inbound-rtp', 'outbound-rtp'].includes(report.type)) return;
         const details = { state: reason, direction: report.type, ssrc: report.ssrc,
@@ -432,11 +438,25 @@
         for (const field of ['framesEncoded', 'framesSent', 'framesReceived', 'framesDecoded', 'bytesSent', 'bytesReceived', 'packetsLost']) {
           if (Number.isFinite(report[field]) && report[field] >= 0) details[field] = Math.round(report[field]);
         }
+        const frames = report.type === 'inbound-rtp' ? report.framesDecoded : report.framesSent;
+        const key = `${report.type}:${report.ssrc}`;
+        const previous = connection.diagnosticSamples?.get(key);
+        if (Number.isFinite(frames) && Number.isFinite(report.timestamp)) {
+          nextSamples.set(key, { frames, timestamp: report.timestamp });
+          const elapsed = report.timestamp - (previous?.timestamp ?? report.timestamp);
+          if (previous && elapsed >= 1000 && elapsed <= 86_400_000 && frames >= previous.frames) {
+            details.averageFps = Math.round((frames - previous.frames) * 10_000 / elapsed) / 10;
+            details.sampleDurationMs = Math.round(elapsed);
+          } else if (previous && elapsed >= 0 && elapsed < 1000 && frames >= previous.frames) {
+            nextSamples.set(key, previous);
+          }
+        }
         sendDiagnostic('video-rtp-stats', details);
       });
+      connection.diagnosticSamples = nextSamples;
     } catch (error) {
       if (connection === peerConnection) sendDiagnostic('stats-error', { state: 'video', errorText: error.message });
-    }
+    } finally { connection.diagnosticStatsPending = false; }
   }
 
   function candidateType(candidate) {
@@ -552,15 +572,23 @@
         });
       }
     };
+    const iceErrors = new Set();
+    let suppressedIceErrors = 0;
     connection.onicecandidateerror = event => {
+      if (connection !== peerConnection) return;
+      const key = `${event.errorCode}:${event.errorText}`;
+      if (iceErrors.has(key) || iceErrors.size >= 10) { suppressedIceErrors++; return; }
+      iceErrors.add(key);
       sendDiagnostic('ice-candidate-error', {
         errorCode: event.errorCode,
         errorText: event.errorText || 'ICE candidate error',
       });
     };
     connection.onicegatheringstatechange = () => {
+      if (connection !== peerConnection) return;
       sendDiagnostic('ice-gathering-state', {
         state: connection.iceGatheringState,
+        suppressedErrors: suppressedIceErrors,
         candidateTypes: [...gatheredCandidateTypes],
       });
     };
@@ -602,6 +630,9 @@
         await connection.setLocalDescription();
         send({ type: 'signal', description: connection.localDescription });
       } catch (error) {
+        if (connection === peerConnection) sendDiagnostic('peer-connection-error', {
+          state: 'negotiation', errorText: `${error.name}: ${error.message}`,
+        });
         console.error('WebRTC negotiation failed:', error);
       } finally {
         makingOffer = false;
@@ -640,6 +671,10 @@
         }
       }
     } catch (error) {
+      if (connection === peerConnection) sendDiagnostic('peer-connection-error', {
+        state: message.description ? 'remote-description' : 'remote-candidate',
+        errorText: `${error.name}: ${error.message}`,
+      });
       console.error('Cannot apply WebRTC signal:', error);
       setConnection('Не удалось настроить медиасоединение', 'error');
     }
@@ -666,8 +701,15 @@
     window.clearTimeout(reconnectTimer);
     closePeerConnection();
     socket = new WebSocket(websocketUrl());
+    const currentSocket = socket;
+    socketAttempt++;
     setConnection('Подключаемся к комнате…');
     socket.addEventListener('open', () => {
+      if (socket !== currentSocket) return;
+      sendDiagnostic('socket-open', { state: lastSocketClose ? 'reconnected' : 'initial',
+        socketAttempt, navigationType: performance.getEntriesByType('navigation')[0]?.type || 'unknown',
+        online: navigator.onLine, ...lastSocketClose });
+      lastSocketClose = null;
       reconnectAttempts = 0;
       setConnection('Ждём второго участника');
       const configuredUrls = iceServers.map(server => server.urls).filter(Boolean);
@@ -723,7 +765,10 @@
       }
     });
     socket.addEventListener('close', event => {
-      if (leaving) return;
+      if (socket !== currentSocket || leaving) return;
+      // The socket is already closed; retain one bounded record for the next open.
+      lastSocketClose = { closeCode: event.code, wasClean: event.wasClean,
+        reconnectDelayMs: Math.min(5000, (reconnectAttempts + 1) * 1000) };
       if (event.code === 4000) {
         finishCall('Преподаватель завершил видеозвонок.');
         return;
@@ -903,9 +948,10 @@
   elements.toggleScreen.addEventListener('click', toggleScreenShare);
   elements.leave.addEventListener('click', leaveCall);
   elements.join.addEventListener('click', joinCall);
-  window.addEventListener('pagehide', () => {
+  window.addEventListener('pagehide', event => {
     if (!leaving) {
-      send({ type: 'leave' });
+      sendDiagnostic('page-lifecycle', { state: 'pagehide', persisted: event.persisted });
+      send({ type: 'leave', source: 'pagehide' });
       stopMedia();
     }
   });
