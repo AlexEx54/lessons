@@ -12,6 +12,8 @@ export async function createEffectRenderer(config) {
   let effectSourceVideo;
   const acceptFrame = createFrameGate();
   const canvas = (w, h) => new OffscreenCanvas(w, h);
+  const effectInputCanvas = canvas(config.width, config.height);
+  const effectInputContext = effectInputCanvas.getContext('2d');
   const effectOutputCanvas = canvas(config.width, config.height);
   const effectForegroundCanvas = canvas(config.width, config.height);
   const effectMaskCanvas = canvas(1, 1);
@@ -66,7 +68,7 @@ export async function createEffectRenderer(config) {
 
   function effectDiagnosticDetails(extra = {}) {
     return {
-      pipelineVersion: 3,
+      pipelineVersion: 4,
       targetFps: Math.round(1000 / effectFrameInterval()),
       blurWidth: selectedBackground === 'blur' ? (effectBlurCanvas?.width || 0) : 0,
       blurHeight: selectedBackground === 'blur' ? (effectBlurCanvas?.height || 0) : 0,
@@ -282,12 +284,16 @@ export async function createEffectRenderer(config) {
     process(source, timestamp) {
       const interval = effectFrameInterval();
       if (!acceptFrame(timestamp, interval)) return false;
-      effectSourceVideo = source;
+      effectSourceVideo = effectInputCanvas;
       const started = performance.now();
       if (!effectStatsStartedAt) effectStatsStartedAt = started;
       let readback = 0, mask = 0, composite = 0;
       try {
-        segmenter.segmentForVideo(source, timestamp, result => {
+        // Bound segmentation and mask readback to the output size on every transport.
+        // Keep the unprocessed camera track at its original resolution.
+        effectInputContext.clearRect(0, 0, effectInputCanvas.width, effectInputCanvas.height);
+        drawCover(effectInputContext, source, effectInputCanvas.width, effectInputCanvas.height);
+        segmenter.segmentForVideo(effectInputCanvas, timestamp, result => {
           const confidence = result.confidenceMasks?.[0];
           if (!confidence) throw new Error('Модель не вернула маску человека');
           const maskStarted = performance.now();
