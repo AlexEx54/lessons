@@ -135,6 +135,22 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   });
   assert.equal(createdResponse.status, 201);
   const created = (await createdResponse.json()).draft;
+  const notesUrl = `${baseUrl}/api/lesson-drafts/${created.id}/notes`;
+  const notesContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Travel vocabulary' }] }] };
+  const initialNotes = await fetch(notesUrl, { headers: { Cookie: firstAdminCookie } });
+  assert.equal(initialNotes.status, 200);
+  assert.equal((await initialNotes.json()).version, 0);
+  const saveNotes = (cookie, version, origin = baseUrl) => fetch(notesUrl, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', Cookie: cookie, Origin: origin },
+    body: JSON.stringify({ version, content: notesContent }),
+  });
+  assert.equal((await saveNotes(firstAdminCookie, 0)).status, 200);
+  assert.equal((await saveNotes(firstAdminCookie, 0)).status, 409);
+  const notesOtherCookie = await login(baseUrl, 'admin-two@example.com', password);
+  assert.equal((await saveNotes(notesOtherCookie, 1)).status, 404);
+  assert.equal((await saveNotes(firstAdminCookie, 1, 'https://evil.invalid')).status, 403);
+  const savedNotes = await fetch(notesUrl, { headers: { Cookie: firstAdminCookie } });
+  assert.deepEqual((await savedNotes.json()).content, notesContent);
   assert.equal(created.ownerAdminId, firstAdmin.id);
   assert.equal(created.topic, 'Travel English');
   assert.equal(created.warmUpTopic, 'Travel English');

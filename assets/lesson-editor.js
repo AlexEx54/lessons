@@ -1172,6 +1172,7 @@
         document.querySelector('.end-lesson').href = '/library.html';
         document.querySelector('.end-lesson span').textContent = 'В библиотеку';
         render(payload.lesson.content);
+        window.LessonNotes.mount({ mode: 'library', content: payload.lesson.content.notes });
         return;
       }
       if (!payload.draft?.content?.stages?.length) throw new Error('В черновике пока нет структуры урока.');
@@ -1181,6 +1182,7 @@
       state.draftStatus = payload.draft.status;
       state.imageGeneration = payload.draft.imageGeneration;
       render(payload.draft.content);
+      window.LessonNotes.mount({ mode: 'draft', id: state.draftId });
       updateImageGenerationBanner();
       scheduleImageGenerationPoll();
     } catch (error) {
@@ -1188,10 +1190,13 @@
     }
   }
 
-  byId('publish-lesson').addEventListener('click', () => window.LessonPublication.open(state.draftId, {
-    isDirty: () => state.dirtyComponents.size > 0,
-    onChange: () => { byId('publish-lesson').textContent = 'Публикация урока'; },
-  }));
+  byId('publish-lesson').addEventListener('click', async () => {
+    try { await window.LessonNotes.flush(); } catch (error) { showToast(error.message); return; }
+    window.LessonPublication.open(state.draftId, {
+      isDirty: () => state.dirtyComponents.size > 0 || window.LessonNotes.isDirty(),
+      onChange: () => { byId('publish-lesson').textContent = 'Публикация урока'; },
+    });
+  });
   byId('teacher-screen').addEventListener('click', () => showToast('Экран преподавателя уже открыт.'));
   imageGenerationStop.addEventListener('click', () => changeImageGeneration('stop', imageGenerationStop));
   imageGenerationStart.addEventListener('click', () => changeImageGeneration('start', imageGenerationStart));

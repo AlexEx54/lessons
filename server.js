@@ -1071,6 +1071,24 @@ const server = http.createServer(async (req, res) => {
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = requestUrl.pathname;
 
+  const notesDraft = pathname.match(/^\/api\/lesson-drafts\/([a-f0-9-]{36})\/notes$/i);
+  if (notesDraft && ['GET', 'PUT'].includes(req.method)) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    if (req.method === 'PUT' && req.headers.origin) {
+      let allowed = false;
+      try { allowed = new URL(req.headers.origin).host === req.headers.host; } catch {}
+      if (!allowed) { json(res, 403, { error: 'Недопустимый источник запроса.' }); return; }
+    }
+    try {
+      const { readDraftNotes, saveDraftNotes } = require('./lib/lesson-notes-schema.js');
+      const notes = req.method === 'GET' ? readDraftNotes(notesDraft[1], user.id, database)
+        : saveDraftNotes(notesDraft[1], user.id, await readJsonBody(req), database);
+      json(res, 200, notes);
+    } catch (error) { json(res, error.statusCode || 400, { error: error.message }); }
+    return;
+  }
+
   if (req.method === 'GET' && (pathname === '/login' || pathname === '/login.html')) {
     if (getAuthenticatedUser(req, database)) {
       redirect(res, '/app');
@@ -2312,11 +2330,13 @@ const server = http.createServer(async (req, res) => {
 
 videoCallSignaling = createVideoCallSignaling({ server, database, attachUpgrade: false });
 const classSessionSignaling = createClassSessionSignaling({ database });
+const notesSignaling = require('./lib/lesson-notes-signaling.js').createNotesSignaling({ database });
 server.on('upgrade', (req, socket, head) => {
   let pathname;
   try { pathname = new URL(req.url, 'http://localhost').pathname; }
   catch { socket.destroy(); return; }
-  if (pathname.startsWith('/ws/classes/')) classSessionSignaling.handleUpgrade(req, socket, head);
+  if (pathname.startsWith('/ws/notes/')) notesSignaling.handleUpgrade(req, socket, head);
+  else if (pathname.startsWith('/ws/classes/')) classSessionSignaling.handleUpgrade(req, socket, head);
   else videoCallSignaling.handleUpgrade(req, socket, head);
 });
 

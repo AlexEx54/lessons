@@ -1,0 +1,34 @@
+.lesson-plan__heading.notes-heading { padding: 0 0 18px; gap: 8px; }
+.notes-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; border-bottom: 1px solid #eeeaf4; }
+.notes-tabs button { width: 100%; height: auto; min-height: 42px; margin-bottom: -1px; padding: 11px 8px; border-radius: 0; border-bottom: 2px solid transparent; background: transparent; color: #65677b; font: inherit; font-size: 13px; font-weight: 500; text-align: center; white-space: nowrap; transition: color .15s, border-color .15s; }
+.notes-tabs button[aria-selected="true"] { color: #713be6; border-bottom-color: #713be6; font-weight: 600; }
+.notes-heading .notes-tabs button:hover { background: transparent; color: #713be6; }
+.notes-tabs button:focus-visible, .notes-toolbar button:focus-visible { outline: 2px solid #713be6; outline-offset: 2px; }
+#lesson-stages[hidden], #lesson-notes[hidden], #hide-plan[hidden] { display: none; }
+.lesson-notes { display: flex; flex-direction: column; flex: 1; min-height: 240px; }
+.notes-status { font-size: 11px; color: #697084; padding: 0 0 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.notes-status::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: #a4a7b4; }
+.notes-status[data-state="saved"]::before { background: #23a460; }
+.notes-status[data-state="saving"]::before, .notes-status[data-state="offline"]::before { background: #d29a21; }
+.notes-status[data-state="error"] { color: #ad3636; }
+.notes-status[data-state="error"]::before { background: #cc4a4a; }
+.notes-presence { font-size: 11px; color: #797489; margin-bottom: 10px; }
+.notes-toolbar { display: flex; gap: 4px; padding: 5px; border: 1px solid #eeeaf4; border-radius: 7px 7px 0 0; }
+.notes-toolbar button { width: 34px; height: 30px; border: 0; border-radius: 4px; color: #434257; background: transparent; font-size: 16px; cursor: pointer; }
+.notes-toolbar button { display: inline-flex; align-items: center; justify-content: center; }
+.notes-toolbar svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.notes-toolbar .notes-marker-color { stroke: #e9c83f; stroke-width: 3; }
+.notes-toolbar button[aria-pressed="true"] { background: #eee5ff; color: #7034d8; }
+.notes-toolbar button:disabled { opacity: .4; cursor: default; }
+.notes-editor { border: 1px solid #eeeaf4; border-top: 0; border-radius: 0 0 7px 7px; flex: 1; min-height: 220px; overflow: auto; }
+.notes-editor .tiptap { padding: 12px 10px; min-height: 100%; font-size: 13px; line-height: 1.65; color: #292638; overflow-wrap: anywhere; outline: none; }
+.notes-editor .tiptap:focus { box-shadow: inset 0 0 0 1px #a285e0; }
+.notes-editor .tiptap p { margin: 0 0 9px; }
+.notes-editor .tiptap ul { padding-left: 21px; margin: 8px 0; list-style: disc; }
+.notes-editor .tiptap li p { margin-bottom: 4px; }
+.notes-editor .tiptap mark { background: #fff0a1; color: inherit; }
+.notes-hint { margin: 10px 0 0; color: #8b8797; font-size: 11px; line-height: 1.5; }
+.notes-retry { padding: 8px; margin-top: 8px; background: #f0e9ff; color: #713be6; border-radius: 5px; }
+.notes-editor .tiptap > p:only-child:has(> br.ProseMirror-trailingBreak:only-child)::before { content: 'Запишите слова, вопросы или важные мысли…'; color: #aaa5b4; float: left; height: 0; pointer-events: none; }
+.notes-editor .tiptap a { color: #713be6; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.notes-editor .tiptap a:hover { color: #5020b0; }

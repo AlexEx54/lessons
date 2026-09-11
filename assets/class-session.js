@@ -158,6 +158,7 @@
       confirmed = payload.state;
       availableStageIds = payload.availableStageIds;
       view.render(payload.lesson.content);
+      window.LessonNotes?.mount({ mode: 'class', id: classId, role });
       paint();
       connect();
     } catch (error) { showError(error.message); }
