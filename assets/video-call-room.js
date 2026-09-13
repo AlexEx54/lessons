@@ -30,6 +30,7 @@
     toggleCamera: document.getElementById('toggle-camera'),
     toggleBackground: document.getElementById('toggle-background'),
     toggleScreen: document.getElementById('toggle-screen'),
+    screenAudioStatus: document.getElementById('screen-audio-status'),
     callBackgroundPanel: document.getElementById('call-background-panel'),
     callBackgroundOptions: document.getElementById('call-background-options'),
     closeBackgroundPanel: document.getElementById('close-background-panel'),
@@ -70,6 +71,9 @@
   const diagnosticTrackIds = new WeakMap();
   let diagnosticTrackSequence = 0;
   let screenTrack = null;
+  let displayStream = null;
+  let screenAudioMixer = null;
+  let screenShareBusy = false;
   let socket = null;
   const pageSession = crypto.randomUUID();
   let socketAttempt = 0;
@@ -356,7 +360,10 @@
       item.stop();
     });
     localStream.addTrack(newTrack);
-    if (kind === 'audio' && audioTransceiver) await audioTransceiver.sender.replaceTrack(newTrack);
+    if (kind === 'audio') {
+      connectMixerMicrophone();
+      await applyOutboundAudioTrack();
+    }
     return newTrack;
   }
 
@@ -642,7 +649,7 @@
     // every handler before adding transceivers so the initial offer cannot be lost.
     audioTransceiver = connection.addTransceiver('audio', { direction: 'sendrecv' });
     videoTransceiver = connection.addTransceiver('video', { direction: 'sendrecv' });
-    await audioTransceiver.sender.replaceTrack(track('audio') || null);
+    await applyOutboundAudioTrack();
     await applyOutboundVideoTrack();
     return connection;
   }
@@ -813,6 +820,72 @@
     sendMediaState();
   }
 
+  function connectMixerMicrophone() {
+    if (!screenAudioMixer) return;
+    screenAudioMixer.microphone?.disconnect();
+    screenAudioMixer.microphone = null;
+    const microphone = track('audio');
+    if (microphone?.readyState === 'live') {
+      screenAudioMixer.microphone = screenAudioMixer.context.createMediaStreamSource(new MediaStream([microphone]));
+      screenAudioMixer.microphone.connect(screenAudioMixer.destination);
+    }
+  }
+
+  async function applyOutboundAudioTrack() {
+    const next = screenAudioMixer?.destination.stream.getAudioTracks()[0] || track('audio') || null;
+    if (audioTransceiver) await audioTransceiver.sender.replaceTrack(next);
+  }
+
+  function disposeScreenAudio(mixer = screenAudioMixer) {
+    if (screenAudioMixer === mixer) screenAudioMixer = null;
+    if (mixer) {
+      mixer.microphone?.disconnect();
+      mixer.source?.disconnect();
+      mixer.destination.stream.getTracks().forEach(item => item.stop());
+      void mixer.context.close().catch(() => {});
+    }
+  }
+
+  function updateScreenAudioStatus() {
+    elements.screenAudioStatus.hidden = !screenTrack;
+    const audio = displayStream?.getAudioTracks().find(item => item.readyState === 'live');
+    if (!audio || !screenAudioMixer) {
+      elements.screenAudioStatus.textContent = 'Демонстрация без звука. Для передачи звука выберите его в окне демонстрации браузера.';
+      return;
+    }
+    const isolated = screenTrack?.getSettings().displaySurface === 'browser' || audio.getSettings().restrictOwnAudio === true;
+    elements.screenAudioStatus.textContent = audio.muted
+      ? 'Звук демонстрации временно недоступен.'
+      : 'Звук демонстрации включён.';
+    if (!isolated) elements.screenAudioStatus.textContent += ' Возможно эхо: для ролика лучше выбрать отдельную вкладку со звуком.';
+  }
+
+  async function startScreenAudio() {
+    const audio = displayStream.getAudioTracks().find(item => item.readyState === 'live');
+    if (!audio) return;
+    try {
+      const context = new AudioContext();
+      screenAudioMixer = { context, destination: context.createMediaStreamDestination() };
+      screenAudioMixer.source = context.createMediaStreamSource(new MediaStream([audio]));
+      screenAudioMixer.source.connect(screenAudioMixer.destination);
+      connectMixerMicrophone();
+      await context.resume();
+      if (leaving || !screenTrack || !screenAudioMixer) return;
+      await applyOutboundAudioTrack();
+      audio.onmute = audio.onunmute = updateScreenAudioStatus;
+      audio.onended = () => {
+        disposeScreenAudio();
+        void applyOutboundAudioTrack().catch(error => console.error('Audio restore failed:', error));
+        updateScreenAudioStatus();
+      };
+    } catch (error) {
+      disposeScreenAudio();
+      audio.stop();
+      await applyOutboundAudioTrack();
+      console.error('Screen audio unavailable:', error);
+    }
+  }
+
   async function stopScreenShare() {
     const previous = screenTrack;
     screenTrack = null;
@@ -820,6 +893,19 @@
       previous.onended = null;
       previous.stop();
     }
+    displayStream?.getTracks().forEach(item => {
+      item.onended = item.onmute = item.onunmute = null;
+      item.stop();
+    });
+    displayStream = null;
+    const mixer = screenAudioMixer;
+    screenAudioMixer = null;
+    try {
+      await applyOutboundAudioTrack();
+    } finally {
+      disposeScreenAudio(mixer);
+    }
+    updateScreenAudioStatus();
     mediaState.screen = false;
     if (selectedBackground !== 'none' && mediaState.video && cameraTrack()?.enabled) {
       try {
@@ -835,18 +921,42 @@
   }
 
   async function toggleScreenShare() {
+    if (screenShareBusy || leaving) return;
     if (screenTrack) {
-      await stopScreenShare();
+      screenShareBusy = true;
+      elements.toggleScreen.disabled = true;
+      try {
+        await stopScreenShare();
+      } finally {
+        screenShareBusy = false;
+        elements.toggleScreen.disabled = false;
+      }
       return;
     }
     if (!navigator.mediaDevices?.getDisplayMedia) {
       setConnection('Демонстрация экрана не поддерживается браузером', 'error');
       return;
     }
+    screenShareBusy = true;
+    elements.toggleScreen.disabled = true;
     try {
-      const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const display = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: { restrictOwnAudio: true, suppressLocalAudioPlayback: false },
+        systemAudio: 'include',
+        selfBrowserSurface: 'exclude',
+      });
+      if (leaving) {
+        display.getTracks().forEach(item => item.stop());
+        return;
+      }
+      displayStream = display;
       screenTrack = display.getVideoTracks()[0];
-      screenTrack.onended = stopScreenShare;
+      if (!screenTrack) throw new Error('No display video track');
+      screenTrack.onended = () => { void stopScreenShare().catch(console.error); };
+      await startScreenAudio();
+      if (leaving || !screenTrack) return;
+      updateScreenAudioStatus();
       backgroundEffectGeneration += 1;
       stopBackgroundEffect();
       await applyOutboundVideoTrack();
@@ -855,7 +965,11 @@
       updateButtons();
       sendMediaState();
     } catch (error) {
+      await stopScreenShare().catch(console.error);
       if (error.name !== 'NotAllowedError') setConnection('Не удалось начать демонстрацию экрана', 'error');
+    } finally {
+      screenShareBusy = false;
+      elements.toggleScreen.disabled = false;
     }
   }
 
@@ -863,7 +977,13 @@
     window.clearTimeout(reconnectTimer);
     backgroundEffectGeneration += 1;
     stopBackgroundEffect();
-    screenTrack?.stop();
+    displayStream?.getTracks().forEach(item => {
+      item.onended = item.onmute = item.onunmute = null;
+      item.stop();
+    });
+    displayStream = null;
+    screenTrack = null;
+    disposeScreenAudio();
     localStream.getTracks().forEach(item => item.stop());
     closePeerConnection();
   }

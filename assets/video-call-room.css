@@ -127,3 +127,8 @@ main { min-height: calc(100vh - 76px); padding: 12px 26px 26px; }
   .call-control--leave { width: 58px; margin-left: 0; }
   .background-picker--call { bottom: 84px; }
 }
+
+.screen-audio-status { margin: 0; padding: 8px 16px; text-align: center; font-size: 13px; color: var(--muted); }
+.call-stage { display: flex; flex-direction: column; }
+.call-layout { flex: 1; min-height: 0; }
+.call-controls { flex-shrink: 0; }
