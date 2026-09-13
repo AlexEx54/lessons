@@ -97,3 +97,22 @@ an HTTPS reverse proxy before creating real teacher accounts.
 
 For local development, copy `.env.example` to `.env`. The server loads it automatically
 on start.
+
+### Video call chat storage
+
+Chat tables are installed by migration `014-video-call-chat.sql`. Attachments default
+to `video-call-files/` next to `APP_DB_PATH` (inside the persistent data directory).
+`VIDEO_CALL_FILES_DIR` can override this location; include that directory in backups
+if it is outside `APP_DATA_DIR`. Keep it outside any public static directory.
+The reverse proxy must allow request bodies of at least 25 MiB (for nginx,
+`client_max_body_size 26m;`). Uploads stream to disk; limits are 25 MiB per file,
+5 attachments per message and 250 MiB per call, including pending uploads.
+Unsent uploads expire after 24 hours and are cleaned hourly and on server startup.
+Clearing call history removes messages and attachment directories; startup/hourly
+cleanup retries removal of directories whose calls no longer exist.
+
+The current guest invite remains a read-only archive link after a call ends or
+expires, until its owner clears the history. Rotating an active invite still
+revokes the previous link. Archive requests do not provide ICE credentials or
+permit WebSocket/video access. Anyone holding the current link can read the chat
+and download its attachments.

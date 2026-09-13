@@ -228,6 +228,14 @@ test('admin creates a call, guest joins by invite, and signaling relays messages
     type: 'media-state', audio: true, video: false, from: 'teacher',
   });
 
+  const liveChat = nextMessage(guestSocket, 'chat-message');
+  const chatResponse = await fetch(`${baseUrl}/api/video-calls/${created.call.id}/chat`, {
+    method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId: require('node:crypto').randomUUID(), text: 'Материалы занятия' }),
+  });
+  assert.equal(chatResponse.status, 201);
+  assert.equal((await liveChat).message.text, 'Материалы занятия');
+
   const activeList = await fetch(`${baseUrl}/api/video-calls`, { headers: { Cookie: cookie } });
   assert.equal((await activeList.json()).calls[0].status, 'active');
 
@@ -261,6 +269,7 @@ test('admin creates a call, guest joins by invite, and signaling relays messages
     method: 'POST', headers: { Cookie: cookie },
   });
   assert.equal(replacement.status, 200);
+  const archiveToken = (await replacement.json()).guestPath.split('/').at(-1);
   assert.equal((await fetch(`${baseUrl}/api/public/video-calls/${encodeURIComponent(guestToken)}`)).status, 404);
 
   const ended = await fetch(`${baseUrl}/api/video-calls/${created.call.id}/end`, {
@@ -268,6 +277,12 @@ test('admin creates a call, guest joins by invite, and signaling relays messages
   });
   assert.equal(ended.status, 200);
   assert.equal((await ended.json()).call.status, 'ended');
+  assert.equal((await fetch(`${baseUrl}/api/video-calls/${created.call.id}`, { headers: { Cookie: cookie } })).status, 200);
+  const archiveRoom = await fetch(`${baseUrl}/api/public/video-calls/${archiveToken}`);
+  assert.equal(archiveRoom.status, 200);
+  assert.deepEqual((await archiveRoom.json()).iceServers, []);
+  const archive = await (await fetch(`${baseUrl}/api/public/video-calls/${archiveToken}/chat`)).json();
+  assert.equal(archive.messages[0].text, 'Материалы занятия');
   await waitForLog(row => row.state === 'close' && row.cause === 'call-ended' && row.role === 'teacher');
 });
 

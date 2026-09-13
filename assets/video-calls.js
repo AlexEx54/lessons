@@ -133,6 +133,11 @@
         button('Завершить', 'call-card__end', trigger => endCall(call, trigger)),
       );
     }
+    const chat = document.createElement('a');
+    chat.className = 'call-card__copy';
+    chat.href = `/video-calls/${encodeURIComponent(call.id)}?chat=1`;
+    chat.textContent = 'Открыть чат';
+    actions.append(chat);
     card.append(actions);
     return card;
   }
@@ -142,7 +147,7 @@
   }
 
   async function clearHistory() {
-    if (!window.confirm('Удалить все прошлые видеозвонки из истории? Активные комнаты останутся доступными.')) {
+    if (!window.confirm('Удалить все прошлые видеозвонки вместе с перепиской и файлами? Ссылки учеников на эти чаты перестанут работать. Это действие нельзя отменить. Активные комнаты останутся доступными.')) {
       return;
     }
     clearHistoryButton.disabled = true;

@@ -30,7 +30,7 @@ test('historical live schema upgrades without losing sessions or lesson state', 
   db.prepare('INSERT INTO class_live_commands VALUES (?, ?)').run(lesson.id, 'command');
   applyMigrations(db);
   applyMigrations(db);
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get().n, 13);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get().n, 14);
   assert.equal(db.prepare("SELECT applied_at FROM schema_migrations WHERE name = '011-class-live.sql'").get().applied_at, '2026-09-07');
   assert.deepEqual({ ...db.prepare('SELECT * FROM class_guest_sessions').get() }, { token_hash: 'old-token', class_id: lesson.id, expires_at: expiry });
   assert.equal(db.prepare('SELECT invite_token FROM class_guest_sessions_legacy').get().invite_token, row.invite_token);

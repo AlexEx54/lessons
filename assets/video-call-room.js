@@ -87,6 +87,7 @@
   let effectTrack = null;
   let effectStartController = null;
   let joined = false;
+  let mediaPrepared = false;
   let leaving = false;
   let reconnectAttempts = 0;
   let reconnectTimer = null;
@@ -739,7 +740,10 @@
       let message;
       try { message = JSON.parse(event.data); } catch (_error) { return; }
       try {
-        if (message.type === 'connected') {
+        if (message.type === 'chat-message') {
+          window.CallChat?.receive(message.message);
+        } else if (message.type === 'connected') {
+          window.CallChat?.sync();
           sendDiagnostic('signaling-event', {
             state: message.peerPresent ? 'connected-with-peer' : 'connected-waiting',
           });
@@ -998,6 +1002,8 @@
     elements.ended.hidden = false;
     elements.endedMessage.textContent = message;
     setConnection('Звонок завершён');
+    window.CallChat?.open();
+    window.CallChat?.sync();
   }
 
   async function leaveCall() {
@@ -1005,9 +1011,12 @@
     if (role === 'teacher') {
       elements.leave.disabled = true;
       try {
-        await fetch(`/api/video-calls/${encodeURIComponent(room.id)}/end`, { method: 'POST' });
+        const response = await fetch(`/api/video-calls/${encodeURIComponent(room.id)}/end`, { method: 'POST' });
+        if (!response.ok) throw new Error('Не удалось завершить звонок.');
       } catch (_error) {
-        // Local cleanup still takes priority if the connection is already gone.
+        elements.leave.disabled = false;
+        setConnection('Не удалось завершить звонок. Попробуйте ещё раз.', 'error');
+        return;
       }
       finishCall('Вы завершили видеозвонок.');
     } else {
@@ -1020,6 +1029,7 @@
     if (!room || joined) return;
     elements.join.disabled = true;
     elements.join.textContent = 'Подключаемся…';
+    if (!mediaPrepared) { mediaPrepared = true; await prepareMedia(); }
     joined = true;
     elements.prejoin.hidden = true;
     elements.stage.hidden = false;
@@ -1045,8 +1055,18 @@
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Комната недоступна.');
       room = payload.call;
+      window.CallChat.init({ role, reference: roomReference, call: room });
+      if (!['waiting', 'active'].includes(room.status)) {
+        finishCall('Переписка и файлы доступны в чате.');
+        return;
+      }
       iceServers = normalizeIceServers(payload.iceServers);
       setConnection('Комната готова');
+      if (new URLSearchParams(location.search).has('chat')) {
+        window.CallChat.open();
+        return;
+      }
+      mediaPrepared = true;
       await prepareMedia();
     } catch (error) {
       elements.prejoin.hidden = true;

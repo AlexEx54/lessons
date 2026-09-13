@@ -1070,6 +1070,7 @@ function sendDraftAsset(res, absolute, data, rangeHeader) {
 const server = http.createServer(async (req, res) => {
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = requestUrl.pathname;
+  if (await videoCallChat.handle(req, res, requestUrl)) return;
 
   const notesDraft = pathname.match(/^\/api\/lesson-drafts\/([a-f0-9-]{36})\/notes$/i);
   if (notesDraft && ['GET', 'PUT'].includes(req.method)) {
@@ -1488,6 +1489,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const { deletedCount, deletedIds } = clearVideoCallHistory(user.id, database);
       for (const callId of deletedIds) videoCallSignaling?.closeRoom(callId);
+      videoCallChat.cleanup();
       json(res, 200, { deleted: deletedCount });
     } catch (error) {
       console.error('Cannot clear video call history:', error);
@@ -1536,13 +1538,9 @@ const server = http.createServer(async (req, res) => {
       json(res, 404, { error: 'Ссылка на видеозвонок недействительна.' });
       return;
     }
-    if (!['waiting', 'active'].includes(call.status)) {
-      json(res, 410, { error: call.status === 'expired' ? 'Срок действия ссылки истёк.' : 'Видеозвонок завершён.' });
-      return;
-    }
     json(res, 200, {
       call,
-      iceServers: getIceServers(`guest-${call.id.slice(0, 8)}`),
+      iceServers: ['waiting', 'active'].includes(call.status) ? getIceServers(`guest-${call.id.slice(0, 8)}`) : [],
     });
     return;
   }
@@ -1558,13 +1556,9 @@ const server = http.createServer(async (req, res) => {
       json(res, 404, { error: 'Видеозвонок не найден.' });
       return;
     }
-    if (!['waiting', 'active'].includes(call.status)) {
-      json(res, 410, { error: call.status === 'expired' ? 'Срок действия ссылки истёк.' : 'Видеозвонок завершён.' });
-      return;
-    }
     json(res, 200, {
       call,
-      iceServers: getIceServers(`teacher-${user.id.slice(0, 8)}`),
+      iceServers: ['waiting', 'active'].includes(call.status) ? getIceServers(`teacher-${user.id.slice(0, 8)}`) : [],
     });
     return;
   }
@@ -2329,6 +2323,9 @@ const server = http.createServer(async (req, res) => {
 });
 
 videoCallSignaling = createVideoCallSignaling({ server, database, attachUpgrade: false });
+const videoCallChat = require('./lib/video-call-chat.js').createVideoCallChat({
+  database, broadcast: (callId, payload) => videoCallSignaling.broadcast(callId, payload),
+});
 const classSessionSignaling = createClassSessionSignaling({ database });
 const notesSignaling = require('./lib/lesson-notes-signaling.js').createNotesSignaling({ database });
 server.on('upgrade', (req, socket, head) => {
