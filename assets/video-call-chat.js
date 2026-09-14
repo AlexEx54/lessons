@@ -40,7 +40,11 @@
     const meta = document.createElement('p'); meta.className = 'chat-meta';
     meta.textContent = `${message.name} · ${new Date(message.createdAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`;
     item.append(meta);
-    if (message.text) { const text = document.createElement('p'); text.className = 'chat-text'; text.textContent = message.text; item.append(text); }
+    if (message.text) {
+      const text = document.createElement('p'); text.className = 'chat-text';
+      window.CallChatLinks.appendLinkedText(text, message.text);
+      item.append(text);
+    }
     for (const file of message.attachments) {
       const url = `${endpoint}/attachments/${encodeURIComponent(file.id)}`;
       if (file.mime.startsWith('image/')) {

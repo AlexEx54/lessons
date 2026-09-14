@@ -144,6 +144,9 @@ main { min-height: calc(100vh - 76px); padding: 12px 26px 26px; }
 .chat-message--own { background: #41335f; }
 .chat-meta { font-size: 11px; color: #c5bfd8; margin-bottom: 8px; }
 .chat-text { white-space: pre-wrap; font-size: 14px; line-height: 1.5; }
+.chat-text a { color: #d5c5ff; text-decoration: underline; text-underline-offset: 2px; }
+.chat-text a:hover { color: #fff; }
+.chat-text a:focus-visible { outline: 2px solid #d5c5ff; outline-offset: 2px; border-radius: 2px; }
 .chat-message img { display: block; max-width: 100%; max-height: 240px; border-radius: 8px; margin-top: 10px; object-fit: contain; }
 .chat-file { display: block; font-size: 12px; line-height: 1.5; text-decoration: underline; padding-top: 10px; }
 .chat-form { border-top: 1px solid #514566; padding: 12px; }
