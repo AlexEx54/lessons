@@ -23,6 +23,7 @@
   </header>
 
   <main>
+    <p id="recording-status" class="recording-status" role="status" hidden></p>
     <section class="prejoin" id="prejoin" aria-labelledby="prejoin-title">
       <div class="prejoin__preview">
         <video id="preview-video" autoplay muted playsinline></video>
@@ -97,6 +98,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v13H3z M8 21h8 M12 17v4 M8 10l4-4 4 4 M12 6v8" /></svg>
           <span>Экран</span>
         </button>
+        <button class="call-control" id="toggle-recording" type="button" aria-pressed="false" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" /></svg>
+          <span>Записать</span>
+        </button>
         <button class="call-control call-control--leave" id="leave-call" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11a11 11 0 0 1 14 0 M7 10l-2 5 4 2 2-4 M17 10l2 5-4 2-2-4" /></svg>
           <span id="leave-label">Выйти</span>
@@ -122,6 +127,7 @@
 
   <script src="/assets/call-chat-links.js" defer></script>
   <script src="/assets/video-call-chat.js" defer></script>
+  <script src="/assets/call-recorder.js" defer></script>
   <script src="/assets/video-call-room.js" defer></script>
 </body>
 </html>

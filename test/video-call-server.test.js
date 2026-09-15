@@ -223,9 +223,9 @@ test('admin creates a call, guest joins by invite, and signaling relays messages
   await teacherSawGuest;
 
   const relayedState = nextMessage(guestSocket, 'media-state');
-  teacherSocket.send(JSON.stringify({ type: 'media-state', audio: true, video: false }));
+  teacherSocket.send(JSON.stringify({ type: 'media-state', audio: true, video: false, recording: true }));
   assert.deepEqual(await relayedState, {
-    type: 'media-state', audio: true, video: false, from: 'teacher',
+    type: 'media-state', audio: true, video: false, recording: true, from: 'teacher',
   });
 
   const liveChat = nextMessage(guestSocket, 'chat-message');

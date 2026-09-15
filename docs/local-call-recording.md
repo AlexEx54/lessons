@@ -1,0 +1,18 @@
+# Local call recording
+
+Teachers can start and stop recording from the call controls. The picker selects a local `.webm` file before recording starts. Only teachers see recording controls and status messages; these elements are removed from the student interface. No media uploads, recording database rows, or server-side files are created.
+
+The initial target is desktop Chrome/Edge over HTTPS (localhost works for development). Capability detection requires File System Access, MediaRecorder with VP8/Opus, canvas capture and Web Audio. Unsupported browsers show a disabled recording button. There is no in-memory download fallback for long calls.
+
+`assets/call-recorder.js` composes a 1280×720 canvas at a target 24 fps, with two participants side by side or a shared screen and participant inset. The current call sends screen video instead of camera video, so it does not record an additional hidden camera during sharing. Canvas uses separate muted video elements and preserves aspect ratios. Audio mixes the teacher's microphone/screen mix with received audio, without adding the microphone twice. Live source changes update the mixer and video elements without replacing the recorder's output tracks. Source tracks belonging to the call are never stopped by recorder cleanup.
+
+MediaRecorder targets 2 Mbps video and 128 kbps audio, approximately 960 MB/hour; actual size varies. Chunks are written in order through FileSystemWritableFileStream. Completion waits for the final chunk, queued writes and successful file close. A bounded 32 MiB pending queue stops and aborts recording if storage cannot keep up or an oversized chunk arrives. Disk/encoder errors are shown as failure rather than success. Closing a writable commits the file; the temporary writes do not guarantee recovery after a browser crash. Failed recordings are aborted, not offered as complete files.
+
+The call's normal end waits for recording completion before releasing media. Closing/reloading/navigating away while recording triggers the browser's unsaved-work confirmation where supported. This cannot guarantee preservation after forced exit, page discard, OS sleep, disk removal or browser crash. Keep the call tab visible: background throttling may reduce video frame rate or suspend media processing. Camera background effects and simultaneous sharing add CPU load.
+
+Validation:
+
+- `npm run check` includes the recorder syntax check, lifecycle/storage unit tests and recording-state relay integration test.
+- Native desktop Chrome smoke test: synthetic video and audio recorded through real MediaRecorder and a native local browser writable (OPFS replacing only the interactive picker); resulting WebM played at 1280×720 and source tracks remained live.
+- Earlier two-context room smoke test with fake camera/microphone: teacher start/stop, the former guest indicator, repeat recording and call-end finalization passed without page errors. The headless peers did not establish a remote media connection in this environment; this test covered local capture and real signaling, not end-to-end remote audio/video.
+- For manual acceptance, use two participants in desktop Chrome/Edge. Select a file through the native picker, record both voices, switch cameras/mute/screen sharing with sound, reconnect the student, then stop and play the saved file. Repeat ending the call during recording. Check that the student sees neither recording controls nor status, including after reconnecting. Check file picker cancellation, insufficient disk space and a full-length lesson on representative hardware. Automated picker substitution does not cover the native OS dialog or external-disk behavior.

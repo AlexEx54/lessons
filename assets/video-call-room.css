@@ -166,3 +166,14 @@ main { min-height: calc(100vh - 76px); padding: 12px 26px 26px; }
   .chat-open main { margin-right: 0; }
   .room-header { gap: 10px; padding: 12px; flex-wrap: wrap; }
 }
+
+.recording-status { margin: 12px auto; padding: 10px 16px; max-width: 960px; color: #fff; background: #343047; border-radius: 12px; text-align: center; }
+#toggle-recording[aria-pressed="true"] { background: #9d2948; color: #fff; animation: recording-pulse 1.6s ease-in-out infinite; }
+@keyframes recording-pulse {
+  0%, 100% { background-color: #9d2948; }
+  50% { background-color: #d64a6b; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #toggle-recording[aria-pressed="true"] { animation: none; }
+}
+#toggle-recording:disabled { opacity: .55; cursor: not-allowed; }
