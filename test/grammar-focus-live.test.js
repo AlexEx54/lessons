@@ -60,7 +60,9 @@ for (const [type, render, selector] of [
     { type: 'unknown', itemId, value }, { type: 'type-answer', itemId: 'missing', value },
     { type: 'type-answer', itemId, value: 'a'.repeat(1001) }, { type: 'type-answer', itemId, value: 42 },
   ]) assert.throws(() => model.apply(component, {}, action), { statusCode: 400 });
-  assert.throws(() => applyComponentAction({ component, state: {}, role: 'teacher', action: { type: 'type-answer', itemId, value } }), { statusCode: 403 });
+  const teacherState = {};
+  applyComponentAction({ component, state: teacherState, role: 'teacher', action: { type: 'type-answer', itemId, value } });
+  assert.equal(teacherState.exercises[component.id].answers[itemId].value, value);
 });
 
 test('gap matching preserves apostrophe rules and correct answers remain editable', () => {

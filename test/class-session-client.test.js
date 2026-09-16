@@ -75,8 +75,8 @@ test('lesson timer is local to the teacher view and stays hidden from the studen
   student.document.getElementById('lesson-timer').click();
   assert.equal(student.intervals.size, 0);
 });
-test('rapid selections are sent in order with acknowledged versions and remote updates do not echo', async () => {
-  const f = await fixture(), socket = f.sockets[0];
+for (const role of ['teacher', 'student']) test(`${role}: rapid selections are sent in order with acknowledged versions and remote updates do not echo`, async () => {
+  const f = await fixture(role), socket = f.sockets[0];
   socket.receive({ type: 'snapshot', state: f.initial });
   assert.equal(f.isInteractive(), true);
   const { onAction } = f.settings.componentOptions({ type: 'thisOrThat', id: 'choice' });
@@ -113,11 +113,11 @@ test('disconnect drops unconfirmed clicks, restores server state and replacement
   assert.equal(f.sockets.length, 2);
   assert.equal(f.isInteractive(), false);
 });
-test('teacher applies the same selection state as an observer', async () => {
+test('teacher receives peer selections without echo and can interact', async () => {
   const f = await fixture('teacher'), socket = f.sockets[0];
   socket.receive({ type: 'snapshot', state: f.initial });
-  socket.receive({ type: 'action', state: { ...f.initial, version: 1, selections: { choice: { pair: 'a' } } } });
-  assert.equal(f.isInteractive(), false);
+  socket.receive({ type: 'action', actorRole: 'student', state: { ...f.initial, version: 1, selections: { choice: { pair: 'a' } } } });
+  assert.equal(f.isInteractive(), true);
   assert.equal(f.frames.at(-1).pair, 'a');
   assert.equal(socket.sent.length, 0);
 });
@@ -173,11 +173,11 @@ test('student mounts revealed content, removes hidden content and restores it af
 });
 
 
-test('reading queue preserves local correct feedback while an earlier wrong answer is acknowledged', async () => {
+for (const role of ['teacher', 'student']) test(`${role}: reading queue preserves local correct feedback while an earlier wrong answer is acknowledged`, async () => {
   const quiz = { type: 'multipleChoice', id: 'choice', presentation: {
     type: 'multipleChoice', id: 'choice', items: [{ id: 'question', options: ['wrong', 'right'], answer: 'right' }],
   } };
-  const f = await fixture('student', quiz), socket = f.sockets[0];
+  const f = await fixture(role, quiz), socket = f.sockets[0];
   socket.receive({ type: 'snapshot', state: f.initial });
   const { onAction } = f.settings.componentOptions(quiz);
   const action = { type: 'choose-option', componentId: 'choice', itemId: 'question', value: 'wrong' };
@@ -198,10 +198,10 @@ test('reading queue preserves local correct feedback while an earlier wrong answ
   assert.equal(f.isInteractive(), false);
 });
 
-for (const type of ['gapFill', 'miniSituation']) test(`${type}: every text change is queued, acknowledgements preserve newer text and disconnect rolls back`, async () => {
+for (const role of ['teacher', 'student']) for (const type of ['gapFill', 'miniSituation']) test(`${role} ${type}: every text change is queued, acknowledgements preserve newer text and disconnect rolls back`, async () => {
   const quiz = { type, id: 'choice', presentation: { type, id: 'choice',
     gaps: [{ id: 'sentence-1', answer: 'abc' }], sentenceCount: 3 } };
-  const f = await fixture('student', quiz), socket = f.sockets[0];
+  const f = await fixture(role, quiz), socket = f.sockets[0];
   socket.receive({ type: 'snapshot', state: f.initial });
   const { onAction } = f.settings.componentOptions(quiz);
   for (const value of ['a', 'ab', 'abc']) onAction({ type: 'type-answer', componentId: 'choice', itemId: 'sentence-1', value });

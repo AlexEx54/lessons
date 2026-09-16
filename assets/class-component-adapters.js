@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  const canAnswer = session => session.connected && ['teacher', 'student'].includes(session.role);
   const adapters = new Map([
     ['guidedRoleCards', {
       options: component => ({ presentation: component.presentation }),
@@ -8,7 +9,7 @@
       options(component, session) {
         return {
           selections: session.state.selections[component.id],
-          interactive: session.role === 'student' && session.connected,
+          interactive: canAnswer(session),
           onAction: session.send,
         };
       },
@@ -17,7 +18,7 @@
       },
       update(node, component, session) {
         node.updateState(session.state.selections[component.id]);
-        node.setInteractive(session.role === 'student' && session.connected);
+        node.setInteractive(canAnswer(session));
       },
     }],
     ['markdownCard', {
@@ -56,7 +57,7 @@
       options(component, session) {
         return {
           selectedId: session.state.selfAssessments?.[component.id],
-          interactive: session.role === 'student' && session.connected,
+          interactive: canAnswer(session),
           onAction: session.send,
         };
       },
@@ -68,19 +69,17 @@
       },
       update(node, component, session) {
         node.updateState(session.state.selfAssessments?.[component.id]);
-        node.setInteractive(session.role === 'student' && session.connected);
+        node.setInteractive(canAnswer(session));
       },
     }],
   ]);
   for (const type of ['dragWordsInText', 'matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'checkboxChoice', 'gapFill', 'miniSituation']) {
-    const canInteract = session => session.connected && (session.role === 'student' || type === 'describeAndGuess');
     adapters.set(type, {
       options(component, session) {
         return {
           presentation: component.presentation,
           exerciseState: session.state.exercises?.[component.id] || {},
-          interactive: canInteract(session),
-          inspectOnly: type === 'dropdownChoice' && session.role === 'teacher',
+          interactive: canAnswer(session),
           onAction: session.send,
           ...(type === 'describeAndGuess' ? {
             studentVisible: Boolean(session.state.visibleCards?.[component.id]),
@@ -117,7 +116,7 @@
           feedback: session.feedback,
           pending: session.pendingActions?.some(action => action.componentId === component.id && action.type === 'match-word'),
         });
-        node.setInteractive(canInteract(session));
+        node.setInteractive(canAnswer(session));
         if (type === 'describeAndGuess') {
           node.updateStudentVisibility(Boolean(session.state.visibleCards?.[component.id]));
           node.setVisibilityInteractive(session.role === 'teacher' && session.connected);

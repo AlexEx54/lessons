@@ -147,15 +147,15 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.equal((await studentSocket.next('action-error')).state.version, 1);
   studentSocket.send(JSON.stringify({ type: 'select-stage', stageId: 'warm-up' }));
   assert.match((await studentSocket.next('action-error')).error, /преподаватель/);
-  teacherSocket.send(JSON.stringify({ ...action, expectedVersion: 1 }));
-  assert.match((await teacherSocket.next('action-error')).error, /ученик/);
+  teacherSocket.send(JSON.stringify({ ...action, expectedVersion: 0 }));
+  assert.equal((await teacherSocket.next('action-error')).state.version, 1);
   const duplicate = connect('student', secondCookie);
   assert.equal((await once(duplicate, 'close'))[0], 4003);
   const replaced = once(studentSocket, 'close');
   const replacement = connect('student', cookie);
   assert.deepEqual((await replacement.next('snapshot')).state, first);
   assert.equal((await replaced)[0], 4001);
-  replacement.send(JSON.stringify({ ...action, expectedVersion: 1, optionId: choice.items[0].options[1].id }));
+  teacherSocket.send(JSON.stringify({ ...action, expectedVersion: 1, optionId: choice.items[0].options[1].id }));
   const second = (await replacement.next('action')).state;
   assert.equal(second.version, 2);
   assert.equal(second.selections[choice.id][choice.items[0].id], choice.items[0].options[1].id);
@@ -219,21 +219,21 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   await sendStudent({ ...matchAction, type: 'match-word', targetId: matchComponent.presentation.targets[1].id, attemptId: 'wrong-attempt', correct: true });
   assert.equal(final.state.exercises[matchComponent.id].attempt.correct, false);
   assert.deepEqual(final.state.exercises[matchComponent.id].matches, {});
-  await sendStudent({ ...matchAction, type: 'match-word', targetId: matchComponent.presentation.targets[0].id, attemptId: 'correct-attempt' });
+  final = await sendTeacher({ stageId: final.state.activeStageId, expectedVersion: final.state.version, ...matchAction, type: 'match-word', targetId: matchComponent.presentation.targets[0].id, attemptId: 'correct-attempt' });
   assert.equal(final.state.exercises[matchComponent.id].attempt.id, 'correct-attempt');
   assert.equal(final.state.exercises[matchComponent.id].matches[firstWord.id], matchComponent.presentation.targets[0].id);
   const sourceChoice = sourceVocab.content.find(c => c.type === 'dropdownChoice').choices[0];
   await sendStudent({ type: 'choose-word', componentId: dropdown.id, itemId: sourceChoice.id, value: sourceChoice.options.find(value => value !== sourceChoice.answer) });
   assert.equal(final.state.exercises[dropdown.id].answers[sourceChoice.id].status, 'wrong');
-  await sendStudent({ type: 'choose-word', componentId: dropdown.id, itemId: sourceChoice.id, value: sourceChoice.answer });
+  final = await sendTeacher({ stageId: final.state.activeStageId, expectedVersion: final.state.version, type: 'choose-word', componentId: dropdown.id, itemId: sourceChoice.id, value: sourceChoice.answer });
   assert.equal(final.state.exercises[dropdown.id].answers[sourceChoice.id].status, 'correct');
   teacherSocket.send(JSON.stringify({ type: 'choose-word', stageId: 'target-vocabulary', componentId: dropdown.id, itemId: sourceChoice.id, value: sourceChoice.answer, expectedVersion: final.state.version }));
-  assert.match((await teacherSocket.next('action-error')).error, /ученик/);
+  assert.match((await teacherSocket.next('action-error')).error, /уже верный/);
   const sourceFill = sourceVocab.content.find(c => c.type === 'fillInBlanks').items[0];
   await sendStudent({ type: 'type-answer', componentId: fill.id, itemId: sourceFill.id, value: 'unfinished' });
   assert.equal(final.state.exercises[fill.id].answers[sourceFill.id].value, 'unfinished');
   assert.equal(final.state.exercises[fill.id].answers[sourceFill.id].status, 'pending');
-  await sendStudent({ type: 'type-answer', componentId: fill.id, itemId: sourceFill.id, value: `  ${sourceFill.answer.toUpperCase()}  ` });
+  final = await sendTeacher({ stageId: final.state.activeStageId, expectedVersion: final.state.version, type: 'type-answer', componentId: fill.id, itemId: sourceFill.id, value: `  ${sourceFill.answer.toUpperCase()}  ` });
   assert.equal(final.state.exercises[fill.id].answers[sourceFill.id].status, 'correct');
   const game = sourceVocab.content.find(c => c.type === 'describeAndGuess');
   const visibilityAction = { type: 'set-visibility', stageId: 'target-vocabulary', componentId: game.id, visible: true };
@@ -252,10 +252,10 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
     const answerAction = { stageId: 'reading', type: 'choose-option', componentId: quiz.id, itemId: item.id };
     await sendStudent({ ...answerAction, value: item.options.find(value => value !== item.answer), status: 'correct' });
     assert.equal(final.state.exercises[quiz.id].answers[item.id].status, 'wrong');
-    await sendStudent({ ...answerAction, value: item.answer });
+    final = await sendTeacher({ stageId: final.state.activeStageId, expectedVersion: final.state.version, ...answerAction, value: item.answer });
     assert.equal(final.state.exercises[quiz.id].answers[item.id].status, 'correct');
     teacherSocket.send(JSON.stringify({ ...answerAction, value: item.answer, expectedVersion: final.state.version }));
-    assert.match((await teacherSocket.next('action-error')).error, /ученик/);
+    assert.match((await teacherSocket.next('action-error')).error, /уже верный/);
     replacement.send(JSON.stringify({ ...answerAction, value: item.options[0], expectedVersion: final.state.version }));
     assert.match((await replacement.next('action-error')).error, /уже верный/);
   }
@@ -287,14 +287,14 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   const wrongGist = gistItem.options.find(value => !gistItem.answers.includes(value));
   await sendStudent({ stageId: 'listening', type: 'choose-option', componentId: gist.id, itemId: gistItem.id, value: wrongGist });
   assert.equal(final.state.exercises[gist.id].answers[gistItem.id].status, 'wrong');
-  await sendStudent({ stageId: 'listening', type: 'choose-option', componentId: gist.id, itemId: gistItem.id, value: gistItem.answers[0] });
+  final = await sendTeacher({ expectedVersion: final.state.version, stageId: 'listening', type: 'choose-option', componentId: gist.id, itemId: gistItem.id, value: gistItem.answers[0] });
   assert.equal(final.state.exercises[gist.id].answers[gistItem.id].status, 'correct');
   assert.deepEqual(final.state.exercises[gist.id].answers[gistItem.id].values, [wrongGist, gistItem.answers[0]]);
   teacherSocket.send(JSON.stringify({
     stageId: 'listening', type: 'choose-option', componentId: gist.id, itemId: gistItem.id,
     value: gistItem.answers[0], expectedVersion: final.state.version,
   }));
-  assert.match((await teacherSocket.next('action-error')).error, /ученик/);
+  assert.match((await teacherSocket.next('action-error')).error, /уже верный/);
 
   const detail = listening.content.find(component => component.type === 'multipleChoice');
   const detailItem = detail.presentation.items[0];
@@ -316,7 +316,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.equal(final.state.exercises[dragRule.id].selectedId, 'future');
   await sendStudent({ stageId: grammar.id, type: 'place-word', componentId: dragRule.id, itemId: 'gap-1', value: 'future', attemptId: 'wrong-rule' });
   assert.equal(final.state.exercises[dragRule.id].attempt.correct, false);
-  await sendStudent({ stageId: grammar.id, type: 'place-word', componentId: dragRule.id, itemId: 'gap-1', value: 'base verb', attemptId: 'right-rule' });
+  final = await sendTeacher({ expectedVersion: final.state.version, stageId: grammar.id, type: 'place-word', componentId: dragRule.id, itemId: 'gap-1', value: 'base verb', attemptId: 'right-rule' });
   assert.equal(final.state.exercises[dragRule.id].placed['gap-1'], 'base verb');
   const ruleDropdown = grammar.content.find(item => item.type === 'dropdownChoice');
   await sendStudent({ stageId: grammar.id, type: 'choose-word', componentId: ruleDropdown.id,
@@ -327,12 +327,12 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.deepEqual(focus.content.map(item => item.type), ['dropdownChoice', 'gapFill', 'miniSituation', 'cardRow']);
   const gapFill = focus.content.find(item => item.type === 'gapFill');
   const gap = gapFill.presentation.gaps[0];
-  await sendStudent({ stageId: focus.id, type: 'type-answer', componentId: gapFill.id, itemId: gap.id, value: gap.answer });
+  final = await sendTeacher({ expectedVersion: final.state.version, stageId: focus.id, type: 'type-answer', componentId: gapFill.id, itemId: gap.id, value: gap.answer });
   assert.equal(final.state.exercises[gapFill.id].answers[gap.id].status, 'correct');
   await sendStudent({ stageId: focus.id, type: 'type-answer', componentId: gapFill.id, itemId: gap.id, value: 'unfinished' });
   assert.equal(final.state.exercises[gapFill.id].answers[gap.id].status, 'pending');
   const mini = focus.content.find(item => item.type === 'miniSituation');
-  await sendStudent({ stageId: focus.id, type: 'type-answer', componentId: mini.id, itemId: 'sentence-1', value: 'I am learning.' });
+  final = await sendTeacher({ expectedVersion: final.state.version, stageId: focus.id, type: 'type-answer', componentId: mini.id, itemId: 'sentence-1', value: 'I am learning.' });
   assert.deepEqual(final.state.exercises[mini.id].answers['sentence-1'], { value: 'I am learning.' });
   const row = focus.content.find(item => item.type === 'cardRow');
   assert.equal(row.presentation.items.length, 1);
@@ -364,9 +364,9 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   const assessment = wrapUp.content.find(component => component.type === 'selfAssessment');
   await sendStudent({ stageId: 'wrap-up', type: 'select-assessment', componentId: assessment.id, selectedId: 'withHelp' });
   assert.equal(final.state.selfAssessments[assessment.id], 'withHelp');
-  teacherSocket.send(JSON.stringify({ stageId: 'wrap-up', type: 'select-assessment', componentId: assessment.id,
-    selectedId: 'independent', expectedVersion: final.state.version }));
-  assert.match((await teacherSocket.next('action-error')).error, /ученик/);
+  final = await sendTeacher({ stageId: 'wrap-up', type: 'select-assessment', componentId: assessment.id,
+    selectedId: 'independent', expectedVersion: final.state.version });
+  assert.equal(final.state.selfAssessments[assessment.id], 'independent');
   const exerciseProgress = structuredClone(final.state.exercises);
   final = await sendTeacher({ type: 'select-stage', stageId: 'lead-in', expectedVersion: final.state.version });
   final = await sendTeacher({ type: 'select-stage', stageId: 'target-vocabulary', expectedVersion: final.state.version });

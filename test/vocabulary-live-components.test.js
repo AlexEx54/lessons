@@ -79,22 +79,29 @@ test('starting a drag selects the word on the server and disposing removes drag 
   assert.equal(doc.listeners.pointercancel.length, 0);
 });
 
-test('teacher can inspect dropdown options even after success but cannot change the shared answer', () => {
-  const source = component('dropdownChoice'), doc = createDocument();
-  const node = renderDropdownChoice(source, { presentation: model.presentation(source), interactive: false, inspectOnly: true, onAction: () => assert.fail('teacher must not send a choice') }, doc);
+test('teacher dropdown uses live adapter permissions, shares answers and locks on success or disconnect', () => {
+  const source = component('dropdownChoice'), doc = createDocument(), actions = [];
+  const window = { ExerciseState: model };
+  vm.runInNewContext(fs.readFileSync(require.resolve('../assets/class-component-adapters.js'), 'utf8'), { window });
+  const projected = { ...source, presentation: model.presentation(source) };
+  const session = { role: 'teacher', connected: true, state: { exercises: {} }, send: action => actions.push(action) };
+  const node = renderDropdownChoice(source, window.ClassComponentAdapters.options(projected, session), doc);
   const select = byClass(node, 'dropdown-choice__select')[0];
   assert.equal(select.disabled, false);
-  assert.equal(select.children.length, source.choices[0].options.length + 1);
-  select.value = source.choices[0].options[0];
+  select.value = source.choices[0].answer;
   fire(select, 'change');
-  assert.equal(select.value, '');
-  const state = model.apply(source, {}, { type: 'choose-word', itemId: source.choices[0].id, value: source.choices[0].answer });
-  node.updateState(state);
-  assert.equal(select.disabled, false);
-  select.value = source.choices[0].options.find(option => option !== source.choices[0].answer);
-  fire(select, 'change');
+  assert.equal(actions.length, 1);
+  session.state.exercises[source.id] = model.apply(source, {}, actions[0]);
+  window.ClassComponentAdapters.update(node, projected, session);
   assert.equal(select.value, source.choices[0].answer);
-  assert.equal(select.dataset.state, 'correct');
+  assert.equal(select.disabled, true);
+  session.state.exercises = {};
+  session.connected = false;
+  window.ClassComponentAdapters.update(node, projected, session);
+  assert.equal(select.disabled, true);
+  select.value = source.choices[0].answer;
+  fire(select, 'change');
+  assert.equal(actions.length, 1);
 });
 
 test('local dropdown and synchronized dropdown use the same result display and retry/lock behavior', () => {

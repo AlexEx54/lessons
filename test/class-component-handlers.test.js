@@ -26,7 +26,7 @@ test('visibility actions cannot reveal teacher-only cards or change static compo
   assert.deepEqual(state, { selections: {} });
 });
 
-test('wrap-up content is shared safely and only the student can change self-assessment', () => {
+test('wrap-up content is shared safely and both participants can change self-assessment', () => {
   const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
   const content = createSyntheticLesson('Wrap-up').stages.find(stage => stage.id === 'wrap-up').content;
   const note = content.find(component => component.type === 'teacherNote');
@@ -47,10 +47,11 @@ test('wrap-up content is shared safely and only the student can change self-asse
   applyComponentAction({ role: 'student', component: assessment, state, action });
   assert.equal(JSON.stringify(preview), JSON.stringify(state));
   assert.equal(state.selfAssessments[assessment.id], 'withHelp');
-  assert.throws(() => applyComponentAction({ role: 'teacher', component: assessment, state, action }), { statusCode: 403 });
+  applyComponentAction({ role: 'teacher', component: assessment, state, action: { ...action, selectedId: 'independent' } });
+  assert.equal(state.selfAssessments[assessment.id], 'independent');
   assert.throws(() => applyComponentAction({ role: 'student', component: assessment, state,
     action: { ...action, selectedId: 'invented' } }), { statusCode: 400 });
-  assert.equal(state.selfAssessments[assessment.id], 'withHelp');
+  assert.equal(state.selfAssessments[assessment.id], 'independent');
   applyComponentAction({ role: 'student', component: assessment, state,
     action: { ...action, selectedId: null } });
   assert.equal(state.selfAssessments[assessment.id], undefined);
@@ -66,7 +67,7 @@ test('vocabulary handlers reject observer edits, invalid targets, oversized inpu
   const game = content.find(c => c.type === 'describeAndGuess');
   const state = { _layouts: { [match.id]: model.createLayout(match) } };
   const act = (component, action, role = 'student') => applyComponentAction({ component, action, role, state });
-  for (const exercise of [match, dropdown, fill]) assert.throws(() => act(exercise, {}, 'teacher'), { statusCode: 403 });
+  for (const exercise of [match, dropdown, fill]) assert.throws(() => act(exercise, {}, 'observer'), { statusCode: 403 });
   assert.throws(() => act(match, { type: 'match-word', itemId: match.items[0].id, targetId: match.items[0].id }), { statusCode: 400 });
   assert.throws(() => act(match, { type: 'select-word', itemId: 'missing' }), { statusCode: 400 });
   assert.throws(() => act(dropdown, { type: 'choose-word', itemId: dropdown.choices[0].id, value: 'missing' }), { statusCode: 400 });
@@ -138,5 +139,5 @@ test('listening projects hidden transcripts and validates checkbox choices with 
   applyComponentAction({ role: 'student', component: checkbox, state, action: correct });
   assert.equal(JSON.stringify(preview), JSON.stringify(state));
   assert.equal(state.exercises[checkbox.id].answers[item.id].status, 'correct');
-  assert.throws(() => applyComponentAction({ role: 'teacher', component: checkbox, state, action: correct }), { statusCode: 403 });
+  assert.throws(() => applyComponentAction({ role: 'teacher', component: checkbox, state, action: correct }), { statusCode: 400 });
 });

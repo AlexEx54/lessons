@@ -15,16 +15,19 @@ const fire = (node, name, event = {}) => {
 };
 const nodes = (node, name) => node.querySelectorAll('.drag-words-in-text__' + name);
 
-test('grammar uses identical local/server rules and rejects unavailable words, gaps and teacher actions', () => {
+test('grammar uses identical local/server rules and allows both roles while rejecting unavailable words and gaps', () => {
   const action = { type: 'place-word', itemId: 'gap-1', value: 'verb', attemptId: 'one' };
   const state = {};
   applyComponentAction({ component: source, state, role: 'student', action });
   assert.deepEqual(state.exercises.rule, model.apply(model.presentation(source), {}, action));
+  const teacherState = {};
+  applyComponentAction({ component: source, state: teacherState, role: 'teacher', action });
+  assert.deepEqual(teacherState, state);
   assert.throws(() => model.apply(source, state.exercises.rule, action));
   assert.throws(() => model.apply(source, state.exercises.rule, { ...action, itemId: 'gap-2' }));
   assert.throws(() => model.apply(source, {}, { ...action, itemId: 'gap-9' }));
   assert.throws(() => model.apply(source, {}, { ...action, value: 'invented' }));
-  assert.throws(() => applyComponentAction({ component: source, state, role: 'teacher', action }), { statusCode: 403 });
+  assert.throws(() => applyComponentAction({ component: source, state, role: 'teacher', action }), { statusCode: 400 });
 });
 
 test('grammar responds before sending, preserves DOM, suppresses replay, restores and rolls back', t => {
