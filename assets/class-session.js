@@ -19,6 +19,14 @@
     if (state) status.dataset.state = state;
     else delete status.dataset.state;
   };
+  const resetButton = byId('reset-stage-progress');
+  resetButton.hidden = role !== 'teacher';
+  resetButton.disabled = true;
+  if (role !== 'teacher') resetButton.remove();
+  else resetButton.addEventListener('click', () => {
+    if (!connected || !confirmed || pending.length) return;
+    enqueue({ type: 'reset-stage', stageId: confirmed.activeStageId });
+  });
   const timerButton = byId('lesson-timer');
   timerButton.hidden = role !== 'teacher';
   document.querySelector('.teacher-version').textContent = role === 'teacher' ? 'Teacher version' : 'Student version';
@@ -77,6 +85,7 @@
     }, 1000);
   });
   function paint() {
+    resetButton.disabled = !connected || !confirmed || pending.length > 0;
     if (!confirmed || !viewState.lesson) return;
     const state = structuredClone(confirmed);
     for (const action of pending) {
@@ -100,6 +109,7 @@
     const stage = viewState.lesson.stages[index];
     if (index < 0) throw new Error('Активная стадия не найдена.');
     if (previousStage?.id !== stage.id) view.selectStage(index, true);
+    else if (payload.resetStageId === stage.id) view.renderStageContent(stage);
     else if (JSON.stringify(previousStage.content) !== JSON.stringify(stage.content)) view.renderStageContent(stage, true);
     paint();
     feedback = false;
@@ -130,6 +140,7 @@
       }
       if (message.type === 'action-error') { pending = []; notify(message.error); }
       receiveState(message);
+      if (message.type === 'action' && message.resetStageId && role === 'teacher') notify('Прогресс на этой странице сброшен.');
       flush();
     });
     socket.addEventListener('close', event => {

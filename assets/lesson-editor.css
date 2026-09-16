@@ -96,7 +96,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .lesson-identity small { color: var(--muted); font-size: 12px; }
 .lesson-header__actions { display: flex; align-items: stretch; gap: 14px; }
 
-.timer-card, .teacher-screen, .end-lesson {
+.timer-card, .teacher-screen, .end-lesson, .reset-stage {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -116,7 +116,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .timer-card strong { font-size: 13px; font-variant-numeric: tabular-nums; }
 .timer-card em { color: var(--muted); font-style: normal; font-weight: 500; }
 .timer-card small { margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 500; }
-.timer-card svg, .teacher-screen svg, .end-lesson svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.timer-card svg, .teacher-screen svg, .end-lesson svg, .reset-stage svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .timer-card > svg { margin-left: 8px; color: #777b90; }
 .end-lesson { color: #ef4b57; }
 
@@ -214,3 +214,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
   .stage-pagination button { width: 100%; }
   .stage-pagination span { grid-column: 1 / -1; grid-row: 1; text-align: center; }
 }
+
+.reset-stage { flex: none; width: 48px; padding: 8px; color: var(--purple); }
+.reset-stage:hover:not(:disabled) { background: var(--purple-soft); }
+.reset-stage:disabled { opacity: .45; cursor: not-allowed; }
+.reset-stage:focus-visible { outline: 2px solid var(--purple); outline-offset: 3px; }
+.reset-stage[hidden] { display: none; }

@@ -249,3 +249,43 @@ test('guided cards flip locally and survive session confirmations and reconnect 
   const teacherCards = fixtures[1].document.getElementById('stage-components').children[0].children[0].children;
   assert.equal(teacherCards[1].children[0].getAttribute('aria-expanded'), 'false');
 });
+
+test('stage reset is teacher-only, waits for acknowledgement and disables during pending actions/disconnect', async () => {
+  const f = await fixture('teacher'), socket = f.sockets[0];
+  const button = f.document.getElementById('reset-stage-progress');
+  assert.equal(button.hidden, false);
+  assert.equal(button.disabled, true);
+  socket.receive({ type: 'snapshot', state: f.initial });
+  button.click();
+  assert.deepEqual(JSON.parse(JSON.stringify(socket.sent[0])), { type: 'reset-stage', stageId: 'warm-up', expectedVersion: 0 });
+  assert.equal(button.disabled, true);
+  button.click();
+  assert.equal(socket.sent.length, 1);
+  socket.receive({ type: 'action', resetStageId: 'warm-up', state: { ...f.initial, version: 1 } });
+  assert.equal(button.disabled, false);
+  assert.equal(f.document.getElementById('lesson-toast').textContent, 'Прогресс на этой странице сброшен.');
+  socket.close();
+  assert.equal(button.disabled, true);
+  const student = await fixture();
+  student.sockets[0].receive({ type: 'snapshot', state: student.initial });
+  student.document.getElementById('reset-stage-progress').click();
+  assert.equal(student.document.getElementById('reset-stage-progress').hidden, true);
+  assert.equal(student.sockets[0].sent.length, 0);
+});
+
+for (const role of ['teacher', 'student']) test(`${role}: confirmed reset remounts local card state`, async () => {
+  const { guidedRoleCardsPresentation } = require('../assets/components/guided-role-cards.js');
+  const source = require('../lib/synthetic-lesson.js').createSyntheticLesson('Reset').stages
+    .find(stage => stage.id === 'guided-speaking').content.find(item => item.type === 'guidedRoleCards');
+  const component = { type: source.type, id: source.id, presentation: guidedRoleCardsPresentation(source, role) };
+  const f = await fixture(role, component), socket = f.sockets[0];
+  socket.receive({ type: 'snapshot', state: f.initial });
+  const container = f.document.getElementById('stage-components');
+  const before = container.children[0];
+  before.children[0].children[0].children[0].click();
+  assert.equal(before.children[0].children[0].children[0].getAttribute('aria-expanded'), 'true');
+  socket.receive({ type: 'action', actorRole: 'teacher', resetStageId: 'reading', state: { ...f.initial, version: 1 } });
+  assert.notEqual(container.children[0], before);
+  assert.equal(container.children[0].children[0].children[0].children[0].getAttribute('aria-expanded'), 'false');
+  assert.equal(socket.sent.length, 0);
+});
