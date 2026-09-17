@@ -238,6 +238,7 @@
     function makePlaySelect(choice, number) {
       const field = doc.createElement('span');
       field.className = 'dropdown-choice__field';
+      field.dataset.pointerPart = `choice:${choice.id}`;
       const select = doc.createElement('select');
       select.className = 'dropdown-choice__select';
       select.dataset.choiceId = choice.id;

@@ -164,11 +164,13 @@
       current.items.forEach((item, index) => {
         const row = doc.createElement('li');
         row.className = 'fill-in-blanks__item';
+        row.dataset.pointerPart = `sentence:${item.id}`;
         const sentence = doc.createElement('div');
         sentence.className = 'fill-in-blanks__sentence';
         if (item.before) sentence.append(doc.createTextNode(item.before));
         const field = doc.createElement('span');
         field.className = 'fill-in-blanks__field';
+        field.dataset.pointerPart = `gap:${item.id}`;
         const input = doc.createElement('input');
         input.type = 'text';
         input.className = 'fill-in-blanks__input';

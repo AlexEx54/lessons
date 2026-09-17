@@ -224,6 +224,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .lesson-pointer { flex: none; width: 48px; padding: 8px; }
 #lesson-pointer[aria-pressed="true"] { color: #b91c1c; background: #fef2f2; border-color: #dc2626; }
 .lesson-pointer-armed, .lesson-pointer-armed * { cursor: crosshair !important; }
+[data-pointer-part]:not([data-component-id]):is(.lesson-pointer-hover, .lesson-pointer-target) { border-radius: 6px; }
 .lesson-pointer-hover { outline: 2px dashed #dc2626; outline-offset: 4px; }
 .lesson-pointer-target { outline: 2px solid transparent; outline-offset: 4px; scroll-margin-block: 100px 32px; animation: lesson-pointer-pulse 1.1s ease-in-out 2 both; }
 @keyframes lesson-pointer-pulse {
