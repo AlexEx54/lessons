@@ -289,3 +289,17 @@ for (const role of ['teacher', 'student']) test(`${role}: confirmed reset remoun
   assert.equal(container.children[0].children[0].children[0].children[0].getAttribute('aria-expanded'), 'false');
   assert.equal(socket.sent.length, 0);
 });
+test('pointer events and errors never acknowledge or drop queued exercise answers', async () => {
+  const f = await fixture('teacher'), socket = f.sockets[0];
+  socket.receive({ type: 'snapshot', state: f.initial });
+  const { onAction } = f.settings.componentOptions({ type: 'thisOrThat', id: 'choice' });
+  onAction({ type: 'select-option', componentId: 'choice', itemId: 'pair', optionId: 'a' });
+  onAction({ type: 'select-option', componentId: 'choice', itemId: 'pair', optionId: 'b' });
+  socket.receive({ type: 'pointer', target: null, revision: 1 });
+  socket.receive({ type: 'pointer-error', error: 'Недоступная цель' });
+  assert.equal(socket.sent.length, 1);
+  socket.receive({ type: 'action', state: { ...f.initial, version: 1 } });
+  assert.equal(socket.sent.length, 2);
+  assert.equal(socket.sent[1].optionId, 'b');
+  assert.equal(socket.sent[1].expectedVersion, 1);
+});

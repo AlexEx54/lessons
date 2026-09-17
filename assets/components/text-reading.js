@@ -294,6 +294,7 @@
       const media = doc.createElement('div');
       media.className = `text-reading__picture text-reading__picture--${side}`;
       media.dataset.side = side;
+      media.dataset.pointerPart = `picture:${side}`;
       if (mode === 'image') {
         const image = doc.createElement('img');
         image.src = picture.imageSrc;
@@ -349,7 +350,7 @@
       if (!editing) subtitleEditorVisible = Boolean(current.subtitle);
       title.textContent = current.title;
       subtitle.textContent = current.subtitle || '';
-      markdown.renderMarkdownInto(body, current.text, doc, 'text-reading__spacer');
+      markdown.renderMarkdownInto(body, current.text, doc, 'text-reading__spacer', { pointerPrefix: 'text' });
       renderHeader();
       reading.classList.toggle('text-reading--editing', editing);
     }

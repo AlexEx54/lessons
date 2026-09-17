@@ -168,3 +168,15 @@ test('live visibility updates reuse the same card and button without emitting ac
   card.updateStudentVisibility(true);
   assert.deepEqual(changes, [false]);
 });
+
+test('section pointer addresses agree across roles and survive section reordering', () => {
+  const { renderMarkdownCard } = require('../assets/components/markdown-card.js');
+  const doc = require('./helpers/lesson-dom').createDocument();
+  for (const viewerRole of ['teacher', 'student']) {
+    for (const sections of [sectionedExample.sections, [...sectionedExample.sections].reverse()]) {
+      const node = renderMarkdownCard({ ...sectionedExample, sections }, { viewerRole }, doc);
+      assert.deepEqual(node.querySelectorAll('li').map(item => item.dataset.pointerPart).sort(),
+        ['section:get-used-to:0', 'section:used-to:0']);
+    }
+  }
+});

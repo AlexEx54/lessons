@@ -60,6 +60,7 @@
 
     const prompt = doc.createElement('aside');
     prompt.className = 'task-prompt task-prompt--follow-up';
+    if (data.id) prompt.dataset.componentId = data.id;
 
     const header = doc.createElement('div');
     header.className = 'task-prompt__header';
@@ -178,11 +179,11 @@
     function paint(value) {
       current = normalizeTaskPrompt({ ...data, ...value });
       title.textContent = current.title;
-      markdown.renderMarkdownInto(mainText, current.text, doc, 'task-prompt__spacer');
+      markdown.renderMarkdownInto(mainText, current.text, doc, 'task-prompt__spacer', { pointerPrefix: 'text' });
       support.hidden = !current.support;
       if (current.support) {
         supportTitle.textContent = current.support.title;
-        markdown.renderMarkdownInto(supportText, current.support.text, doc, 'task-prompt__spacer');
+        markdown.renderMarkdownInto(supportText, current.support.text, doc, 'task-prompt__spacer', { pointerPrefix: 'support' });
       } else {
         supportTitle.textContent = '';
         supportText.replaceChildren();

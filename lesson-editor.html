@@ -55,6 +55,9 @@
           <span><strong><span id="elapsed-time">00:00</span> <em>/ <span id="total-time">45:00</span></em></strong><small>Lesson time</small></span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
         </button>
+        <button class="teacher-screen lesson-pointer" id="lesson-pointer" type="button" title="Указка" aria-label="Указка" aria-pressed="false" hidden disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg>
+        </button>
         <button class="reset-stage" id="reset-stage-progress" type="button" title="Сбросить прогресс на этой странице" aria-label="Сбросить прогресс на этой странице" hidden disabled>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2.6 8.4M3 4v6h6"/></svg>
         </button>
@@ -152,6 +155,7 @@
   <script src="/assets/lesson-view.js" defer></script>
   <script src="/assets/class-component-adapters.js" defer></script>
   <script src="/assets/lesson-notes.bundle.js" defer></script>
+  <script src="/assets/class-pointer.js" defer></script>
   <script src="/assets/class-session.js" defer></script>
   <script src="/assets/lesson-editor.js" defer></script>
 </body>

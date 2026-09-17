@@ -308,6 +308,11 @@
   }
 
   function renderMarkdownInto(container, value, documentRef, spacerClass = 'markdown-spacer', options = {}) {
+    // Renderers opt shared bodies into the pointer protocol with their own namespace.
+    let pointerIndex = 0;
+    function markPointerPart(node) {
+      if (options.pointerPrefix) node.dataset.pointerPart = `${options.pointerPrefix}:${pointerIndex++}`;
+    }
     const rendered = parseMarkdown(value).map((block) => {
       if (block.type === 'spacer') {
         const spacer = documentRef.createElement('div');
@@ -319,12 +324,14 @@
         const list = documentRef.createElement(block.ordered ? 'ol' : 'ul');
         block.items.forEach((tokens) => {
           const item = documentRef.createElement('li');
+          markPointerPart(item);
           appendInlineTokens(item, tokens, documentRef, options);
           list.append(item);
         });
         return list;
       }
       const paragraph = documentRef.createElement('p');
+      markPointerPart(paragraph);
       appendInlineTokens(paragraph, block.children, documentRef, options);
       return paragraph;
     });

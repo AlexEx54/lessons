@@ -193,6 +193,7 @@
         : 'multiple-choice__item';
       if (numbered) block.value = index + 1;
 
+      block.dataset.pointerPart = `question:${item.id}`;
       const question = doc.createElement(numbered ? 'h3' : 'p');
       question.className = 'multiple-choice__question';
       if (numbered) {
@@ -213,6 +214,7 @@
         const button = doc.createElement('button');
         button.type = 'button';
         button.className = 'multiple-choice__option';
+        button.dataset.pointerPart = `option:${item.id}:${optionIndex}`;
         const letter = doc.createElement('span');
         letter.className = 'multiple-choice__letter';
         letter.textContent = optionLetter(optionIndex);

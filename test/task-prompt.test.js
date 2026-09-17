@@ -34,3 +34,10 @@ test('task prompt styles derive variants and divider from component structure', 
   assert.match(source, /applyTextSize/);
   assert.match(css, /task-prompt__format--size/);
 });
+
+test('follow-up prompt exposes its component identity for the class pointer', () => {
+  const { renderTaskPrompt } = require('../assets/components/task-prompt.js');
+  const { createDocument } = require('./helpers/lesson-dom');
+  const node = renderTaskPrompt({ id: 'follow-up', variant: 'followUp', title: 'Follow-up questions', text: 'Why?' }, createDocument());
+  assert.equal(node.dataset.componentId, 'follow-up');
+});

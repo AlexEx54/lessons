@@ -376,7 +376,7 @@
         const sectionBody = doc.createElement('div');
         sectionBody.className = 'markdown-card__section-body';
         sectionBody.dataset.placeholder = 'Введите текст секции';
-        if (section.text) markdown.renderMarkdownInto(sectionBody, section.text, doc, 'markdown-card__spacer');
+        if (section.text) markdown.renderMarkdownInto(sectionBody, section.text, doc, 'markdown-card__spacer', { pointerPrefix: `section:${section.id}` });
         const sectionError = doc.createElement('p');
         sectionError.className = 'markdown-card__section-error';
         sectionError.textContent = 'Заполните текст секции.';
@@ -439,7 +439,7 @@
       } else {
         sectionEditors = [];
         content.className = 'markdown-card__body';
-        markdown.renderMarkdownInto(content, current.text, doc, 'markdown-card__spacer');
+        markdown.renderMarkdownInto(content, current.text, doc, 'markdown-card__spacer', { pointerPrefix: 'text' });
       }
       if (current.studentVisibility === 'controlled') paintVisibility();
     }

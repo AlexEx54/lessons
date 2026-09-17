@@ -10,6 +10,10 @@
   const viewState = { lesson: null, activeIndex: 0 };
   let availableStageIds = [];
   let feedback = false;
+  let pointerComponentIds = [];
+  const pointer = window.ClassPointer?.create({ role, notify, send: message => {
+    if (connected && socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
+  } });
   const adapters = window.ClassComponentAdapters;
   const status = byId('teacher-screen');
   status.disabled = true;
@@ -98,11 +102,13 @@
       if (node) adapters.update(node, component, session(state));
     }
     view.refreshNavigation();
+    pointer?.update({ connected, stageId: confirmed.activeStageId, componentIds: pointerComponentIds });
   }
   function receiveState(payload) {
     feedback = payload.type === 'action';
     const previousStage = viewState.lesson?.stages[viewState.activeIndex];
     confirmed = payload.state;
+    pointerComponentIds = payload.pointerComponentIds || [];
     availableStageIds = payload.availableStageIds;
     viewState.lesson = payload.lesson.content;
     const index = viewState.lesson.stages.findIndex(stage => stage.id === confirmed.activeStageId);
@@ -125,6 +131,8 @@
     socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/classes/${classId}?role=${role}`);
     socket.addEventListener('message', event => {
       const message = JSON.parse(event.data);
+      if (message.type === 'pointer') { pointer?.receive(message); return; }
+      if (message.type === 'pointer-error') { notify(message.error); return; }
       if (message.type === 'presence') {
         setStatus(
           message.peerPresent ? (role === 'teacher' ? 'Ученик подключён' : 'Учитель подключён') : (role === 'teacher' ? 'Ожидаем ученика' : 'Ожидаем учителя'),
@@ -145,6 +153,7 @@
     });
     socket.addEventListener('close', event => {
       connected = false;
+      pointer?.disconnect();
       if (pending.length) notify('Связь прервалась. Неподтверждённый выбор нужно повторить после подключения.');
       pending = [];
       inFlight = false;
@@ -167,6 +176,7 @@
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Не удалось открыть класс.');
       confirmed = payload.state;
+      pointerComponentIds = payload.pointerComponentIds || [];
       availableStageIds = payload.availableStageIds;
       view.render(payload.lesson.content);
       window.LessonNotes?.mount({ mode: 'class', id: classId, role });

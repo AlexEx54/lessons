@@ -382,7 +382,7 @@
         borderToggle.checked = current.showBorder;
       }
       applyAppearance(current.backgroundColor, current.accentColor, current.showBorder);
-      markdown.renderMarkdownInto(body, current.text, doc, 'text-panel__spacer');
+      markdown.renderMarkdownInto(body, current.text, doc, 'text-panel__spacer', { pointerPrefix: 'text' });
       renderLayout();
     }
 

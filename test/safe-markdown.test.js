@@ -289,3 +289,18 @@ test('lesson editor loads shared safe-markdown styles', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'lesson-editor.html'), 'utf8');
   assert.match(html, /href="\/assets\/components\/safe-markdown\.css"/);
 });
+
+test('pointer parts are opt-in, repeatable and skip markdown spacers', () => {
+  const { renderMarkdownInto } = require('../assets/components/safe-markdown.js');
+  const doc = require('./helpers/lesson-dom').createDocument();
+  const body = doc.createElement('div');
+  const text = 'Intro\n\n- First\n- Second';
+  renderMarkdownInto(body, text, doc);
+  assert.equal(body.querySelectorAll('p')[0].dataset.pointerPart, undefined);
+  for (let pass = 0; pass < 2; pass++) {
+    renderMarkdownInto(body, text, doc, 'spacer', { pointerPrefix: 'text' });
+    assert.deepEqual([...body.querySelectorAll('p'), ...body.querySelectorAll('li')]
+      .map(node => node.dataset.pointerPart), ['text:0', 'text:1', 'text:2']);
+    assert.ok(body.querySelectorAll('.spacer').every(node => !node.dataset.pointerPart));
+  }
+});
