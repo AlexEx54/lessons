@@ -13,8 +13,22 @@
 .fact-or-myth__row { display:grid; grid-template-columns:28px minmax(0,1fr) auto; align-items:center; gap:12px; }
 .fact-or-myth__number { display:grid; place-items:center; width:28px; height:28px; border-radius:50%; background:#8d5ee3; color:white; font-weight:700; }
 .fact-or-myth__words { display:flex; gap:8px; }
-.fact-or-myth .fact-or-myth__word { width:auto; min-width:95px; min-height:44px; padding:10px 8px; background:#f7f4fc; border:1px solid #b69bdc; color:#29243b; font-weight:650; overflow-wrap:anywhere; }
-.fact-or-myth .fact-or-myth__word:not(:disabled):hover { background:#eee6fb; }
+.fact-or-myth .fact-or-myth__word {
+  width:auto;
+  min-width:84px;
+  min-height:44px;
+  padding:8px 14px;
+  border:1px solid #e9e4f5;
+  border-radius:12px;
+  background:#faf8ff;
+  color:#6c6089;
+  font-size:13px;
+  font-weight:500;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+  transition:background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+.fact-or-myth .fact-or-myth__word:not(:disabled):not([aria-pressed="true"]):hover { background:#f3effc; border-color:#d8cfed; color:#5940a0; }
 .fact-or-myth__status { grid-column:2; margin:0; min-height:18px; font-size:12px; color:#696377; }
 .fact-or-myth__editor { margin-top:20px; }
 .fact-or-myth__general { display:grid; gap:14px; margin-bottom:18px; }
@@ -41,11 +55,13 @@
 }
 
 .fact-or-myth__statement { font-weight:600; line-height:1.6; overflow-wrap:anywhere; }
-.fact-or-myth .fact-or-myth__word--selected { border-color:#7854dc; background:#eee6ff; }
-.fact-or-myth .fact-or-myth__word--correct { text-decoration:none; color:#197744; background:#eaf8ef; border-color:#55aa78; }
-.fact-or-myth .fact-or-myth__word--wrong { color:#a73535; background:#fff1f1; border-color:#c65555; }
+.fact-or-myth .fact-or-myth__word--selected { border-color:#c4b3ec; background:#efe8fc; color:#6545b5; }
+.fact-or-myth .fact-or-myth__word--correct { text-decoration:none; color:#397654; background:#f0f8f3; border-color:#c8e2d2; }
+.fact-or-myth .fact-or-myth__word--wrong { color:#a15e68; background:#fff4f5; border-color:#efd4da; }
 .fact-or-myth__field select { font:inherit; padding:10px; border:1px solid #dcd6e8; border-radius:8px; background:white; }
 @media(max-width:650px) { .fact-or-myth__row { grid-template-columns:28px minmax(0,1fr); } .fact-or-myth__words { grid-column:2; } }
 
 .fact-or-myth__status:empty { display:none; }
 @container (max-width:550px) { .fact-or-myth__row { grid-template-columns:28px minmax(0,1fr); } .fact-or-myth__words { grid-column:2; } .fact-or-myth__header { flex-wrap:wrap; } }
+
+@media (prefers-reduced-motion:reduce) { .fact-or-myth .fact-or-myth__word { transition:none; } }
