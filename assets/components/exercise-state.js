@@ -78,6 +78,15 @@
         attempt: { ...(action.attemptId ? { id: action.attemptId } : {}), sequence: (previous.attempt?.sequence || 0) + 1, itemId: action.itemId, targetId: action.targetId, correct },
       };
     }
+    if (component.type === 'factOrMyth') {
+      if (action.type !== 'choose-option') fail('Неизвестное действие.');
+      const item = component.items.find(item => item.id === action.itemId);
+      if (!item || !['fact', 'myth'].includes(action.value)) fail('Вариант не найден.');
+      if (previous.answers?.[item.id]?.status === 'correct') fail('Ответ уже верный.');
+      return { ...previous, answers: { ...previous.answers, [item.id]: {
+        value: action.value, status: item.mode === 'guess' ? 'pending' : selectionState(action.value, item.answer),
+      } } };
+    }
     if (component.type === 'multipleChoice' || component.type === 'oddOneOut') {
       if (action.type !== 'choose-option') fail('Неизвестное действие.');
       const item = component.items.find(item => item.id === action.itemId);

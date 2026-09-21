@@ -88,7 +88,7 @@ test('template two creation and editing update the answer key atomically', async
   const draft = (await response.json()).draft;
   assert.equal(draft.template, 'template-2');
   assert.equal(draft.imageGeneration.total, 0);
-  assert.ok(draft.content.stages.slice(1).every(s => s.content === null));
+  assert.ok(draft.content.stages.slice(2).every(s => s.content === null));
   const exercise = draft.content.stages[0].content[1];
   const endpoint = `${baseUrl}/api/lesson-drafts/${draft.id}/odd-one-out/${exercise.id}`;
   const patch = (body, auth = cookie) => fetch(endpoint, {
@@ -115,4 +115,28 @@ test('template two creation and editing update the answer key atomically', async
   const read = await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}`, { headers: { Cookie: cookie } });
   assert.equal(read.status, 200);
   assert.deepEqual((await read.json()).draft.content.stages[0].content, saved);
+  const fact = draft.content.stages[1].content[1];
+  const factEndpoint = `${baseUrl}/api/lesson-drafts/${draft.id}/fact-or-myth/${fact.id}`;
+  const factChanges = { title: fact.title, instruction: fact.instruction, items: structuredClone(fact.items) };
+  const saveFact = (body, auth = cookie) => fetch(factEndpoint, { method: 'PATCH',
+    headers: { Cookie: auth, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await saveFact(factChanges, otherCookie)).status, 404);
+  factChanges.items[0].text = 'Batman has got a pink cape.';
+  factChanges.items[0].answer = 'myth';
+  factChanges.items[0].explanation = 'He has got a black cape.';
+  const factResponse = await saveFact(factChanges);
+  assert.equal(factResponse.status, 200);
+  const factSaved = (await factResponse.json()).draft.content.stages[1].content;
+  assert.match(factSaved[3].text, /1\. \*\*MYTH\*\* — He has got a black cape/);
+  assert.match(factSaved[3].text, /GUESS/);
+  const factKeyEdit = await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/markdown-cards/${factSaved[3].id}`, {
+    method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Wrong key', text: 'Wrong answer' }),
+  });
+  assert.equal(factKeyEdit.status, 409);
+  factChanges.items[3].answer = 'fact';
+  assert.equal((await saveFact(factChanges)).status, 400);
+  const factRead = await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}`, { headers: { Cookie: cookie } });
+  assert.deepEqual((await factRead.json()).draft.content.stages[1].content, factSaved);
+
 });

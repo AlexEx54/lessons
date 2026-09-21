@@ -88,12 +88,12 @@ function byClass(root, name) {
 }
 
 
-test('template two has only Warm Up and shares unchanged teacher notes', () => {
+test('template two has Warm Up and Lead In and shares unchanged teacher notes', () => {
   const one = createSyntheticLesson('Test');
   const two = createSyntheticLesson('Test', { template: 'template-2' });
   assert.deepEqual(two.stages[0].content[0], one.stages[0].content[0]);
   assert.deepEqual(two.stages[0].content.map(c => c.type), ['teacherNote', 'oddOneOut', 'markdownCard']);
-  assert.ok(two.stages.slice(1).every(stage => stage.content === null));
+  assert.ok(two.stages.slice(2).every(stage => stage.content === null));
   assert.equal(two.stages[0].content[1].items.length, 4);
   assert.deepEqual(two.stages[0].content[2], createOddOneOutAnswerKey(component()));
   assert.equal(studentComponent(two.stages[0].content[2], {}), null);

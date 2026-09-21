@@ -20,6 +20,7 @@
     illustratedTextPanel: ['IllustratedTextPanelComponent', 'renderIllustratedTextPanel'],
     miniSituation: ['MiniSituationComponent', 'renderMiniSituation'],
     oddOneOut: ['OddOneOutComponent', 'renderOddOneOut'],
+    factOrMyth: ['FactOrMythComponent', 'renderFactOrMyth'],
     multipleChoice: ['MultipleChoiceComponent', 'renderMultipleChoice'],
     checkboxChoice: ['CheckboxChoiceComponent', 'renderCheckboxChoice'],
     textReading: ['TextReadingComponent', 'renderTextReading'],

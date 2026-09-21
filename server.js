@@ -62,6 +62,7 @@ const {
   updateCheckboxChoice,
   updateMultipleChoice,
   updateOddOneOut,
+  updateFactOrMyth,
   updatePersonalizedQuestions,
   updateTaskPrompt,
   updateTeacherNote,
@@ -777,6 +778,19 @@ function getMultipleChoiceRouteParams(pathname) {
 
 function getOddOneOutRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/odd-one-out\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getFactOrMythRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/fact-or-myth\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -2054,6 +2068,7 @@ const server = http.createServer(async (req, res) => {
     const dropdownChoiceRoute = getDropdownChoiceRouteParams(pathname);
     const gapFillRoute = getGapFillRouteParams(pathname);
     const oddOneOutRoute = getOddOneOutRouteParams(pathname);
+    const factOrMythRoute = getFactOrMythRouteParams(pathname);
     const multipleChoiceRoute = getMultipleChoiceRouteParams(pathname);
     const checkboxChoiceRoute = getCheckboxChoiceRouteParams(pathname);
     const personalizedQuestionsRoute = getPersonalizedQuestionsRouteParams(pathname);
@@ -2076,6 +2091,7 @@ const server = http.createServer(async (req, res) => {
       && (!dropdownChoiceRoute || !dropdownChoiceRoute.draftId || !dropdownChoiceRoute.componentId)
       && (!gapFillRoute || !gapFillRoute.draftId || !gapFillRoute.componentId)
       && (!oddOneOutRoute || !oddOneOutRoute.draftId || !oddOneOutRoute.componentId)
+      && (!factOrMythRoute || !factOrMythRoute.draftId || !factOrMythRoute.componentId)
       && (!multipleChoiceRoute || !multipleChoiceRoute.draftId || !multipleChoiceRoute.componentId)
       && (!checkboxChoiceRoute || !checkboxChoiceRoute.draftId || !checkboxChoiceRoute.componentId)
       && (!personalizedQuestionsRoute || !personalizedQuestionsRoute.draftId || !personalizedQuestionsRoute.componentId)
@@ -2182,6 +2198,15 @@ const server = http.createServer(async (req, res) => {
           id: oddOneOutRoute.draftId,
           ownerAdminId: user.id,
           componentId: oddOneOutRoute.componentId,
+          title: body.title,
+          instruction: body.instruction,
+          items: body.items,
+        }, database);
+      } else if (factOrMythRoute) {
+        draft = updateFactOrMyth({
+          id: factOrMythRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: factOrMythRoute.componentId,
           title: body.title,
           instruction: body.instruction,
           items: body.items,
