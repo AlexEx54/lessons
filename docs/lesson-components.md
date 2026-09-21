@@ -1139,3 +1139,26 @@ Teacher Answer Key в этот компонент не встроен. Если 
 варианты, правильный ответ и пояснение, а также добавлять, удалять и менять
 порядок вопросов и вариантов. Поля `type`, id компонента и существующие id
 вопросов неизменяемы; новые id создаёт интерфейс.
+
+## Template 2: Odd One Out
+
+`createSyntheticLesson(topic, { template: 'template-2' })` builds a synthetic-only draft with
+`teacherNote`, `oddOneOut`, and a teacher-only `markdownCard` in Warm Up. The other stages
+are placeholders (`content: null`). The default call still creates template 1.
+
+`oddOneOut` has `id`, `title`, `instruction`, and 1–12 `items`. Each item contains a unique
+kebab-case `id`, exactly four distinct plain-text `options`, an `answer` matching one option,
+and a required plain-text `explanation`. Synthetic content uses four rows. Word order is fixed.
+
+The editor provides inline word inputs and one mode switch to mark the odd word. The draft
+tracks the answer by position, so editing its spelling preserves the selection. Row movement
+and deletion live in collapsed row actions. Invalid or failed saves preserve the draft.
+
+`PATCH /api/lesson-drafts/:id/odd-one-out/:componentId` accepts `title`, `instruction`, `items`.
+It validates ownership and review status, then persists the exercise and its sibling key
+(`:componentId-answer-key`) together. Missing or duplicate keys produce 409 without saving.
+The derived key cannot be edited separately; its explanations come from the exercise.
+
+Live lessons use `choose-option` and the shared exercise reducer. Wrong choices allow retries;
+a correct choice is crossed out and locks that row. Stage reset clears the shared answers.
+Teacher notes and the key remain hidden from the student.

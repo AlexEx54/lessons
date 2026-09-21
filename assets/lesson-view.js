@@ -19,6 +19,7 @@
     textPanel: ['TextPanelComponent', 'renderTextPanel'],
     illustratedTextPanel: ['IllustratedTextPanelComponent', 'renderIllustratedTextPanel'],
     miniSituation: ['MiniSituationComponent', 'renderMiniSituation'],
+    oddOneOut: ['OddOneOutComponent', 'renderOddOneOut'],
     multipleChoice: ['MultipleChoiceComponent', 'renderMultipleChoice'],
     checkboxChoice: ['CheckboxChoiceComponent', 'renderCheckboxChoice'],
     textReading: ['TextReadingComponent', 'renderTextReading'],

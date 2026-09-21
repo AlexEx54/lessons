@@ -61,6 +61,7 @@ const {
   updateMatchWordsImage,
   updateCheckboxChoice,
   updateMultipleChoice,
+  updateOddOneOut,
   updatePersonalizedQuestions,
   updateTaskPrompt,
   updateTeacherNote,
@@ -763,6 +764,19 @@ function getGapFillRouteParams(pathname) {
 
 function getMultipleChoiceRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/multiple-choice\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getOddOneOutRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/odd-one-out\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -1651,8 +1665,12 @@ const server = http.createServer(async (req, res) => {
       json(res, 400, { error: 'Выбран неизвестный уровень сложности.' });
       return;
     }
-    if (template !== 'template-1') {
+    if (!['template-1', 'template-2'].includes(template)) {
       json(res, 400, { error: 'Выбран неизвестный шаблон урока.' });
+      return;
+    }
+    if (template === 'template-2' && !synthetic) {
+      json(res, 400, { error: 'Шаблон 2 пока доступен только в синтетическом режиме.' });
       return;
     }
     if (!model || !LESSON_MODEL_OPTIONS[model]) {
@@ -1675,7 +1693,7 @@ const server = http.createServer(async (req, res) => {
       database.exec('BEGIN IMMEDIATE');
       try {
         lesson = synthetic
-          ? createSyntheticLesson(topic)
+          ? createSyntheticLesson(topic, { template })
           : createLessonSkeleton(topic, { ageGroup, level, model });
         lesson.meta.ageGroup = ageGroup;
         lesson.meta.level = level;
@@ -2035,6 +2053,7 @@ const server = http.createServer(async (req, res) => {
     const dragWordsInTextRoute = getDragWordsInTextRouteParams(pathname);
     const dropdownChoiceRoute = getDropdownChoiceRouteParams(pathname);
     const gapFillRoute = getGapFillRouteParams(pathname);
+    const oddOneOutRoute = getOddOneOutRouteParams(pathname);
     const multipleChoiceRoute = getMultipleChoiceRouteParams(pathname);
     const checkboxChoiceRoute = getCheckboxChoiceRouteParams(pathname);
     const personalizedQuestionsRoute = getPersonalizedQuestionsRouteParams(pathname);
@@ -2056,6 +2075,7 @@ const server = http.createServer(async (req, res) => {
       && (!dragWordsInTextRoute || !dragWordsInTextRoute.draftId || !dragWordsInTextRoute.componentId)
       && (!dropdownChoiceRoute || !dropdownChoiceRoute.draftId || !dropdownChoiceRoute.componentId)
       && (!gapFillRoute || !gapFillRoute.draftId || !gapFillRoute.componentId)
+      && (!oddOneOutRoute || !oddOneOutRoute.draftId || !oddOneOutRoute.componentId)
       && (!multipleChoiceRoute || !multipleChoiceRoute.draftId || !multipleChoiceRoute.componentId)
       && (!checkboxChoiceRoute || !checkboxChoiceRoute.draftId || !checkboxChoiceRoute.componentId)
       && (!personalizedQuestionsRoute || !personalizedQuestionsRoute.draftId || !personalizedQuestionsRoute.componentId)
@@ -2153,6 +2173,15 @@ const server = http.createServer(async (req, res) => {
           id: multipleChoiceRoute.draftId,
           ownerAdminId: user.id,
           componentId: multipleChoiceRoute.componentId,
+          title: body.title,
+          instruction: body.instruction,
+          items: body.items,
+        }, database);
+      } else if (oddOneOutRoute) {
+        draft = updateOddOneOut({
+          id: oddOneOutRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: oddOneOutRoute.componentId,
           title: body.title,
           instruction: body.instruction,
           items: body.items,

@@ -160,6 +160,13 @@
     });
     select.value.textContent = label;
     select.input.value = value;
+    if (select.input === newLessonSelectInput && newLessonSynthetic) {
+      const templateTwo = value === 'template-2';
+      if (templateTwo) newLessonSynthetic.checked = true;
+      newLessonSynthetic.disabled = templateTwo;
+      const hint = newLessonModal.querySelector('[data-template-two-hint]');
+      if (hint) hint.hidden = !templateTwo;
+    }
     closeNewLessonSelect({ restoreFocus: true });
   }
 

@@ -78,7 +78,7 @@
         attempt: { ...(action.attemptId ? { id: action.attemptId } : {}), sequence: (previous.attempt?.sequence || 0) + 1, itemId: action.itemId, targetId: action.targetId, correct },
       };
     }
-    if (component.type === 'multipleChoice') {
+    if (component.type === 'multipleChoice' || component.type === 'oddOneOut') {
       if (action.type !== 'choose-option') fail('Неизвестное действие.');
       const item = component.items.find(item => item.id === action.itemId);
       if (!item || !item.options.includes(action.value)) fail('Вариант не найден.');

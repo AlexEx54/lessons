@@ -78,6 +78,7 @@
           </button>
           <ul class="new-lesson-select__list" id="new-lesson-template-list" role="listbox" aria-labelledby="new-lesson-template-label" hidden>
             <li class="new-lesson-select__option" role="option" tabindex="-1" data-value="template-1" aria-selected="true">Шаблон 1</li>
+            <li class="new-lesson-select__option" role="option" tabindex="-1" data-value="template-2" aria-selected="false">Шаблон 2</li>
           </ul>
           <input type="hidden" name="template" value="template-1" data-new-lesson-template-value />
         </div>
@@ -106,6 +107,7 @@
         </div>
       </div>
 
+      <p data-template-two-hint hidden>Шаблон 2: синтетический Warm Up. Остальные этапы пока пустые.</p>
       <label class="new-lesson-synthetic" for="new-lesson-synthetic">
         <input id="new-lesson-synthetic" name="synthetic" type="checkbox" />
         <span class="new-lesson-synthetic__control" aria-hidden="true">
