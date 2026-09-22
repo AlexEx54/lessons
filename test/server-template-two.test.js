@@ -88,7 +88,25 @@ test('template two creation and editing update the answer key atomically', async
   const draft = (await response.json()).draft;
   assert.equal(draft.template, 'template-2');
   assert.equal(draft.imageGeneration.total, 0);
-  assert.ok(draft.content.stages.slice(2).every(s => s.content === null));
+  assert.ok(draft.content.stages.slice(3).every(s => s.content === null));
+  const stories = draft.content.stages[2].content[2];
+  assert.equal(stories.type, 'storyCards');
+  assert.equal(stories.items.length, 4);
+  const storyPatch = (body, auth = cookie) => fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/story-cards/${stories.id}`, {
+    method: 'PATCH', headers: { Cookie: auth, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const storyChanges = { title: 'Read our heroes’ stories.', items: structuredClone(stories.items) };
+  storyChanges.items[0].text = 'I have **curly hair**.';
+  storyChanges.items[0].backgroundColor = '#FFEEDD';
+  assert.equal((await storyPatch(storyChanges, otherCookie)).status, 404);
+  const storyResponse = await storyPatch(storyChanges);
+  assert.equal(storyResponse.status, 200);
+  const storySaved = (await storyResponse.json()).draft.content.stages[2].content[2];
+  assert.equal(storySaved.title, storyChanges.title);
+  assert.deepEqual(storySaved.items, storyChanges.items);
+  assert.equal((await storyPatch({ ...storyChanges, items: [] })).status, 400);
+  const storyRead = await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}`, { headers: { Cookie: cookie } });
+  assert.deepEqual((await storyRead.json()).draft.content.stages[2].content[2], storySaved);
   const exercise = draft.content.stages[0].content[1];
   const endpoint = `${baseUrl}/api/lesson-drafts/${draft.id}/odd-one-out/${exercise.id}`;
   const patch = (body, auth = cookie) => fetch(endpoint, {

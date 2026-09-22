@@ -305,6 +305,14 @@
       },
       onError: showToast,
     }),
+    storyCards: () => ({
+      onSave: state.draftStatus === 'review' ? saveStoryCards : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onMessage: showToast,
+    }),
     textReading: () => ({
       onSave: state.draftStatus === 'review' ? saveTextReading : undefined,
       onDirtyChange: (dirty, componentId) => {
@@ -800,6 +808,31 @@
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить аудиоплеер.');
+      throw error;
+    }
+  }
+
+  async function saveStoryCards(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/story-cards/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить карточки историй.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findComponent(state.lesson, 'storyCards', componentId);
+      if (!saved) throw new Error('Сохранённые карточки историй не найдены в черновике.');
+      showToast('Карточки историй сохранены.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить карточки историй.');
       throw error;
     }
   }

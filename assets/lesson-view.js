@@ -23,6 +23,7 @@
     factOrMyth: ['FactOrMythComponent', 'renderFactOrMyth'],
     multipleChoice: ['MultipleChoiceComponent', 'renderMultipleChoice'],
     checkboxChoice: ['CheckboxChoiceComponent', 'renderCheckboxChoice'],
+    storyCards: ['StoryCardsComponent', 'renderStoryCards'],
     textReading: ['TextReadingComponent', 'renderTextReading'],
     audioPlayer: ['AudioPlayerComponent', 'renderAudioPlayer'],
     markdownCard: ['MarkdownCardComponent', 'renderMarkdownCard'],

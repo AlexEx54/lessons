@@ -66,6 +66,7 @@ const {
   updatePersonalizedQuestions,
   updateTaskPrompt,
   updateTeacherNote,
+  updateStoryCards,
   updateTextReading,
   updateTextReadingImage,
   updateTextPanel,
@@ -965,6 +966,19 @@ function getAudioPlayerAudioRouteParams(pathname) {
     const values = match.slice(1).map(value => decodeURIComponent(value).trim());
     if (values.some(value => !value)) return null;
     return { draftId: values[0], componentId: values[1] };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getStoryCardsRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/story-cards\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
   } catch (_error) {
     return null;
   }
@@ -2080,6 +2094,7 @@ const server = http.createServer(async (req, res) => {
     const selfAssessmentRoute = getSelfAssessmentRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
+    const storyCardsRoute = getStoryCardsRouteParams(pathname);
     const textReadingRoute = getTextReadingRouteParams(pathname);
     const audioPlayerRoute = getAudioPlayerRouteParams(pathname);
     const miniSituationRoute = getMiniSituationRouteParams(pathname);
@@ -2103,6 +2118,7 @@ const server = http.createServer(async (req, res) => {
       && (!selfAssessmentRoute || !selfAssessmentRoute.draftId || !selfAssessmentRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)
+      && (!storyCardsRoute || !storyCardsRoute.draftId || !storyCardsRoute.componentId)
       && (!textReadingRoute || !textReadingRoute.draftId || !textReadingRoute.componentId)
       && (!audioPlayerRoute || !audioPlayerRoute.draftId || !audioPlayerRoute.componentId)
       && (!miniSituationRoute || !miniSituationRoute.draftId || !miniSituationRoute.componentId)) {
@@ -2287,6 +2303,9 @@ const server = http.createServer(async (req, res) => {
           accentColor: body.accentColor,
           showBorder: body.showBorder,
         }, database);
+      } else if (storyCardsRoute) {
+        draft = updateStoryCards({ id: storyCardsRoute.draftId, ownerAdminId: user.id,
+          componentId: storyCardsRoute.componentId, title: body.title, items: body.items }, database);
       } else if (textReadingRoute) {
         draft = updateTextReading({
           id: textReadingRoute.draftId,
