@@ -5,7 +5,7 @@
 
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s|^\s*(?:[-*+]\s|\d+\.\s)/m;
-  const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'items'];
+  const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'items', 'variant'];
   const ITEM_KEYS = ['id', 'question', 'options', 'answer', 'explanation'];
 
   function plainText(value, field, allowEmpty = false) {
@@ -81,7 +81,11 @@
     if (Object.keys(data).some(key => !COMPONENT_KEYS.includes(key))) {
       throw new Error('MultipleChoice contains unsupported fields.');
     }
+    if (data.variant !== undefined && data.variant !== 'compact') {
+      throw new Error('MultipleChoice only supports the compact variant.');
+    }
     return {
+      ...(data.variant ? { variant: data.variant } : {}),
       type: 'multipleChoice',
       id: data.id,
       title: plainText(data.title, 'a title'),
@@ -217,7 +221,8 @@
         button.dataset.pointerPart = `option:${item.id}:${optionIndex}`;
         const letter = doc.createElement('span');
         letter.className = 'multiple-choice__letter';
-        letter.textContent = optionLetter(optionIndex);
+        letter.textContent = current.variant === 'compact' ? '' : optionLetter(optionIndex);
+        if (current.variant === 'compact') letter.setAttribute('aria-hidden', 'true');
         const label = doc.createElement('span');
         label.className = 'multiple-choice__option-text';
         label.textContent = option;
@@ -273,6 +278,7 @@
     }
 
     function paintView() {
+      section.classList.toggle('multiple-choice--compact', current.variant === 'compact');
       itemNodes.clear();
       title.textContent = current.title;
       instruction.textContent = current.instruction;
@@ -372,7 +378,8 @@
             updateDirty();
           });
           const letter = doc.createElement('span');
-          letter.textContent = optionLetter(optionIndex);
+          letter.textContent = current.variant === 'compact' ? '' : optionLetter(optionIndex);
+        if (current.variant === 'compact') letter.setAttribute('aria-hidden', 'true');
           correct.append(radio, letter);
           const input = doc.createElement('input');
           input.type = 'text';
@@ -487,6 +494,7 @@
         candidate = normalizeMultipleChoice({
           type: 'multipleChoice',
           id: current.id,
+          ...(current.variant ? { variant: current.variant } : {}),
           title: draft.title,
           instruction: draft.instruction,
           items: draft.items,

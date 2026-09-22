@@ -34,6 +34,8 @@ function createFakeDocument() {
       get className() { return this._className; },
       set className(value) { this._className = String(value || ''); },
       classList: {
+        add(name) { this.toggle(name, true); },
+        remove(name) { this.toggle(name, false); },
         toggle(name, on) {
           const tokens = new Set(el._className.split(/\s+/).filter(Boolean));
           if (on === undefined) on = !tokens.has(name);
@@ -302,4 +304,30 @@ test('live choice reacts before sending, updates existing nodes without echo and
   }, createFakeDocument());
   byClass(teacher, 'multiple-choice__option')[0].click();
   assert.equal(byClass(teacher, 'multiple-choice__option--correct').length, 1);
+});
+
+test('compact variant survives normalization, live presentation, editing and answer updates', async () => {
+  const source = normalizeMultipleChoice(component({ variant: 'compact' }));
+  assert.equal(source.variant, 'compact');
+  assert.throws(() => normalizeMultipleChoice(component({ variant: 'unknown' })), /variant/);
+  const model = require('../assets/components/exercise-state.js');
+  assert.equal(model.presentation(source).variant, 'compact');
+  const node = renderMultipleChoice(source, {
+    viewerRole: 'student', onSave: async changes => ({ ...source, ...changes }),
+  }, createFakeDocument());
+  assert.ok(node.classList.contains('multiple-choice--compact'));
+  assert.ok(byClass(node, 'multiple-choice__letter').every(letter => letter.textContent === ''));
+  let buttons = byClass(node, 'multiple-choice__option');
+  buttons[0].click();
+  assert.ok(buttons[0].classList.contains('multiple-choice__option--wrong'));
+  buttons[1].click();
+  assert.ok(buttons[1].disabled);
+  node.updateState({});
+  assert.equal(buttons[1].disabled, false);
+  byClass(node, 'multiple-choice__edit')[0].click();
+  const save = byClass(node, 'multiple-choice__save')[0];
+  await save.listeners.click[0]();
+  assert.ok(node.classList.contains('multiple-choice--compact'));
+  buttons = byClass(node, 'multiple-choice__option');
+  assert.ok(buttons.every(button => !button.disabled));
 });

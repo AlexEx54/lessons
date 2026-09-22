@@ -269,3 +269,32 @@ test('snapshot feedback is not replayed and a disconnected pending drop releases
   assert.equal(chips[2].hidden, false);
   assert.ok(chips.slice(0, 2).every(chip => chip.hidden));
  });
+
+test('template two vocabulary propagates student answers to teacher views and resets', () => {
+  const { renderMultipleChoice } = require('../assets/components/multiple-choice.js');
+  const { studentComponent, teacherComponent, applyComponentAction, clearComponentState } = require('../lib/class-component-handlers.js');
+  const content = createSyntheticLesson('Superheroes', { template: 'template-2' }).stages[2].content;
+  for (const [type, render, actionType, selector] of [
+    ['multipleChoice', renderMultipleChoice, 'choose-option', '.multiple-choice__option'],
+    ['dropdownChoice', renderDropdownChoice, 'choose-word', 'select'],
+  ]) {
+    const component = content.find(item => item.type === type);
+    const state = { exercises: {} };
+    const projected = studentComponent(component, state);
+    if (type === 'multipleChoice') assert.equal(projected.presentation.variant, 'compact');
+    const teacherData = teacherComponent(component, state);
+    const teacher = render(teacherData, { presentation: teacherData.presentation, viewerRole: 'teacher', interactive: false }, createDocument());
+    const item = (component.items || component.choices)[0];
+    const action = { type: actionType, componentId: component.id, itemId: item.id, value: item.answer };
+    applyComponentAction({ component, state, action, role: 'student' });
+    assert.equal(state.exercises[component.id].answers[item.id].status, 'correct');
+    teacher.updateState(state.exercises[component.id]);
+    const node = teacher.querySelectorAll(selector)[0];
+    if (type === 'multipleChoice') assert.equal(node.getAttribute('aria-pressed'), 'true');
+    else assert.equal(node.value, item.answer);
+    clearComponentState({ component, state });
+    teacher.updateState(state.exercises[component.id] || {});
+    if (type === 'multipleChoice') assert.equal(node.getAttribute('aria-pressed'), 'false');
+    else assert.equal(node.value, '');
+  }
+});

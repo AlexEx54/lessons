@@ -89,6 +89,30 @@ test('template two creation and editing update the answer key atomically', async
   assert.equal(draft.template, 'template-2');
   assert.equal(draft.imageGeneration.total, 0);
   assert.ok(draft.content.stages.slice(3).every(s => s.content === null));
+  const vocabulary = draft.content.stages[2].content;
+  assert.deepEqual(vocabulary.map(c => c.type), ['teacherNote', 'markdownCard', 'storyCards', 'multipleChoice', 'dropdownChoice']);
+  const meanings = vocabulary[3];
+  const context = vocabulary[4];
+  assert.equal(meanings.variant, 'compact');
+  assert.equal(meanings.items.length, 10);
+  assert.ok(meanings.items.every(item => item.options.length === 2 && item.options.includes(item.answer)));
+  assert.equal(meanings.items.filter(item => item.options[0] === item.answer).length, 5);
+  assert.equal(context.choices.length, 8);
+  const { normalizeDropdownChoice } = require('../assets/components/dropdown-choice.js');
+  assert.deepEqual(normalizeDropdownChoice(context), context);
+  assert.match(vocabulary[0].blocks[1].text, /Task 3/);
+  assert.doesNotMatch(vocabulary[0].blocks[1].text, /matching|Task 4/);
+  for (const [component, route, changes] of [
+    [meanings, 'multiple-choice', { title: 'Updated meanings', instruction: meanings.instruction, items: meanings.items }],
+    [context, 'dropdown-choice', { title: 'Updated context', instruction: context.instruction, text: context.text, choices: context.choices, accentColor: context.accentColor }],
+  ]) {
+    const edited = await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/${route}/${component.id}`, {
+      method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(changes),
+    });
+    assert.equal(edited.status, 200);
+    const savedComponent = (await edited.json()).draft.content.stages[2].content.find(c => c.id === component.id);
+    assert.deepEqual(savedComponent, { ...component, ...changes });
+  }
   const stories = draft.content.stages[2].content[2];
   assert.equal(stories.type, 'storyCards');
   assert.equal(stories.items.length, 4);
