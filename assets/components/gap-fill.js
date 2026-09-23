@@ -12,7 +12,7 @@
   const DEFAULT_ACCENT_COLOR = '#17182D';
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s/m;
   const UNSUPPORTED_ACCENT_MARKUP = /<[^>]*>|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s/m;
-  const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'text', 'gaps', 'accentColor'];
+  const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'text', 'gaps', 'accentColor', 'studentVisibility'];
   const GAP_KEYS = ['id', 'answer', 'example'];
 
   function normalizeSpace(value) {
@@ -117,6 +117,9 @@
     if (Object.keys(data).some(key => !COMPONENT_KEYS.includes(key))) {
       throw new Error('GapFill contains unsupported fields.');
     }
+    if (data.studentVisibility != null && !['always', 'controlled'].includes(data.studentVisibility)) {
+      throw new Error('GapFill requires always or controlled studentVisibility.');
+    }
     const accentColor = data.accentColor == null
       ? DEFAULT_ACCENT_COLOR
       : String(data.accentColor).trim().toUpperCase();
@@ -139,6 +142,7 @@
       text: inlineGapText.serializeMarkedText(parts),
       gaps,
       accentColor,
+      ...(data.studentVisibility != null ? { studentVisibility: data.studentVisibility } : {}),
     };
   }
 
@@ -195,11 +199,39 @@
     cancelButton.className = 'gap-fill__cancel';
     cancelButton.textContent = 'Отмена';
     cancelButton.hidden = true;
+    const visibilityButton = doc.createElement('button');
+    visibilityButton.type = 'button';
+    visibilityButton.className = 'gap-fill__visibility';
+    let studentVisible = Boolean(settings.studentVisible);
+    function paintVisibility() {
+      const eye = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      eye.setAttribute('viewBox', '0 0 24 24');
+      eye.setAttribute('aria-hidden', 'true');
+      const outline = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
+      outline.setAttribute('d', 'M2.5 12s3.4-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.4 5.5-9.5 5.5S2.5 12 2.5 12Z M14.5 12a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0');
+      eye.append(outline);
+      visibilityButton.replaceChildren(eye, doc.createTextNode(studentVisible ? 'Скрыть' : 'Показать'));
+      visibilityButton.setAttribute('aria-label', studentVisible
+        ? 'Скрыть дополнительное упражнение у ученика' : 'Показать дополнительное упражнение ученику');
+      visibilityButton.setAttribute('aria-pressed', String(studentVisible));
+    }
+    section.updateStudentVisibility = value => { studentVisible = Boolean(value); paintVisibility(); };
+    section.setVisibilityInteractive = value => { visibilityButton.disabled = !value; };
+    visibilityButton.addEventListener('click', () => {
+      if (visibilityButton.disabled) return;
+      if (settings.onStudentVisibilityChange) settings.onStudentVisibilityChange(!studentVisible);
+      else section.updateStudentVisibility(!studentVisible);
+    });
+    paintVisibility();
+    section.setVisibilityInteractive(settings.visibilityInteractive !== false);
+    if ((settings.viewerRole || 'teacher') === 'teacher' && current.studentVisibility === 'controlled') {
+      headerActions.append(visibilityButton);
+    }
     header.append(title);
     if (typeof settings.onSave === 'function') {
       headerActions.append(cancelButton, editButton);
-      header.append(headerActions);
     }
+    header.append(headerActions);
     const instruction = doc.createElement('p');
     instruction.className = 'gap-fill__instruction';
     instruction.dataset.placeholder = 'Введите инструкцию';
@@ -506,6 +538,7 @@
 
     async function saveEditing() {
       const candidate = {
+        ...current,
         type: 'gapFill',
         id: current.id,
         title: title.textContent,

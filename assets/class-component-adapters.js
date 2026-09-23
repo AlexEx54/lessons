@@ -81,7 +81,7 @@
           exerciseState: session.state.exercises?.[component.id] || {},
           interactive: canAnswer(session),
           onAction: session.send,
-          ...(type === 'describeAndGuess' ? {
+          ...((type === 'describeAndGuess' || (type === 'gapFill' && (component.presentation || component).studentVisibility === 'controlled')) ? {
             studentVisible: Boolean(session.state.visibleCards?.[component.id]),
             visibilityInteractive: session.role === 'teacher' && session.connected,
             onStudentVisibilityChange: visible => session.send({ type: 'set-visibility', componentId: component.id, visible }),
@@ -117,7 +117,7 @@
           pending: session.pendingActions?.some(action => action.componentId === component.id && action.type === 'match-word'),
         });
         node.setInteractive(canAnswer(session));
-        if (type === 'describeAndGuess') {
+        if (type === 'describeAndGuess' || (type === 'gapFill' && (component.presentation || component).studentVisibility === 'controlled')) {
           node.updateStudentVisibility(Boolean(session.state.visibleCards?.[component.id]));
           node.setVisibilityInteractive(session.role === 'teacher' && session.connected);
         }

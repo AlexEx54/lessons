@@ -90,7 +90,7 @@ test('template two creation and editing update the answer key atomically', async
   assert.equal(draft.imageGeneration.total, 0);
   assert.ok(draft.content.stages.slice(3).every(s => s.content === null));
   const vocabulary = draft.content.stages[2].content;
-  assert.deepEqual(vocabulary.map(c => c.type), ['teacherNote', 'markdownCard', 'storyCards', 'multipleChoice', 'dropdownChoice']);
+  assert.deepEqual(vocabulary.map(c => c.type), ['teacherNote', 'markdownCard', 'storyCards', 'multipleChoice', 'dropdownChoice', 'dragWordsInText', 'gapFill', 'personalizedQuestions', 'markdownCard']);
   const meanings = vocabulary[3];
   const context = vocabulary[4];
   assert.equal(meanings.variant, 'compact');
@@ -101,10 +101,19 @@ test('template two creation and editing update the answer key atomically', async
   const { normalizeDropdownChoice } = require('../assets/components/dropdown-choice.js');
   assert.deepEqual(normalizeDropdownChoice(context), context);
   assert.match(vocabulary[0].blocks[1].text, /Task 3/);
-  assert.doesNotMatch(vocabulary[0].blocks[1].text, /matching|Task 4/);
+  assert.match(vocabulary[0].blocks[1].text, /Task 4/);
+  assert.match(vocabulary[0].blocks[1].text, /Task 5/);
+  assert.equal(vocabulary[5].words.length, 6);
+  assert.equal(vocabulary[6].gaps.length, 10);
+  assert.equal(vocabulary[6].studentVisibility, 'controlled');
+  assert.equal(vocabulary[7].items.length, 4);
+  assert.equal(vocabulary[8].studentVisibility, 'always');
   for (const [component, route, changes] of [
     [meanings, 'multiple-choice', { title: 'Updated meanings', instruction: meanings.instruction, items: meanings.items }],
     [context, 'dropdown-choice', { title: 'Updated context', instruction: context.instruction, text: context.text, choices: context.choices, accentColor: context.accentColor }],
+    [vocabulary[5], 'drag-words-in-text', { title: 'Updated drag words', instruction: vocabulary[5].instruction, words: vocabulary[5].words, text: vocabulary[5].text }],
+    [vocabulary[6], 'gap-fill', { title: 'Updated extra task', instruction: vocabulary[6].instruction, text: vocabulary[6].text, gaps: vocabulary[6].gaps }],
+    [vocabulary[7], 'personalized-questions', { title: 'Updated questions', instruction: vocabulary[7].instruction, items: vocabulary[7].items }],
   ]) {
     const edited = await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/${route}/${component.id}`, {
       method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(changes),

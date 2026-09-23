@@ -187,3 +187,16 @@
   .gap-fill__gap-editor { margin-inline: 2px; }
   .gap-fill__gap-fields { grid-template-columns: 1fr; }
 }
+
+.gap-fill__visibility {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #dcd6e8;
+  border-radius: 7px;
+  color: #6545f5;
+  background: #fff;
+  cursor: pointer;
+  font: 600 12px Inter, sans-serif;
+}
+.gap-fill__visibility { display: inline-flex; align-items: center; gap: 6px; }
+.gap-fill__visibility svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }

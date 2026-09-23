@@ -78,6 +78,7 @@ function createFakeDocument() {
   }
   return {
     createElement: tag => element(tag),
+    createElementNS: (_ns, tag) => element(tag),
     createTextNode: value => textNode(value),
   };
 }
@@ -238,4 +239,25 @@ test('gap fill is registered with editing, example placeholders, and responsive 
   assert.match(page, /components\/inline-gap-text\.js/);
   assert.match(page, /components\/gap-fill\.js/);
   assert.match(page, /components\/gap-fill\.css/);
+});
+
+
+test('controlled gap fill offers teacher visibility controls without changing ordinary exercises', () => {
+  const data = component({ studentVisibility: 'controlled' });
+  assert.equal(normalizeGapFill(data).studentVisibility, 'controlled');
+  assert.throws(() => normalizeGapFill(component({ studentVisibility: 'teacherOnly' })), /studentVisibility/);
+  assert.equal(byClass(renderGapFill(component(), createFakeDocument()), 'gap-fill__visibility').length, 0);
+  assert.equal(byClass(renderGapFill(data, { viewerRole: 'student' }, createFakeDocument()), 'gap-fill__visibility').length, 0);
+  const actions = [];
+  const section = renderGapFill(data, { onStudentVisibilityChange: value => actions.push(value) }, createFakeDocument());
+  const button = byClass(section, 'gap-fill__visibility')[0];
+  assert.equal(button.textContent, 'Показать');
+  button.listeners.click[0]();
+  assert.deepEqual(actions, [true]);
+  section.updateStudentVisibility(true);
+  assert.equal(button.textContent, 'Скрыть');
+  assert.equal(button.getAttribute('aria-pressed'), 'true');
+  section.setVisibilityInteractive(false);
+  button.listeners.click[0]();
+  assert.deepEqual(actions, [true]);
 });

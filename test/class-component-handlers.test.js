@@ -141,3 +141,59 @@ test('listening projects hidden transcripts and validates checkbox choices with 
   assert.equal(state.exercises[checkbox.id].answers[item.id].status, 'correct');
   assert.throws(() => applyComponentAction({ role: 'teacher', component: checkbox, state, action: correct }), { statusCode: 400 });
 });
+
+
+test('controlled gap fill visibility is teacher-only and hiding preserves answers until reset', () => {
+  const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+  const { clearComponentState } = require('../lib/class-component-handlers.js');
+  const component = createSyntheticLesson('Superheroes', { template: 'template-2' }).stages[2].content.find(c => c.type === 'gapFill');
+  const state = {};
+  const act = (action, role = 'teacher') => applyComponentAction({ component, state, action, role });
+  const answer = { type: 'type-answer', itemId: 'suit-gap', value: '  SUPERHERO   suit ' };
+  assert.equal(studentComponent(component, state), null);
+  assert.throws(() => act(answer, 'student'), { statusCode: 403 });
+  assert.throws(() => act({ type: 'set-visibility', visible: true }, 'student'), { statusCode: 403 });
+  assert.throws(() => act({ type: 'set-visibility', visible: 'yes' }), { statusCode: 400 });
+  act({ type: 'set-visibility', visible: true });
+  assert.ok(studentComponent(component, state));
+  act(answer, 'student');
+  assert.equal(state.exercises[component.id].answers['suit-gap'].status, 'correct');
+  act({ type: 'set-visibility', visible: false });
+  assert.equal(studentComponent(component, state), null);
+  assert.throws(() => act(answer, 'student'), { statusCode: 403 });
+  act({ type: 'set-visibility', visible: true });
+  assert.equal(state.exercises[component.id].answers['suit-gap'].value, answer.value);
+  clearComponentState({ component, state });
+  assert.equal(studentComponent(component, state), null);
+  assert.equal(state.exercises[component.id], undefined);
+  const ordinary = { ...component, studentVisibility: 'always' };
+  assert.ok(studentComponent(ordinary, state));
+  assert.throws(() => applyComponentAction({ component: ordinary, state, role: 'teacher', action: { type: 'set-visibility', visible: false } }));
+});
+
+
+test('controlled gap fill adapter sends visibility and applies acknowledged state', () => {
+  const fs = require('node:fs');
+  const vm = require('node:vm');
+  const window = {};
+  vm.runInNewContext(fs.readFileSync(require.resolve('../assets/class-component-adapters.js'), 'utf8'), { window });
+  const component = { type: 'gapFill', id: 'extra', presentation: { studentVisibility: 'controlled' } };
+  const sent = [];
+  const session = { role: 'teacher', connected: true, state: {}, send: action => sent.push(action) };
+  const options = window.ClassComponentAdapters.options(component, session);
+  assert.equal(options.studentVisible, false);
+  options.onStudentVisibilityChange(true);
+  assert.equal(sent[0].type, 'set-visibility');
+  assert.equal(sent[0].componentId, 'extra');
+  window.ClassComponentAdapters.preview(component, session.state, sent[0]);
+  let visible, enabled;
+  const node = { updateState() {}, setInteractive() {},
+    updateStudentVisibility(value) { visible = value; },
+    setVisibilityInteractive(value) { enabled = value; } };
+  window.ClassComponentAdapters.update(node, component, session);
+  assert.equal(visible, true);
+  assert.equal(enabled, true);
+  session.connected = false;
+  window.ClassComponentAdapters.update(node, component, session);
+  assert.equal(enabled, false);
+});
