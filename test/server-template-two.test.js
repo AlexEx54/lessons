@@ -88,7 +88,25 @@ test('template two creation and editing update the answer key atomically', async
   const draft = (await response.json()).draft;
   assert.equal(draft.template, 'template-2');
   assert.equal(draft.imageGeneration.total, 0);
-  assert.ok(draft.content.stages.slice(3).every(s => s.content === null));
+  assert.ok(draft.content.stages.slice(4).every(s => s.content === null));
+  assert.equal(draft.content.stages[3].id, 'watch-and-interact');
+  assert.equal(draft.content.stages[3].number, 4);
+  const [watchNote, prediction, discussion] = draft.content.stages[3].content;
+  assert.equal(watchNote.type, 'teacherNote');
+  assert.equal(prediction.mode, 'guess');
+  for (const [component, route, changes] of [
+    [prediction, 'multiple-choice', { title: 'Updated prediction', instruction: prediction.instruction,
+      items: [{ ...prediction.items[0], options: ['A superhero', 'A lizard', 'A teenager'] }] }],
+    [discussion, 'markdown-cards', { title: discussion.title,
+      sections: discussion.sections.map(section => ({ ...section, text: section.text + ' More.' })) }],
+  ]) {
+    const edited = await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/${route}/${component.id}`, {
+      method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(changes),
+    });
+    assert.equal(edited.status, 200);
+    const saved = (await edited.json()).draft.content.stages[3].content.find(item => item.id === component.id);
+    assert.deepEqual(saved, { ...component, ...changes });
+  }
   const vocabulary = draft.content.stages[2].content;
   assert.deepEqual(vocabulary.map(c => c.type), ['teacherNote', 'markdownCard', 'storyCards', 'multipleChoice', 'dropdownChoice', 'dragWordsInText', 'gapFill', 'personalizedQuestions', 'markdownCard']);
   const meanings = vocabulary[3];

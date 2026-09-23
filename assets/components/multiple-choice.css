@@ -90,7 +90,7 @@
   font: 500 13px/1.4 Inter, sans-serif;
 }
 
-.multiple-choice__option:hover:not(:disabled):not(.multiple-choice__option--correct):not(.multiple-choice__option--wrong) {
+.multiple-choice__option:hover:not(:disabled):not(.multiple-choice__option--correct):not(.multiple-choice__option--wrong):not(.multiple-choice__option--selected) {
   border-color: #cfc8e8;
   background: #fcfbff;
 }
@@ -433,3 +433,10 @@
   .multiple-choice--compact .multiple-choice__items { columns: 1; }
   .multiple-choice--compact .multiple-choice__option { min-height: 44px; }
 }
+
+.multiple-choice__option--selected {
+  border-color: #8257e5;
+  background: #f2edff;
+}
+
+.multiple-choice__editor-correct[hidden] { display: none; }

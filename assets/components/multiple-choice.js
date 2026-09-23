@@ -5,7 +5,7 @@
 
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s|^\s*(?:[-*+]\s|\d+\.\s)/m;
-  const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'items', 'variant'];
+  const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'items', 'variant', 'mode'];
   const ITEM_KEYS = ['id', 'question', 'options', 'answer', 'explanation'];
 
   function plainText(value, field, allowEmpty = false) {
@@ -28,13 +28,17 @@
     return viewerRole === 'teacher';
   }
 
-  function normalizeOptions(options, answer) {
+  function normalizeOptions(options, answer, mode) {
     if (!Array.isArray(options) || options.length < 2 || options.length > 8) {
       throw new Error('MultipleChoice items require between 2 and 8 options.');
     }
     const normalized = options.map(option => plainText(option, 'an option'));
     if (new Set(normalized).size !== normalized.length) {
       throw new Error('MultipleChoice options must be unique within each item.');
+    }
+    if (mode === 'guess') {
+      if (answer !== null) throw new Error('MultipleChoice guess requires a null answer.');
+      return { options: normalized, answer: null };
     }
     const normalizedAnswer = plainText(answer, 'an item answer');
     if (!normalized.includes(normalizedAnswer)) {
@@ -43,7 +47,7 @@
     return { options: normalized, answer: normalizedAnswer };
   }
 
-  function normalizeItems(items) {
+  function normalizeItems(items, mode) {
     if (!Array.isArray(items) || items.length < 1 || items.length > 12) {
       throw new Error('MultipleChoice requires between 1 and 12 items.');
     }
@@ -56,7 +60,7 @@
         throw new Error('MultipleChoice item ids must be unique kebab-case values.');
       }
       ids.add(item.id);
-      const choice = normalizeOptions(item.options, item.answer);
+      const choice = normalizeOptions(item.options, item.answer, mode);
       const next = {
         id: item.id,
         question: plainText(item.question, 'an item question'),
@@ -84,13 +88,17 @@
     if (data.variant !== undefined && data.variant !== 'compact') {
       throw new Error('MultipleChoice only supports the compact variant.');
     }
+    if (data.mode !== undefined && !['check', 'guess'].includes(data.mode)) {
+      throw new Error('MultipleChoice requires a supported mode.');
+    }
     return {
+      ...(data.mode ? { mode: data.mode } : {}),
       ...(data.variant ? { variant: data.variant } : {}),
       type: 'multipleChoice',
       id: data.id,
       title: plainText(data.title, 'a title'),
       instruction: plainText(data.instruction, 'an instruction'),
-      items: normalizeItems(data.items),
+      items: normalizeItems(data.items, data.mode),
     };
   }
 
@@ -170,13 +178,15 @@
 
     function applyItemState(item, nodes) {
       const selected = exerciseState.answers?.[item.id]?.value;
-      const locked = selected === item.answer;
+      const guessing = current.mode === 'guess';
+      const locked = !guessing && selected === item.answer;
       item.options.forEach((option, index) => {
         const button = nodes.buttons[index];
         const isSelected = selected === option;
-        const isCorrect = option === item.answer;
+        const isCorrect = !guessing && option === item.answer;
+        button.classList.toggle('multiple-choice__option--selected', guessing && isSelected);
         button.classList.toggle('multiple-choice__option--correct', isSelected && isCorrect);
-        button.classList.toggle('multiple-choice__option--wrong', isSelected && !isCorrect);
+        button.classList.toggle('multiple-choice__option--wrong', isSelected && !isCorrect && !guessing);
         button.classList.toggle('multiple-choice__option--hint', hintCorrect && isCorrect && !locked);
         button.disabled = locked || !interactive;
         button.setAttribute('aria-pressed', String(isSelected));
@@ -186,7 +196,7 @@
       nodes.status.textContent = locked
         ? `Вопрос верный.`
         : selected
-          ? 'Неверный вариант. Попробуйте ещё раз.'
+          ? guessing ? 'Предположение выбрано.' : 'Неверный вариант. Попробуйте ещё раз.'
           : '';
     }
 
@@ -236,7 +246,7 @@
           const action = { type: 'choose-option', componentId: current.id, itemId: item.id, value: option };
           updateState(model.apply(current, exerciseState, action));
           if (typeof settings.onAction === 'function') settings.onAction(action);
-          if (typeof settings.onActivity === 'function') {
+          if (current.mode !== 'guess' && typeof settings.onActivity === 'function') {
             settings.onActivity(current.id, item.id, option === item.answer ? 'correct' : 'wrong');
           }
         });
@@ -381,6 +391,7 @@
           letter.textContent = current.variant === 'compact' ? '' : optionLetter(optionIndex);
         if (current.variant === 'compact') letter.setAttribute('aria-hidden', 'true');
           correct.append(radio, letter);
+          correct.hidden = current.mode === 'guess';
           const input = doc.createElement('input');
           input.type = 'text';
           input.value = option;
@@ -405,7 +416,7 @@
           });
           const removeOption = controlButton('×', `Удалить вариант ${optionLetter(optionIndex)}`, () => {
             const [removed] = item.options.splice(optionIndex, 1);
-            if (item.answer === removed) item.answer = item.options[0] || '';
+            if (item.answer === removed) item.answer = current.mode === 'guess' ? null : item.options[0] || '';
             paintEditor();
             updateDirty();
           }, 'multiple-choice__remove');
@@ -427,10 +438,10 @@
           field('Вопрос', item.question, value => { item.question = value; updateDirty(); }, true),
           options,
           addOption,
-          field('Пояснение к правильному ответу', item.explanation || '', value => {
+          ...(current.mode === 'guess' ? [] : [field('Пояснение к правильному ответу', item.explanation || '', value => {
             item.explanation = value;
             updateDirty();
-          }, true),
+          }, true)]),
         );
         rows.append(row);
       });
@@ -442,7 +453,7 @@
           id: makeItemId(),
           question: '',
           options: ['', ''],
-          answer: '',
+          answer: current.mode === 'guess' ? null : '',
           explanation: '',
         });
         paintEditor();
@@ -494,6 +505,7 @@
         candidate = normalizeMultipleChoice({
           type: 'multipleChoice',
           id: current.id,
+          ...(current.mode ? { mode: current.mode } : {}),
           ...(current.variant ? { variant: current.variant } : {}),
           title: draft.title,
           instruction: draft.instruction,

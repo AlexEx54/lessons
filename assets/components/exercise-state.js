@@ -93,7 +93,7 @@
       if (!item || !item.options.includes(action.value)) fail('Вариант не найден.');
       if (previous.answers?.[item.id]?.status === 'correct') fail('Ответ уже верный.');
       return { ...previous, answers: { ...previous.answers, [item.id]: {
-        value: action.value, status: selectionState(action.value, item.answer),
+        value: action.value, status: component.mode === 'guess' ? 'pending' : selectionState(action.value, item.answer),
       } } };
     }
     if (component.type === 'checkboxChoice') {

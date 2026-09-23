@@ -331,3 +331,55 @@ test('compact variant survives normalization, live presentation, editing and ans
   buttons = byClass(node, 'multiple-choice__option');
   assert.ok(buttons.every(button => !button.disabled));
 });
+
+test('guess mode stays neutral, synchronizes selections and permits changing them', () => {
+  const data = normalizeMultipleChoice(component({ mode: 'guess', items: [{
+    id: 'prediction', question: 'What happens next?', options: ['One', 'Two'], answer: null,
+  }] }));
+  const { studentComponent, applyComponentAction } = require('../lib/class-component-handlers.js');
+  const state = { exercises: {} };
+  const activities = [];
+  const teacher = renderMultipleChoice(data, { onActivity: (...args) => activities.push(args) }, createFakeDocument());
+  const student = renderMultipleChoice(data, { viewerRole: 'student',
+    presentation: studentComponent(data, state).presentation,
+    onAction: action => {
+      applyComponentAction({ role: 'student', component: data, action, state });
+      teacher.updateState(state.exercises[data.id]);
+    },
+  }, createFakeDocument());
+  const buttons = byClass(student, 'multiple-choice__option');
+  for (const [index, value] of ['One', 'Two'].entries()) {
+    buttons[index].click();
+    assert.deepEqual(state.exercises[data.id].answers.prediction, { value, status: 'pending' });
+    for (const view of [teacher, student]) {
+      const options = byClass(view, 'multiple-choice__option');
+      assert.equal(options[index].classList.contains('multiple-choice__option--selected'), true);
+      assert.equal(options[1 - index].classList.contains('multiple-choice__option--selected'), false);
+      assert.ok(options.every(option => !option.disabled && !/--(wrong|correct|hint)/.test(option.className)));
+    }
+  }
+  byClass(teacher, 'multiple-choice__option')[0].click();
+  assert.deepEqual(activities, []);
+  assert.throws(() => normalizeMultipleChoice({ ...data, mode: 'invalid' }), /mode/);
+  assert.throws(() => normalizeMultipleChoice({ ...data, items: [{ ...data.items[0], answer: 'One' }] }), /null answer/);
+});
+
+test('guess editor preserves null answers and hides grading controls', async () => {
+  const data = normalizeMultipleChoice(component({ mode: 'guess', items: [{
+    id: 'prediction', question: 'What happens next?', options: ['One', 'Two'], answer: null,
+  }] }));
+  let saved;
+  const node = renderMultipleChoice(data, {
+    onSave: async changes => { saved = { ...data, ...changes }; return saved; },
+    onError: message => assert.fail(message),
+  }, createFakeDocument());
+  byClass(node, 'multiple-choice__edit')[0].click();
+  assert.ok(byClass(node, 'multiple-choice__editor-correct').every(control => control.hidden));
+  await byClass(node, 'multiple-choice__save')[0].listeners.click[0]();
+  assert.equal(saved.mode, 'guess');
+  assert.equal(saved.items[0].answer, null);
+  const buttons = byClass(node, 'multiple-choice__option');
+  buttons[0].click();
+  assert.ok(buttons[0].classList.contains('multiple-choice__option--selected'));
+  assert.ok(buttons.every(button => !button.disabled));
+});

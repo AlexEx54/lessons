@@ -32,6 +32,7 @@
     if (data.headingSize != null && !HEADING_SIZES.has(data.headingSize)) {
       throw new Error('MarkdownCard requires a supported headingSize.');
     }
+    if (data.variant != null && data.variant !== 'discussion') throw new Error('MarkdownCard requires a supported variant.');
     const hasText = data.text != null;
     const hasSections = data.sections != null;
     if (hasText === hasSections) {
@@ -46,6 +47,7 @@
       accentColor,
       studentVisibility: data.studentVisibility,
     };
+    if (data.variant != null) normalized.variant = data.variant;
     if (data.headingSize != null) normalized.headingSize = data.headingSize;
     if (hasText) {
       const text = typeof data.text === 'string' ? data.text.trim() : '';
@@ -179,6 +181,7 @@
     const card = doc.createElement('aside');
     card.className = 'markdown-card';
     card.dataset.componentId = current.id;
+    card.dataset.variant = current.variant || 'default';
     card.dataset.icon = current.icon;
     card.dataset.studentVisibility = current.studentVisibility;
     card.dataset.headingSize = current.headingSize || 'default';

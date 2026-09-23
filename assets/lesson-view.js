@@ -59,6 +59,10 @@
         ['path', { d: 'M12 6.2c-1.8-1.2-4.6-1.8-7.5-1.8v13.8c2.9 0 5.7.6 7.5 1.8 1.8-1.2 4.6-1.8 7.5-1.8V4.4c-2.9 0-5.7.6-7.5 1.8z' }],
         ['path', { d: 'M12 6.2v13.8' }],
       ],
+      video: [
+        ['rect', { x: '3', y: '5', width: '18', height: '14', rx: '3' }],
+        ['path', { d: 'm10 9 5 3-5 3z', fill: 'currentColor', stroke: 'none' }],
+      ],
       audio: [
         ['path', { d: 'M4 13v-1a8 8 0 0 1 16 0v1' }],
         ['path', { d: 'M4 13v3.5A2.5 2.5 0 0 0 6.5 19H8v-6H4z' }],
@@ -85,6 +89,7 @@
       pencil: 'pencil',
       cards: 'cards',
       book: 'book',
+      video: 'video',
       audio: 'audio',
       cap: 'cap',
       chat: 'chat',
@@ -122,7 +127,8 @@
       number.textContent = String(stage.number);
       const icon = document.createElement('span');
       icon.className = 'lesson-stage__icon';
-      icon.append(createStageIcon(stage.icon));
+      // Older saved drafts used the book icon for this stage.
+      icon.append(createStageIcon(stage.id === 'watch-and-interact' ? 'video' : stage.icon));
       const title = document.createElement('span');
       title.className = 'lesson-stage__title';
       title.textContent = stage.title;
