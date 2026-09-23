@@ -323,6 +323,10 @@
       onDelete: state.draftStatus === 'review' ? deleteTextReadingImage : undefined,
       onMessage: showToast,
     }),
+    videoPlayer: () => ({
+      onUpload: state.draftStatus === 'review' ? (file, id) => updateVideo('PUT', id, file) : undefined,
+      onDelete: state.draftStatus === 'review' ? id => updateVideo('DELETE', id) : undefined,
+    }),
     audioPlayer: () => ({
       onSave: state.draftStatus === 'review' ? saveAudioPlayer : undefined,
       onDirtyChange: (dirty, componentId) => {
@@ -625,6 +629,17 @@
 
   function deleteTextReadingImage(componentId, side) {
     return updateTextReadingImage('DELETE', componentId, side);
+  }
+
+  async function updateVideo(method, componentId, file) {
+    const response = await fetch(`/api/lesson-drafts/${encodeURIComponent(state.draftId)}/video-player/${encodeURIComponent(componentId)}/video`, {
+      method, headers: file ? { 'Content-Type': 'video/mp4' } : undefined, body: file,
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить видео.');
+    state.lesson = payload.draft.content;
+    state.draftStatus = payload.draft.status;
+    return findComponent(state.lesson, 'videoPlayer', componentId);
   }
 
   function audioPlayerAudioUrl(componentId) {

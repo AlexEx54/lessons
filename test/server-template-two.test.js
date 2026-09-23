@@ -91,9 +91,10 @@ test('template two creation and editing update the answer key atomically', async
   assert.ok(draft.content.stages.slice(4).every(s => s.content === null));
   assert.equal(draft.content.stages[3].id, 'watch-and-interact');
   assert.equal(draft.content.stages[3].number, 4);
-  const [watchNote, prediction, discussion] = draft.content.stages[3].content;
+  const [watchNote, prediction, video, discussion] = draft.content.stages[3].content;
   assert.equal(watchNote.type, 'teacherNote');
   assert.equal(prediction.mode, 'guess');
+  assert.equal(video.type, 'videoPlayer');
   for (const [component, route, changes] of [
     [prediction, 'multiple-choice', { title: 'Updated prediction', instruction: prediction.instruction,
       items: [{ ...prediction.items[0], options: ['A superhero', 'A lizard', 'A teenager'] }] }],

@@ -9,6 +9,10 @@
   let confirmed, inFlight = false, pending = [], reconnectDelay = 500;
   const viewState = { lesson: null, activeIndex: 0 };
   let availableStageIds = [];
+  let peerPresent = false;
+  function sendMedia(message) {
+    if (connected && socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ ...message, stageId: confirmed.activeStageId }));
+  }
   let feedback = false;
   let pointerComponentIds = [];
   const pointer = window.ClassPointer?.create({ role, notify, send: message => {
@@ -57,7 +61,7 @@
     const stage = viewState.lesson?.stages.find(stage => stage.id === action.stageId);
     return stage && window.ComponentTree.collectComponents([stage]).find(component => component.id === action.componentId);
   }
-  function session(state = confirmed) { return { role, connected, state, send: enqueue, pendingActions: pending, feedback }; }
+  function session(state = confirmed) { return { role, connected, peerPresent, sendMedia, state, send: enqueue, pendingActions: pending, feedback }; }
   function enqueue(action) {
     if (!connected) { paint(); return; }
     pending.push({ ...action, stageId: action.stageId || confirmed.activeStageId });
@@ -131,9 +135,16 @@
     socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/classes/${classId}?role=${role}`);
     socket.addEventListener('message', event => {
       const message = JSON.parse(event.data);
+      if (['media-command', 'media-align', 'media-status'].includes(message.type)) {
+        if (message.stageId === confirmed?.activeStageId) view.mounted.get(message.componentId)?.receiveMedia?.(message);
+        return;
+      }
+      if (message.type === 'media-error') { notify(message.error); return; }
       if (message.type === 'pointer') { pointer?.receive(message); return; }
       if (message.type === 'pointer-error') { notify(message.error); return; }
       if (message.type === 'presence') {
+        peerPresent = message.peerPresent;
+        paint();
         setStatus(
           message.peerPresent ? (role === 'teacher' ? 'Ученик подключён' : 'Учитель подключён') : (role === 'teacher' ? 'Ожидаем ученика' : 'Ожидаем учителя'),
           message.peerPresent ? 'connected' : 'waiting',
@@ -153,6 +164,7 @@
     });
     socket.addEventListener('close', event => {
       connected = false;
+      peerPresent = false;
       pointer?.disconnect();
       if (pending.length) notify('Связь прервалась. Неподтверждённый выбор нужно повторить после подключения.');
       pending = [];

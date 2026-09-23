@@ -26,6 +26,7 @@
     storyCards: ['StoryCardsComponent', 'renderStoryCards'],
     textReading: ['TextReadingComponent', 'renderTextReading'],
     audioPlayer: ['AudioPlayerComponent', 'renderAudioPlayer'],
+    videoPlayer: ['VideoPlayerComponent', 'renderVideoPlayer'],
     markdownCard: ['MarkdownCardComponent', 'renderMarkdownCard'],
     cardRow: ['CardRowComponent', 'renderCardRow'],
   };

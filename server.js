@@ -1,4 +1,5 @@
 const http = require('http');
+const { receiveVideo, publishedVideoPath } = require('./lib/video-assets.js');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -44,6 +45,7 @@ const {
   retryLessonDraft,
   updateAudioPlayer,
   updateAudioPlayerAudio,
+  updateVideoPlayerVideo,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateDescribeAndGuess,
@@ -534,6 +536,7 @@ function getContentType(filePath) {
   if (ext === '.svg') return 'image/svg+xml';
   if (ext === '.png') return 'image/png';
   if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.mp4') return 'video/mp4';
   if (ext === '.mp3') return 'audio/mpeg';
   if (ext === '.wav') return 'audio/wav';
   if (ext === '.m4a') return 'audio/mp4';
@@ -1046,7 +1049,7 @@ function getMatchWordsImageRouteParams(pathname) {
 }
 
 function draftAssetPath(draftId, fileName) {
-  if (!/^[a-f0-9-]{36}$/i.test(draftId) || !/^[a-f0-9-]{36}\.(?:jpg|png|webp|mp3|wav|m4a)$/i.test(fileName)) {
+  if (!/^[a-f0-9-]{36}$/i.test(draftId) || !/^[a-f0-9-]{36}\.(?:jpg|png|webp|mp3|wav|m4a|mp4)$/i.test(fileName)) {
     return null;
   }
   const draftDirectory = path.join(DRAFT_ASSETS_DIR, draftId);
@@ -1055,7 +1058,7 @@ function draftAssetPath(draftId, fileName) {
 }
 
 function assetFileFromUrl(value) {
-  const match = String(value || '').match(/^\/api\/lesson-draft-assets\/([a-f0-9-]{36})\/([a-f0-9-]{36}\.(?:jpg|png|webp|mp3|wav|m4a))$/i);
+  const match = String(value || '').match(/^\/api\/lesson-draft-assets\/([a-f0-9-]{36})\/([a-f0-9-]{36}\.(?:jpg|png|webp|mp3|wav|m4a|mp4))$/i);
   return match ? draftAssetPath(match[1], match[2]) : null;
 }
 
@@ -1078,6 +1081,25 @@ function parseByteRange(header, total) {
     return null;
   }
   return { start, end: Math.min(end, total - 1) };
+}
+
+function sendVideoFile(req, res, absolute) {
+  let size;
+  try { size = fs.statSync(absolute).size; }
+  catch { json(res, 404, { error: 'Видео не найдено.' }); return; }
+  const range = req.method !== 'HEAD' && req.headers.range ? parseByteRange(req.headers.range, size) : null;
+  if (req.method !== 'HEAD' && req.headers.range && !range) {
+    res.writeHead(416, { 'Content-Range': `bytes */${size}` }); res.end(); return;
+  }
+  const headers = { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600',
+    'Content-Length': range ? range.end - range.start + 1 : size };
+  if (range) headers['Content-Range'] = `bytes ${range.start}-${range.end}/${size}`;
+  res.writeHead(range ? 206 : 200, headers);
+  if (req.method === 'HEAD') { res.end(); return; }
+  const stream = fs.createReadStream(absolute, range || {});
+  stream.on('error', () => res.destroy());
+  res.on('close', () => stream.destroy());
+  stream.pipe(res);
 }
 
 function sendDraftAsset(res, absolute, data, rangeHeader) {
@@ -1371,12 +1393,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const libraryAsset = pathname.match(/^\/api\/library\/([a-z0-9-]+)\/assets\/([a-f0-9]{64}\.(?:jpg|png|webp|mp3|wav|m4a))$/i);
+  const libraryAsset = pathname.match(/^\/api\/library\/([a-z0-9-]+)\/assets\/([a-f0-9]{64}\.(?:jpg|png|webp|mp3|wav|m4a|mp4))$/i);
   if (libraryAsset && ['GET', 'HEAD'].includes(req.method)) {
     const user = requireTeacherAuth(req, res);
     if (!user) return;
     const data = findLibraryAsset(libraryAsset[1], libraryAsset[2], database, user.id);
     if (!data) { json(res, 404, { error: 'Файл недоступен.' }); return; }
+    if (libraryAsset[2].endsWith('.mp4')) { sendVideoFile(req, res, publishedVideoPath(DRAFT_ASSETS_DIR, data)); return; }
     if (req.method === 'HEAD') {
       res.writeHead(200, { 'Content-Type': getContentType(libraryAsset[2]), 'Content-Length': data.length, 'Cache-Control': 'private, no-store' });
       res.end();
@@ -1472,7 +1495,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const classAsset = pathname.match(/^\/api\/classes\/([a-f0-9-]{36})\/assets\/([a-f0-9]{64}\.(?:jpg|png|webp|mp3|wav|m4a))$/i);
+  const classAsset = pathname.match(/^\/api\/classes\/([a-f0-9-]{36})\/assets\/([a-f0-9]{64}\.(?:jpg|png|webp|mp3|wav|m4a|mp4))$/i);
   if (classAsset && ['GET', 'HEAD'].includes(req.method)) {
     const user = getAuthenticatedUser(req, database);
     const guest = authorizeClass(req, classAsset[1], database, 'student');
@@ -1484,6 +1507,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (!user && !guest) { json(res, 401, { error: 'Требуется доступ к классу.' }); return; }
     if (!data) { json(res, 404, { error: 'Файл недоступен.' }); return; }
+    if (classAsset[2].endsWith('.mp4')) { sendVideoFile(req, res, publishedVideoPath(DRAFT_ASSETS_DIR, data)); return; }
     if (req.method === 'HEAD') {
       res.writeHead(200, { 'Content-Type': getContentType(classAsset[2]), 'Content-Length': data.length, 'Cache-Control': 'private, no-store' });
       res.end();
@@ -1622,6 +1646,7 @@ const server = http.createServer(async (req, res) => {
       json(res, 404, { error: 'Файл не найден.' });
       return;
     }
+    if (absolute.endsWith('.mp4')) { sendVideoFile(req, res, absolute); return; }
     fs.stat(absolute, (statError, stats) => {
       if (statError || !stats.isFile()) {
         json(res, 404, { error: 'Файл не найден.' });
@@ -1933,6 +1958,33 @@ const server = http.createServer(async (req, res) => {
   }
 
   if ((req.method === 'PUT' || req.method === 'DELETE') && pathname.startsWith('/api/lesson-drafts/')) {
+    const videoRoute = pathname.match(/^\/api\/lesson-drafts\/([a-f0-9-]{36})\/video-player\/([a-z0-9-]+)\/video$/i);
+    if (videoRoute) {
+      const user = requireAdminAuth(req, res);
+      if (!user) return;
+      let newFile;
+      try {
+        const identity = { id: videoRoute[1], ownerAdminId: user.id, componentId: videoRoute[2] };
+        updateVideoPlayerVideo(identity, database); // Authorize before receiving bytes.
+        let videoSrc = null;
+        if (req.method === 'PUT') {
+          const fileName = `${crypto.randomUUID()}.mp4`;
+          newFile = draftAssetPath(identity.id, fileName);
+          fs.mkdirSync(path.dirname(newFile), { recursive: true });
+          await receiveVideo(req, newFile);
+          videoSrc = `/api/lesson-draft-assets/${identity.id}/${fileName}`;
+        }
+        const result = updateVideoPlayerVideo({ ...identity, videoSrc }, database);
+        const previous = assetFileFromUrl(result.previousVideoSrc);
+        if (previous) fs.rmSync(previous, { force: true });
+        json(res, 200, { draft: result.draft });
+      } catch (error) {
+        if (newFile) fs.rmSync(newFile, { force: true });
+        json(res, error.statusCode || 500, { error: error.message });
+      }
+      return;
+    }
+
     const audioPlayerAudioRoute = getAudioPlayerAudioRouteParams(pathname);
     if (audioPlayerAudioRoute) {
       const user = requireAdminAuth(req, res);

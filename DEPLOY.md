@@ -116,3 +116,23 @@ expires, until its owner clears the history. Rotating an active invite still
 revokes the previous link. Archive requests do not provide ICE credentials or
 permit WebSocket/video access. Anyone holding the current link can read the chat
 and download its attachments.
+
+### Watch & interact videos
+
+Install `ffprobe` (provided by the `ffmpeg` package) on the server, or set
+`FFPROBE_PATH` to its executable. Upload validation accepts MP4 with H.264 video
+and optional AAC audio, up to 300 MiB. No transcoding is performed.
+The reverse proxy must permit 300 MiB request bodies (nginx:
+`client_max_body_size 300m;`) and allow sufficient upload time.
+
+Video uploads stream into `DRAFT_ASSETS_DIR`. Published immutable copies live in
+`DRAFT_ASSETS_DIR/_videos`; MP4 rows in `library_assets` and `class_assets` contain
+small JSON file references instead of video bytes. Classes share the published
+file. Back up this directory together with SQLite. Do not delete published files
+when replacing draft videos: existing classes still reference them. Automatic
+collection of unreferenced published videos is not implemented.
+
+Class media signals use the existing authenticated class WebSocket. Play/pause
+contains no position; seeking stays local. Only the teacher can align the student
+to the teacher's position. Student status is transient; playback is paused on
+stage changes and disconnection and is not restored as playing after reconnect.

@@ -2,6 +2,10 @@
   'use strict';
   const canAnswer = session => session.connected && ['teacher', 'student'].includes(session.role);
   const adapters = new Map([
+    ['videoPlayer', {
+      options(component, session) { return { viewerRole: session.role, connected: session.connected, peerPresent: session.peerPresent, sendMedia: session.sendMedia }; },
+      update(node, component, session) { node.setMediaConnection(session.connected, session.peerPresent); },
+    }],
     ['guidedRoleCards', {
       options: component => ({ presentation: component.presentation }),
     }],
