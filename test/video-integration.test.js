@@ -43,7 +43,7 @@ test('video upload, immutable publication, range access and class media signals'
   const uploaded = await request(route, { method: 'PUT', body: bytes });
   assert.equal(uploaded.status, 200, await uploaded.clone().text());
   let draft = (await uploaded.json()).draft;
-  const question = { id: 'q-1', atMs: 100, mode: 'multiple', text: 'What did you see?', options: [
+  const question = { id: 'q-1', atMs: 100, mode: 'multiple', layout: 'horizontal', wrongFeedback: 'Try again.', text: 'What did you see?', options: [
     { id: 'a', text: 'First' }, { id: 'b', text: 'Second' }, { id: 'c', text: 'Third' },
   ], correctOptionIds: ['a', 'c'] };
   const questionRoute = route.replace(/video$/, 'questions');

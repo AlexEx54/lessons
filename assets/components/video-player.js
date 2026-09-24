@@ -8,6 +8,8 @@
       if (!q || typeof q.id !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(q.id) || ids.has(q.id)
         || !Number.isSafeInteger(q.atMs) || q.atMs < 0 || q.atMs > 86400000
         || (Number.isFinite(durationMs) && q.atMs >= durationMs)
+        || !['vertical', 'horizontal'].includes(q.layout)
+        || (q.wrongFeedback !== undefined && (typeof q.wrongFeedback !== 'string' || q.wrongFeedback.length > 1000))
         || !['single', 'multiple'].includes(q.mode) || typeof q.text !== 'string' || !q.text.trim() || q.text.length > 1000
         || !Array.isArray(q.options) || q.options.length < 2 || q.options.length > 8) fail();
       ids.add(q.id);
@@ -22,7 +24,7 @@
         || new Set(q.correctOptionIds).size !== q.correctOptionIds.length
         || q.correctOptionIds.some(id => !optionIds.has(id))
         || (q.mode === 'single' && q.correctOptionIds.length !== 1)) fail();
-      return { id: q.id, atMs: q.atMs, mode: q.mode, text: q.text.trim(), options, correctOptionIds: [...q.correctOptionIds] };
+      return { id: q.id, atMs: q.atMs, mode: q.mode, layout: q.layout, wrongFeedback: (q.wrongFeedback || '').trim(), text: q.text.trim(), options, correctOptionIds: [...q.correctOptionIds] };
     }).sort((a, b) => a.atMs - b.atMs || a.id.localeCompare(b.id));
   }
   function normalizeVideoPlayer(data) {
@@ -102,9 +104,43 @@
     const volume = doc.createElement('input'); volume.type = 'range'; volume.min = '0'; volume.max = '1'; volume.step = '0.05'; volume.value = '1'; volume.setAttribute('aria-label', 'Громкость');
     volume.addEventListener('input', () => { video.volume = Number(volume.value); }); transport.append(volume);
     button('⛶', () => section.requestFullscreen?.().catch(() => {})).setAttribute('aria-label', 'Полный экран');
-    seek.addEventListener('input', () => { if (activeQuestionId) return; video.currentTime = Number(seek.value); checkQuestion(); paint(); });
+    // Do not disable a native range while Safari still owns its drag gesture.
+    // Defer question activation until the committed seek has released the mouse.
+    let scrubbing = false, seekCommitTimer = null;
+    seek.addEventListener('input', () => {
+      if (activeQuestionId) return;
+      scrubbing = true; video.currentTime = Number(seek.value); paint();
+    });
+    function finishSeek() {
+      if (!scrubbing) return;
+      root.clearTimeout(seekCommitTimer);
+      seekCommitTimer = root.setTimeout(() => {
+        seekCommitTimer = null; scrubbing = false;
+        if (!disposed) { checkQuestion(); paint(); }
+      }, 0);
+    }
+    seek.addEventListener('change', finishSeek);
+    seek.addEventListener('blur', finishSeek);
+    seek.addEventListener('pointercancel', finishSeek);
     const editing = typeof options.onSaveQuestions === 'function';
     let answers = options.questionAnswers || {}, activeQuestionId = null, selectedIds = [], answerPending = false;
+    let feedbackTimer = null, feedbackQuestionId = null;
+    function clearFeedbackTimer() {
+      root.clearTimeout(feedbackTimer);
+      feedbackTimer = null; feedbackQuestionId = null;
+    }
+    function scheduleResume(q) {
+      if (feedbackQuestionId === q.id) return;
+      clearFeedbackTimer(); feedbackQuestionId = q.id;
+      feedbackTimer = root.setTimeout(() => {
+        clearFeedbackTimer();
+        if (disposed || activeQuestionId !== q.id || editorQuestion || busy || (live && !connected)) return;
+        dismissed.add(q.id); activeQuestionId = null; selectedIds = [];
+        saveProgress(); renderQuestion();
+        if (!checkQuestion()) play();
+        paint();
+      }, 2000);
+    }
     const dismissed = new Set();
     const previewAnswers = {};
     const progressKey = `video-questions:${root.location?.pathname || ''}:${options.viewerRole || ''}:${current.id}:${current.videoSrc}:${options.questionEpoch || 0}`;
@@ -137,7 +173,7 @@
     }
     function activeQuestion() { return current.questions.find(q => q.id === activeQuestionId); }
     function checkQuestion() {
-      if (editorQuestion || !current.videoSrc) return false;
+      if (scrubbing || editorQuestion || !current.videoSrc) return false;
       if (activeQuestionId) return true;
       const next = current.questions.find(q => !dismissed.has(q.id) && q.atMs <= Math.round(video.currentTime * 1000));
       if (!next) return false;
@@ -145,52 +181,63 @@
       pause(); video.currentTime = next.atMs / 1000; renderQuestion(); paint();
       return true;
     }
+    function submitAnswer(q, ids) {
+      if (disposed || activeQuestionId !== q.id || !ids.length || answerPending
+        || (editing ? previewAnswers[q.id] : answers[q.id]) || (live && !connected)) return;
+      selectedIds = [...ids];
+      if (live && !editing) {
+        answerPending = true; renderQuestion();
+        options.onQuestionAnswer?.({ type: 'video-question-answer', componentId: current.id, questionId: q.id, selectedOptionIds: [...ids] });
+      } else {
+        (editing ? previewAnswers : answers)[q.id] = {
+          selectedOptionIds: [...ids],
+          correct: ids.length === q.correctOptionIds.length && q.correctOptionIds.every(id => ids.includes(id)),
+        };
+        renderQuestion();
+      }
+    }
     function renderQuestion() {
       overlay.replaceChildren();
       const q = activeQuestion(); overlay.hidden = !q;
-      if (!q) return;
+      if (!q) { clearFeedbackTimer(); return; }
       const answer = editing ? previewAnswers[q.id] : answers[q.id];
-      const heading = el('h3', 'video-player__question-title', q.text);
-      const hint = el('span', 'video-player__question-hint', q.mode === 'single' ? 'Выберите один ответ' : 'Выберите несколько ответов');
-      const choices = el('div', 'video-player__choices');
+      if (answer && !busy && (!live || connected)) scheduleResume(q);
+      else clearFeedbackTimer();
+      const heading = el('h3', 'video-player__question-title', !answer ? q.text
+        : answer.correct ? '✓ Correct' : `✕ ${q.wrongFeedback || 'Wrong'}`);
+      heading.dataset.result = !answer ? 'pending' : answer.correct ? 'correct' : 'wrong';
+      const choices = el('div', 'video-player__choices'); choices.dataset.layout = q.layout;
       for (const option of q.options) {
         const chosen = (answer?.selectedOptionIds || selectedIds).includes(option.id);
-        const choice = actionButton('', () => {
-          selectedIds = q.mode === 'single' ? [option.id] : selectedIds.includes(option.id)
+        const disabled = Boolean(answer) || answerPending || (live && !connected);
+        const choose = () => {
+          if (disabled || activeQuestionId !== q.id) return;
+          if (q.mode === 'single') { submitAnswer(q, [option.id]); return; }
+          selectedIds = selectedIds.includes(option.id)
             ? selectedIds.filter(id => id !== option.id) : [...selectedIds, option.id];
           renderQuestion();
-          overlay.querySelector(`[data-option-id="${option.id}"]`)?.focus();
-        }, 'video-player__choice');
+          overlay.querySelector(`[data-option-id="${option.id}"] input`)?.focus();
+        };
+        const choice = q.mode === 'single' ? actionButton('', choose, 'video-player__choice') : el('label', 'video-player__choice');
         choice.dataset.optionId = option.id;
         choice.dataset.selected = String(chosen);
-        choice.dataset.teacherHint = String(options.viewerRole === 'teacher' && q.correctOptionIds.includes(option.id));
-        choice.setAttribute('aria-pressed', String(chosen));
-        choice.disabled = Boolean(answer) || answerPending || (live && !connected);
-        const indicator = el('span', `video-player__choice-indicator ${q.mode === 'multiple' ? 'video-player__choice-indicator--multiple' : ''}`, chosen ? '✓' : '');
-        indicator.setAttribute('aria-hidden', 'true');
-        choice.append(indicator, el('span', '', option.text)); choices.append(choice);
+        choice.dataset.disabled = String(disabled);
+        choice.dataset.result = !answer ? 'pending' : !chosen ? 'muted' : answer.correct ? 'correct' : 'wrong';
+        if (q.mode === 'multiple') {
+          const checkbox = el('input'); checkbox.type = 'checkbox'; checkbox.checked = chosen;
+          checkbox.disabled = disabled; checkbox.addEventListener('change', choose);
+          choice.append(checkbox);
+        } else {
+          choice.disabled = disabled;
+        }
+        choice.append(el('span', '', option.text)); choices.append(choice);
       }
       const footer = el('div', 'video-player__question-footer');
-      if (answer) {
-        const result = el('p', 'video-player__result', `${answer.correct ? 'Верно!' : 'Не совсем верно · обсудите ответ вместе'}${live ? ` · ${answer.answeredBy === 'teacher' ? 'ответил учитель' : 'ответил ученик'}` : ''}`);
-        result.setAttribute('role', 'status'); footer.append(result);
-        const resume = actionButton('Продолжить →', () => {
-          dismissed.add(q.id); activeQuestionId = null; selectedIds = []; saveProgress(); renderQuestion();
-          if (!checkQuestion()) play(); paint();
-        }, 'video-player__primary');
-        resume.disabled = live && !connected; footer.append(resume);
-      } else {
-        const submit = actionButton(answerPending ? 'Сохраняем…' : 'Ответить', () => {
-          if (!selectedIds.length || answerPending) return;
-          if (live && !editing) {
-            answerPending = true; renderQuestion();
-            options.onQuestionAnswer?.({ type: 'video-question-answer', componentId: current.id, questionId: q.id, selectedOptionIds: [...selectedIds] });
-          } else {
-            (editing ? previewAnswers : answers)[q.id] = { selectedOptionIds: [...selectedIds], correct: selectedIds.length === q.correctOptionIds.length && q.correctOptionIds.every(id => selectedIds.includes(id)) };
-            renderQuestion();
-          }
-        }, 'video-player__primary');
+      if (!answer && q.mode === 'multiple') {
+        const submit = actionButton(answerPending ? 'Сохраняем…' : 'Проверить', () => submitAnswer(q, selectedIds), 'video-player__primary');
         submit.disabled = !selectedIds.length || answerPending || (live && !connected); footer.append(submit);
+      } else if (!answer && answerPending) {
+        footer.append(el('span', 'video-player__question-hint', 'Сохраняем…'));
       }
       if (editing) {
         footer.append(actionButton('Редактировать', () => openQuestionEditor(q)));
@@ -199,7 +246,7 @@
           renderQuestion(); paint();
         }));
       }
-      overlay.append(heading, hint, choices, footer);
+      overlay.append(heading, choices, footer);
     }
     function markersDisabled() {
       return busy || editorSaving || Boolean(editorQuestion) || (!editing && Boolean(activeQuestionId)) || (live && !connected);
@@ -248,7 +295,7 @@
       pause();
       const uid = () => root.crypto.randomUUID();
       editorQuestion = question ? JSON.parse(JSON.stringify(question)) : {
-        id: uid(), atMs: Math.round(video.currentTime * 1000), mode: 'single', text: '',
+        id: uid(), atMs: Math.round(video.currentTime * 1000), mode: 'single', layout: 'vertical', wrongFeedback: '', text: '',
         options: [{ id: uid(), text: '' }, { id: uid(), text: '' }], correctOptionIds: [],
       };
       if (question) video.currentTime = question.atMs / 1000;
@@ -270,6 +317,19 @@
         const option = el('option', '', label); option.value = value; mode.append(option);
       }
       mode.value = q.mode; mode.addEventListener('change', () => { q.mode = mode.value; if (q.mode === 'single') q.correctOptionIds = q.correctOptionIds.slice(0, 1); paintEditor(); }); field('Тип вопроса', mode);
+      const layout = el('div', 'video-player__layout-toggle');
+      layout.setAttribute('role', 'group'); layout.setAttribute('aria-label', 'Расположение ответов');
+      for (const [value, label] of [['horizontal', 'Горизонтально'], ['vertical', 'Вертикально']]) {
+        const button = actionButton(label, () => {
+          q.layout = value;
+          for (const item of layout.children) item.setAttribute('aria-pressed', String(item.dataset.layout === value));
+        });
+        button.dataset.layout = value; button.setAttribute('aria-pressed', String(q.layout === value)); layout.append(button);
+      }
+      fieldset.append(el('span', 'video-player__editor-hint', 'Расположение ответов'), layout);
+      const feedback = el('textarea'); feedback.value = q.wrongFeedback; feedback.maxLength = 1000; feedback.rows = 2;
+      feedback.placeholder = 'Wrong'; feedback.addEventListener('input', () => { q.wrongFeedback = feedback.value; });
+      field('Пояснение при ошибке (необязательно)', feedback);
       fieldset.append(el('p', 'video-player__editor-hint', 'Отметьте правильные варианты слева.'));
       q.options.forEach((option, index) => {
         const row = el('div', 'video-player__option-editor');
@@ -341,13 +401,13 @@
         if (busy || editorSaving) return;
         if ((current.questions.length || editorQuestion) && !root.confirm('При замене или удалении видео вопросы будут удалены. Продолжить?')) return;
         if (file && file.size > 300 * 1024 * 1024) { status.textContent = 'Видео должно быть не больше 300 МБ.'; return; }
-        busy = true; upload.disabled = remove.disabled = true; pause(); paint(); status.textContent = file ? 'Загружаем и проверяем видео…' : 'Удаляем видео…';
+        clearFeedbackTimer(); busy = true; upload.disabled = remove.disabled = true; pause(); paint(); status.textContent = file ? 'Загружаем и проверяем видео…' : 'Удаляем видео…';
         try {
           current = normalizeVideoPlayer(await (file ? options.onUpload(file, current.id) : options.onDelete(current.id)));
           closeEditor(); dismissed.clear(); activeQuestionId = null; answers = {}; renderQuestion(); renderMarkers();
           setSource(); status.textContent = file ? 'Видео загружено.' : 'Видео удалено.';
         } catch (error) { status.textContent = error.message || 'Не удалось сохранить видео.'; }
-        finally { busy = false; upload.disabled = remove.disabled = false; paint(); }
+        finally { busy = false; upload.disabled = remove.disabled = false; renderQuestion(); paint(); }
       }
       input.addEventListener('change', () => { if (input.files[0]) change(input.files[0]); input.value = ''; });
       remove.addEventListener('click', () => change(null));
@@ -390,7 +450,7 @@
       if (!connected || !peerPresent) { pause(); peerUpdated = 0; if (align) { peerStatus.textContent = 'Ученик не подключён'; } }
       paint();
     };
-    section.dispose = () => { disposed = true; if (timer) root.clearInterval(timer); pause(); video.removeAttribute('src'); video.load(); };
+    section.dispose = () => { disposed = true; root.clearTimeout(seekCommitTimer); clearFeedbackTimer(); if (timer) root.clearInterval(timer); pause(); video.removeAttribute('src'); video.load(); };
     section.append(title, frame, controls, editor, fileControls, status); setSource(); renderMarkers(); renderQuestion();
     if (!current.videoSrc) status.textContent = 'Видео пока не загружено.';
     return section;

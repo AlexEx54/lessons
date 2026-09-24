@@ -67,13 +67,14 @@ test('alignment waits for metadata and a blocked play exposes a local activation
   assert.equal(doc.elements.find(e => e.textContent === 'Включить просмотр').hidden, true);
 });
 
-const question = { id: 'q-1', atMs: 10000, mode: 'multiple', text: 'Choose two', options: [
+const question = { id: 'q-1', atMs: 10000, mode: 'multiple', layout: 'vertical', text: 'Choose two', options: [
   { id: 'a', text: 'First' }, { id: 'b', text: 'Second' }, { id: 'c', text: 'Third' },
 ], correctOptionIds: ['a', 'c'] };
 function descendants(node) { return [node, ...node.children.flatMap(descendants)]; }
 function byText(node, text) { return descendants(node).find(e => e.textContent === text); }
 
 test('questions stop each player independently, share answers and continue locally after a wrong answer', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   const docs = [documentFixture(), documentFixture()], sent = [], submissions = [];
   const nodes = docs.map((doc, index) => renderVideoPlayer({ ...component, questions: [question] }, {
     viewerRole: index ? 'student' : 'teacher', connected: true, peerPresent: true,
@@ -88,21 +89,22 @@ test('questions stop each player independently, share answers and continue local
   assert.equal(studentVideo.paused, false); assert.equal(studentVideo.currentTime, 7);
   assert.equal(sent.some(m => m.type === 'media-command'), false);
   const choices = descendants(nodes[0]).filter(n => n.dataset.optionId);
-  assert.equal(choices[0].dataset.teacherHint, 'true');
-  choices[1].emit('click'); byText(nodes[0], 'Ответить').emit('click');
+  choices[1].children[0].emit('change'); byText(nodes[0], 'Проверить').emit('click');
   assert.deepEqual(submissions[0].selectedOptionIds, ['b']);
   const result = { 'q-1': { selectedOptionIds: ['b'], correct: false, answeredBy: 'teacher' } };
   nodes.forEach(n => n.updateQuestionState(result));
   assert.equal(descendants(nodes[1]).find(n => n.className === 'video-player__question').hidden, true);
+  t.mock.timers.tick(500);
   studentVideo.currentTime = 10.2; studentVideo.emit('timeupdate');
   assert.equal(studentVideo.paused, true);
-  assert.ok(byText(nodes[1], 'Продолжить →'));
-  assert.ok(descendants(nodes[1]).filter(n => n.dataset.optionId).every(n => n.dataset.teacherHint === 'false'));
+  assert.ok(byText(nodes[1], '✕ Wrong'));
   nodes[0].receiveMedia({ type: 'media-command', action: 'play', revision: 2 });
   assert.equal(teacherVideo.paused, true);
   nodes[0].receiveMedia({ type: 'media-align', position: 80, revision: 3 });
   assert.equal(teacherVideo.currentTime, 10);
-  byText(nodes[0], 'Продолжить →').emit('click'); await Promise.resolve();
+  t.mock.timers.tick(1499); assert.equal(teacherVideo.paused, true);
+  nodes[0].updateQuestionState(result, true); // Re-render must not restart feedback.
+  t.mock.timers.tick(1); await Promise.resolve();
   assert.equal(teacherVideo.paused, false); assert.equal(studentVideo.paused, true);
   assert.equal(sent.some(m => m.type === 'media-command'), false);
   teacherVideo.currentTime = 5; teacherVideo.emit('seeked'); teacherVideo.currentTime = 11; teacherVideo.emit('timeupdate');
@@ -110,6 +112,7 @@ test('questions stop each player independently, share answers and continue local
 });
 
 test('seeking past questions stops at the first one, including a second question at the same time', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   const doc = documentFixture();
   const node = renderVideoPlayer({ ...component, questions: [{ ...question, id: 'q-2' }, question] }, {}, doc);
   t.after(() => node.dispose());
@@ -117,10 +120,10 @@ test('seeking past questions stops at the first one, including a second question
   video.currentTime = 90; video.emit('seeked');
   assert.equal(video.currentTime, 10);
   node.updateQuestionState({ 'q-1': { selectedOptionIds: ['a', 'c'], correct: true }, 'q-2': { selectedOptionIds: ['a'], correct: false } });
-  byText(node, 'Продолжить →').emit('click');
+  t.mock.timers.tick(2000);
   assert.equal(video.paused, true);
-  assert.match(byText(node, 'Не совсем верно · обсудите ответ вместе').textContent, /Не совсем верно/);
-  byText(node, 'Продолжить →').emit('click');
+  assert.ok(byText(node, '✕ Wrong'));
+  t.mock.timers.tick(2000);
   assert.equal(video.paused, false);
 });
 
@@ -128,7 +131,7 @@ test('question normalizer rejects malformed keys, duplicates, modes and out-of-r
   const { normalizeVideoQuestions } = require('../assets/components/video-player.js');
   assert.deepEqual(normalizeVideoQuestions(), []);
   for (const patch of [
-    { atMs: -1 }, { atMs: 0.5 }, { atMs: 100000 }, { text: ' ' }, { mode: 'other' },
+    { atMs: -1 }, { atMs: 0.5 }, { atMs: 100000 }, { text: ' ' }, { mode: 'other' }, { layout: undefined }, { layout: 'diagonal' }, { wrongFeedback: 42 },
     { mode: 'single' }, { correctOptionIds: [] }, { correctOptionIds: ['missing'] },
     { correctOptionIds: ['a', 'a'] }, { options: [question.options[0], question.options[0]] },
   ]) assert.throws(() => normalizeVideoQuestions([{ ...question, ...patch }], 100000));
@@ -181,16 +184,16 @@ test('editor previews questions automatically, retries locally and opens the for
   video.currentTime = 11; video.emit('timeupdate');
   assert.equal(video.currentTime, 10); assert.equal(video.paused, true);
   assert.equal(overlay.hidden, false); assert.equal(editor.hidden, true);
-  descendants(node).find(n => n.dataset.optionId === 'b').emit('click');
-  byText(node, 'Ответить').emit('click');
-  assert.ok(byText(node, 'Продолжить →'));
+  descendants(node).find(n => n.dataset.optionId === 'b').children[0].emit('change');
+  byText(node, 'Проверить').emit('click');
+  assert.ok(byText(node, '✕ Wrong'));
   assert.deepEqual(savedAnswers, {}); assert.deepEqual(saves, []);
   byText(node, 'Закрыть').emit('click');
   assert.equal(overlay.hidden, true);
   const marker = descendants(node).find(n => n.className === 'video-player__marker');
   marker.emit('click');
-  assert.equal(overlay.hidden, false); assert.ok(byText(node, 'Ответить'));
-  assert.equal(byText(node, 'Продолжить →'), undefined);
+  assert.equal(overlay.hidden, false); assert.ok(byText(node, 'Проверить'));
+  assert.equal(byText(node, '✕ Wrong'), undefined);
   byText(node, 'Редактировать').emit('click');
   assert.equal(overlay.hidden, true); assert.equal(editor.hidden, false);
   video.emit('timeupdate'); assert.equal(overlay.hidden, true);
@@ -216,4 +219,76 @@ test('shared timeline groups simultaneous questions and previews the selected qu
   const overlay = descendants(node).find(n => n.className === 'video-player__question');
   assert.equal(overlay.hidden, false); assert.ok(byText(overlay, 'Second question'));
   assert.equal(descendants(node).find(n => n.className === 'video-player__marker-choices').hidden, true);
+});
+
+test('single answer submits immediately once and waits for the server before feedback', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const doc = documentFixture(), submissions = [];
+  const node = renderVideoPlayer({ ...component, questions: [{ ...question, mode: 'single', layout: 'horizontal', correctOptionIds: ['a'] }] }, {
+    sendMedia() {}, onQuestionAnswer: action => submissions.push(action), connected: true, peerPresent: true,
+  }, doc);
+  t.after(() => node.dispose());
+  const video = doc.elements.find(n => n.tag === 'video'); video.currentTime = 10; video.emit('timeupdate');
+  const choice = descendants(node).find(n => n.dataset.optionId === 'a');
+  choice.emit('click'); choice.emit('click');
+  assert.equal(submissions.length, 1);
+  assert.equal(byText(node, 'Проверить'), undefined);
+  t.mock.timers.tick(3000); assert.equal(video.paused, true);
+  assert.ok(byText(node, 'Сохраняем…'));
+  node.updateQuestionState({ 'q-1': { correct: true, selectedOptionIds: ['a'] } });
+  assert.ok(byText(node, '✓ Correct'));
+  assert.equal(descendants(node).find(n => n.dataset.optionId === 'a').dataset.result, 'correct');
+  node.setMediaConnection(false, false);
+  t.mock.timers.tick(3000); assert.equal(video.paused, true);
+  node.setMediaConnection(true, true);
+  t.mock.timers.tick(1999); assert.equal(video.paused, true);
+  t.mock.timers.tick(1); assert.equal(video.paused, false);
+});
+
+test('multiple checkboxes require Check and an exact set; editor cancels feedback and switches layout', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const doc = documentFixture();
+  const node = renderVideoPlayer({ ...component, questions: [question] }, { onSaveQuestions() {} }, doc);
+  t.after(() => node.dispose());
+  const video = doc.elements.find(n => n.tag === 'video'); video.currentTime = 10; video.emit('timeupdate');
+  assert.equal(byText(node, 'Проверить').disabled, true);
+  for (const id of ['a', 'c']) descendants(node).find(n => n.dataset.optionId === id).children[0].emit('change');
+  assert.ok(byText(node, 'Choose two'));
+  byText(node, 'Проверить').emit('click'); assert.ok(byText(node, '✓ Correct'));
+  byText(node, 'Редактировать').emit('click');
+  t.mock.timers.tick(3000); assert.equal(video.paused, true);
+  assert.equal(byText(node, 'Вертикально')['aria-pressed'], 'true');
+  byText(node, 'Горизонтально').emit('click');
+  assert.equal(byText(node, 'Горизонтально')['aria-pressed'], 'true');
+  assert.equal(byText(node, 'Вертикально')['aria-pressed'], 'false');
+});
+
+test('feedback timer is cancelled on disposal', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const doc = documentFixture();
+  const node = renderVideoPlayer({ ...component, questions: [{ ...question, mode: 'single', correctOptionIds: ['a'], wrongFeedback: 'He is seventy.' }] }, {}, doc);
+  const video = doc.elements.find(n => n.tag === 'video'); video.currentTime = 10; video.emit('timeupdate');
+  descendants(node).find(n => n.dataset.optionId === 'b').emit('click');
+  assert.ok(byText(node, '✕ He is seventy.'));
+  node.dispose(); t.mock.timers.tick(2000); assert.equal(video.paused, true);
+});
+
+test('seeking onto a question waits for native range gesture completion before disabling it', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const doc = documentFixture();
+  const node = renderVideoPlayer({ ...component, questions: [question] }, {}, doc);
+  t.after(() => node.dispose());
+  const video = doc.elements.find(n => n.tag === 'video');
+  const seek = doc.elements.find(n => n['aria-label'] === 'Позиция видео');
+  const overlay = descendants(node).find(n => n.className === 'video-player__question');
+  seek.value = '20'; seek.emit('input');
+  video.emit('seeked'); video.emit('timeupdate');
+  assert.equal(seek.disabled, false);
+  assert.equal(overlay.hidden, true);
+  seek.emit('change');
+  assert.equal(seek.disabled, false); // Native change dispatch is still finishing.
+  t.mock.timers.tick(0);
+  assert.equal(video.currentTime, 10);
+  assert.equal(overlay.hidden, false);
+  assert.equal(seek.disabled, true);
 });
