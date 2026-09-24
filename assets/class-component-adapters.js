@@ -3,8 +3,13 @@
   const canAnswer = session => session.connected && ['teacher', 'student'].includes(session.role);
   const adapters = new Map([
     ['videoPlayer', {
-      options(component, session) { return { viewerRole: session.role, connected: session.connected, peerPresent: session.peerPresent, sendMedia: session.sendMedia }; },
-      update(node, component, session) { node.setMediaConnection(session.connected, session.peerPresent); },
+      options(component, session) { return { viewerRole: session.role, connected: session.connected, peerPresent: session.peerPresent, sendMedia: session.sendMedia,
+        questionAnswers: session.state.videoQuestions?.[component.id] || {}, questionEpoch: session.state.videoQuestionEpochs?.[component.id] || 0,
+        onQuestionAnswer: action => session.send(action) }; },
+      update(node, component, session) {
+        node.setMediaConnection(session.connected, session.peerPresent);
+        node.updateQuestionState(session.state.videoQuestions?.[component.id] || {}, session.pendingActions.some(a => a.componentId === component.id && a.type === 'video-question-answer'));
+      },
     }],
     ['guidedRoleCards', {
       options: component => ({ presentation: component.presentation }),

@@ -324,6 +324,9 @@
       onMessage: showToast,
     }),
     videoPlayer: () => ({
+      viewerRole: 'teacher',
+      onSaveQuestions: state.draftStatus === 'review' ? saveVideoQuestions : undefined,
+      onDirtyChange: (dirty, id) => { if (dirty) state.dirtyComponents.add(id); else state.dirtyComponents.delete(id); },
       onUpload: state.draftStatus === 'review' ? (file, id) => updateVideo('PUT', id, file) : undefined,
       onDelete: state.draftStatus === 'review' ? id => updateVideo('DELETE', id) : undefined,
     }),
@@ -629,6 +632,17 @@
 
   function deleteTextReadingImage(componentId, side) {
     return updateTextReadingImage('DELETE', componentId, side);
+  }
+
+  async function saveVideoQuestions(questions, componentId, expectedVideoSrc) {
+    const response = await fetch(`/api/lesson-drafts/${encodeURIComponent(state.draftId)}/video-player/${encodeURIComponent(componentId)}/questions`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ questions, expectedVideoSrc }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить вопросы.');
+    state.lesson = payload.draft.content;
+    state.draftStatus = payload.draft.status;
+    return findComponent(state.lesson, 'videoPlayer', componentId);
   }
 
   async function updateVideo(method, componentId, file) {

@@ -46,6 +46,7 @@ const {
   updateAudioPlayer,
   updateAudioPlayerAudio,
   updateVideoPlayerVideo,
+  updateVideoPlayerQuestions,
   updateIllustratedTextPanel,
   updateIllustratedTextPanelImage,
   updateDescribeAndGuess,
@@ -1957,6 +1958,19 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  const videoQuestionsRoute = pathname.match(/^\/api\/lesson-drafts\/([a-f0-9-]{36})\/video-player\/([a-z0-9-]+)\/questions$/i);
+  if (req.method === 'PUT' && videoQuestionsRoute) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    try {
+      const body = await readJsonBody(req);
+      const draft = updateVideoPlayerQuestions({ id: videoQuestionsRoute[1], ownerAdminId: user.id,
+        componentId: videoQuestionsRoute[2], questions: body?.questions, expectedVideoSrc: body?.expectedVideoSrc }, database);
+      json(res, 200, { draft });
+    } catch (error) { json(res, error.statusCode || 500, { error: error.message }); }
+    return;
+  }
+
   if ((req.method === 'PUT' || req.method === 'DELETE') && pathname.startsWith('/api/lesson-drafts/')) {
     const videoRoute = pathname.match(/^\/api\/lesson-drafts\/([a-f0-9-]{36})\/video-player\/([a-z0-9-]+)\/video$/i);
     if (videoRoute) {
@@ -1966,15 +1980,15 @@ const server = http.createServer(async (req, res) => {
       try {
         const identity = { id: videoRoute[1], ownerAdminId: user.id, componentId: videoRoute[2] };
         updateVideoPlayerVideo(identity, database); // Authorize before receiving bytes.
-        let videoSrc = null;
+        let videoSrc = null, durationMs;
         if (req.method === 'PUT') {
           const fileName = `${crypto.randomUUID()}.mp4`;
           newFile = draftAssetPath(identity.id, fileName);
           fs.mkdirSync(path.dirname(newFile), { recursive: true });
-          await receiveVideo(req, newFile);
+          ({ durationMs } = await receiveVideo(req, newFile));
           videoSrc = `/api/lesson-draft-assets/${identity.id}/${fileName}`;
         }
-        const result = updateVideoPlayerVideo({ ...identity, videoSrc }, database);
+        const result = updateVideoPlayerVideo({ ...identity, videoSrc, durationMs }, database);
         const previous = assetFileFromUrl(result.previousVideoSrc);
         if (previous) fs.rmSync(previous, { force: true });
         json(res, 200, { draft: result.draft });

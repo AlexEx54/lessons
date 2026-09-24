@@ -42,7 +42,23 @@ test('video upload, immutable publication, range access and class media signals'
   assert.equal((await request(route, { method: 'PUT', body: 'not an MP4' })).status, 415);
   const uploaded = await request(route, { method: 'PUT', body: bytes });
   assert.equal(uploaded.status, 200, await uploaded.clone().text());
-  const draft = (await uploaded.json()).draft;
+  let draft = (await uploaded.json()).draft;
+  const question = { id: 'q-1', atMs: 100, mode: 'multiple', text: 'What did you see?', options: [
+    { id: 'a', text: 'First' }, { id: 'b', text: 'Second' }, { id: 'c', text: 'Third' },
+  ], correctOptionIds: ['a', 'c'] };
+  const questionRoute = route.replace(/video$/, 'questions');
+  const saveQuestions = (questions, auth = cookie, expectedVideoSrc = draft.content.stages[0].content[0].videoSrc) => request(questionRoute, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ questions, expectedVideoSrc }),
+  }, auth);
+  assert.ok(draft.content.stages[0].content[0].durationMs > 100);
+  assert.equal((await saveQuestions([question], otherCookie)).status, 404);
+  assert.equal((await saveQuestions([{ ...question, atMs: 999999 }])).status, 400);
+  assert.equal((await saveQuestions([{ ...question, correctOptionIds: ['unknown'] }])).status, 400);
+  assert.equal((await saveQuestions([question], cookie, '/old-video.mp4')).status, 409);
+  const savedQuestions = await saveQuestions([question]);
+  assert.equal(savedQuestions.status, 200);
+  draft = (await savedQuestions.json()).draft;
+  assert.deepEqual(draft.content.stages[0].content[0].questions, [question]);
   const source = draft.content.stages[0].content[0].videoSrc;
   const range = await request(source, { headers: { Range: 'bytes=0-15' } });
   assert.equal(range.status, 206); assert.deepEqual(Buffer.from(await range.arrayBuffer()), bytes.subarray(0, 16));
@@ -51,6 +67,7 @@ test('video upload, immutable publication, range access and class media signals'
   const published = findLibraryLesson(publication.id, db).content.stages[0].content[0].videoSrc;
   assert.equal((await request(published, { method: 'HEAD' })).headers.get('content-length'), String(bytes.length));
   const classroom = createClass({ name: 'Video class', lessonId: publication.id, expectedRevision: 1, requestKey: crypto.randomUUID() }, admin.id, db);
+  assert.deepEqual(classroom.content.stages[0].content[0].questions, [question]);
   const classSource = classroom.content.stages[0].content[0].videoSrc;
   const joined = await request(classroom.invitePath, { redirect: 'manual' }, '');
   const guest = joined.headers.get('set-cookie').split(';')[0];
@@ -62,6 +79,7 @@ test('video upload, immutable publication, range access and class media signals'
   assert.equal((await request(source)).status, 404);
   assert.deepEqual(Buffer.from(await (await request(classSource, {}, guest)).arrayBuffer()), bytes);
   assert.equal(findLessonDraft(draft.id, admin.id, db).content.stages[0].content[0].videoSrc, undefined);
+  assert.deepEqual(findLessonDraft(draft.id, admin.id, db).content.stages[0].content[0].questions, []);
   function connect(role, auth) {
     const ws = new WebSocket(`${base.replace('http:', 'ws:')}/ws/classes/${classroom.id}?role=${role}`, { headers: { Cookie: auth, Origin: base } }); sockets.push(ws);
     const queue = [], waiters = [];
@@ -83,4 +101,23 @@ test('video upload, immutable publication, range access and class media signals'
   assert.equal((await student.next('media-align')).position, 0.5);
   student.send(JSON.stringify({ ...baseAction, type: 'media-status', position: 0.4, paused: true, buffering: false, blocked: false }));
   assert.equal((await teacher.next('media-status')).position, 0.4);
+  student.send(JSON.stringify({ ...baseAction, type: 'video-question-answer', questionId: question.id, selectedOptionIds: ['b'], expectedVersion: 0 }));
+  const [teacherAnswer, studentAnswer] = await Promise.all([teacher.next('action'), student.next('action')]);
+  assert.deepEqual(teacherAnswer.state.videoQuestions, studentAnswer.state.videoQuestions);
+  assert.deepEqual(teacherAnswer.state.videoQuestions['watch-video']['q-1'], { selectedOptionIds: ['b'], correct: false, answeredBy: 'student' });
+  teacher.send(JSON.stringify({ ...baseAction, type: 'video-question-answer', questionId: question.id, selectedOptionIds: ['a', 'c'], expectedVersion: 0 }));
+  assert.deepEqual((await teacher.next('action-error')).state.videoQuestions, teacherAnswer.state.videoQuestions);
+  const reconnected = connect('student', guest);
+  const restored = await reconnected.next('snapshot');
+  assert.deepEqual(restored.state.videoQuestions, teacherAnswer.state.videoQuestions);
+  teacher.send(JSON.stringify({ ...baseAction, type: 'reset-stage', expectedVersion: restored.state.version }));
+  const reset = await teacher.next('action'); await reconnected.next('action');
+  assert.deepEqual(reset.state.videoQuestions, {});
+  assert.equal(reset.state.videoQuestionEpochs['watch-video'], 1);
+  reconnected.send(JSON.stringify({ ...baseAction, type: 'video-question-answer', questionId: question.id, selectedOptionIds: ['unknown'], expectedVersion: reset.state.version }));
+  assert.ok((await reconnected.next('action-error')).error);
+  reconnected.send(JSON.stringify({ ...baseAction, type: 'video-question-answer', questionId: question.id, selectedOptionIds: ['c', 'a'], expectedVersion: reset.state.version }));
+  const correct = await teacher.next('action'); await reconnected.next('action');
+  assert.equal(correct.state.videoQuestions['watch-video']['q-1'].correct, true);
+
 });
