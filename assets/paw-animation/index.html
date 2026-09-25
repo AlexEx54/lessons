@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Лапка собирает предложение</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<main>
+<header><span class="brand">little paws<span>✦</span></span><span class="eyebrow">МАЛЕНЬКИЙ ПОМОЩНИК, БОЛЬШОЕ ДЕЛО</span></header>
+<div class="intro"><span class="label">УЧИТЬСЯ ИГРАЯ</span><h1>Всё встанет на свои места.</h1><p>Одна любопытная лапка. Одно правильное предложение.</p></div>
+<div class="frame"><div class="scene" role="img" aria-label="Кошачья лапка по очереди собирает предложение The cat is lying on the mat">
+<div class="sky"><i class="cloud c1"></i><i class="cloud c2"></i><div class="hills"></div></div>
+<div class="topbar"><span class="round">←</span><div class="progress"><div id="progress-fill"></div><b></b><b></b><b></b><b></b></div><span class="round gear">✿</span></div>
+<section class="exercise"><h2><span class="star">★</span> Make the sentence</h2><p class="instruction">Put the words in the right order</p><div class="answer-tray"></div><div class="slots" aria-hidden="true"></div><div class="exercise-footer"><span class="hint">☀ &nbsp; Hint</span><div class="dots">● <span>● ● ● ●</span></div><span class="check" id="check">Check →</span></div></section>
+<div id="cards" aria-hidden="true"></div>
+<div id="paw" aria-hidden="true"><svg viewBox="0 0 210 500" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="fur" x1="0" x2="1"><stop stop-color="#dd873e"/><stop offset=".48" stop-color="#ffbf6c"/><stop offset="1" stop-color="#e99547"/></linearGradient><linearGradient id="cream" x2=".8" y2="1"><stop stop-color="#fffdf4"/><stop offset="1" stop-color="#f7dfbd"/></linearGradient></defs><path d="M34 500L35 151C33 131 21 108 24 78C26 49 42 28 62 27C73 12 91 10 105 18C121 8 140 17 148 30C171 29 184 52 185 79C188 108 173 133 176 155L206 500Z" fill="url(#fur)" stroke="#d38a50" stroke-width="3"/><path d="M35 151C33 131 21 108 24 78C26 49 42 28 62 27C73 12 91 10 105 18C121 8 140 17 148 30C171 29 184 52 185 79C188 108 173 133 176 155L163 144L153 153L141 141L129 152L115 141L101 151L88 139L74 150L61 138L48 145Z" fill="url(#cream)"/>
+<g fill="none" stroke="#d6b996" stroke-width="3" stroke-linecap="round" opacity=".65"><path d="M62 29Q55 45 59 60M105 20Q100 39 103 53M148 32Q153 46 149 62"/></g>
+<g fill="none" stroke="#fffdf7" stroke-width="3" stroke-linecap="round" opacity=".85"><path d="M43 81l3 10m22-20l2 12m20 14l2 12m26-36l-1 12m23 13l-2 12m23-30l-2 10m-102 27l3 10m65-8l-1 12"/></g>
+<g fill="#be6c31" opacity=".64"><path d="M30 192Q88 166 131 201Q74 188 32 221Z"/><path d="M188 243Q126 214 83 244Q130 234 191 272Z"/><path d="M32 294Q95 269 142 303Q88 291 34 327Z"/><path d="M196 362Q125 326 78 365Q142 344 198 394Z"/><path d="M36 429Q89 393 154 436Q91 418 37 460Z"/></g><g stroke="#ffe1a7" stroke-width="3" stroke-linecap="round" opacity=".65"><path d="M51 168l2 15m21-24l2 13m77 20l3 14M49 249l2 14m115 28l2 15m-107 49l2 15m98 43l2 14m-54 38l2 16"/></g></svg></div>
+<div class="celebration" id="celebration">✦ <span>Well done!</span> ✦</div>
+</div></div>
+<div class="controls"><button id="play" type="button">Ⅱ Пауза</button><button id="replay" type="button">↻ Ещё раз</button><label>Темп <select id="speed"><option value=".7">Спокойный</option><option value="1" selected>Обычный</option><option value="1.5">Быстрый</option></select></label></div>
+<p class="status" id="status" role="status" aria-live="polite">Лапка собирает предложение…</p>
+<footer>Немного игры — и английский становится ближе.</footer>
+</main><script src="./animation.js"></script>
+</body></html>

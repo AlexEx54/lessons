@@ -60,6 +60,7 @@ const {
   updateDropdownChoice,
   updateGapFill,
   updateSentenceCorrection,
+  updateSentenceMatching,
   updateMiniSituation,
   updateMarkdownCard,
   updateMatchWordsImage,
@@ -771,6 +772,19 @@ function getGapFillRouteParams(pathname) {
 
 function getSentenceCorrectionRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/sentence-correction\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getSentenceMatchingRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/sentence-matching\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -2161,6 +2175,7 @@ const server = http.createServer(async (req, res) => {
     const fillInBlanksRoute = getFillInBlanksRouteParams(pathname);
     const dragWordsInTextRoute = getDragWordsInTextRouteParams(pathname);
     const dropdownChoiceRoute = getDropdownChoiceRouteParams(pathname);
+    const sentenceMatchingRoute = getSentenceMatchingRouteParams(pathname);
     const sentenceCorrectionRoute = getSentenceCorrectionRouteParams(pathname);
     const gapFillRoute = getGapFillRouteParams(pathname);
     const oddOneOutRoute = getOddOneOutRouteParams(pathname);
@@ -2186,6 +2201,7 @@ const server = http.createServer(async (req, res) => {
       && (!fillInBlanksRoute || !fillInBlanksRoute.draftId || !fillInBlanksRoute.componentId)
       && (!dragWordsInTextRoute || !dragWordsInTextRoute.draftId || !dragWordsInTextRoute.componentId)
       && (!dropdownChoiceRoute || !dropdownChoiceRoute.draftId || !dropdownChoiceRoute.componentId)
+      && (!sentenceMatchingRoute || !sentenceMatchingRoute.draftId || !sentenceMatchingRoute.componentId)
       && (!sentenceCorrectionRoute || !sentenceCorrectionRoute.draftId || !sentenceCorrectionRoute.componentId)
       && (!gapFillRoute || !gapFillRoute.draftId || !gapFillRoute.componentId)
       && (!oddOneOutRoute || !oddOneOutRoute.draftId || !oddOneOutRoute.componentId)
@@ -2272,6 +2288,12 @@ const server = http.createServer(async (req, res) => {
           instruction: body.instruction,
           text: body.text,
           choices: body.choices,
+        }, database);
+      } else if (sentenceMatchingRoute) {
+        draft = updateSentenceMatching({
+          id: sentenceMatchingRoute.draftId, ownerAdminId: user.id,
+          componentId: sentenceMatchingRoute.componentId,
+          title: body.title, instruction: body.instruction, items: body.items,
         }, database);
       } else if (sentenceCorrectionRoute) {
         draft = updateSentenceCorrection({

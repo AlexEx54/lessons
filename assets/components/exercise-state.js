@@ -28,12 +28,20 @@
     const indexes = component.items.map((_, index) => index);
     return {
       order: shuffle(indexes),
-      ...(component.type === 'matchWords' ? { wordIds: indexes.map(id), pictureIds: indexes.map(id) } : {}),
+      ...(['matchWords', 'sentenceMatching'].includes(component.type) ? { wordIds: indexes.map(id), pictureIds: indexes.map(id) } : {}),
     };
   }
   function presentation(component, layout) {
     const { type, id, title, instruction } = component;
     const base = { type, id, title, instruction };
+    if (type === 'sentenceMatching') {
+      return { ...base,
+        answerKey: Object.fromEntries(layout.wordIds.map((id, i) => [id, layout.pictureIds[i]])),
+        items: component.items.map((item, i) => ({ id: layout.wordIds[i], text: item.left })),
+        targets: layout.order.map((i, position) => ({ id: layout.pictureIds[i], text: component.items[i].right,
+          label: String.fromCharCode(65 + position) })),
+      };
+    }
     if (type === 'matchWords') {
       return { ...base,
         answerKey: Object.fromEntries(layout.wordIds.map((wordId, index) => [wordId, layout.pictureIds[index]])),
@@ -46,6 +54,27 @@
     return component;
   }
   function apply(component, previous = {}, action, layout) {
+    if (component.type === 'sentenceMatching') {
+      const task = layout ? presentation(component, layout) : component;
+      const matches = previous.matches || {};
+      const available = id => task.items.some(item => item.id === id) && !matches[id];
+      if (action.type === 'select-word') {
+        if (action.itemId !== null && !available(action.itemId)) fail('Начало предложения недоступно.');
+        return { ...previous, selectedId: action.itemId };
+      }
+      if (action.type !== 'match-word') fail('Неизвестное действие.');
+      if (!available(action.itemId) || !task.targets.some(item => item.id === action.targetId)
+        || Object.values(matches).includes(action.targetId)) fail('Пара недоступна.');
+      const correct = task.answerKey[action.itemId] === action.targetId;
+      const nextMatches = correct ? { ...matches, [action.itemId]: action.targetId } : matches;
+      const order = previous.rightOrder || task.targets.map(item => item.id);
+      const free = order.filter(id => !Object.values(nextMatches).includes(id));
+      return { ...previous, selectedId: correct ? null : action.itemId, matches: nextMatches,
+        rightOrder: task.items.map(item => nextMatches[item.id] || free.shift()),
+        attempt: { ...(action.attemptId ? { id: action.attemptId } : {}),
+          sequence: (previous.attempt?.sequence || 0) + 1, itemId: action.itemId, targetId: action.targetId, correct },
+      };
+    }
     if (component.type === 'dragWordsInText') {
       const inline = root.InlineGapText || (typeof require === 'function' ? require('./inline-gap-text.js') : null);
       const gaps = inline.parseMarkedText(component.text, { maximum: 8 }).filter(part => part.type === 'gap').map(part => part.token);

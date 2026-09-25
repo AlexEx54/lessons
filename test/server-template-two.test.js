@@ -89,7 +89,7 @@ test('template two creation and editing update the answer key atomically', async
   assert.equal(draft.template, 'template-2');
   assert.equal(draft.imageGeneration.total, 0);
   assert.deepEqual(draft.content.stages[5].content.map(component => component.type),
-    ['teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard', 'sentenceCorrection', 'markdownCard']);
+    ['teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard', 'sentenceCorrection', 'markdownCard', 'sentenceMatching']);
   const correction = draft.content.stages[5].content[5];
   const correctionChanges = { title: correction.title, instruction: correction.instruction, items: structuredClone(correction.items) };
   correctionChanges.items[0].answers = ['Leo used to play games.', 'Leo used to play video games.'];
@@ -119,6 +119,20 @@ test('template two creation and editing update the answer key atomically', async
   assert.equal((await correctionPatch(failedCorrection)).status, 400);
   const reloadedCorrection = await (await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}`, { headers: { Cookie: cookie } })).json();
   assert.deepEqual(reloadedCorrection.draft.content.stages[5].content.slice(5), savedCorrectionDraft.content.stages[5].content.slice(5));
+  const matching = draft.content.stages[5].content.at(-1);
+  const matchingChanges = { title: matching.title, instruction: matching.instruction, items: structuredClone(matching.items) };
+  matchingChanges.items[0].right = 'play board games every evening.';
+  const matchingPatch = (body, auth = cookie) => fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/sentence-matching/${matching.id}`, {
+    method: 'PATCH', headers: { Cookie: auth, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  assert.equal((await matchingPatch(matchingChanges, otherCookie)).status, 404);
+  assert.equal((await matchingPatch({ ...matchingChanges, items: [] })).status, 400);
+  assert.equal((await matchingPatch({ ...matchingChanges, items: [...matchingChanges.items].reverse() })).status, 400);
+  const matchingResponse = await matchingPatch(matchingChanges);
+  assert.equal(matchingResponse.status, 200);
+  const matchingContent = (await matchingResponse.json()).draft.content.stages[5].content;
+  assert.deepEqual(matchingContent.at(-1).items, matchingChanges.items);
+  assert.equal(matchingContent.some(item => item.id === `${matching.id}-answer-key`), false);
   assert.ok(draft.content.stages.slice(6).every(s => s.content === null));
   assert.equal(draft.content.stages[3].id, 'watch-and-interact');
   assert.equal(draft.content.stages[3].number, 4);
