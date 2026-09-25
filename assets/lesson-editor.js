@@ -165,6 +165,14 @@
       },
       onError: showToast,
     }),
+    sentenceCorrection: () => ({
+      onSave: state.draftStatus === 'review' ? saveSentenceCorrection : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
     fillInBlanks: () => ({
       viewerRole: 'teacher',
       onSave: state.draftStatus === 'review' ? saveFillInBlanks : undefined,
@@ -376,6 +384,7 @@
       // Linked answer keys are edited through their exercise to avoid two sources of truth.
       if (component.type === 'markdownCard' && component.id.endsWith('-answer-key')) {
         const exerciseId = component.id.slice(0, -'-answer-key'.length);
+        if (findComponent(state.lesson, 'sentenceCorrection', exerciseId)) options.onSave = undefined;
         if (findComponent(state.lesson, 'oddOneOut', exerciseId)) options.onSave = undefined;
         if (findComponent(state.lesson, 'factOrMyth', exerciseId)) options.onSave = undefined;
       }
@@ -1015,6 +1024,33 @@
       throw error;
     }
   }
+
+  async function saveSentenceCorrection(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/sentence-correction/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить Sentence Correction.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findComponent(state.lesson, 'sentenceCorrection', componentId);
+      if (!saved) throw new Error('Сохранённый Sentence Correction не найден в черновике.');
+      showToast('Sentence Correction сохранён.');
+      window.setTimeout(() => renderStageContent(state.lesson.stages[state.activeIndex], true), 0);
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить Sentence Correction.');
+      throw error;
+    }
+  }
+
 
   async function savePersonalizedQuestions(changes, componentId) {
     try {

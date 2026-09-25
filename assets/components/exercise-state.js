@@ -18,6 +18,10 @@
     const apostrophes = text => typeof text === 'string' ? text.replace(/[\u2018\u2019\u02BC]/g, "'") : '';
     return answersMatch(apostrophes(value), apostrophes(answer));
   }
+  function correctionAnswersMatch(value, answers) {
+    const comparable = text => typeof text === 'string' ? text.trim().replace(/\.$/, '') : '';
+    return answers.some(answer => gapAnswersMatch(comparable(value), comparable(answer)));
+  }
   function selectionState(value, answer) { return !value ? 'empty' : value === answer ? 'correct' : 'wrong'; }
   // Stable layouts keep word order and identifiers consistent across clients.
   function createLayout(component, id = () => root.crypto.randomUUID()) {
@@ -117,6 +121,14 @@
       if (previous.answers?.[choice.id]?.status === 'correct') fail('Ответ уже верный.');
       return { ...previous, answers: { ...previous.answers, [choice.id]: { value: action.value, status: selectionState(action.value, choice.answer ?? component.answerKey?.[choice.id]) } } };
     }
+    if (component.type === 'sentenceCorrection') {
+      if (action.type !== 'type-answer' || typeof action.value !== 'string' || action.value.length > 1000) fail('Некорректный ответ.');
+      const item = component.items.find(item => item.id === action.itemId);
+      if (!item) fail('Поле не найдено.');
+      return { ...previous, answers: { ...previous.answers, [item.id]: {
+        value: action.value, status: correctionAnswersMatch(action.value, item.answers) ? 'correct' : 'pending',
+      } } };
+    }
     if (component.type === 'gapFill' || component.type === 'miniSituation') {
       if (action.type !== 'type-answer' || typeof action.value !== 'string' || action.value.length > 1000) fail('Некорректный ответ.');
       const gap = component.type === 'gapFill' && component.gaps.find(item => item.id === action.itemId);
@@ -140,7 +152,7 @@
     }
     fail('Неизвестное упражнение.');
   }
-  const api = { apply, presentation, createLayout, shuffle, answersMatch, gapAnswersMatch, selectionState };
+  const api = { apply, presentation, createLayout, shuffle, answersMatch, gapAnswersMatch, correctionAnswersMatch, selectionState };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.ExerciseState = api;
 })(typeof window !== 'undefined' ? window : globalThis);

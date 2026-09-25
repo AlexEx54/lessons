@@ -82,13 +82,13 @@
       },
     }],
   ]);
-  for (const type of ['dragWordsInText', 'matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'oddOneOut', 'factOrMyth', 'checkboxChoice', 'gapFill', 'miniSituation']) {
+  for (const type of ['dragWordsInText', 'matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'oddOneOut', 'factOrMyth', 'checkboxChoice', 'gapFill', 'miniSituation', 'sentenceCorrection']) {
     adapters.set(type, {
       options(component, session) {
         return {
           presentation: component.presentation,
           exerciseState: session.state.exercises?.[component.id] || {},
-          interactive: canAnswer(session),
+          interactive: canAnswer(session) && (type !== 'sentenceCorrection' || session.role === 'student'),
           onAction: session.send,
           ...((type === 'describeAndGuess' || (type === 'gapFill' && (component.presentation || component).studentVisibility === 'controlled')) ? {
             studentVisible: Boolean(session.state.visibleCards?.[component.id]),
@@ -105,7 +105,7 @@
         const previous = state.exercises?.[action.componentId] || {};
         let next = previous;
         // Reapply queued actions with the same rules as the component and server.
-        if (type === 'gapFill' || type === 'miniSituation' || type === 'dragWordsInText' || type === 'dropdownChoice' || type === 'matchWords' || type === 'multipleChoice' || type === 'oddOneOut' || type === 'factOrMyth' || type === 'checkboxChoice') {
+        if (type === 'sentenceCorrection' || type === 'gapFill' || type === 'miniSituation' || type === 'dragWordsInText' || type === 'dropdownChoice' || type === 'matchWords' || type === 'multipleChoice' || type === 'oddOneOut' || type === 'factOrMyth' || type === 'checkboxChoice') {
           next = window.ExerciseState.apply(component.presentation, previous, action);
           state.exercises = { ...state.exercises, [action.componentId]: next };
           return;
@@ -125,7 +125,7 @@
           feedback: session.feedback,
           pending: session.pendingActions?.some(action => action.componentId === component.id && action.type === 'match-word'),
         });
-        node.setInteractive(canAnswer(session));
+        node.setInteractive(canAnswer(session) && (type !== 'sentenceCorrection' || session.role === 'student'));
         if (type === 'describeAndGuess' || (type === 'gapFill' && (component.presentation || component).studentVisibility === 'controlled')) {
           node.updateStudentVisibility(Boolean(session.state.visibleCards?.[component.id]));
           node.setVisibilityInteractive(session.role === 'teacher' && session.connected);

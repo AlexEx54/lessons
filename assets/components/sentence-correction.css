@@ -1,0 +1,29 @@
+.sentence-correction { --sentence-correction-accent: #6545f5; padding: 20px; border: 1px solid #e7e3f4; border-radius: 12px; background: #fff; box-shadow: 0 4px 16px rgba(39,32,76,.035); }
+.sentence-correction__header { display: flex; align-items: center; gap: 8px; }
+.sentence-correction__title { flex: 1; margin: 0; color: var(--sentence-correction-accent); font-size: 18px; line-height: 1.35; }
+.sentence-correction__instruction { margin: 3px 0 18px; color: #656a80; font-size: 12px; }
+.sentence-correction__columns { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px; }
+.sentence-correction__columns[hidden], .sentence-correction__editor[hidden], .sentence-correction__cancel[hidden] { display: none; }
+.sentence-correction__list { margin: 0; padding-left: 25px; min-width: 0; }
+.sentence-correction__list + .sentence-correction__list { border-left: 1px solid #eeebf4; padding-left: 35px; }
+.sentence-correction__item { padding-left: 4px; margin-bottom: 14px; color: #25263a; font-size: 13px; }
+.sentence-correction__item:last-child { margin-bottom: 0; }
+.sentence-correction__item::marker { color: var(--sentence-correction-accent); font-weight: 700; }
+.sentence-correction__sentence { display: block; line-height: 1.5; margin-bottom: 5px; }
+.sentence-correction__field { position: relative; }
+.sentence-correction__input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 36px; padding: 8px 30px 8px 10px; border: 1px solid #d9d5df; border-radius: 7px; background: #fff; color: #292631; font: 500 12px/1.4 Inter, sans-serif; }
+.sentence-correction__input::placeholder { color: #aaa6b8; }
+.sentence-correction__input:focus { outline: none; border-color: #8068f7; box-shadow: 0 0 0 3px rgba(101,69,245,.12); }
+.sentence-correction__item--correct .sentence-correction__input { border-color: #21a85b; background: #f7fff9; }
+.sentence-correction__check { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #21a85b; pointer-events: none; }
+.sentence-correction__status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.sentence-correction__edit, .sentence-correction__cancel { min-height: 34px; padding: 0 10px; border: 1px solid #dcd6e8; border-radius: 7px; background: #fff; color: #6545f5; cursor: pointer; font-weight: 700; }
+.sentence-correction__editor { display: grid; gap: 12px; }
+.sentence-correction__editor-label { display: grid; gap: 6px; color: #655f70; font-size: 12px; font-weight: 600; }
+.sentence-correction__editor-input { box-sizing: border-box; width: 100%; min-height: 36px; padding: 8px 10px; border: 1px solid #dcd9e7; border-radius: 6px; font: 500 13px/1.5 Inter, sans-serif; resize: vertical; }
+.sentence-correction button:disabled { opacity: .45; cursor: default; }
+@media (max-width: 700px) {
+  .sentence-correction { padding: 15px 12px; }
+  .sentence-correction__columns { grid-template-columns: minmax(0,1fr); gap: 14px; }
+  .sentence-correction__list + .sentence-correction__list { border-left: 0; padding-left: 25px; }
+}

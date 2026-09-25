@@ -1163,3 +1163,29 @@ The derived key cannot be edited separately; its explanations come from the exer
 Live lessons use `choose-option` and the shared exercise reducer. Wrong choices allow retries;
 a correct choice is crossed out and locks that row. Stage reset clears the shared answers.
 Teacher notes and the key remain hidden from the student.
+
+## Sentence Correction
+
+`sentenceCorrection` — Task 3 шаблона 2: ученик переписывает предложения с
+ошибками. `items` содержит 1–12 объектов `{ id, text, answers }`; `answers` —
+1–8 допустимых полных предложений. ID компонента и пунктов — уникальные
+lowercase kebab-case значения. `title`, `instruction`, `text` и ответы —
+непустой plain text до 1000 символов. `accentColor` — необязательный #RRGGBB.
+
+На широком экране пункты идут сверху вниз в двух колонках (для восьми пунктов
+1–4 слева, 5–8 справа), до 700px — одной колонкой. Под исходным предложением
+расположено поле полного ответа. Правильный ответ получает зелёную галочку,
+остальные остаются без красной подсветки; правильный ответ можно изменить.
+Проверка не учитывает регистр, повторяющиеся/крайние пробелы, тип апострофа и
+одну финальную точку. Вопросительные знаки значимы. Другие формы, включая
+сокращения, принимаются только при наличии в `answers`.
+
+В review-редакторе меняются заголовок, инструкция, исходные предложения и
+варианты ответов (каждый с новой строки); число, порядок и ID пунктов
+сохраняются. `PATCH /api/lesson-drafts/:id/sentence-correction/:componentId`
+проверяет владельца и статус review, валидирует данные и атомарно сохраняет
+задание вместе с ключом. Отдельное редактирование производного ключа запрещено.
+
+`createSentenceCorrectionAnswerKey` создаёт существующий `markdownCard` с ID
+`${component.id}-answer-key`, заголовком `Answer key`, двумя колонками и
+`studentVisibility: teacherOnly`. Все допустимые варианты берутся из задания.

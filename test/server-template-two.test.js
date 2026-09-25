@@ -89,7 +89,36 @@ test('template two creation and editing update the answer key atomically', async
   assert.equal(draft.template, 'template-2');
   assert.equal(draft.imageGeneration.total, 0);
   assert.deepEqual(draft.content.stages[5].content.map(component => component.type),
-    ['teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard']);
+    ['teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard', 'sentenceCorrection', 'markdownCard']);
+  const correction = draft.content.stages[5].content[5];
+  const correctionChanges = { title: correction.title, instruction: correction.instruction, items: structuredClone(correction.items) };
+  correctionChanges.items[0].answers = ['Leo used to play games.', 'Leo used to play video games.'];
+  const correctionPatch = (body, auth = cookie, componentId = correction.id) => fetch(
+    `${baseUrl}/api/lesson-drafts/${draft.id}/sentence-correction/${componentId}`,
+    { method: 'PATCH', headers: { Cookie: auth, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await correctionPatch(correctionChanges, otherCookie)).status, 404);
+  assert.equal((await correctionPatch(correctionChanges, cookie, 'missing')).status, 404);
+  assert.equal((await correctionPatch({ ...correctionChanges, items: [] })).status, 400);
+  assert.equal((await correctionPatch({ ...correctionChanges, items: correctionChanges.items.map((item, i) => i ? item : { ...item, id: 'new-id' }) })).status, 400);
+  const correctionResponse = await correctionPatch(correctionChanges);
+  assert.equal(correctionResponse.status, 200);
+  const savedCorrectionDraft = (await correctionResponse.json()).draft;
+  const savedCorrection = savedCorrectionDraft.content.stages[5].content[5];
+  const savedCorrectionKey = savedCorrectionDraft.content.stages[5].content[6];
+  assert.deepEqual(savedCorrection.items, correctionChanges.items);
+  assert.equal(savedCorrectionKey.title, 'Answer key');
+  assert.equal(savedCorrectionKey.studentVisibility, 'teacherOnly');
+  assert.match(savedCorrectionKey.sections[0].text, /Leo used to play games\. \/ Leo used to play video games\./);
+  const keyPatch = await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/markdown-cards/${savedCorrectionKey.id}`, {
+    method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Wrong', sections: savedCorrectionKey.sections }),
+  });
+  assert.equal(keyPatch.status, 409);
+  const failedCorrection = structuredClone(correctionChanges);
+  failedCorrection.items[0].answers = [];
+  assert.equal((await correctionPatch(failedCorrection)).status, 400);
+  const reloadedCorrection = await (await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}`, { headers: { Cookie: cookie } })).json();
+  assert.deepEqual(reloadedCorrection.draft.content.stages[5].content.slice(5), savedCorrectionDraft.content.stages[5].content.slice(5));
   assert.ok(draft.content.stages.slice(6).every(s => s.content === null));
   assert.equal(draft.content.stages[3].id, 'watch-and-interact');
   assert.equal(draft.content.stages[3].number, 4);
