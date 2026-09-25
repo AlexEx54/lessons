@@ -88,7 +88,9 @@ test('template two creation and editing update the answer key atomically', async
   const draft = (await response.json()).draft;
   assert.equal(draft.template, 'template-2');
   assert.equal(draft.imageGeneration.total, 0);
-  assert.ok(draft.content.stages.slice(5).every(s => s.content === null));
+  assert.deepEqual(draft.content.stages[5].content.map(component => component.type),
+    ['teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard']);
+  assert.ok(draft.content.stages.slice(6).every(s => s.content === null));
   assert.equal(draft.content.stages[3].id, 'watch-and-interact');
   assert.equal(draft.content.stages[3].number, 4);
   const [watchNote, prediction, video, discussion] = draft.content.stages[3].content;
