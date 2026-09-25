@@ -1,0 +1,2 @@
+Built-in image_gen
+Use case: background-extraction. Edit target: the attached teacher avatar. Remove only the pale lavender background and make it genuinely transparent with alpha. Preserve the exact same character, face, glasses, hairstyle, clothing, colors, expression, framing, and silhouette. No redesign. Clean antialiased silhouette edges, no halo, no circle, no frame, no shadow behind the character. Output transparent PNG.
