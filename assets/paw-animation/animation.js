@@ -18,7 +18,11 @@
     document.querySelector('.slots').append(slot);
     return el;
   });
-  const duration = 12000;
+  const finale = document.querySelector('#finale');
+  const finaleWords = [...document.querySelectorAll('.finale-words span')];
+  const finaleStart = 11700;
+  const wordTimingScale = 1.2;
+  const duration = finaleStart + 3400 * wordTimingScale;
   let elapsed = 0, running = !reducedMotion.matches, last = null, request = null;
   const ease = t => t * t * (3 - 2 * t);
   const mix = (a,b,t) => a + (b-a)*t;
@@ -54,6 +58,17 @@
     const finished = elapsed >= 11000;
     if(finished){cards.forEach((el,i)=>{const p=target(i);pos(el,p.x,p.y)});paw.style.opacity='0';}else{paw.style.opacity='1';}
     document.querySelector('#celebration').style.opacity=finished?'1':'0';
+    const finaleTime = elapsed - finaleStart;
+    finale.style.opacity = Math.min(1, Math.max(0, finaleTime / 250));
+    finaleWords.forEach((word, i) => {
+      const p = Math.min(1, Math.max(0, (finaleTime / wordTimingScale - 180 - i * 340) / 650));
+      // An overshoot followed by a small recoil, driven by the shared clock
+      // so pause, replay and speed apply to the whole sequence.
+      const pop = reducedMotion.matches ? 1 : 1 - Math.exp(-6 * p) * Math.cos(10 * p);
+      const settled = p === 1 ? 1 : pop;
+      word.style.opacity = Math.min(1, p * 7);
+      word.style.transform = `translateY(${(1-settled)*65}px) rotate(${(1-settled)*(i%2 ? 12 : -12)}deg) scale(${.45+settled*.55})`;
+    });
     document.querySelector('#check').textContent=finished?'Perfect! ✓':'Check →';
     const progress=Math.min(1,timeline/10500);
     document.querySelector('#progress-fill').style.width=`${progress*100}%`;
@@ -61,13 +76,15 @@
   }
   function updateControls(){
     play.textContent=running?'Ⅱ Пауза':elapsed>=duration?'▶ Повторить':'▶ Продолжить';
-    status.textContent=elapsed>=duration?'Готово! The cat is lying on the mat.':running?'Лапка собирает предложение…':'Анимация на паузе.';
+    status.textContent=elapsed>=duration?'Кому это может быть вообще интересно?':running?(elapsed >= finaleStart ? 'Кому это может быть вообще интересно?' : 'Лапка собирает предложение…'):'Анимация на паузе.';
   }
   function tick(now){
     request=null;
     if(!running || document.hidden){last=null;return;}
+    const previousElapsed = elapsed;
     if(last!==null)elapsed=Math.min(duration,elapsed+(now-last)*Number(document.querySelector('#speed').value));
     last=now;draw();
+    if(previousElapsed < finaleStart && elapsed >= finaleStart) updateControls();
     if(elapsed>=duration){running=false;updateControls();return;}
     request=requestAnimationFrame(tick);
   }
