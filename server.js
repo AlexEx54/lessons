@@ -72,6 +72,7 @@ const {
   updateTaskPrompt,
   updateTeacherNote,
   updateStoryCards,
+  updateGuidedCommunicationCards,
   updateTextReading,
   updateTextReadingImage,
   updateTextPanel,
@@ -999,6 +1000,19 @@ function getAudioPlayerAudioRouteParams(pathname) {
     const values = match.slice(1).map(value => decodeURIComponent(value).trim());
     if (values.some(value => !value)) return null;
     return { draftId: values[0], componentId: values[1] };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getGuidedCommunicationCardsRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/guided-communication-cards\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
   } catch (_error) {
     return null;
   }
@@ -2191,6 +2205,7 @@ const server = http.createServer(async (req, res) => {
     const selfAssessmentRoute = getSelfAssessmentRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
+    const guidedCommunicationCardsRoute = getGuidedCommunicationCardsRouteParams(pathname);
     const storyCardsRoute = getStoryCardsRouteParams(pathname);
     const textReadingRoute = getTextReadingRouteParams(pathname);
     const audioPlayerRoute = getAudioPlayerRouteParams(pathname);
@@ -2217,6 +2232,7 @@ const server = http.createServer(async (req, res) => {
       && (!selfAssessmentRoute || !selfAssessmentRoute.draftId || !selfAssessmentRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)
+      && (!guidedCommunicationCardsRoute || !guidedCommunicationCardsRoute.draftId || !guidedCommunicationCardsRoute.componentId)
       && (!storyCardsRoute || !storyCardsRoute.draftId || !storyCardsRoute.componentId)
       && (!textReadingRoute || !textReadingRoute.draftId || !textReadingRoute.componentId)
       && (!audioPlayerRoute || !audioPlayerRoute.draftId || !audioPlayerRoute.componentId)
@@ -2414,6 +2430,9 @@ const server = http.createServer(async (req, res) => {
           accentColor: body.accentColor,
           showBorder: body.showBorder,
         }, database);
+      } else if (guidedCommunicationCardsRoute) {
+        draft = updateGuidedCommunicationCards({ id: guidedCommunicationCardsRoute.draftId, ownerAdminId: user.id,
+          componentId: guidedCommunicationCardsRoute.componentId, items: body.items }, database);
       } else if (storyCardsRoute) {
         draft = updateStoryCards({ id: storyCardsRoute.draftId, ownerAdminId: user.id,
           componentId: storyCardsRoute.componentId, title: body.title, items: body.items }, database);

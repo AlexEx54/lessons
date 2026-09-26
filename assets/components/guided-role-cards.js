@@ -5,6 +5,8 @@
     || (typeof require === 'function' ? require('./safe-markdown.js') : null);
   if (!markdown) throw new Error('GuidedRoleCards requires SafeMarkdown.');
 
+  const flip = root.FlipCardComponent || (typeof require === 'function' ? require('./flip-card.js') : null);
+
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const ROLE_KEYS = Object.freeze(['student', 'teacher']);
   const VIEWER_ROLES = new Set(ROLE_KEYS);
@@ -143,23 +145,6 @@
       }
     }
 
-    function syncOpenState(shell, flipper, back, front, role, isOpen, interactive) {
-      shell.classList.toggle('guided-role-card--open', isOpen);
-      if (interactive) {
-        flipper.setAttribute('aria-expanded', String(isOpen));
-        flipper.setAttribute('aria-label', `${isOpen ? 'Скрыть' : 'Открыть'} карточку ${role.title}`);
-      }
-      back.setAttribute('aria-hidden', String(isOpen));
-      front.setAttribute('aria-hidden', String(!isOpen));
-      if (isOpen) {
-        back.setAttribute('inert', '');
-        front.removeAttribute('inert');
-      } else {
-        front.setAttribute('inert', '');
-        back.removeAttribute('inert');
-      }
-    }
-
     function roleCard(roleKey, role, editable) {
       const shell = doc.createElement('article');
       shell.className = `guided-role-card guided-role-card--${roleKey}`;
@@ -210,22 +195,11 @@
       editors.set(roleKey, roleEditors);
       flipper.append(back, front);
       shell.append(flipper);
-      syncOpenState(shell, flipper, back, front, role, editable || openRoles.has(roleKey), !editable);
-      if (!editable) {
-        flipper.tabIndex = 0;
-        flipper.setAttribute('role', 'button');
-        const toggle = () => {
-          if (openRoles.has(roleKey)) openRoles.delete(roleKey);
-          else openRoles.add(roleKey);
-          syncOpenState(shell, flipper, back, front, role, openRoles.has(roleKey), true);
-        };
-        flipper.addEventListener('click', toggle);
-        flipper.addEventListener('keydown', (event) => {
-          if (event.key !== 'Enter' && event.key !== ' ') return;
-          event.preventDefault();
-          toggle();
-        });
-      }
+      flip.bindFlipCard({ shell, flipper, cover: back, content: front,
+        label: role.title, expanded: openRoles.has(roleKey), editing: editable,
+        openClass: 'guided-role-card--open',
+        onExpandedChange: open => { if (open) openRoles.add(roleKey); else openRoles.delete(roleKey); },
+      });
       return shell;
     }
 

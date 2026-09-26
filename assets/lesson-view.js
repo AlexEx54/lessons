@@ -14,6 +14,7 @@
     personalizedQuestions: ['PersonalizedQuestionsComponent', 'renderPersonalizedQuestions'],
     describeAndGuess: ['DescribeAndGuessComponent', 'renderDescribeAndGuess'],
     howToPlay: ['HowToPlayComponent', 'renderHowToPlay'],
+    guidedCommunicationCards: ['GuidedCommunicationCardsComponent', 'renderGuidedCommunicationCards'],
     guidedRoleCards: ['GuidedRoleCardsComponent', 'renderGuidedRoleCards'],
     speakingSupport: ['SpeakingSupportComponent', 'renderSpeakingSupport'],
     threeTwoOne: ['ThreeTwoOneComponent', 'renderThreeTwoOne'],

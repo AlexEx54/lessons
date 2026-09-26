@@ -88,6 +88,18 @@ test('template two creation and editing update the answer key atomically', async
   const draft = (await response.json()).draft;
   assert.equal(draft.template, 'template-2');
   assert.equal(draft.imageGeneration.total, 0);
+  const communication = draft.content.stages[6].content[2];
+  const communicationPatch = (items, auth = cookie) => fetch(
+    `${baseUrl}/api/lesson-drafts/${draft.id}/guided-communication-cards/${communication.id}`,
+    { method: 'PATCH', headers: { Cookie: auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
+  assert.equal((await communicationPatch(communication.items, otherCookie)).status, 404);
+  assert.equal((await communicationPatch(communication.items.slice(1))).status, 400);
+  const communicationItems = structuredClone(communication.items);
+  communicationItems[0].task.questions[0] = 'What is your **hero** called?';
+  const communicationSaved = await communicationPatch(communicationItems);
+  assert.equal(communicationSaved.status, 200);
+  assert.deepEqual((await communicationSaved.json()).draft.content.stages[6].content[2].items, communicationItems);
+
   assert.deepEqual(draft.content.stages[5].content.map(component => component.type),
     ['teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard', 'sentenceCorrection', 'markdownCard', 'sentenceMatching',
       'gapFill', 'markdownCard', 'cardRow']);
@@ -140,7 +152,7 @@ test('template two creation and editing update the answer key atomically', async
   const matchingContent = (await matchingResponse.json()).draft.content.stages[5].content;
   assert.deepEqual(matchingContent.find(item => item.id === matching.id).items, matchingChanges.items);
   assert.equal(matchingContent.some(item => item.id === `${matching.id}-answer-key`), false);
-  assert.ok(draft.content.stages.slice(6).every(s => s.content === null));
+  assert.ok(draft.content.stages.slice(7).every(s => s.content === null));
   assert.equal(draft.content.stages[3].id, 'watch-and-interact');
   assert.equal(draft.content.stages[3].number, 4);
   const [watchNote, prediction, video, discussion] = draft.content.stages[3].content;

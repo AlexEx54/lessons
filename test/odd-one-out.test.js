@@ -96,7 +96,7 @@ test('template two has Warm Up and Lead In and shares unchanged teacher notes', 
   assert.deepEqual(two.stages[5].content.map(component => component.type),
     ['teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard', 'sentenceCorrection', 'markdownCard', 'sentenceMatching',
       'gapFill', 'markdownCard', 'cardRow']);
-  assert.ok(two.stages.slice(6).every(stage => stage.content === null));
+  assert.ok(two.stages.slice(7).every(stage => stage.content === null));
   assert.equal(two.stages[0].content[1].items.length, 4);
   assert.deepEqual(two.stages[0].content[2], createOddOneOutAnswerKey(component()));
   assert.equal(studentComponent(two.stages[0].content[2], {}), null);
