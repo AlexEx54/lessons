@@ -12,7 +12,7 @@
   const DEFAULT_ACCENT_COLOR = '#17182D';
   const MARKUP = /<[^>]*>|\*\*|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s/m;
   const UNSUPPORTED_ACCENT_MARKUP = /<[^>]*>|__|`|!\[|\[[^\]]+\]\(|^\s{0,3}#{1,6}\s/m;
-  const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'text', 'gaps', 'accentColor', 'studentVisibility'];
+  const COMPONENT_KEYS = ['type', 'id', 'title', 'instruction', 'text', 'gaps', 'accentColor', 'studentVisibility', 'fieldSize'];
   const GAP_KEYS = ['id', 'answer', 'example'];
 
   function normalizeSpace(value) {
@@ -120,6 +120,9 @@
     if (data.studentVisibility != null && !['always', 'controlled'].includes(data.studentVisibility)) {
       throw new Error('GapFill requires always or controlled studentVisibility.');
     }
+    if (data.fieldSize != null && data.fieldSize !== 'wide') {
+      throw new Error('GapFill supports only the wide fieldSize.');
+    }
     const accentColor = data.accentColor == null
       ? DEFAULT_ACCENT_COLOR
       : String(data.accentColor).trim().toUpperCase();
@@ -143,6 +146,7 @@
       gaps,
       accentColor,
       ...(data.studentVisibility != null ? { studentVisibility: data.studentVisibility } : {}),
+      ...(data.fieldSize != null ? { fieldSize: data.fieldSize } : {}),
     };
   }
 
@@ -178,7 +182,7 @@
     let editorGaps = [];
 
     const section = doc.createElement('section');
-    section.className = 'gap-fill';
+    section.className = current.fieldSize === 'wide' ? 'gap-fill gap-fill--wide' : 'gap-fill';
     section.dataset.componentId = current.id;
     section.style.setProperty('--gap-fill-accent', current.accentColor);
     section.setAttribute('aria-label', stripAccentMarkdown(current.title));

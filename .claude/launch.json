@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "teach-platform-scratch",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["APP_DB_PATH=/private/tmp/claude-501/-Users-alexex-dev-teach-platform/177f2624-8b8e-4935-9ed5-f0420a82b326/scratchpad/app.sqlite", "HOST=127.0.0.1", "PORT=8788", "node", "server.js"],
+      "port": 8788
+    }
+  ]
+}

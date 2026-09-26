@@ -50,6 +50,7 @@
   margin: 0 5px;
   vertical-align: middle;
 }
+.gap-fill--wide .gap-fill__field { width: min(315px, 100%); }
 
 .gap-fill__input {
   width: 100%;

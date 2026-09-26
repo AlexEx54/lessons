@@ -8,7 +8,7 @@ const { normalizeSentenceMatching, renderSentenceMatching } = require('../assets
 const model = require('../assets/components/exercise-state.js');
 const { applyComponentAction, teacherComponent, studentComponent, clearComponentState } = require('../lib/class-component-handlers.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
-const source = createSyntheticLesson('Camp', { template: 'template-2' }).stages[5].content.at(-1);
+const source = createSyntheticLesson('Camp', { template: 'template-2' }).stages[5].content.find(item => item.type === 'sentenceMatching');
 const layout = { order: [5, 3, 1, 0, 4, 2], wordIds: source.items.map((_, i) => `left-${i}`), pictureIds: source.items.map((_, i) => `right-${i}`) };
 const projected = model.presentation(source, layout);
 const action = (i, j = i) => ({ type: 'match-word', componentId: source.id, itemId: `left-${i}`, targetId: `right-${j}`, attemptId: `attempt-${i}-${j}` });

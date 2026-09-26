@@ -14,13 +14,18 @@
     const comparable = text => typeof text === 'string' ? text.trim().replace(/\s+/g, ' ').toLocaleLowerCase() : '';
     return Boolean(comparable(value)) && comparable(value) === comparable(answer);
   }
-  function gapAnswersMatch(value, answer) {
+  function apostropheAnswersMatch(value, answer) {
     const apostrophes = text => typeof text === 'string' ? text.replace(/[\u2018\u2019\u02BC]/g, "'") : '';
     return answersMatch(apostrophes(value), apostrophes(answer));
   }
+  function gapAnswersMatch(value, answer) {
+    // Gaps may hold whole sentences, so final punctuation is optional.
+    const comparable = text => typeof text === 'string' ? text.trim().replace(/[.?!]+$/, '') : '';
+    return apostropheAnswersMatch(comparable(value), comparable(answer));
+  }
   function correctionAnswersMatch(value, answers) {
     const comparable = text => typeof text === 'string' ? text.trim().replace(/\.$/, '') : '';
-    return answers.some(answer => gapAnswersMatch(comparable(value), comparable(answer)));
+    return answers.some(answer => apostropheAnswersMatch(comparable(value), comparable(answer)));
   }
   function selectionState(value, answer) { return !value ? 'empty' : value === answer ? 'correct' : 'wrong'; }
   // Stable layouts keep word order and identifiers consistent across clients.

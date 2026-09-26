@@ -23,7 +23,7 @@ test('matching selection, order and pairs persist across reopen and stage change
   const access = { role: 'teacher', classId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };
   let state = readState(lesson.id, db);
   const select = stageId => { state = applyAction(access, { type: 'select-stage', stageId, expectedVersion: state.version }, db); };
-  const task = sessionPayload(student, db).lesson.content.stages[5].content.at(-1).presentation;
+  const task = sessionPayload(student, db).lesson.content.stages[5].content.find(item => item.type === 'sentenceMatching').presentation;
   const action = { type: 'match-word', stageId: 'grammar-focus', componentId: task.id,
     itemId: task.items[2].id, targetId: task.answerKey[task.items[2].id], attemptId: crypto.randomUUID() };
   assert.throws(() => applyAction(student, { ...action, expectedVersion: state.version }, db), { statusCode: 409 });
@@ -38,9 +38,9 @@ test('matching selection, order and pairs persist across reopen and stage change
   assert.deepEqual(readState(lesson.id, db), state);
   const learner = sessionPayload(student, db), tutor = sessionPayload(access, db);
   assert.deepEqual(learner.state.exercises, tutor.state.exercises);
-  assert.deepEqual(learner.lesson.content.stages[5].content.at(-1).presentation, task);
-  assert.deepEqual(tutor.lesson.content.stages[5].content.at(-1).presentation, task);
+  assert.deepEqual(learner.lesson.content.stages[5].content.find(item => item.type === 'sentenceMatching').presentation, task);
+  assert.deepEqual(tutor.lesson.content.stages[5].content.find(item => item.type === 'sentenceMatching').presentation, task);
   state = applyAction(access, { type: 'reset-stage', stageId: 'grammar-focus', expectedVersion: state.version }, db);
   assert.equal(readState(lesson.id, db).exercises[task.id], undefined);
-  assert.deepEqual(sessionPayload(student, db).lesson.content.stages[5].content.at(-1).presentation, task);
+  assert.deepEqual(sessionPayload(student, db).lesson.content.stages[5].content.find(item => item.type === 'sentenceMatching').presentation, task);
 });

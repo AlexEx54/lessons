@@ -182,6 +182,9 @@ test('gap fill answer matching is live-friendly and has no wrong state', () => {
   assert.equal(answersMatch("couldn't get used to", 'couldn’t get used to'), true);
   assert.equal(answersMatch('did you use to', 'did you use to do'), false);
   assert.equal(answersMatch('', 'Did'), false);
+  assert.equal(answersMatch('Has your superhero got a belt? ', 'Has your superhero got a belt'), true);
+  assert.equal(answersMatch('We haven’t got boots.', "We haven't got boots"), true);
+  assert.equal(answersMatch('.', 'Did'), false);
 });
 
 test('gap fill renders example placeholders and keeps a correct field editable', () => {
@@ -260,4 +263,15 @@ test('controlled gap fill offers teacher visibility controls without changing or
   section.setVisibilityInteractive(false);
   button.listeners.click[0]();
   assert.deepEqual(actions, [true]);
+});
+
+test('wide gap fill keeps its field size and ordinary exercises stay compact', () => {
+  const wide = normalizeGapFill(component({ fieldSize: 'wide' }));
+  assert.equal(wide.fieldSize, 'wide');
+  assert.equal('fieldSize' in normalizeGapFill(component()), false);
+  assert.throws(() => normalizeGapFill(component({ fieldSize: 'large' })), /fieldSize/);
+  assert.equal(renderGapFill(wide, createFakeDocument()).className, 'gap-fill gap-fill--wide');
+  assert.equal(renderGapFill(component(), createFakeDocument()).className, 'gap-fill');
+  const css = fs.readFileSync(path.join(__dirname, '../assets/components/gap-fill.css'), 'utf8');
+  assert.match(css, /\.gap-fill--wide \.gap-fill__field \{ width: min\(315px, 100%\); \}/);
 });
