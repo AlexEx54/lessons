@@ -1145,8 +1145,9 @@ Teacher Answer Key в этот компонент не встроен. Если 
 ## Template 2: Odd One Out
 
 `createSyntheticLesson(topic, { template: 'template-2' })` builds a synthetic-only draft with
-`teacherNote`, `oddOneOut`, and a teacher-only `markdownCard` in Warm Up. The other stages
-are placeholders (`content: null`). The default call still creates template 1.
+`teacherNote`, `oddOneOut`, and a teacher-only `markdownCard` in Warm Up. All stages contain
+demonstration content. Wrap-Up copies template 1 in full: Teacher Note, 3–2–1,
+Self-assessment, and Possible language. The default call still creates template 1.
 
 `oddOneOut` has `id`, `title`, `instruction`, and 1–12 `items`. Each item contains a unique
 kebab-case `id`, exactly four distinct plain-text `options`, an `answer` matching one option,
