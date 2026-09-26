@@ -1,6 +1,7 @@
 (function initExerciseState(root) {
   'use strict';
 
+  const sentenceBuilder = () => root.SentenceBuilderModel || (typeof require === 'function' ? require('./sentence-builder-model.js') : null);
   function fail(message) { throw Object.assign(new Error(message), { statusCode: 400 }); }
   function shuffle(values, random = Math.random) {
     const result = [...values];
@@ -30,6 +31,7 @@
   function selectionState(value, answer) { return !value ? 'empty' : value === answer ? 'correct' : 'wrong'; }
   // Stable layouts keep word order and identifiers consistent across clients.
   function createLayout(component, id = () => root.crypto.randomUUID()) {
+    if (component.type === 'sentenceBuilder') return sentenceBuilder().createLayout(component, id, shuffle);
     const indexes = component.items.map((_, index) => index);
     return {
       order: shuffle(indexes),
@@ -37,6 +39,7 @@
     };
   }
   function presentation(component, layout) {
+    if (component.type === 'sentenceBuilder') return sentenceBuilder().presentation(component, layout);
     const { type, id, title, instruction } = component;
     const base = { type, id, title, instruction };
     if (type === 'sentenceMatching') {
@@ -59,6 +62,7 @@
     return component;
   }
   function apply(component, previous = {}, action, layout) {
+    if (component.type === 'sentenceBuilder') return sentenceBuilder().apply(component, previous, action, layout);
     if (component.type === 'sentenceMatching') {
       const task = layout ? presentation(component, layout) : component;
       const matches = previous.matches || {};

@@ -88,6 +88,27 @@ test('template two creation and editing update the answer key atomically', async
   const draft = (await response.json()).draft;
   assert.equal(draft.template, 'template-2');
   assert.equal(draft.imageGeneration.total, 0);
+  // Exercise the reusable component on an explicit fixture, independently of template 2.
+  const builder = require('../lib/sentence-builder-example.js').createSentenceBuilderExample();
+  const builderContent = structuredClone(draft.content);
+  builderContent.stages[7].content.splice(1, 0, builder);
+  const fixtureDb = openDatabase(databasePath);
+  fixtureDb.prepare('UPDATE lesson_drafts SET content_json = ? WHERE id = ?').run(JSON.stringify(builderContent), draft.id);
+  fixtureDb.close();
+  const builderChanges = { title: 'Build with the cat', instruction: builder.instruction,
+    hintsEnabled: false, completionText: 'Well done!', items: [builder.items[2], builder.items[0]] };
+  const builderPatch = (body, auth = cookie) => fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/sentence-builder/${builder.id}`, {
+    method: 'PATCH', headers: { Cookie: auth, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  assert.equal((await builderPatch(builderChanges, otherCookie)).status, 404);
+  assert.equal((await builderPatch({ ...builderChanges, items: [] })).status, 400);
+  assert.equal((await builderPatch({ ...builderChanges, injected: true })).status, 400);
+  const builderSaved = await builderPatch(builderChanges);
+  assert.equal(builderSaved.status, 200);
+  assert.deepEqual((await builderSaved.json()).draft.content.stages[7].content[1], { ...builder, ...builderChanges });
+  assert.equal((await builderPatch({ ...builderChanges, hintsEnabled: 'yes' })).status, 400);
+  const builderReloaded = await (await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}`, { headers: { Cookie: cookie } })).json();
+  assert.deepEqual(builderReloaded.draft.content.stages[7].content[1], { ...builder, ...builderChanges });
   const communication = draft.content.stages[6].content[2];
   const communicationPatch = (items, auth = cookie) => fetch(
     `${baseUrl}/api/lesson-drafts/${draft.id}/guided-communication-cards/${communication.id}`,

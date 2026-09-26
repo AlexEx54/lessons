@@ -7,6 +7,7 @@
     matchWords: ['MatchWordsComponent', 'renderMatchWords'],
     dropdownChoice: ['DropdownChoiceComponent', 'renderDropdownChoice'],
     gapFill: ['GapFillComponent', 'renderGapFill'],
+    sentenceBuilder: ['SentenceBuilderComponent', 'renderSentenceBuilder'],
     sentenceMatching: ['SentenceMatchingComponent', 'renderSentenceMatching'],
     sentenceCorrection: ['SentenceCorrectionComponent', 'renderSentenceCorrection'],
     fillInBlanks: ['FillInBlanksComponent', 'renderFillInBlanks'],

@@ -82,7 +82,7 @@
       },
     }],
   ]);
-  for (const type of ['dragWordsInText', 'matchWords', 'sentenceMatching', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'oddOneOut', 'factOrMyth', 'checkboxChoice', 'gapFill', 'miniSituation', 'sentenceCorrection']) {
+  for (const type of ['dragWordsInText', 'matchWords', 'sentenceBuilder', 'sentenceMatching', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'oddOneOut', 'factOrMyth', 'checkboxChoice', 'gapFill', 'miniSituation', 'sentenceCorrection']) {
     adapters.set(type, {
       options(component, session) {
         return {
@@ -102,10 +102,11 @@
           state.visibleCards = { ...state.visibleCards, [action.componentId]: action.visible };
           return;
         }
+        if (type === 'sentenceBuilder' && !['move-token', 'return-token'].includes(action.type)) return;
         const previous = state.exercises?.[action.componentId] || {};
         let next = previous;
         // Reapply queued actions with the same rules as the component and server.
-        if (type === 'sentenceCorrection' || type === 'gapFill' || type === 'miniSituation' || type === 'dragWordsInText' || type === 'dropdownChoice' || type === 'matchWords' || type === 'sentenceMatching' || type === 'multipleChoice' || type === 'oddOneOut' || type === 'factOrMyth' || type === 'checkboxChoice') {
+        if (type === 'sentenceBuilder' || type === 'sentenceCorrection' || type === 'gapFill' || type === 'miniSituation' || type === 'dragWordsInText' || type === 'dropdownChoice' || type === 'matchWords' || type === 'sentenceMatching' || type === 'multipleChoice' || type === 'oddOneOut' || type === 'factOrMyth' || type === 'checkboxChoice') {
           next = window.ExerciseState.apply(component.presentation, previous, action);
           state.exercises = { ...state.exercises, [action.componentId]: next };
           return;
@@ -123,7 +124,7 @@
       update(node, component, session) {
         node.updateState(session.state.exercises?.[component.id] || {}, {
           feedback: session.feedback,
-          pending: session.pendingActions?.some(action => action.componentId === component.id && action.type === 'match-word'),
+          pending: session.pendingActions?.some(action => action.componentId === component.id && (type === 'sentenceBuilder' || action.type === 'match-word')),
         });
         node.setInteractive(canAnswer(session) && (type !== 'sentenceCorrection' || session.role === 'student'));
         if (type === 'describeAndGuess' || (type === 'gapFill' && (component.presentation || component).studentVisibility === 'controlled')) {

@@ -61,6 +61,7 @@ const {
   updateGapFill,
   updateSentenceCorrection,
   updateSentenceMatching,
+  updateSentenceBuilder,
   updateMiniSituation,
   updateMarkdownCard,
   updateMatchWordsImage,
@@ -786,6 +787,20 @@ function getSentenceCorrectionRouteParams(pathname) {
 
 function getSentenceMatchingRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/sentence-matching\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+
+function getSentenceBuilderRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/sentence-builder\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -2189,6 +2204,7 @@ const server = http.createServer(async (req, res) => {
     const fillInBlanksRoute = getFillInBlanksRouteParams(pathname);
     const dragWordsInTextRoute = getDragWordsInTextRouteParams(pathname);
     const dropdownChoiceRoute = getDropdownChoiceRouteParams(pathname);
+    const sentenceBuilderRoute = getSentenceBuilderRouteParams(pathname);
     const sentenceMatchingRoute = getSentenceMatchingRouteParams(pathname);
     const sentenceCorrectionRoute = getSentenceCorrectionRouteParams(pathname);
     const gapFillRoute = getGapFillRouteParams(pathname);
@@ -2216,6 +2232,7 @@ const server = http.createServer(async (req, res) => {
       && (!fillInBlanksRoute || !fillInBlanksRoute.draftId || !fillInBlanksRoute.componentId)
       && (!dragWordsInTextRoute || !dragWordsInTextRoute.draftId || !dragWordsInTextRoute.componentId)
       && (!dropdownChoiceRoute || !dropdownChoiceRoute.draftId || !dropdownChoiceRoute.componentId)
+      && (!sentenceBuilderRoute || !sentenceBuilderRoute.draftId || !sentenceBuilderRoute.componentId)
       && (!sentenceMatchingRoute || !sentenceMatchingRoute.draftId || !sentenceMatchingRoute.componentId)
       && (!sentenceCorrectionRoute || !sentenceCorrectionRoute.draftId || !sentenceCorrectionRoute.componentId)
       && (!gapFillRoute || !gapFillRoute.draftId || !gapFillRoute.componentId)
@@ -2304,6 +2321,17 @@ const server = http.createServer(async (req, res) => {
           instruction: body.instruction,
           text: body.text,
           choices: body.choices,
+        }, database);
+      } else if (sentenceBuilderRoute) {
+        if (!body || typeof body !== 'object' || Array.isArray(body)
+          || Object.keys(body).some(key => !['title', 'instruction', 'items', 'hintsEnabled', 'completionText'].includes(key))) {
+          throw Object.assign(new Error('Некорректные поля Sentence Builder.'), { statusCode: 400 });
+        }
+        draft = updateSentenceBuilder({
+          id: sentenceBuilderRoute.draftId, ownerAdminId: user.id,
+          componentId: sentenceBuilderRoute.componentId,
+          title: body.title, instruction: body.instruction, items: body.items,
+          hintsEnabled: body.hintsEnabled, completionText: body.completionText,
         }, database);
       } else if (sentenceMatchingRoute) {
         draft = updateSentenceMatching({
