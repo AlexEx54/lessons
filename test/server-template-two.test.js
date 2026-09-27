@@ -82,7 +82,6 @@ test('template two creation and editing update the answer key atomically', async
   const create = body => fetch(`${baseUrl}/api/lesson-drafts`, {
     method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   });
-  assert.equal((await create({ ...params, synthetic: false })).status, 400);
   const response = await create(params);
   assert.equal(response.status, 201);
   const draft = (await response.json()).draft;

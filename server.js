@@ -89,33 +89,15 @@ const {
   retryLessonGeneration,
   updateLessonGenerationStream,
 } = require('./lib/lesson-generation-store.js');
+const { getLessonGenerationSections } = require('./lib/lesson-generation-sections.js');
 const { recoverLessonGeneration } = require('./lib/lesson-generation-recovery.js');
 const { stopInterruptedLessonImageGenerations } = require('./lib/lesson-image-generation-store.js');
 const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
 const {
   LESSON_MODEL_OPTIONS,
   OPENROUTER_BASE_URL,
-  applyGrammarFocusToSkeleton,
-  applyGrammarPresentationToSkeleton,
-  applyGuidedSpeakingToSkeleton,
-  applyLeadInToSkeleton,
-  applyLessonMetadataToSkeleton,
-  applyListeningToSkeleton,
-  applyReadingToSkeleton,
-  applyTargetVocabularyToSkeleton,
-  applyWarmUpToSkeleton,
-  applyWrapUpToSkeleton,
   createLessonSkeleton,
-  generateGrammarFocus,
-  generateGrammarPresentation,
-  generateGuidedSpeaking,
-  generateLeadIn,
-  generateLessonMetadata,
-  generateListening,
-  generateReading,
-  generateTargetVocabulary,
-  generateWarmUp,
-  generateWrapUp,
+  createTemplateTwoSkeleton,
 } = require('./lib/ai-lesson-generator.js');
 
 const PORT = process.env.PORT || 8787;
@@ -263,6 +245,7 @@ async function runAiLessonGeneration({
   grammarTopic,
   ageGroup,
   level,
+  template,
   model,
   skeleton,
   recoveredSections = {},
@@ -345,97 +328,21 @@ async function runAiLessonGeneration({
     if (typeof model !== 'string' || !model.trim()) {
       throw new Error('Модель генерации не задана.');
     }
-    const metadataResult = await recoverOrGenerate(
-      'lessonMetadata', 'Lesson Metadata', topic, generateLessonMetadata,
-    );
-    const warmUpResult = await recoverOrGenerate('warmUp', 'Warm-Up', warmUpTopic, generateWarmUp);
-    const leadInResult = await recoverOrGenerate('leadIn', 'Lead-In', topic, generateLeadIn);
-    const targetVocabularyResult = await recoverOrGenerate(
-      'targetVocabulary', 'Target Vocabulary', topic, generateTargetVocabulary,
-    );
-    const readingResult = await recoverOrGenerate(
-      'reading',
-      'Reading',
-      topic,
-      options => generateReading({
-        ...options,
-        grammarTopic,
-        vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
-      }),
-    );
-    const listeningResult = await recoverOrGenerate(
-      'listening',
-      'Listening',
-      topic,
-      options => generateListening({
-        ...options,
-        grammarTopic,
-        vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
-      }),
-    );
-    const grammarPresentationResult = await recoverOrGenerate(
-      'grammarPresentation',
-      'Grammar Presentation',
-      topic,
-      options => generateGrammarPresentation({ ...options, grammarTopic }),
-    );
-    const grammarFocusResult = await recoverOrGenerate(
-      'grammarFocus',
-      'Grammar Focus',
-      topic,
-      options => generateGrammarFocus({
-        ...options,
-        grammarTopic,
-        vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
-      }),
-    );
-    const guidedSpeakingResult = await recoverOrGenerate(
-      'guidedSpeaking',
-      'Guided Speaking',
-      topic,
-      options => generateGuidedSpeaking({
-        ...options,
-        vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
-      }),
-    );
-    const wrapUpResult = await recoverOrGenerate(
-      'wrapUp',
-      'Wrap-Up',
-      topic,
-      options => generateWrapUp({
-        ...options,
-        grammarTopic,
-        vocabularyItems: targetVocabularyResult.generated.vocabularyItems,
-      }),
-    );
-    const lessonWithMetadata = applyLessonMetadataToSkeleton(skeleton, metadataResult.generated);
-    const lessonWithWarmUp = applyWarmUpToSkeleton(lessonWithMetadata, warmUpResult.generated);
-    const lessonWithLeadIn = applyLeadInToSkeleton(lessonWithWarmUp, leadInResult.generated);
-    const lessonWithTargetVocabulary = applyTargetVocabularyToSkeleton(
-      lessonWithLeadIn, targetVocabularyResult.generated,
-    );
-    const lessonWithReading = applyReadingToSkeleton(
-      lessonWithTargetVocabulary,
-      readingResult.generated,
-      targetVocabularyResult.generated.vocabularyItems,
-    );
-    const lessonWithListening = applyListeningToSkeleton(
-      lessonWithReading, listeningResult.generated,
-    );
-    const lessonWithGrammarPresentation = applyGrammarPresentationToSkeleton(
-      lessonWithListening, grammarPresentationResult.generated,
-    );
-    const lessonWithGrammarFocus = applyGrammarFocusToSkeleton(
-      lessonWithGrammarPresentation,
-      grammarFocusResult.generated,
-      targetVocabularyResult.generated.vocabularyItems,
-    );
-    const lessonWithGuidedSpeaking = applyGuidedSpeakingToSkeleton(
-      lessonWithGrammarFocus,
-      guidedSpeakingResult.generated,
-      targetVocabularyResult.generated.vocabularyItems,
-    );
-    const lesson = applyWrapUpToSkeleton(lessonWithGuidedSpeaking, wrapUpResult.generated);
+    const sections = getLessonGenerationSections(template);
+    const completedSections = {};
+    const context = { topic, warmUpTopic, grammarTopic };
+    let lesson = skeleton;
+    for (const section of sections) {
+      const sectionOptions = section.options?.(context, completedSections) || {};
+      const result = await recoverOrGenerate(
+        section.key,
+        section.name,
+        sectionOptions.topic ?? topic,
+        options => section.generate({ ...options, ...sectionOptions }),
+      );
+      lesson = section.apply(lesson, result.generated, completedSections);
+      completedSections[section.key] = result.generated;
+    }
     database.exec('BEGIN IMMEDIATE');
     try {
       completeLessonDraft(draftId, ownerAdminId, lesson, database);
@@ -1781,10 +1688,6 @@ const server = http.createServer(async (req, res) => {
       json(res, 400, { error: 'Выбран неизвестный шаблон урока.' });
       return;
     }
-    if (template === 'template-2' && !synthetic) {
-      json(res, 400, { error: 'Шаблон 2 пока доступен только в синтетическом режиме.' });
-      return;
-    }
     if (!model || !LESSON_MODEL_OPTIONS[model]) {
       json(res, 400, { error: 'Выбрана неизвестная модель генерации.' });
       return;
@@ -1804,9 +1707,10 @@ const server = http.createServer(async (req, res) => {
       let lesson;
       database.exec('BEGIN IMMEDIATE');
       try {
+        const createSkeleton = template === 'template-2' ? createTemplateTwoSkeleton : createLessonSkeleton;
         lesson = synthetic
           ? createSyntheticLesson(topic, { template })
-          : createLessonSkeleton(topic, { ageGroup, level, model });
+          : createSkeleton(topic, { ageGroup, level, model });
         lesson.meta.ageGroup = ageGroup;
         lesson.meta.level = level;
         pendingDraft = createLessonDraft({
@@ -1853,6 +1757,7 @@ const server = http.createServer(async (req, res) => {
             grammarTopic,
             ageGroup,
             level,
+            template,
             model,
             skeleton: lesson,
           });
@@ -1896,13 +1801,14 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const skeleton = draft.content || createLessonSkeleton(draft.topic, {
+      const createSkeleton = draft.template === 'template-2' ? createTemplateTwoSkeleton : createLessonSkeleton;
+      const skeleton = draft.content || createSkeleton(draft.topic, {
         ageGroup: draft.ageGroup,
         level: draft.level,
         model,
       });
-      const recovery = recoverLessonGeneration(generation.output, skeleton);
-      if (Object.keys(recovery.recoveredSections).length < 10 && !process.env.OPENROUTER_API_KEY) {
+      const recovery = recoverLessonGeneration(generation.output, skeleton, draft.template);
+      if (!recovery.complete && !process.env.OPENROUTER_API_KEY) {
         json(res, 503, { error: 'Нейрогенерация временно недоступна: OPENROUTER_API_KEY не настроен.' });
         return;
       }
@@ -1928,6 +1834,7 @@ const server = http.createServer(async (req, res) => {
           grammarTopic: draft.grammarTopic,
           ageGroup: draft.ageGroup,
           level: draft.level,
+          template: draft.template,
           model,
           skeleton,
           recoveredSections: recovery.recoveredSections,

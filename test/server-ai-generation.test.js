@@ -558,3 +558,114 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
     'teacherNote', 'threeTwoOne', 'selfAssessment', 'markdownCard',
   ]);
 });
+
+test('Template 2 generates Warm-Up with AI and retry regenerates only an invalid Warm-Up', async t => {
+  const rows = [
+    { options: ['bus', 'train', 'ticket', 'tram'], answer: 'ticket', explanation: 'It is a document; the others are vehicles.' },
+    { options: ['ride', 'fast', 'drive', 'walk'], answer: 'fast', explanation: 'It is an adjective; the others are verbs.' },
+    { options: ['station', 'airport', 'port', 'seat'], answer: 'seat', explanation: 'It is inside a vehicle; the others are places.' },
+    { options: ['delay', 'journey', 'trip', 'tour'], answer: 'delay', explanation: 'It is a problem; the others are kinds of travel.' },
+  ];
+  const responses = [
+    { schema: 'easyclass_lesson_metadata', topic: 'Travel choices', generated: LESSON_METADATA },
+    { schema: 'easyclass_template_two_warm_up', topic: 'City transport',
+      generated: { rows: [{ ...rows[0], answer: 'plane' }, ...rows.slice(1)] } },
+    { schema: 'easyclass_template_two_warm_up', topic: 'City transport', generated: { rows } },
+  ];
+  let openRouterRequestCount = 0;
+  const openRouter = http.createServer((req, res) => {
+    let body = '';
+    req.setEncoding('utf8');
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      const payload = JSON.parse(body);
+      const expected = responses[openRouterRequestCount];
+      openRouterRequestCount += 1;
+      assert.equal(payload.response_format.json_schema.name, expected.schema);
+      assert.equal(payload.messages[1].content, `Lesson topic: ${expected.topic}`);
+      res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      res.write(`data: ${JSON.stringify({ id: 'gen-template-two', choices: [{ delta: { content: JSON.stringify(expected.generated) } }] })}\n\n`);
+      res.write(`data: ${JSON.stringify({ id: 'gen-template-two', choices: [{ delta: {} }], usage: { cost: 0.01 } })}\n\n`);
+      res.end('data: [DONE]\n\n');
+    });
+  });
+  const openRouterPort = await listen(openRouter);
+  t.after(() => openRouter.close());
+
+  const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'teach-platform-ai-template-two-'));
+  const databasePath = path.join(temporaryDirectory, 'app.sqlite');
+  const database = openDatabase(databasePath);
+  const password = 'correct-password';
+  createUser({
+    email: 'ai-template-two@example.com', displayName: 'AI Template Two', passwordHash: await hashPassword(password), role: 'admin',
+  }, database);
+  database.close();
+
+  const port = 31000 + Math.floor(Math.random() * 10000);
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const child = childProcess.spawn(process.execPath, ['server.js'], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      APP_DB_PATH: databasePath,
+      HOST: '127.0.0.1',
+      PORT: String(port),
+      NODE_ENV: 'test',
+      DRAFT_ASSETS_DIR: path.join(temporaryDirectory, 'draft-assets'),
+      OPENROUTER_API_KEY: 'integration-key',
+      OPENROUTER_BASE_URL: `http://127.0.0.1:${openRouterPort}/api/v1`,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  t.after(() => {
+    child.kill('SIGTERM');
+    fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+  });
+  await waitForServer(baseUrl, child);
+  const cookie = await login(baseUrl, 'ai-template-two@example.com', password);
+  const waitForDraft = async id => {
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      const { draft } = await (await fetch(`${baseUrl}/api/lesson-drafts/${id}`, { headers: { Cookie: cookie } })).json();
+      if (draft.status !== 'generating') return draft;
+      await new Promise(resolve => setTimeout(resolve, 30));
+    }
+    throw new Error('Generation did not finish.');
+  };
+
+  const createdResponse = await fetch(`${baseUrl}/api/lesson-drafts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({
+      topic: 'Travel choices', warmUpTopic: 'City transport', grammarTopic: 'Past Simple',
+      ageGroup: '12-14', level: 'A2', template: 'template-2', model: 'google/gemini-3.7-flash', synthetic: false,
+    }),
+  });
+  assert.equal(createdResponse.status, 201);
+  const created = (await createdResponse.json()).draft;
+  assert.equal(created.template, 'template-2');
+  assert.equal(created.generation.mode, 'ai');
+  assert.equal(created.content.stages.length, 8);
+  assert.deepEqual(created.content.stages[0].content, []);
+  assert.ok(created.content.stages.slice(1).every(stage => stage.content.length > 0));
+
+  const failed = await waitForDraft(created.id);
+  assert.equal(openRouterRequestCount, 2);
+  assert.equal(failed.status, 'failed');
+  assert.match(failed.errorMessage, /Отметьте лишнее слово в строке 1/);
+
+  const retryResponse = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/retry`, {
+    method: 'POST', headers: { Cookie: cookie },
+  });
+  assert.equal(retryResponse.status, 202);
+  const ready = await waitForDraft(created.id);
+  assert.equal(openRouterRequestCount, 3);
+  assert.equal(ready.status, 'review');
+  assert.equal(ready.content.meta.coverImagePrompt, LESSON_METADATA.coverImagePrompt);
+  assert.equal(ready.content.meta.generatedBy, 'openrouter:google/gemini-3.7-flash');
+  assert.deepEqual(ready.content.stages[0].content.map(component => component.type), [
+    'teacherNote', 'oddOneOut', 'markdownCard',
+  ]);
+  assert.deepEqual(ready.content.stages[0].content[1].items.map(item => item.answer), ['ticket', 'fast', 'seat', 'delay']);
+  assert.match(ready.content.stages[0].content[0].text, /"Ticket!"/);
+  assert.deepEqual(ready.content.stages.slice(1), created.content.stages.slice(1));
+});

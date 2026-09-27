@@ -160,12 +160,9 @@
     });
     select.value.textContent = label;
     select.input.value = value;
-    if (select.input === newLessonSelectInput && newLessonSynthetic) {
-      const templateTwo = value === 'template-2';
-      if (templateTwo) newLessonSynthetic.checked = true;
-      newLessonSynthetic.disabled = templateTwo;
+    if (select.input === newLessonSelectInput) {
       const hint = newLessonModal.querySelector('[data-template-two-hint]');
-      if (hint) hint.hidden = !templateTwo;
+      if (hint) hint.hidden = value !== 'template-2';
     }
     closeNewLessonSelect({ restoreFocus: true });
   }

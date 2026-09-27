@@ -88,10 +88,11 @@ function byClass(root, name) {
 }
 
 
-test('template two has Warm Up and Lead In and shares unchanged teacher notes', () => {
+test('template two has Warm Up and Lead In with its own Warm Up teacher note', () => {
   const one = createSyntheticLesson('Test');
   const two = createSyntheticLesson('Test', { template: 'template-2' });
-  assert.deepEqual(two.stages[0].content[0], one.stages[0].content[0]);
+  assert.notDeepEqual(two.stages[0].content[0], one.stages[0].content[0]);
+  assert.match(two.stages[0].content[0].text, /^\*\*Goal:\*\*/);
   assert.deepEqual(two.stages[0].content.map(c => c.type), ['teacherNote', 'oddOneOut', 'markdownCard']);
   assert.deepEqual(two.stages[5].content.map(component => component.type),
     ['teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard', 'sentenceCorrection', 'markdownCard', 'sentenceMatching',
