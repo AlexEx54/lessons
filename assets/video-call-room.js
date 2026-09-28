@@ -824,6 +824,7 @@
       sendMediaState();
     });
     socket.addEventListener('message', async event => {
+      if (socket !== currentSocket || leaving) return;
       let message;
       try { message = JSON.parse(event.data); } catch (_error) { return; }
       try {
@@ -837,6 +838,9 @@
           if (message.peerPresent) await createPeerConnection();
         } else if (message.type === 'peer-joined') {
           sendDiagnostic('signaling-event', { state: 'peer-joined' });
+          // The peer has a new RTCPeerConnection, even if its old socket has
+          // not timed out yet and no peer-left event was delivered.
+          closePeerConnection();
           setConnection('Участник подключается…');
           await createPeerConnection();
           sendMediaState();
