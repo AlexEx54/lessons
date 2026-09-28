@@ -26,7 +26,7 @@ const GENERATED = {
   ],
 };
 
-test('Template 2 AI skeleton keeps synthetic stages and leaves Warm-Up for the model', () => {
+test('Template 2 AI skeleton keeps synthetic stages and leaves Warm-Up and Lead-In for the model', () => {
   const skeleton = createTemplateTwoSkeleton('  Travel  ', { ageGroup: '9-11', level: 'B1', model: 'test/model' });
   const synthetic = createSyntheticLesson('Travel', { template: 'template-2' });
   assert.equal(skeleton.meta.topic, 'Travel');
@@ -35,7 +35,8 @@ test('Template 2 AI skeleton keeps synthetic stages and leaves Warm-Up for the m
   assert.equal(skeleton.meta.generatedBy, 'openrouter:test/model');
   assert.deepEqual(skeleton.stages[0].content, []);
   assert.equal(skeleton.stages[0].subtitle, 'Find the Odd One Out!');
-  assert.deepEqual(skeleton.stages.slice(1), synthetic.stages.slice(1));
+  assert.deepEqual(skeleton.stages[1].content, []);
+  assert.deepEqual(skeleton.stages.slice(2), synthetic.stages.slice(2));
 });
 
 test('generated Template 2 Warm-Up builds the note, Odd One Out, and a linked answer key', () => {
@@ -95,7 +96,8 @@ test('Template 2 recovery knows only its own sections', () => {
   const metadata = { coverImagePrompt: 'Travel cover, no text.' };
   const output = `=== Lesson Metadata ===\n${JSON.stringify(metadata)}\n\n=== Warm-Up ===\n${JSON.stringify(GENERATED)}`;
   const recovered = recoverLessonGeneration(output, skeleton, 'template-2');
-  assert.equal(recovered.complete, true);
+  // Lead-In is still missing, so the generation continues from it.
+  assert.equal(recovered.complete, false);
   assert.deepEqual(Object.keys(recovered.recoveredSections), ['lessonMetadata', 'warmUp']);
 
   const partial = recoverLessonGeneration(

@@ -111,17 +111,17 @@ test('shared actions check answers, preserve changeable guesses and clear state'
   const c = component(), state = {};
   const choose = (role, itemId, value) => applyComponentAction({ role, component: c, state,
     action: { type: 'choose-option', componentId: c.id, itemId, value } });
-  choose('student', 'statement-one', 'myth');
-  assert.equal(state.exercises[c.id].answers['statement-one'].status, 'wrong');
-  choose('teacher', 'statement-one', 'fact');
-  assert.equal(state.exercises[c.id].answers['statement-one'].status, 'correct');
-  assert.throws(() => choose('student', 'statement-one', 'myth'));
-  choose('student', 'statement-four', 'fact');
-  choose('teacher', 'statement-four', 'myth');
-  assert.deepEqual(state.exercises[c.id].answers['statement-four'], { value: 'myth', status: 'pending' });
-  assert.throws(() => choose('student', 'statement-five', 'guess'));
+  choose('student', 'statement-1', 'myth');
+  assert.equal(state.exercises[c.id].answers['statement-1'].status, 'wrong');
+  choose('teacher', 'statement-1', 'fact');
+  assert.equal(state.exercises[c.id].answers['statement-1'].status, 'correct');
+  assert.throws(() => choose('student', 'statement-1', 'myth'));
+  choose('student', 'statement-4', 'fact');
+  choose('teacher', 'statement-4', 'myth');
+  assert.deepEqual(state.exercises[c.id].answers['statement-4'], { value: 'myth', status: 'pending' });
+  assert.throws(() => choose('student', 'statement-5', 'guess'));
   assert.throws(() => choose('student', 'missing', 'fact'));
-  assert.throws(() => choose('guest', 'statement-five', 'fact'));
+  assert.throws(() => choose('guest', 'statement-5', 'fact'));
   clearComponentState({ component: c, state });
   assert.equal(state.exercises[c.id], undefined);
 });
@@ -138,7 +138,7 @@ test('buttons provide feedback, change guesses and restore synchronized state', 
   assert.equal(buttons[7].attributes['aria-pressed'], 'true');
   assert.equal(buttons[7].classList.contains('fact-or-myth__word--wrong'), false);
   assert.equal(buttons[7].disabled, false);
-  view.updateState({ answers: { 'statement-five': { value: 'fact', status: 'pending' } } });
+  view.updateState({ answers: { 'statement-5': { value: 'fact', status: 'pending' } } });
   assert.equal(buttons[8].attributes['aria-pressed'], 'true');
   view.setInteractive(false);
   const count = actions.length; buttons[9].click(); assert.equal(actions.length, count);

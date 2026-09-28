@@ -559,18 +559,28 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
   ]);
 });
 
-test('Template 2 generates Warm-Up with AI and retry regenerates only an invalid Warm-Up', async t => {
+test('Template 2 generates Warm-Up and Lead-In with AI and retry regenerates only an invalid Warm-Up', async t => {
   const rows = [
     { options: ['bus', 'train', 'ticket', 'tram'], answer: 'ticket', explanation: 'It is a document; the others are vehicles.' },
     { options: ['ride', 'fast', 'drive', 'walk'], answer: 'fast', explanation: 'It is an adjective; the others are verbs.' },
     { options: ['station', 'airport', 'port', 'seat'], answer: 'seat', explanation: 'It is inside a vehicle; the others are places.' },
     { options: ['delay', 'journey', 'trip', 'tour'], answer: 'delay', explanation: 'It is a problem; the others are kinds of travel.' },
   ];
+  const leadIn = {
+    checkStatements: [
+      { text: 'Trains can be faster than cars.', answer: 'fact', explanation: 'Fast trains go faster than cars on the road.' },
+      { text: 'You need a ticket to walk in the street.', answer: 'myth', explanation: 'Walking is free.' },
+      { text: 'Planes fly above the clouds.', answer: 'fact', explanation: 'Planes usually fly very high.' },
+    ],
+    guessStatements: ['Somebody in our stories missed a train.', 'Somebody in our stories travelled by boat.'],
+    speakingSupport: ['I travelled by…', 'People usually…'],
+  };
   const responses = [
-    { schema: 'easyclass_lesson_metadata', topic: 'Travel choices', generated: LESSON_METADATA },
-    { schema: 'easyclass_template_two_warm_up', topic: 'City transport',
+    { schema: 'easyclass_lesson_metadata', user: 'Lesson topic: Travel choices', generated: LESSON_METADATA },
+    { schema: 'easyclass_template_two_warm_up', user: 'Lesson topic: City transport',
       generated: { rows: [{ ...rows[0], answer: 'plane' }, ...rows.slice(1)] } },
-    { schema: 'easyclass_template_two_warm_up', topic: 'City transport', generated: { rows } },
+    { schema: 'easyclass_template_two_warm_up', user: 'Lesson topic: City transport', generated: { rows } },
+    { schema: 'easyclass_template_two_lead_in', user: 'Lesson topic: Travel choices\nGrammar topic: Past Simple', generated: leadIn },
   ];
   let openRouterRequestCount = 0;
   const openRouter = http.createServer((req, res) => {
@@ -582,7 +592,7 @@ test('Template 2 generates Warm-Up with AI and retry regenerates only an invalid
       const expected = responses[openRouterRequestCount];
       openRouterRequestCount += 1;
       assert.equal(payload.response_format.json_schema.name, expected.schema);
-      assert.equal(payload.messages[1].content, `Lesson topic: ${expected.topic}`);
+      assert.equal(payload.messages[1].content, expected.user);
       res.writeHead(200, { 'Content-Type': 'text/event-stream' });
       res.write(`data: ${JSON.stringify({ id: 'gen-template-two', choices: [{ delta: { content: JSON.stringify(expected.generated) } }] })}\n\n`);
       res.write(`data: ${JSON.stringify({ id: 'gen-template-two', choices: [{ delta: {} }], usage: { cost: 0.01 } })}\n\n`);
@@ -646,7 +656,8 @@ test('Template 2 generates Warm-Up with AI and retry regenerates only an invalid
   assert.equal(created.generation.mode, 'ai');
   assert.equal(created.content.stages.length, 8);
   assert.deepEqual(created.content.stages[0].content, []);
-  assert.ok(created.content.stages.slice(1).every(stage => stage.content.length > 0));
+  assert.deepEqual(created.content.stages[1].content, []);
+  assert.ok(created.content.stages.slice(2).every(stage => stage.content.length > 0));
 
   const failed = await waitForDraft(created.id);
   assert.equal(openRouterRequestCount, 2);
@@ -658,7 +669,7 @@ test('Template 2 generates Warm-Up with AI and retry regenerates only an invalid
   });
   assert.equal(retryResponse.status, 202);
   const ready = await waitForDraft(created.id);
-  assert.equal(openRouterRequestCount, 3);
+  assert.equal(openRouterRequestCount, 4);
   assert.equal(ready.status, 'review');
   assert.equal(ready.content.meta.coverImagePrompt, LESSON_METADATA.coverImagePrompt);
   assert.equal(ready.content.meta.generatedBy, 'openrouter:google/gemini-3.7-flash');
@@ -667,5 +678,9 @@ test('Template 2 generates Warm-Up with AI and retry regenerates only an invalid
   ]);
   assert.deepEqual(ready.content.stages[0].content[1].items.map(item => item.answer), ['ticket', 'fast', 'seat', 'delay']);
   assert.match(ready.content.stages[0].content[0].text, /"Ticket!"/);
-  assert.deepEqual(ready.content.stages.slice(1), created.content.stages.slice(1));
+  assert.deepEqual(ready.content.stages[1].content.map(component => component.type), [
+    'teacherNote', 'factOrMyth', 'markdownCard', 'markdownCard',
+  ]);
+  assert.deepEqual(ready.content.stages[1].content[1].items.map(item => item.answer), ['fact', 'myth', 'fact', null, null]);
+  assert.deepEqual(ready.content.stages.slice(2), created.content.stages.slice(2));
 });
