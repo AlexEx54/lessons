@@ -204,7 +204,7 @@ test('template two creation and editing update the answer key atomically', async
   assert.equal(grammarSavedResponse.status, 200);
   const grammarSaved = (await grammarSavedResponse.json()).draft.content.stages[4].content;
   assert.equal(grammarSaved[6].sections[1].text, 'Correct sentences: 3, 5, 6, 8.');
-  assert.match(grammarSaved[6].sections[2].text, /^1\. After “got used to”/);
+  assert.equal(grammarSaved[6].sections[2].text, grammar[6].sections[2].text);
   assert.deepEqual(grammarSaved[6].sections[0], grammar[6].sections[0]);
   for (const mutate of [
     item => { item.answers.pop(); },

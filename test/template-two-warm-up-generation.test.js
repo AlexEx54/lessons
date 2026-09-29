@@ -26,7 +26,7 @@ const GENERATED = {
   ],
 };
 
-test('Template 2 AI skeleton keeps synthetic stages and leaves Warm-Up, Lead-In and Target Vocabulary for the model', () => {
+test('Template 2 AI skeleton keeps synthetic stages and leaves generated stages empty for the model', () => {
   const skeleton = createTemplateTwoSkeleton('  Travel  ', { ageGroup: '9-11', level: 'B1', model: 'test/model' });
   const synthetic = createSyntheticLesson('Travel', { template: 'template-2' });
   assert.equal(skeleton.meta.topic, 'Travel');
@@ -37,7 +37,9 @@ test('Template 2 AI skeleton keeps synthetic stages and leaves Warm-Up, Lead-In 
   assert.equal(skeleton.stages[0].subtitle, 'Find the Odd One Out!');
   assert.deepEqual(skeleton.stages[1].content, []);
   assert.deepEqual(skeleton.stages[2].content, []);
-  assert.deepEqual(skeleton.stages.slice(3), synthetic.stages.slice(3));
+  assert.deepEqual(skeleton.stages[4].content, []);
+  assert.deepEqual(skeleton.stages[3], synthetic.stages[3]);
+  assert.deepEqual(skeleton.stages.slice(5), synthetic.stages.slice(5));
 });
 
 test('generated Template 2 Warm-Up builds the note, Odd One Out, and a linked answer key', () => {

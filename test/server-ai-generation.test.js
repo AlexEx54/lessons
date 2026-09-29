@@ -19,6 +19,9 @@ const {
   GENERATED_GRAMMAR_PRESENTATION,
 } = require('./fixtures/generated-grammar-presentation.js');
 const { GENERATED_GRAMMAR_FOCUS } = require('./fixtures/generated-grammar-focus.js');
+const {
+  GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION,
+} = require('./fixtures/generated-template-two-grammar-presentation.js');
 const { GENERATED_GUIDED_SPEAKING } = require('./fixtures/generated-guided-speaking.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -559,7 +562,7 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
   ]);
 });
 
-test('Template 2 generates Warm-Up, Lead-In and Target Vocabulary with AI and retry regenerates only an invalid Warm-Up', async t => {
+test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary and Grammar Presentation with AI and retry regenerates only an invalid Warm-Up', async t => {
   const rows = [
     { options: ['bus', 'train', 'ticket', 'tram'], answer: 'ticket', explanation: 'It is a document; the others are vehicles.' },
     { options: ['ride', 'fast', 'drive', 'walk'], answer: 'fast', explanation: 'It is an adjective; the others are verbs.' },
@@ -605,6 +608,8 @@ test('Template 2 generates Warm-Up, Lead-In and Target Vocabulary with AI and re
       'Lesson topic: Travel choices', 'Grammar topic: Past Simple', 'Guess statements from the Lead-In:',
       '1. Somebody in our stories missed a train.', '2. Somebody in our stories travelled by boat.',
     ].join('\n') },
+    { schema: 'easyclass_template_two_grammar_presentation', generated: GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION,
+      user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
   ];
   let openRouterRequestCount = 0;
   const openRouter = http.createServer((req, res) => {
@@ -679,10 +684,9 @@ test('Template 2 generates Warm-Up, Lead-In and Target Vocabulary with AI and re
   assert.equal(created.template, 'template-2');
   assert.equal(created.generation.mode, 'ai');
   assert.equal(created.content.stages.length, 8);
-  assert.deepEqual(created.content.stages[0].content, []);
-  assert.deepEqual(created.content.stages[1].content, []);
-  assert.deepEqual(created.content.stages[2].content, []);
-  assert.ok(created.content.stages.slice(3).every(stage => stage.content.length > 0));
+  const generatedStageIds = ['warm-up', 'lead-in', 'target-vocabulary', 'grammar-presentation'];
+  const staticStages = draft => draft.content.stages.filter(stage => !generatedStageIds.includes(stage.id));
+  assert.ok(created.content.stages.every(stage => (stage.content.length === 0) === generatedStageIds.includes(stage.id)));
 
   const failed = await waitForDraft(created.id);
   assert.equal(openRouterRequestCount, 2);
@@ -694,7 +698,7 @@ test('Template 2 generates Warm-Up, Lead-In and Target Vocabulary with AI and re
   });
   assert.equal(retryResponse.status, 202);
   const ready = await waitForDraft(created.id);
-  assert.equal(openRouterRequestCount, 5);
+  assert.equal(openRouterRequestCount, 6);
   assert.equal(ready.status, 'review');
   assert.equal(ready.content.meta.coverImagePrompt, LESSON_METADATA.coverImagePrompt);
   assert.equal(ready.content.meta.generatedBy, 'openrouter:google/gemini-3.7-flash');
@@ -709,5 +713,23 @@ test('Template 2 generates Warm-Up, Lead-In and Target Vocabulary with AI and re
   assert.deepEqual(ready.content.stages[1].content[1].items.map(item => item.answer), ['fact', 'myth', 'fact', null, null]);
   assert.deepEqual(ready.content.stages[2].content[2].items.map(item => item.title), ['Kate', 'Ben', 'Eva', 'Max']);
   assert.match(ready.content.stages[2].content[3].text, /^\*\*4\.\*\* Somebody in our stories missed a train\. — \*\*FACT\*\* · Kate/);
-  assert.deepEqual(ready.content.stages.slice(3), created.content.stages.slice(3));
+  assert.deepEqual(staticStages(ready), staticStages(created));
+  const grammarComponent = (draft, id) => draft.content.stages.find(stage => stage.id === 'grammar-presentation')
+    .content.find(component => component.id === id);
+  const task = grammarComponent(ready, 'grammar-presentation-check-the-rule');
+  assert.equal(task.items[0].answers.length, 4);
+  const changed = structuredClone(task);
+  const [item] = changed.items;
+  const incorrect = item.options.filter(option => !item.answers.includes(option));
+  item.options = [...item.answers, 'I go to Spain yesterday.', ...incorrect.slice(1)];
+  const edit = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/checkbox-choice/${changed.id}`, {
+    method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: changed.title, instruction: changed.instruction, items: changed.items }),
+  });
+  assert.equal(edit.status, 200);
+  const previousKey = grammarComponent(ready, 'grammar-presentation-answer-key');
+  const key = grammarComponent((await edit.json()).draft, 'grammar-presentation-answer-key');
+  assert.deepEqual(key.sections, previousKey.sections.map(section => (
+    section.id === 'task-two-answers' ? { ...section, text: 'Correct sentences: 1, 2, 3, 4.' } : section
+  )));
 });
