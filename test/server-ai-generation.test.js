@@ -25,6 +25,10 @@ const {
 const {
   GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS,
 } = require('./fixtures/generated-template-two-grammar-focus.js');
+const {
+  GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION,
+} = require('./fixtures/generated-template-two-guided-communication.js');
+const { GENERATED_TEMPLATE_TWO_WRAP_UP } = require('./fixtures/generated-template-two-wrap-up.js');
 const { GENERATED_GUIDED_SPEAKING } = require('./fixtures/generated-guided-speaking.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -565,7 +569,7 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
   ]);
 });
 
-test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presentation and Grammar Focus with AI and retry regenerates only an invalid Warm-Up', async t => {
+test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presentation, Grammar Focus, Guided Communication and Wrap-Up with AI and retry regenerates only an invalid Warm-Up', async t => {
   const rows = [
     { options: ['bus', 'train', 'ticket', 'tram'], answer: 'ticket', explanation: 'It is a document; the others are vehicles.' },
     { options: ['ride', 'fast', 'drive', 'walk'], answer: 'fast', explanation: 'It is an adjective; the others are verbs.' },
@@ -614,6 +618,10 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
     { schema: 'easyclass_template_two_grammar_presentation', generated: GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION,
       user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
     { schema: 'easyclass_template_two_grammar_focus', generated: GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS,
+      user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
+    { schema: 'easyclass_template_two_guided_communication', generated: GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION,
+      user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
+    { schema: 'easyclass_wrap_up', generated: GENERATED_TEMPLATE_TWO_WRAP_UP,
       user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
   ];
   let openRouterRequestCount = 0;
@@ -689,7 +697,7 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
   assert.equal(created.template, 'template-2');
   assert.equal(created.generation.mode, 'ai');
   assert.equal(created.content.stages.length, 8);
-  const generatedStageIds = ['warm-up', 'lead-in', 'target-vocabulary', 'grammar-presentation', 'grammar-focus'];
+  const generatedStageIds = ['warm-up', 'lead-in', 'target-vocabulary', 'grammar-presentation', 'grammar-focus', 'guided-speaking', 'wrap-up'];
   const staticStages = draft => draft.content.stages.filter(stage => !generatedStageIds.includes(stage.id));
   assert.ok(created.content.stages.every(stage => (stage.content.length === 0) === generatedStageIds.includes(stage.id)));
 
@@ -703,7 +711,7 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
   });
   assert.equal(retryResponse.status, 202);
   const ready = await waitForDraft(created.id);
-  assert.equal(openRouterRequestCount, 7);
+  assert.equal(openRouterRequestCount, 9);
   assert.equal(ready.status, 'review');
   assert.equal(ready.content.meta.coverImagePrompt, LESSON_METADATA.coverImagePrompt);
   assert.equal(ready.content.meta.generatedBy, 'openrouter:google/gemini-3.7-flash');
@@ -726,6 +734,12 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
   ]);
   assert.equal(focus[0].blocks[0].text, GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS.teacherNotes.transitionPhrases);
   assert.equal(focus[8].gaps[0].answer, 'Yesterday I bought a ticket');
+  const communication = ready.content.stages.find(stage => stage.id === 'guided-speaking').content;
+  assert.deepEqual(communication.map(component => component.type), ['teacherNote', 'taskPrompt', 'guidedCommunicationCards']);
+  assert.match(communication[0].text, /\*\*Success:\*\* The student tells a short travel story/);
+  assert.equal(communication[2].items[1].task.title, 'Card 2. Train or Plane?');
+  const wrapUp = ready.content.stages.find(stage => stage.id === 'wrap-up').content;
+  assert.equal(wrapUp[1].steps.one.prompt, GENERATED_TEMPLATE_TWO_WRAP_UP.onePrompt);
   const grammarComponent = (draft, id) => draft.content.stages.find(stage => stage.id === 'grammar-presentation')
     .content.find(component => component.id === id);
   const task = grammarComponent(ready, 'grammar-presentation-check-the-rule');

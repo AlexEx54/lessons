@@ -39,8 +39,9 @@ test('Template 2 AI skeleton keeps synthetic stages and leaves generated stages 
   assert.deepEqual(skeleton.stages[2].content, []);
   assert.deepEqual(skeleton.stages[4].content, []);
   assert.deepEqual(skeleton.stages[5].content, []);
+  assert.deepEqual(skeleton.stages[6].content, []);
+  assert.deepEqual(skeleton.stages[7].content, []);
   assert.deepEqual(skeleton.stages[3], synthetic.stages[3]);
-  assert.deepEqual(skeleton.stages.slice(6), synthetic.stages.slice(6));
 });
 
 test('generated Template 2 Warm-Up builds the note, Odd One Out, and a linked answer key', () => {

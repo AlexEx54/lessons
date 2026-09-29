@@ -100,9 +100,8 @@ test('Template 2 Grammar Focus logs content-quality problems instead of failing'
 });
 
 test('Template 2 Grammar Focus prompt and pipeline receive grammar and vocabulary', () => {
-  const sections = getLessonGenerationSections('template-2');
-  assert.deepEqual(sections.slice(-2).map(section => section.key), ['grammarPresentation', 'grammarFocus']);
-  const options = sections.at(-1).options({ grammarTopic: 'Past Simple' }, { targetVocabulary: { vocabularyItems } });
+  const section = getLessonGenerationSections('template-2').find(candidate => candidate.key === 'grammarFocus');
+  const options = section.options({ grammarTopic: 'Past Simple' }, { targetVocabulary: { vocabularyItems } });
   assert.deepEqual(options, { grammarTopic: 'Past Simple', vocabularyItems });
   const messages = templateTwoGrammarFocusMessages('Travel', 'Past Simple', vocabularyItems, { ageGroup: '15-17', level: 'B1' });
   assert.match(messages[0].content, /exactly eight task1Items/);
@@ -115,14 +114,15 @@ test('Template 2 Grammar Focus prompt and pipeline receive grammar and vocabular
   assert.equal(messages[1].content, `Lesson topic: Travel\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(TRAVEL_TERMS)}`);
 });
 
-test('Template 2 recovery completes with Grammar Focus and drops an interrupted one', t => {
+test('Template 2 recovery keeps Grammar Focus and drops an interrupted one', t => {
   // The shared recovery fixture has summer vocabulary, so the travel word bank only warns.
   t.mock.method(console, 'warn', () => {});
   const skeleton = createTemplateTwoSkeleton('Summer time');
   const beforeFocus = `${TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR}\n\n=== Grammar Presentation ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION)}`;
-  const complete = recoverLessonGeneration(`${beforeFocus}\n\n=== Grammar Focus ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS)}`, skeleton, 'template-2');
-  assert.equal(complete.complete, true);
-  assert.deepEqual(complete.recoveredSections.grammarFocus, GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS);
+  const output = `${beforeFocus}\n\n=== Grammar Focus ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS)}`;
+  const recovered = recoverLessonGeneration(output, skeleton, 'template-2');
+  assert.equal(recovered.validOutput, output);
+  assert.deepEqual(recovered.recoveredSections.grammarFocus, GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS);
   const interrupted = recoverLessonGeneration(`${beforeFocus}\n\n=== Grammar Focus ===\n{"teacherNotes":`, skeleton, 'template-2');
   assert.equal(interrupted.complete, false);
   assert.equal(interrupted.validOutput, beforeFocus);
