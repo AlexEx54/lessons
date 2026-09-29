@@ -2,7 +2,7 @@
 
 ## State and access
 
-This is a **preview copy, not the production cutover**. The old EasyClass process remains active. Do not accept real edits on both databases: SQLite copies cannot be merged by copying files later.
+**Production cutover completed on 2026-09-29.** The live site is https://www.easyclass-edu.ru. The new VPS holds the final data; the old EasyClass service is stopped and disabled. Do not restart the old stale database for production.
 
 - New host: `179.254.163.97`, Ubuntu 24.04, SSH port 22.
 - SSH: `ssh -i ~/.ssh/repetitor2_prod_ed25519 root@179.254.163.97`.
@@ -18,7 +18,7 @@ This is a **preview copy, not the production cutover**. The old EasyClass proces
 
 ## Preview and DNS dependency
 
-Caddy configuration is `/etc/caddy/Caddyfile` and protects both domain names with HTTP Basic authentication. Preview username: `preview`. The password is stored in `/root/migration-20260929/preview-password` on the new server and `tmp/migration-20260929/preview-password` on this Mac. Do not commit these files.
+Caddy configuration is `/etc/caddy/Caddyfile`. Preview HTTP Basic authentication was removed at final cutover; both domains now serve the application. Historical preview credentials: Preview username: `preview`. The password is stored in `/root/migration-20260929/preview-password` on the new server and `tmp/migration-20260929/preview-password` on this Mac. Do not commit these files.
 
 At the start of preparation, authoritative DNS returned `5.101.152.161` for `www.easyclass-edu.ru` and both `5.101.152.161` and `179.254.163.97` for `easyclass-edu.ru`. This unrelated address is not the old EasyClass VPS. Correct DNS before public HTTPS validation:
 
@@ -67,7 +67,7 @@ Verification completed:
 
 Additional checks after DNS correction: both HTTPS domains retain the preview gate (401 without credentials); login, authenticated pages, classes API, call creation and WSS passed through public HTTPS with a temporary account that was removed afterward. Authenticated TURN allocations from the Mac passed over UDP, TCP and TLS, with trusted certificate and hostname validation for TLS. The certificate-sync service succeeded and its timer is active. These checks do not substitute for an end-to-end browser call or a full AI generation check.
 
-## Final cutover (NOT performed)
+## Final cutover procedure (completed)
 
 1. Finish the DNS/HTTPS/TURN TLS checks and preview review. Pick a quiet moment with no lessons or generation jobs running.
 2. Stop **only** the old `teach-platform.service` to stop all writes. Leave the new preview password gate enabled.
@@ -83,7 +83,7 @@ The old VPS also runs another application/PostgreSQL and VPN services. Powering 
 
 ## Subsequent code deploys
 
-Keep the existing default deployment target unchanged until cutover. To explicitly deploy later to the new host:
+The deployment and manual Draw Things tunnel scripts now default to the new host (179.254.163.97, SSH 22), with https://www.easyclass-edu.ru as the deployment URL. Explicit equivalent:
 
 ```sh
 SERVER_HOST=179.254.163.97 SERVER_PORT=22 PUBLIC_URL=https://www.easyclass-edu.ru npm run deploy
@@ -100,3 +100,16 @@ The then-managed Draw Things tunnel also recovered after the reboot; its automat
 ## Old-server disk pressure
 
 The old root filesystem fell to approximately 1 MB free during preparation. APT cache was effectively empty. Archived system journals were streamed to `tmp/migration-20260929/old-server-journal.tar.gz` on the Mac; SHA-256 checks verified all 8 archived journal files against the source. Then `journalctl --vacuum-size=100M` removed about 413 MB of archived journals. Approximately 398 MB became available, and the old EasyClass service and health endpoint remained healthy. The active journal changed during archival; only immutable archived journals were checksum-verified and pruned. Application data and other services were not removed.
+
+## Final cutover result — 2026-09-29
+
+- Old EasyClass stopped before the final snapshot; WAL checkpoint completed and integrity check passed. Other old-host services remain running.
+- Fresh offline backup on this Mac: `tmp/cutover-20260929/` (private directory), including production source/environment, persistent data, draft assets and both prior Caddy configurations.
+- Final SQLite SHA-256 matched on old VPS, Mac and new VPS before startup: `e370a65e24489557f76e1a407dd06a9fab6f369d2aeeb4f2cb20b6fcddb15b15`. Integrity and foreign-key checks passed. Copied file contents were verified with checksum-based rsync.
+- Final data: 2 users, 21 classes, 16 lesson drafts, 22 library lessons. Production source matched the prepared new deployment. New environment retained.
+- New preview data preserved at `/var/lib/teach_platform.preview-20260929`. Final data installed with teachplatform ownership; new service started.
+- Login, authenticated pages, classes API, temporary call creation and WSS passed; temporary test records removed. Public health passed after removing the Basic-auth gate. TURN UDP/TCP/TLS allocations and Draw Things availability passed. A full two-browser call and full image generation were not performed.
+- Old `teach-platform.service` disabled. Existing old Caddy now redirects only the EasyClass :8444 site to `https://www.easyclass-edu.ru{uri}` with HTTP 302; :8443 site configuration unchanged. These redirects depend on the old VPS remaining available.
+- Draw Things tunnel was manually restarted, with no LaunchAgent or automatic recovery.
+- Deployment and tunnel script defaults updated to new VPS. Bash syntax checks passed.
+- After cutover writes, rollback requires preserving new data; simply restarting the old copy would lose newer work.

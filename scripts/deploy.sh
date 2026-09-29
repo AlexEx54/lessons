@@ -5,14 +5,14 @@ set -Eeuo pipefail
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT_DIR"
 
-SERVER_HOST=${SERVER_HOST:-144.31.76.176}
-SERVER_PORT=${SERVER_PORT:-4537}
+SERVER_HOST=${SERVER_HOST:-179.254.163.97}
+SERVER_PORT=${SERVER_PORT:-22}
 SERVER_USER=${SERVER_USER:-root}
 APP_DIR=${APP_DIR:-/opt/teach_platform}
 STAGING_DIR=${STAGING_DIR:-/opt/teach_platform.next}
 APP_DATA_DIR=${APP_DATA_DIR:-/var/lib/teach_platform}
 SERVICE_NAME=${SERVICE_NAME:-teach-platform.service}
-PUBLIC_URL=${PUBLIC_URL:-https://grekko.duckdns.org:8444}
+PUBLIC_URL=${PUBLIC_URL:-https://www.easyclass-edu.ru}
 ALLOW_DIRTY=${ALLOW_DIRTY:-0}
 BACKUP_RETENTION=${BACKUP_RETENTION:-5}
 

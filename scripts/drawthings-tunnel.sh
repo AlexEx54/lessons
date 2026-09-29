@@ -14,8 +14,8 @@ Opens a reverse SSH tunnel from the VPS to the Draw Things gRPC server on this M
 The command stays in the foreground. Press Ctrl+C to close the tunnel.
 
 Environment variables:
-  DRAWTHINGS_VPS_HOST           VPS hostname or IP (default: 144.31.76.176)
-  DRAWTHINGS_VPS_SSH_PORT       VPS SSH port (default: 4537)
+  DRAWTHINGS_VPS_HOST           VPS hostname or IP (default: 179.254.163.97)
+  DRAWTHINGS_VPS_SSH_PORT       VPS SSH port (default: 22)
   DRAWTHINGS_VPS_USER           VPS SSH user (default: root)
   DRAWTHINGS_SSH_IDENTITY_FILE  SSH private key path
   DRAWTHINGS_REMOTE_HOST        Bind address on VPS (default: 127.0.0.1)
@@ -45,8 +45,8 @@ case "${1:-}" in
     ;;
 esac
 
-VPS_HOST=${DRAWTHINGS_VPS_HOST:-144.31.76.176}
-VPS_SSH_PORT=${DRAWTHINGS_VPS_SSH_PORT:-4537}
+VPS_HOST=${DRAWTHINGS_VPS_HOST:-179.254.163.97}
+VPS_SSH_PORT=${DRAWTHINGS_VPS_SSH_PORT:-22}
 VPS_USER=${DRAWTHINGS_VPS_USER:-root}
 SSH_IDENTITY_FILE=${DRAWTHINGS_SSH_IDENTITY_FILE:-$HOME/.ssh/repetitor2_prod_ed25519}
 
