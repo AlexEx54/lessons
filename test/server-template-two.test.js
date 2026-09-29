@@ -230,9 +230,11 @@ test('template two creation and editing update the answer key atomically', async
   assert.equal(titleOnlyContent[6].sections[2].text, 'Custom teacher explanations.');
   assert.deepEqual(titleOnlyContent[5].items, grammarSaved[5].items);
   const vocabulary = draft.content.stages[2].content;
-  assert.deepEqual(vocabulary.map(c => c.type), ['teacherNote', 'markdownCard', 'storyCards', 'multipleChoice', 'dropdownChoice', 'dragWordsInText', 'gapFill', 'personalizedQuestions', 'markdownCard']);
-  const meanings = vocabulary[3];
-  const context = vocabulary[4];
+  assert.deepEqual(vocabulary.map(c => c.type), ['teacherNote', 'markdownCard', 'storyCards', 'markdownCard', 'multipleChoice', 'dropdownChoice', 'dragWordsInText', 'gapFill', 'personalizedQuestions', 'markdownCard']);
+  assert.equal(vocabulary[3].studentVisibility, 'teacherOnly');
+  assert.match(vocabulary[3].text, /^\*\*4\.\*\* Somebody in our stories has got green hair\. — \*\*FACT\*\* · Forest Elf: /);
+  const meanings = vocabulary[4];
+  const context = vocabulary[5];
   assert.equal(meanings.variant, 'compact');
   assert.equal(meanings.items.length, 10);
   assert.ok(meanings.items.every(item => item.options.length === 2 && item.options.includes(item.answer)));
@@ -243,17 +245,17 @@ test('template two creation and editing update the answer key atomically', async
   assert.match(vocabulary[0].blocks[1].text, /Task 3/);
   assert.match(vocabulary[0].blocks[1].text, /Task 4/);
   assert.match(vocabulary[0].blocks[1].text, /Task 5/);
-  assert.equal(vocabulary[5].words.length, 6);
-  assert.equal(vocabulary[6].gaps.length, 10);
-  assert.equal(vocabulary[6].studentVisibility, 'controlled');
-  assert.equal(vocabulary[7].items.length, 4);
-  assert.equal(vocabulary[8].studentVisibility, 'always');
+  assert.equal(vocabulary[6].words.length, 6);
+  assert.equal(vocabulary[7].gaps.length, 10);
+  assert.equal(vocabulary[7].studentVisibility, 'controlled');
+  assert.equal(vocabulary[8].items.length, 4);
+  assert.equal(vocabulary[9].studentVisibility, 'always');
   for (const [component, route, changes] of [
     [meanings, 'multiple-choice', { title: 'Updated meanings', instruction: meanings.instruction, items: meanings.items }],
     [context, 'dropdown-choice', { title: 'Updated context', instruction: context.instruction, text: context.text, choices: context.choices, accentColor: context.accentColor }],
-    [vocabulary[5], 'drag-words-in-text', { title: 'Updated drag words', instruction: vocabulary[5].instruction, words: vocabulary[5].words, text: vocabulary[5].text }],
-    [vocabulary[6], 'gap-fill', { title: 'Updated extra task', instruction: vocabulary[6].instruction, text: vocabulary[6].text, gaps: vocabulary[6].gaps }],
-    [vocabulary[7], 'personalized-questions', { title: 'Updated questions', instruction: vocabulary[7].instruction, items: vocabulary[7].items }],
+    [vocabulary[6], 'drag-words-in-text', { title: 'Updated drag words', instruction: vocabulary[6].instruction, words: vocabulary[6].words, text: vocabulary[6].text }],
+    [vocabulary[7], 'gap-fill', { title: 'Updated extra task', instruction: vocabulary[7].instruction, text: vocabulary[7].text, gaps: vocabulary[7].gaps }],
+    [vocabulary[8], 'personalized-questions', { title: 'Updated questions', instruction: vocabulary[8].instruction, items: vocabulary[8].items }],
   ]) {
     const edited = await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/${route}/${component.id}`, {
       method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(changes),

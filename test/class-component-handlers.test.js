@@ -149,7 +149,7 @@ test('controlled gap fill visibility is teacher-only and hiding preserves answer
   const component = createSyntheticLesson('Superheroes', { template: 'template-2' }).stages[2].content.find(c => c.type === 'gapFill');
   const state = {};
   const act = (action, role = 'teacher') => applyComponentAction({ component, state, action, role });
-  const answer = { type: 'type-answer', itemId: 'suit-gap', value: '  SUPERHERO   suit ' };
+  const answer = { type: 'type-answer', itemId: 'extra-6', value: '  SUPERHERO   suit ' };
   assert.equal(studentComponent(component, state), null);
   assert.throws(() => act(answer, 'student'), { statusCode: 403 });
   assert.throws(() => act({ type: 'set-visibility', visible: true }, 'student'), { statusCode: 403 });
@@ -157,12 +157,12 @@ test('controlled gap fill visibility is teacher-only and hiding preserves answer
   act({ type: 'set-visibility', visible: true });
   assert.ok(studentComponent(component, state));
   act(answer, 'student');
-  assert.equal(state.exercises[component.id].answers['suit-gap'].status, 'correct');
+  assert.equal(state.exercises[component.id].answers['extra-6'].status, 'correct');
   act({ type: 'set-visibility', visible: false });
   assert.equal(studentComponent(component, state), null);
   assert.throws(() => act(answer, 'student'), { statusCode: 403 });
   act({ type: 'set-visibility', visible: true });
-  assert.equal(state.exercises[component.id].answers['suit-gap'].value, answer.value);
+  assert.equal(state.exercises[component.id].answers['extra-6'].value, answer.value);
   clearComponentState({ component, state });
   assert.equal(studentComponent(component, state), null);
   assert.equal(state.exercises[component.id], undefined);

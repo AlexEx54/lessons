@@ -90,7 +90,7 @@ test('Template 2 Lead-In prompt uses the topic, grammar, and a neutral guess for
   );
 });
 
-test('Template 2 recovery is complete only with Lead-In', () => {
+test('Template 2 recovery restores Lead-In and waits for Target Vocabulary', () => {
   const warmUp = {
     rows: [
       { options: ['beach', 'sea', 'sand', 'snow'], answer: 'snow', explanation: 'It is cold; the others are at the seaside.' },
@@ -105,6 +105,6 @@ test('Template 2 recovery is complete only with Lead-In', () => {
     `=== Lead-In ===\n${JSON.stringify(GENERATED)}`,
   ].join('\n\n');
   const recovered = recoverLessonGeneration(output, createTemplateTwoSkeleton('Summer time'), 'template-2');
-  assert.equal(recovered.complete, true);
+  assert.equal(recovered.complete, false);
   assert.deepEqual(Object.keys(recovered.recoveredSections), ['lessonMetadata', 'warmUp', 'leadIn']);
 });

@@ -559,7 +559,7 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
   ]);
 });
 
-test('Template 2 generates Warm-Up and Lead-In with AI and retry regenerates only an invalid Warm-Up', async t => {
+test('Template 2 generates Warm-Up, Lead-In and Target Vocabulary with AI and retry regenerates only an invalid Warm-Up', async t => {
   const rows = [
     { options: ['bus', 'train', 'ticket', 'tram'], answer: 'ticket', explanation: 'It is a document; the others are vehicles.' },
     { options: ['ride', 'fast', 'drive', 'walk'], answer: 'fast', explanation: 'It is an adjective; the others are verbs.' },
@@ -575,12 +575,36 @@ test('Template 2 generates Warm-Up and Lead-In with AI and retry regenerates onl
     guessStatements: ['Somebody in our stories missed a train.', 'Somebody in our stories travelled by boat.'],
     speakingSupport: ['I travelled by…', 'People usually…'],
   };
+  const terms = ['ticket', 'platform', 'luggage', 'delay', 'journey', 'passport', 'seat', 'timetable', 'map', 'bus stop'];
+  const targetVocabulary = {
+    stories: [
+      { name: 'Kate', emoji: '🚆', text: 'I missed a train last week. I waited on the **platform** with my **luggage** and checked the **timetable**.' },
+      { name: 'Ben', emoji: '🚌', text: 'I travelled by bus to my aunt. I waited at the **bus stop** and bought a **ticket**. There was a long **delay**.' },
+      { name: 'Eva', emoji: '✈️', text: 'I flew to Spain. I showed my **passport** and found my **seat** by the window.' },
+      { name: 'Max', emoji: '🗺️', text: 'I walked around the city with a **map**. It was a great **journey**.' },
+    ],
+    vocabularyItems: terms.map(term => ({ term, definition: `meaning of ${term}`, distractor: `wrong meaning of ${term}` })),
+    guessChecks: [
+      { story: 'Kate', answer: 'fact', evidence: 'I missed a train last week.' },
+      { story: 'Ben', answer: 'myth', evidence: 'I travelled by bus to my aunt.' },
+    ],
+    contextText: terms.slice(0, 8).map((term, index) => `Word [[${index + 1}]].`).join(' '),
+    contextChoices: terms.slice(0, 8).map(answer => ({ options: [answer, 'map', 'bus stop'], answer })),
+    dragSentences: terms.slice(0, 6).map(term => `I need a [[${term}]].`),
+    translationSentences: terms.map(answer => ({ before: 'I need', hint: `перевод ${answer}`, answer })),
+    personalizedQuestions: terms.slice(0, 4).map(term => ({ question: `Do you like a **${term}**?`, followUp: 'Why?' })),
+    sentenceStarters: ['I usually ...', 'Last time I ...', 'I like ...'],
+  };
   const responses = [
     { schema: 'easyclass_lesson_metadata', user: 'Lesson topic: Travel choices', generated: LESSON_METADATA },
     { schema: 'easyclass_template_two_warm_up', user: 'Lesson topic: City transport',
       generated: { rows: [{ ...rows[0], answer: 'plane' }, ...rows.slice(1)] } },
     { schema: 'easyclass_template_two_warm_up', user: 'Lesson topic: City transport', generated: { rows } },
     { schema: 'easyclass_template_two_lead_in', user: 'Lesson topic: Travel choices\nGrammar topic: Past Simple', generated: leadIn },
+    { schema: 'easyclass_template_two_target_vocabulary', generated: targetVocabulary, user: [
+      'Lesson topic: Travel choices', 'Grammar topic: Past Simple', 'Guess statements from the Lead-In:',
+      '1. Somebody in our stories missed a train.', '2. Somebody in our stories travelled by boat.',
+    ].join('\n') },
   ];
   let openRouterRequestCount = 0;
   const openRouter = http.createServer((req, res) => {
@@ -657,7 +681,8 @@ test('Template 2 generates Warm-Up and Lead-In with AI and retry regenerates onl
   assert.equal(created.content.stages.length, 8);
   assert.deepEqual(created.content.stages[0].content, []);
   assert.deepEqual(created.content.stages[1].content, []);
-  assert.ok(created.content.stages.slice(2).every(stage => stage.content.length > 0));
+  assert.deepEqual(created.content.stages[2].content, []);
+  assert.ok(created.content.stages.slice(3).every(stage => stage.content.length > 0));
 
   const failed = await waitForDraft(created.id);
   assert.equal(openRouterRequestCount, 2);
@@ -669,7 +694,7 @@ test('Template 2 generates Warm-Up and Lead-In with AI and retry regenerates onl
   });
   assert.equal(retryResponse.status, 202);
   const ready = await waitForDraft(created.id);
-  assert.equal(openRouterRequestCount, 4);
+  assert.equal(openRouterRequestCount, 5);
   assert.equal(ready.status, 'review');
   assert.equal(ready.content.meta.coverImagePrompt, LESSON_METADATA.coverImagePrompt);
   assert.equal(ready.content.meta.generatedBy, 'openrouter:google/gemini-3.7-flash');
@@ -682,5 +707,7 @@ test('Template 2 generates Warm-Up and Lead-In with AI and retry regenerates onl
     'teacherNote', 'factOrMyth', 'markdownCard', 'markdownCard',
   ]);
   assert.deepEqual(ready.content.stages[1].content[1].items.map(item => item.answer), ['fact', 'myth', 'fact', null, null]);
-  assert.deepEqual(ready.content.stages.slice(2), created.content.stages.slice(2));
+  assert.deepEqual(ready.content.stages[2].content[2].items.map(item => item.title), ['Kate', 'Ben', 'Eva', 'Max']);
+  assert.match(ready.content.stages[2].content[3].text, /^\*\*4\.\*\* Somebody in our stories missed a train\. — \*\*FACT\*\* · Kate/);
+  assert.deepEqual(ready.content.stages.slice(3), created.content.stages.slice(3));
 });
