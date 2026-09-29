@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const skills = ['Vocabulary', 'Speaking', 'Listening', 'Writing', 'Grammar'];
+  const skills = ['Vocabulary', 'Speaking', 'Listening', 'Watching', 'Writing', 'Grammar'];
   const dialog = document.createElement('dialog');
   dialog.className = 'publication-dialog';
   dialog.innerHTML = `<form class="publication-form">
