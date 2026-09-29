@@ -345,7 +345,7 @@ test('Reading keeps the teacher-provided notes fixed and complete', () => {
   assert.doesNotMatch(READING_TEACHER_NOTE_TEXT, /&#x20;/);
 });
 
-test('generated Reading rejects damaged questions, vocabulary references, and article length', () => {
+test('generated Reading rejects damaged questions, vocabulary references, and article length', (t) => {
   const vocabularyItems = GENERATED_TARGET_VOCABULARY.vocabularyItems;
   const tooFewQuestions = { ...GENERATED_READING, detailQuestions: GENERATED_READING.detailQuestions.slice(0, 4) };
   assert.throws(() => buildReadingContent(tooFewQuestions, vocabularyItems), /ровно пять/);
@@ -372,7 +372,9 @@ test('generated Reading rejects damaged questions, vocabulary references, and ar
   const absentTerm = { ...GENERATED_READING, usedVocabularyTerms: [
     ...GENERATED_READING.usedVocabularyTerms.slice(0, 4), 'pick up luggage',
   ] };
-  assert.throws(() => buildReadingContent(absentTerm, vocabularyItems), /отсутствует в тексте/);
+  const warn = t.mock.method(console, 'warn', () => {});
+  assert.doesNotThrow(() => buildReadingContent(absentTerm, vocabularyItems));
+  assert.match(warn.mock.calls[0].arguments[0], /Reading не содержит элементы Target Vocabulary: pick up luggage/);
 
   const shortText = { ...GENERATED_READING, text: 'A very short reading text.' };
   assert.throws(() => buildReadingContent(shortText, vocabularyItems), /от 180 до 230 слов/);
