@@ -55,7 +55,7 @@ test('Template 2 grammar validates counts, booleans, explanations, duplicates an
 });
 
 test('Template 2 pipeline passes vocabulary and grammar; prompt has checkbox instructions', () => {
-  const section = getLessonGenerationSections('template-2').at(-1);
+  const section = getLessonGenerationSections('template-2').find(candidate => candidate.key === 'grammarPresentation');
   const options = section.options({ grammarTopic: 'Past Simple' }, { targetVocabulary: { vocabularyItems } });
   assert.deepEqual(options, { grammarTopic: 'Past Simple', vocabularyItems });
   const messages = templateTwoGrammarPresentationMessages('Travel', options.grammarTopic, options.vocabularyItems, { ageGroup: '15-17', level: 'B1' });
@@ -66,11 +66,12 @@ test('Template 2 pipeline passes vocabulary and grammar; prompt has checkbox ins
   assert.equal(messages[1].content, `Lesson topic: Travel\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(vocabularyItems.map(item => item.term))}`);
 });
 
-test('Template 2 recovery completes with Grammar Presentation and drops an interrupted one', () => {
+test('Template 2 recovery keeps Grammar Presentation and drops an interrupted one', () => {
   const skeleton = createTemplateTwoSkeleton('Summer time');
-  const complete = recoverLessonGeneration(`${TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR}\n\n=== Grammar Presentation ===\n${JSON.stringify(generated)}`, skeleton, 'template-2');
-  assert.equal(complete.complete, true);
-  assert.deepEqual(complete.recoveredSections.grammarPresentation, generated);
+  const output = `${TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR}\n\n=== Grammar Presentation ===\n${JSON.stringify(generated)}`;
+  const recovered = recoverLessonGeneration(output, skeleton, 'template-2');
+  assert.equal(recovered.validOutput, output);
+  assert.deepEqual(recovered.recoveredSections.grammarPresentation, generated);
   const interrupted = recoverLessonGeneration(`${TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR}\n\n=== Grammar Presentation ===\n{"examples":`, skeleton, 'template-2');
   assert.equal(interrupted.complete, false);
   assert.equal(interrupted.validOutput, TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR);

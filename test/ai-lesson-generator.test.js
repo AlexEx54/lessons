@@ -537,7 +537,7 @@ test('generated Grammar Focus is mapped onto the fixed synthetic component struc
     .every(stage => stage.content.length === 0));
 });
 
-test('generated Grammar Focus rejects damaged tasks, language, markers, and vocabulary references', () => {
+test('generated Grammar Focus rejects unsolvable tasks and only warns about content quality', t => {
   const vocabulary = GENERATED_TARGET_VOCABULARY.vocabularyItems;
   assert.throws(() => buildGrammarFocusContent({
     ...GENERATED_GRAMMAR_FOCUS,
@@ -556,18 +556,24 @@ test('generated Grammar Focus rejects damaged tasks, language, markers, and voca
     ...GENERATED_GRAMMAR_FOCUS,
     task2Dialogue: GENERATED_GRAMMAR_FOCUS.task2Dialogue.replace('{{gap}}', 'went'),
   }, vocabulary), /ровно 9 маркеров/);
-  assert.throws(() => buildGrammarFocusContent({
-    ...GENERATED_GRAMMAR_FOCUS,
+
+  const warn = t.mock.method(console, 'warn', () => {});
+  const markdown = JSON.parse(JSON.stringify(GENERATED_GRAMMAR_FOCUS));
+  markdown.task1Items[0].before = 'Last month, *I* ';
+  const content = buildGrammarFocusContent({
+    ...markdown,
     task2Dialogue: GENERATED_GRAMMAR_FOCUS.task2Dialogue.replace('**Mia:**', 'Mia:'),
-  }, vocabulary), /speaker labels/);
-  assert.throws(() => buildGrammarFocusContent({
-    ...GENERATED_GRAMMAR_FOCUS,
     modelSentence: 'Вчера я летал в Лондон.',
-  }, vocabulary), /полностью на английском/);
-  assert.throws(() => buildGrammarFocusContent({
-    ...GENERATED_GRAMMAR_FOCUS,
-    supportWordBank: [...GENERATED_GRAMMAR_FOCUS.supportWordBank.slice(0, 7), 'unknown phrase'],
-  }, vocabulary), /точные элементы Target Vocabulary/);
+    supportWordBank: [...GENERATED_GRAMMAR_FOCUS.supportWordBank.slice(0, 6), 'unknown phrase', 'Book a ticket'],
+    miniSituation: { ...GENERATED_GRAMMAR_FOCUS.miniSituation, imagePrompt: 'A traveler at an airport.' },
+  }, vocabulary, () => 0);
+  assert.match(content[1].text, /^\*\*1\.\*\* Last month, I \[\[/);
+  assert.match(content[6].items[1].text, /\*\*Word bank:\*\* book a ticket, .*, unknown phrase\n/);
+  const warnings = warn.mock.calls.map(call => call.arguments[0]).join('\n');
+  for (const pattern of [/разметка в Task 1 №1/, /speaker labels/, /кириллицу в английском тексте: Вчера/,
+    /не из Target Vocabulary: unknown phrase/, /повтор: Book a ticket/, /без текста/]) {
+    assert.match(warnings, pattern);
+  }
 });
 
 test('Grammar Focus prompt receives lesson, grammar, and Target Vocabulary context', () => {
