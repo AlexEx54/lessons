@@ -25,6 +25,7 @@
         <input class="schedule-range__input" id="schedule-date" type="date" tabindex="-1" aria-hidden="true" />
       </div>
     </div>
+    <button class="schedule-action schedule-action--danger schedule-clear" id="schedule-clear" type="button" hidden>Очистить список</button>
     <button class="schedule-create" id="schedule-create" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
       Запланировать урок
@@ -119,6 +120,18 @@
       <div class="schedule-dialog__actions">
         <button class="schedule-action" type="button" data-close>Не отменять</button>
         <button class="schedule-action schedule-action--danger-solid" type="submit">Отменить занятие</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="schedule-dialog" id="schedule-clear-dialog" aria-labelledby="schedule-clear-title">
+    <form method="dialog">
+      <h3 id="schedule-clear-title">Удалить все занятия?</h3>
+      <p class="schedule-dialog__hint">Будут удалены все занятия, включая отменённые, вместе с материалами и заметками. Ссылки-приглашения перестанут работать. Это действие нельзя отменить.</p>
+      <p class="schedule-dialog__error" role="alert"></p>
+      <div class="schedule-dialog__actions">
+        <button class="schedule-action" type="button" data-close>Не удалять</button>
+        <button class="schedule-action schedule-action--danger-solid" type="submit">Удалить всё</button>
       </div>
     </form>
   </dialog>

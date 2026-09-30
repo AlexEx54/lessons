@@ -8,6 +8,7 @@
   const grid = byId('schedule-grid');
   const undated = byId('schedule-undated');
   const list = byId('schedule-list');
+  const clear = byId('schedule-clear');
   const weekNav = byId('schedule-week-nav');
   const dateInput = byId('schedule-date');
   const tabs = [...document.querySelectorAll('.schedule-tab')];
@@ -149,6 +150,7 @@
   function render() {
     renderCalendar();
     list.replaceChildren(...(classes.length ? classes.map(listCard) : [element('p', 'schedule-empty', 'Пока нет занятий. Запланируйте первый урок — он появится здесь и в календаре.')]));
+    clear.hidden = view !== 'list' || !classes.length;
   }
   function setView(next) {
     view = next;
@@ -160,6 +162,7 @@
     calendar.hidden = view !== 'calendar';
     weekNav.hidden = view !== 'calendar';
     list.hidden = view !== 'list';
+    clear.hidden = view !== 'list' || !classes.length;
     history.replaceState(null, '', view === 'list' ? '?view=list' : location.pathname);
   }
   function select(id) {
@@ -245,6 +248,14 @@
     await load();
     window.AppShell.showToast('Занятие отменено.');
   });
+  const openClear = setupDialog(byId('schedule-clear-dialog'), async () => {
+    const response = await fetch('/api/classes', { method: 'DELETE' });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Не удалось очистить список.');
+    selectedId = null;
+    await load();
+    window.AppShell.showToast('Список занятий очищен.');
+  });
 
   tabs.forEach(tab => tab.addEventListener('click', () => setView(tab.dataset.view)));
   document.querySelector('.schedule-tabs').addEventListener('keydown', event => {
@@ -282,6 +293,7 @@
       : lessonSummary(lesson);
     openCancel();
   });
+  clear.addEventListener('click', openClear);
   const start = async () => { if (await load()) setView(view); };
   retry.addEventListener('click', start);
   start();

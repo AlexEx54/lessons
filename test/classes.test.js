@@ -9,7 +9,7 @@ const { spawn } = require('node:child_process');
 const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
-const { createClass, updateClass, listClasses, findClass, findClassByInvite, findClassAsset } = require('../lib/class-store.js');
+const { createClass, updateClass, clearClasses, listClasses, findClass, findClassByInvite, findClassAsset } = require('../lib/class-store.js');
 function fixture(t, dbPath = ':memory:') {
   const db = openDatabase(dbPath);
   t.after(() => db.close());
@@ -84,6 +84,17 @@ test('teacher reschedules and cancels only their own upcoming lessons', t => {
   assert.deepEqual(listClasses(teacher.id, db), []);
   assert.throws(() => updateClass(lesson.id, { scheduledAt: '2099-03-01T09:30:00Z' }, teacher.id, db), { statusCode: 404 });
 });
+test('clearing classes removes every owner class with its media and keeps other teachers intact', t => {
+  const { db, teacher, other, input } = fixture(t);
+  const cancelled = createClass(input, teacher.id, db);
+  updateClass(cancelled.id, { status: 'cancelled' }, teacher.id, db);
+  createClass({ ...input, requestKey: crypto.randomUUID() }, teacher.id, db);
+  const foreign = createClass({ ...input, requestKey: crypto.randomUUID() }, other.id, db);
+  assert.equal(clearClasses(teacher.id, db), 2);
+  assert.deepEqual(db.prepare('SELECT id FROM classes').all().map(row => row.id), [foreign.id]);
+  assert.deepEqual(db.prepare('SELECT class_id FROM class_assets').all().map(row => row.class_id), [foreign.id, foreign.id]);
+  assert.equal(clearClasses(teacher.id, db), 0);
+});
 test('class API creates once, renders schedule and teacher lesson, protects all routes and supports snapshot audio ranges', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'classes-http-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -153,6 +164,10 @@ test('class API creates once, renders schedule and teacher lesson, protects all 
   assert.equal((await request(detail, cookie, 'PATCH', { status: 'cancelled' })).status, 200);
   assert.equal((await (await request('/api/classes')).json()).classes.length, 0);
   assert.equal((await request(`/join/${legacyToken}`, null)).status, 404);
+  assert.equal((await request('/api/classes', null, 'DELETE')).status, 401);
+  assert.deepEqual(await (await request('/api/classes', cookie, 'DELETE')).json(), { deleted: 1 });
+  assert.equal((await request(detail)).status, 404);
+  assert.equal((await request(media)).status, 404);
 });
 
 test('invite names transliterate Russian, normalize punctuation and have a bounded fallback', () => {

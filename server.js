@@ -17,7 +17,7 @@ const {
 } = require('./lib/auth.js');
 const { getDatabase } = require('./lib/db.js');
 const { listLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, findLibraryAsset } = require('./lib/library-store.js');
-const { createClass, updateClass, findClass, listClasses, findClassAsset } = require('./lib/class-store.js');
+const { createClass, updateClass, clearClasses, findClass, listClasses, findClassAsset } = require('./lib/class-store.js');
 const { joinClass, authorizeClass, sessionPayload, guestCanReadAsset } = require('./lib/class-session-store.js');
 const { createClassSessionSignaling } = require('./lib/class-session-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
@@ -1410,10 +1410,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (pathname === '/api/classes' && ['GET', 'POST'].includes(req.method)) {
+  if (pathname === '/api/classes' && ['GET', 'POST', 'DELETE'].includes(req.method)) {
     const user = requireTeacherAuth(req, res);
     if (!user) return;
     if (req.method === 'GET') { json(res, 200, { classes: listClasses(user.id, database) }); return; }
+    if (req.method === 'DELETE') { json(res, 200, { deleted: clearClasses(user.id, database) }); return; }
     try {
       const lesson = createClass(await readJsonBody(req), user.id, database);
       json(res, 201, { lesson });
