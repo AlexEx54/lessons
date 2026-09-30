@@ -9,7 +9,7 @@
 
 html {
   min-width: 320px;
-  overflow-x: clip;
+  scrollbar-gutter: stable;
   background: #fff;
   scroll-behavior: smooth;
 }

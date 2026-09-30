@@ -16,7 +16,7 @@
 
 html {
   min-width: 320px;
-  overflow-x: clip;
+  scrollbar-gutter: stable;
   background: #f4f2ff;
 }
 
