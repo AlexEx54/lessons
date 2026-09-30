@@ -6,7 +6,6 @@
   const retry = byId('schedule-retry');
   const calendar = byId('schedule-calendar');
   const grid = byId('schedule-grid');
-  const undated = byId('schedule-undated');
   const list = byId('schedule-list');
   const clear = byId('schedule-clear');
   const weekNav = byId('schedule-week-nav');
@@ -16,7 +15,6 @@
     empty: byId('schedule-details-empty'), body: byId('schedule-details-body'), cover: byId('schedule-details-cover'),
     lesson: byId('schedule-details-lesson'), level: byId('schedule-details-level'), student: byId('schedule-details-student'),
     date: byId('schedule-details-date'), time: byId('schedule-details-time'), open: byId('schedule-open'),
-    rescheduleLabel: byId('schedule-reschedule-label'),
   };
   const timeInput = byId('schedule-reschedule-dialog').querySelector('input[name="time"]');
   const formats = {
@@ -26,7 +24,7 @@
     dateTime: new Intl.DateTimeFormat('ru', { dateStyle: 'long', timeStyle: 'short' }),
   };
   const params = new URLSearchParams(location.search);
-  let classes = [];
+  let sessions = [];
   let view = params.get('view') === 'list' ? 'list' : 'calendar';
   let weekStart = Calendar.startOfWeek(new Date());
   let selectedId = null;
@@ -39,9 +37,9 @@
     return node;
   }
   const capitalize = text => text.charAt(0).toUpperCase() + text.slice(1);
-  const selected = () => classes.find(lesson => lesson.id === selectedId);
+  const selected = () => sessions.find(lesson => lesson.id === selectedId);
   const withYear = (options, ...dates) => dates.some(date => date.getFullYear() !== new Date().getFullYear()) ? { ...options, year: 'numeric' } : options;
-  const lessonSummary = lesson => `${lesson.name} · ${lesson.title}`;
+  const lessonSummary = lesson => `${lesson.class_name} · ${lesson.title}`;
   const longDate = date => capitalize(new Intl.DateTimeFormat('ru', withYear({ weekday: 'long', day: 'numeric', month: 'long' }, date)).format(date));
 
   function slot(start, now) {
@@ -62,8 +60,8 @@
     card.classList.toggle('schedule-event--past', at < now);
     card.style.cssText = `--start:${start - startHour * 60};--length:${end - start};--lane:${lane};--lanes:${lanes}`;
     card.setAttribute('aria-pressed', String(lesson.id === selectedId));
-    card.setAttribute('aria-label', `${formats.time.format(at)}, ${lesson.name}, ${lesson.title}`);
-    card.append(element('span', 'schedule-event__time', formats.time.format(at)), element('strong', 'schedule-event__name', lesson.name));
+    card.setAttribute('aria-label', `${formats.time.format(at)}, ${lesson.class_name}, ${lesson.title}`);
+    card.append(element('span', 'schedule-event__time', formats.time.format(at)), element('strong', 'schedule-event__name', lesson.class_name));
     return card;
   }
   function renderGrid({ days, startHour, endHour }) {
@@ -88,44 +86,30 @@
     grid.style.setProperty('--hours', hours.length);
     grid.replaceChildren(element('div', 'schedule-grid__corner'), ...heads, times, ...columns);
   }
-  function renderUndated() {
-    const lessons = classes.filter(lesson => !lesson.scheduled_at);
-    undated.hidden = !lessons.length;
-    undated.replaceChildren(element('span', '', 'Без даты:'), ...lessons.map(lesson => {
-      const chip = element('button', 'schedule-chip', lesson.name);
-      chip.type = 'button';
-      chip.dataset.id = lesson.id;
-      chip.title = lesson.title;
-      chip.setAttribute('aria-pressed', String(lesson.id === selectedId));
-      return chip;
-    }));
-  }
   function renderDetails() {
     const lesson = selected();
     details.empty.hidden = Boolean(lesson);
     details.body.hidden = !lesson;
     if (!lesson) return;
-    const at = lesson.scheduled_at && new Date(lesson.scheduled_at);
+    const at = new Date(lesson.scheduled_at);
     details.cover.src = lesson.cover;
     details.lesson.textContent = lesson.title;
     details.level.textContent = lesson.level;
-    details.student.textContent = lesson.name;
-    details.date.textContent = at ? longDate(at) : 'Дата не назначена';
-    details.time.textContent = at ? `${formats.time.format(at)} · ${lesson.duration}` : lesson.duration;
-    details.open.href = lesson.lessonPath;
-    details.rescheduleLabel.textContent = at ? 'Изменить дату и время' : 'Назначить дату и время';
+    details.student.textContent = lesson.class_name;
+    details.date.textContent = longDate(at);
+    details.time.textContent = `${formats.time.format(at)} · ${lesson.duration}`;
+    details.open.href = lesson.path;
   }
   // Keeps the chosen lesson while it is on screen, otherwise picks the next lesson of the week.
   function renderCalendar() {
     const weekEnd = Calendar.addDays(weekStart, 6);
     byId('schedule-range-label').textContent = new Intl.DateTimeFormat('ru', withYear({ day: 'numeric', month: 'long' }, weekStart, weekEnd)).formatRange(weekStart, weekEnd);
-    const layout = Calendar.layoutWeek(classes, weekStart);
+    const layout = Calendar.layoutWeek(sessions, weekStart);
     const visible = layout.days.flat().map(event => event.lesson);
-    if (![...visible, ...classes.filter(lesson => !lesson.scheduled_at)].some(lesson => lesson.id === selectedId)) {
+    if (!visible.some(lesson => lesson.id === selectedId)) {
       selectedId = (visible.find(lesson => Date.parse(lesson.scheduled_at) >= Date.now()) ?? visible[0])?.id ?? null;
     }
     renderGrid(layout);
-    renderUndated();
     renderDetails();
   }
   function listCard(lesson) {
@@ -135,22 +119,25 @@
     image.alt = '';
     image.loading = 'lazy';
     const body = element('div', 'schedule-body');
-    const time = element('p', 'schedule-time', lesson.scheduled_at ? formats.dateTime.format(new Date(lesson.scheduled_at)) : 'Время не назначено');
-    body.append(time, element('h3', '', lesson.name), element('p', 'schedule-lesson', lesson.title), element('p', 'schedule-meta', `${lesson.level} · ${lesson.duration}`));
+    const time = element('p', 'schedule-time', formats.dateTime.format(new Date(lesson.scheduled_at)));
+    body.append(time, element('h3', '', lesson.class_name), element('p', 'schedule-lesson', lesson.title), element('p', 'schedule-meta', `${lesson.level} · ${lesson.duration}`));
     const actions = element('div', 'schedule-actions');
     const open = element('a', 'schedule-action schedule-action--primary', 'Открыть урок');
-    open.href = lesson.lessonPath;
-    const copy = element('button', 'schedule-copy', 'Скопировать ссылку');
-    copy.type = 'button';
-    copy.addEventListener('click', () => copyInvite(lesson));
-    actions.append(open, copy);
+    open.href = lesson.path;
+    const copyButton = (label, copy) => {
+      const button = element('button', 'schedule-copy', label);
+      button.type = 'button';
+      button.addEventListener('click', copy);
+      return button;
+    };
+    actions.append(open, copyButton('Ссылка класса', () => copyClassLink(lesson)), copyButton('Ссылка на занятие', () => copySessionLink(lesson)));
     row.append(image, body, actions);
     return row;
   }
   function render() {
     renderCalendar();
-    list.replaceChildren(...(classes.length ? classes.map(listCard) : [element('p', 'schedule-empty', 'Пока нет занятий. Запланируйте первый урок — он появится здесь и в календаре.')]));
-    clear.hidden = view !== 'list' || !classes.length;
+    list.replaceChildren(...(sessions.length ? sessions.map(listCard) : [element('p', 'schedule-empty', 'Пока нет занятий. Запланируйте первый урок — он появится здесь и в календаре.')]));
+    clear.hidden = view !== 'list' || !sessions.length;
   }
   function setView(next) {
     view = next;
@@ -162,7 +149,7 @@
     calendar.hidden = view !== 'calendar';
     weekNav.hidden = view !== 'calendar';
     list.hidden = view !== 'list';
-    clear.hidden = view !== 'list' || !classes.length;
+    clear.hidden = view !== 'list' || !sessions.length;
     history.replaceState(null, '', view === 'list' ? '?view=list' : location.pathname);
   }
   function select(id) {
@@ -174,24 +161,26 @@
     weekStart = Calendar.startOfWeek(date);
     renderCalendar();
   }
-  async function copyInvite(lesson) {
-    try { await navigator.clipboard.writeText(new URL(lesson.invitePath, location.origin).href); window.AppShell.showToast('Ссылка на класс скопирована.'); }
+  async function copyLink(path, copiedMessage) {
+    try { await navigator.clipboard.writeText(new URL(path, location.origin).href); window.AppShell.showToast(copiedMessage); }
     catch { window.AppShell.showToast('Не удалось скопировать ссылку.'); }
   }
+  const copyClassLink = lesson => copyLink(lesson.classInvitePath, 'Ссылка класса скопирована. Она всегда открывает ближайшее занятие.');
+  const copySessionLink = lesson => copyLink(lesson.sessionInvitePath, 'Ссылка на это занятие скопирована.');
   async function updateLesson(id, changes) {
-    const response = await fetch(`/api/classes/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changes) });
+    const response = await fetch(`/api/sessions/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changes) });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || 'Не удалось изменить занятие.');
   }
   // The server owns the list order, so every change is followed by a fresh load.
   async function load() {
     retry.hidden = true;
-    if (!classes.length) status.textContent = 'Загружаем уроки…';
+    if (!sessions.length) status.textContent = 'Загружаем уроки…';
     try {
-      const response = await fetch('/api/classes', { cache: 'no-store' });
+      const response = await fetch('/api/sessions', { cache: 'no-store' });
       if (response.status === 401) { location.href = '/login?next=/schedule'; return false; }
       if (!response.ok) throw new Error();
-      classes = (await response.json()).classes;
+      sessions = (await response.json()).sessions;
     } catch {
       status.textContent = 'Не удалось загрузить расписание.';
       retry.hidden = false;
@@ -201,9 +190,10 @@
     render();
     return true;
   }
-  function planLesson(time) {
+  function planLesson(time, classId) {
     window.ClassModal.open({
       time,
+      classId,
       onCreated: lesson => {
         weekStart = Calendar.startOfWeek(new Date(lesson.scheduled_at));
         selectedId = lesson.id;
@@ -249,7 +239,7 @@
     window.AppShell.showToast('Занятие отменено.');
   });
   const openClear = setupDialog(byId('schedule-clear-dialog'), async () => {
-    const response = await fetch('/api/classes', { method: 'DELETE' });
+    const response = await fetch('/api/sessions', { method: 'DELETE' });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || 'Не удалось очистить список.');
     selectedId = null;
@@ -273,24 +263,24 @@
   dateInput.addEventListener('change', () => { if (dateInput.value) showWeek(new Date(`${dateInput.value}T00:00`)); });
   byId('schedule-create').addEventListener('click', () => planLesson());
   calendar.addEventListener('click', event => {
-    const lesson = event.target.closest('.schedule-event, .schedule-chip');
+    const lesson = event.target.closest('.schedule-event');
     if (lesson) select(lesson.dataset.id);
     const slot = event.target.closest('button.schedule-slot');
     if (slot) planLesson(slot.dataset.time);
   });
-  byId('schedule-copy').addEventListener('click', () => copyInvite(selected()));
+  byId('schedule-copy').addEventListener('click', () => copyClassLink(selected()));
+  byId('schedule-copy-session').addEventListener('click', () => copySessionLink(selected()));
+  byId('schedule-plan-more').addEventListener('click', () => planLesson('', selected().class_id));
   byId('schedule-reschedule').addEventListener('click', () => {
     const lesson = selected();
     byId('schedule-reschedule-lesson').textContent = lessonSummary(lesson);
     timeInput.min = Calendar.toLocalInputValue(new Date());
-    timeInput.value = lesson.scheduled_at ? Calendar.toLocalInputValue(new Date(lesson.scheduled_at)) : '';
+    timeInput.value = Calendar.toLocalInputValue(new Date(lesson.scheduled_at));
     openReschedule();
   });
   byId('schedule-cancel').addEventListener('click', () => {
     const lesson = selected();
-    byId('schedule-cancel-lesson').textContent = lesson.scheduled_at
-      ? `${lessonSummary(lesson)}, ${formats.dateTime.format(new Date(lesson.scheduled_at))}`
-      : lessonSummary(lesson);
+    byId('schedule-cancel-lesson').textContent = `${lessonSummary(lesson)}, ${formats.dateTime.format(new Date(lesson.scheduled_at))}`;
     openCancel();
   });
   clear.addEventListener('click', openClear);

@@ -6,36 +6,39 @@ const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 const { applyMigrations } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
-const { createClass } = require('../lib/class-store.js');
-const { joinClass } = require('../lib/class-session-store.js');
+const { createLessonDraft } = require('../lib/lesson-draft-store.js');
 
-test('historical live schema upgrades without losing sessions or lesson state', t => {
+test('one-off classes are dropped for permanent classes while the library and drafts stay intact', t => {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.exec(`PRAGMA foreign_keys = ON;
     CREATE TABLE schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL) STRICT;`);
   const directory = path.join(__dirname, '..', 'migrations');
-  for (const name of fs.readdirSync(directory).filter(name => /^\d+.*\.sql$/.test(name) && name < '012').sort()) {
+  for (const name of fs.readdirSync(directory).filter(name => /^\d+.*\.sql$/.test(name) && name < '015').sort()) {
     db.exec(fs.readFileSync(path.join(directory, name), 'utf8'));
-    db.prepare('INSERT INTO schema_migrations VALUES (?, ?)').run(name, '2026-09-07');
+    db.prepare('INSERT INTO schema_migrations VALUES (?, ?)').run(name, '2026-09-30');
   }
-  const user = createUser({ email: 'migration@test.local', displayName: 'Teacher', role: 'teacher', passwordHash: 'unused' }, db);
-  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(require('../lib/synthetic-lesson.js').createSyntheticLesson('Migration')));
-  const lesson = createClass({ name: 'Migration', lessonId: 'superhero', expectedRevision: 1, requestKey: require('node:crypto').randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, user.id, db);
-  const row = db.prepare('SELECT * FROM classes WHERE id = ?').get(lesson.id);
-  const state = JSON.stringify({ activeStageId: 'warm-up', version: 7, selections: { choice: { item: 'option' } } });
-  const expiry = Date.now() + 60000;
-  db.prepare('INSERT INTO class_guest_sessions VALUES (?, ?, ?, ?)').run('old-token', lesson.id, row.invite_token, expiry);
-  db.prepare('INSERT INTO class_live_state VALUES (?, ?)').run(lesson.id, state);
-  db.prepare('INSERT INTO class_live_commands VALUES (?, ?)').run(lesson.id, 'command');
+  const user = createUser({ email: 'migration@test.local', displayName: 'Teacher', role: 'admin', passwordHash: 'unused' }, db);
+  const draft = createLessonDraft({ ownerAdminId: user.id, topic: 'Kept', template: 'general' }, db);
+  const asset = `${'a'.repeat(64)}.png`;
+  db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', asset, Buffer.from('image'));
+  db.prepare(`INSERT INTO classes (id, owner_id, request_key, request_json, invite_token, name, library_lesson_id, library_revision,
+    title, level, duration, cover, content_json, time_zone, created_at)
+    VALUES ('old', ?, 'key', '{}', 'token', 'Анна', 'superhero', 1, 'Lesson', 'A1', '50 мин', '', '{}', 'UTC', '2026-09-01')`).run(user.id);
+  db.prepare("INSERT INTO class_assets VALUES ('old', ?, ?)").run(asset, Buffer.from('copy'));
+  db.prepare("INSERT INTO class_guest_sessions VALUES ('hash', 'old', ?)").run(Date.now() + 60000);
+  db.prepare("INSERT INTO class_live_state VALUES ('old', '{}')").run();
+  db.prepare("INSERT INTO class_notes VALUES ('old', ?, 1, '2026-09-01')").run(Buffer.from('notes'));
+  const library = () => [db.prepare('SELECT * FROM library_lessons ORDER BY id').all(), db.prepare('SELECT * FROM library_assets ORDER BY lesson_id, file_name').all()];
+  const libraryBefore = library();
   applyMigrations(db);
   applyMigrations(db);
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get().n, 14);
-  assert.equal(db.prepare("SELECT applied_at FROM schema_migrations WHERE name = '011-class-live.sql'").get().applied_at, '2026-09-07');
-  assert.deepEqual({ ...db.prepare('SELECT * FROM class_guest_sessions').get() }, { token_hash: 'old-token', class_id: lesson.id, expires_at: expiry });
-  assert.equal(db.prepare('SELECT invite_token FROM class_guest_sessions_legacy').get().invite_token, row.invite_token);
-  assert.equal(db.prepare('SELECT state_json FROM class_live_state').get().state_json, state);
-  assert.equal(db.prepare('SELECT command_id FROM class_live_commands').get().command_id, 'command');
-  assert.ok(joinClass({ headers: {} }, row.invite_token, db).cookie);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get().n, 15);
+  for (const table of ['classes', 'class_sessions', 'class_assets', 'class_guest_sessions', 'class_live_state', 'class_notes']) {
+    assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n, 0, table);
+  }
+  assert.equal(db.prepare("SELECT 1 FROM sqlite_schema WHERE name IN ('class_live_commands', 'class_guest_sessions_legacy')").get(), undefined);
+  assert.deepEqual(library(), libraryBefore);
+  assert.equal(db.prepare('SELECT id FROM lesson_drafts').get().id, draft.id);
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
 });

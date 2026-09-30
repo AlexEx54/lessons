@@ -30,7 +30,6 @@ test('week layout places lessons by day, splits overlaps into lanes and fits the
     lesson('late', at(16, 23, 30)),
     lesson('next-week', at(17, 12)),
     lesson('previous-week', at(9, 23)),
-    lesson('undated', null),
   ], week);
   const view = event => [event.lesson.id, event.start, event.end, event.lane, event.lanes];
   assert.deepEqual(layout.days[2].map(view), [

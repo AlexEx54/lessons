@@ -42,10 +42,6 @@
 #schedule-retry { margin: 15px 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); color: var(--purple); }
 
 .schedule-calendar { display: grid; grid-template-columns: minmax(0, 1fr) 272px; align-items: start; gap: 20px; }
-.schedule-undated { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
-.schedule-chip { padding: 6px 11px; border: 1px dashed var(--event-line); border-radius: 8px; color: var(--ink); font-size: 12px; font-weight: 600; }
-.schedule-chip:hover,
-.schedule-chip[aria-pressed="true"] { border: 1px solid var(--purple); color: var(--purple); }
 
 .schedule-grid-scroll { overflow-x: auto; border: 1px solid var(--grid-line); border-radius: 14px; }
 .schedule-grid { display: grid; grid-template-columns: 62px repeat(7, minmax(78px, 1fr)); }

@@ -13,7 +13,7 @@ const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
 const { createLessonDraft, completeLessonDraft, findLessonDraft } = require('../lib/lesson-draft-store.js');
 const { publishLesson, findLibraryLesson } = require('../lib/library-store.js');
-const { createClass } = require('../lib/class-store.js');
+const { createClassSession } = require('../lib/class-store.js');
 
 test('video upload, immutable publication, range access and class media signals', { timeout: 20000 }, async t => {
   if (spawnSync(process.env.FFPROBE_PATH || 'ffprobe', ['-version']).status !== 0) { t.skip('ffprobe is required for video upload integration'); return; }
@@ -66,10 +66,10 @@ test('video upload, immutable publication, range access and class media signals'
   const publication = publishLesson(draft.id, admin.id, input, db, assets);
   const published = findLibraryLesson(publication.id, db).content.stages[0].content[0].videoSrc;
   assert.equal((await request(published, { method: 'HEAD' })).headers.get('content-length'), String(bytes.length));
-  const classroom = createClass({ name: 'Video class', lessonId: publication.id, expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, admin.id, db);
+  const classroom = createClassSession({ className: 'Video class', lessonId: publication.id, expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, admin.id, db);
   assert.deepEqual(classroom.content.stages[0].content[0].questions, [question]);
   const classSource = classroom.content.stages[0].content[0].videoSrc;
-  const joined = await request(classroom.invitePath, { redirect: 'manual' }, '');
+  const joined = await request(classroom.sessionInvitePath, { redirect: 'manual' }, '');
   const guest = joined.headers.get('set-cookie').split(';')[0];
   assert.equal((await request(classSource, {}, '')).status, 401);
   assert.equal((await request(classSource, {}, otherCookie)).status, 404);
@@ -81,7 +81,7 @@ test('video upload, immutable publication, range access and class media signals'
   assert.equal(findLessonDraft(draft.id, admin.id, db).content.stages[0].content[0].videoSrc, undefined);
   assert.deepEqual(findLessonDraft(draft.id, admin.id, db).content.stages[0].content[0].questions, []);
   function connect(role, auth) {
-    const ws = new WebSocket(`${base.replace('http:', 'ws:')}/ws/classes/${classroom.id}?role=${role}`, { headers: { Cookie: auth, Origin: base } }); sockets.push(ws);
+    const ws = new WebSocket(`${base.replace('http:', 'ws:')}/ws/sessions/${classroom.id}?role=${role}`, { headers: { Cookie: auth, Origin: base } }); sockets.push(ws);
     const queue = [], waiters = [];
     ws.on('message', raw => { const message = JSON.parse(raw); const index = waiters.findIndex(w => w.type === message.type); if (index < 0) queue.push(message); else { const [w] = waiters.splice(index, 1); clearTimeout(w.timer); w.resolve(message); } });
     ws.next = type => { const index = queue.findIndex(m => m.type === type); if (index >= 0) return Promise.resolve(queue.splice(index, 1)[0]); return new Promise((resolve, reject) => { waiters.push({ type, resolve, timer: setTimeout(() => reject(new Error(`Missing ${type}`)), 2000) }); }); };

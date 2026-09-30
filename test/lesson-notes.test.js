@@ -10,8 +10,8 @@ const { prosemirrorJSONToYDoc, yDocToProsemirrorJSON } = require('@tiptap/y-tipt
 const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
-const { createClass } = require('../lib/class-store.js');
-const { joinClass } = require('../lib/class-session-store.js');
+const { createClassSession } = require('../lib/class-store.js');
+const { joinClass } = require('../lib/class-live-store.js');
 const { createLessonDraft, completeLessonDraft } = require('../lib/lesson-draft-store.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
 const { publishLesson } = require('../lib/library-store.js');
@@ -28,7 +28,7 @@ function setup(t) {
   const lesson = createSyntheticLesson('Notes');
   lesson.notes = content('Start');
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(lesson));
-  const makeClass = () => createClass({ name: 'Notes', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
+  const makeClass = () => createClassSession({ className: 'Notes', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   return { db, teacher, makeClass };
 }
 
@@ -53,7 +53,7 @@ test('draft notes: ownership, version conflicts, formatting validation and publi
   }, db, '/unused');
   const publishedContent = JSON.parse(db.prepare('SELECT content_json FROM library_lessons WHERE id = ?').get(published.id).content_json);
   assert.deepEqual(publishedContent.notes, formatted);
-  const session = createClass({ name: 'Snapshot', lessonId: published.id, expectedRevision: published.revision, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
+  const session = createClassSession({ className: 'Snapshot', lessonId: published.id, expectedRevision: published.revision, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   saveDraftNotes(draft.id, teacher.id, { version: 1, content: content('Changed later') }, db);
   const doc = readClassNotes(session.id, db);
   assert.equal(textOf(doc), 'Prepared vocabulary');
@@ -96,7 +96,7 @@ test('notes websocket authorizes both roles, persists before ack and recovers mi
   const { db, teacher, makeClass } = setup(t);
   const lesson = makeClass(), other = makeClass();
   const cookie = `teach_session=${createSession(teacher.id, db).token}`;
-  const invite = db.prepare('SELECT invite_token FROM classes WHERE id = ?').get(lesson.id).invite_token;
+  const invite = lesson.classInvitePath.split('/').at(-1);
   const guest = joinClass({ headers: {} }, invite, db).cookie.split(';')[0];
   const signaling = createNotesSignaling({ database: db });
   const server = http.createServer();

@@ -132,7 +132,7 @@
   }
 
   function updateHomeState() {
-    createClassButton.lastChild.textContent = ' Создать класс';
+    createClassButton.lastChild.textContent = ' Запланировать занятие';
     const subtitle = document.querySelector('.welcome-row p');
     if (subtitle) subtitle.textContent = 'Готовьте новые уроки и открывайте назначенные занятия в расписании.';
   }

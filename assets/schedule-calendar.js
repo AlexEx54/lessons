@@ -37,8 +37,8 @@
     const days = Array.from({ length: 7 }, () => []);
     let { start: startHour, end: endHour } = DEFAULT_HOURS;
     for (const lesson of lessons) {
-      const at = lesson.scheduled_at && new Date(lesson.scheduled_at);
-      if (!at || at < weekStart || at >= weekEnd) continue;
+      const at = new Date(lesson.scheduled_at);
+      if (at < weekStart || at >= weekEnd) continue;
       const start = at.getHours() * 60 + at.getMinutes();
       const end = Math.min(start + durationMinutes(lesson.duration), DAY_MINUTES);
       days[(at.getDay() + 6) % 7].push({ lesson, start, end });

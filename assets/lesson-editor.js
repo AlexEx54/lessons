@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  if (/^\/classes\//.test(window.location.pathname)) return;
+  if (/^\/sessions\//.test(window.location.pathname)) return;
 
   const state = {
     lesson: null,

@@ -4,7 +4,15 @@
   const classModal = document.getElementById('class-modal');
   const classDialog = classModal.querySelector('.class-dialog');
   const classNameInput = document.getElementById('class-name-input');
+  const classLinkPreview = document.getElementById('class-link-preview');
   const classLinkValue = document.getElementById('class-link-value');
+  const classListStatus = document.getElementById('class-list-status');
+  const classListRetry = document.getElementById('class-list-retry');
+  const classModeTabs = document.getElementById('class-mode');
+  const classExistingPanel = document.getElementById('class-existing-panel');
+  const classNewPanel = document.getElementById('class-new-panel');
+  const classList = document.getElementById('class-list');
+  const classSearch = document.getElementById('class-search-input');
   const classNextButton = document.getElementById('class-next-button');
   const classBackButton = document.getElementById('class-back-button');
   const attachLessonButton = document.getElementById('attach-lesson-button');
@@ -20,8 +28,17 @@
   const lessonSearch = document.getElementById('class-lesson-search');
   const classError = document.getElementById('class-error');
   const launchButton = document.getElementById('class-launch-button');
+  const completionHeading = document.getElementById('class-completion-heading');
+  const completionHintNew = document.getElementById('class-completion-hint-new');
+  const completionHintExisting = document.getElementById('class-completion-hint-existing');
   let modalReturnFocus = null;
   let onCreated = null;
+  let classStep = 1;
+  let classes = [];
+  let classesLoaded = false;
+  let classRequest = 0;
+  let classMode = 'existing';
+  let selectedClassId = null;
   let recommendationLessons = [];
   let selectedRecommendationId = null;
   let allRecommendations = [];
@@ -29,17 +46,121 @@
   let recommendationRequest = 0;
   let loadingRecommendations = false;
   let savingClass = false;
-  let createdClass = null;
+  let createdSession = null;
   let requestKey = null;
   let requestPayload = null;
   document.getElementById('class-time-zone').textContent = `Часовой пояс: ${classTimeZone}`;
 
+  const selectedClass = () => classes.find(item => item.id === selectedClassId);
+
   function updateClassLink() {
-    classLinkValue.textContent = `${window.location.origin}/join/${window.ClassInvite.slug(classNameInput.value)}-…`;
+    const link = classMode === 'new'
+      ? `${window.location.origin}/join/${window.ClassInvite.slug(classNameInput.value)}-…`
+      : selectedClass() && new URL(selectedClass().invitePath, window.location.origin).href;
+    classLinkPreview.hidden = !classesLoaded || !link;
+    classLinkValue.textContent = link || '';
   }
 
-  // `time` prefills the datetime-local field; `onCreated` receives the class right after it is saved.
-  function openClassModal({ time = '', onCreated: createdCallback = null } = {}) {
+  function setClassMode(mode) {
+    classMode = mode;
+    classModeTabs.querySelectorAll('[data-mode]').forEach(tab => {
+      const active = tab.dataset.mode === mode;
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+    });
+    classExistingPanel.hidden = !classesLoaded || mode !== 'existing';
+    classNewPanel.hidden = !classesLoaded || mode !== 'new';
+    updateClassLink();
+  }
+
+  function focusClassStep() {
+    if (classMode === 'existing') {
+      (classList.querySelector('[aria-checked="true"]') ?? classList.querySelector('.class-option') ?? classSearch).focus();
+      return;
+    }
+    classNameInput.focus();
+    classNameInput.select();
+  }
+
+  const focusLessonSearch = () => { if (classStep === 2) lessonSearch.focus(); };
+
+  function createClassOption(item) {
+    const option = document.createElement('button');
+    option.className = 'class-option';
+    option.type = 'button';
+    option.dataset.classId = item.id;
+    option.setAttribute('role', 'radio');
+    option.setAttribute('aria-checked', String(item.id === selectedClassId));
+    const avatar = document.createElement('span');
+    avatar.className = 'class-option__avatar';
+    avatar.setAttribute('aria-hidden', 'true');
+    avatar.textContent = item.name.trim().charAt(0).toLocaleUpperCase('ru');
+    const name = document.createElement('span');
+    name.className = 'class-option__name';
+    name.textContent = item.name;
+    option.append(avatar, name);
+    return option;
+  }
+
+  function renderClassList() {
+    const query = classSearch.value.trim().toLocaleLowerCase('ru');
+    const matching = classes.filter(item => item.name.toLocaleLowerCase('ru').includes(query));
+    classList.replaceChildren(...matching.map(createClassOption));
+    if (!matching.length) {
+      const empty = document.createElement('p');
+      empty.className = 'class-list__empty';
+      empty.textContent = 'Такого класса нет. Создайте новый на соседней вкладке.';
+      classList.append(empty);
+    }
+  }
+
+  function selectClass(classId, shouldFocus = false) {
+    selectedClassId = classId;
+    classList.querySelectorAll('.class-option').forEach(option => {
+      const isSelected = option.dataset.classId === classId;
+      option.setAttribute('aria-checked', String(isSelected));
+      if (isSelected && shouldFocus) option.focus();
+    });
+    updateClassLink();
+  }
+
+  // Existing classes are offered first; a teacher without classes only sees the new-class form.
+  async function loadClasses() {
+    const request = ++classRequest;
+    classesLoaded = false;
+    classModeTabs.hidden = true;
+    classListRetry.hidden = true;
+    classListStatus.textContent = 'Загружаем классы…';
+    classNextButton.disabled = true;
+    setClassMode(classMode);
+    try {
+      const response = await fetch('/api/classes', { cache: 'no-store', headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error();
+      const content = await response.json();
+      if (request !== classRequest) return;
+      classes = content.classes;
+    } catch {
+      if (request !== classRequest) return;
+      classListStatus.textContent = 'Не удалось загрузить классы.';
+      classListRetry.hidden = false;
+      if (classStep === 1) classListRetry.focus();
+      return;
+    }
+    classesLoaded = true;
+    classListStatus.textContent = '';
+    classNextButton.disabled = false;
+    classModeTabs.hidden = !classes.length;
+    classSearch.value = '';
+    classSearch.closest('.class-search').hidden = classes.length <= 5;
+    if (!selectedClass()) selectedClassId = null;
+    renderClassList();
+    setClassMode(classes.length ? classMode : 'new');
+    if (classStep === 1) focusClassStep();
+  }
+
+  // `time` prefills the datetime-local field and `classId` preselects a class, skipping the first step.
+  // `onCreated` receives the session right after it is saved.
+  function openClassModal({ time = '', classId = null, onCreated: createdCallback = null } = {}) {
     if (savingClass) return;
     modalReturnFocus = document.activeElement;
     onCreated = createdCallback;
@@ -49,8 +170,10 @@
     classModal.classList.add('class-modal--visible');
     classModal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
-    createdClass = null;
+    createdSession = null;
     selectedRecommendationId = null;
+    selectedClassId = classId;
+    classMode = 'existing';
     requestKey = null;
     requestPayload = null;
     classError.textContent = '';
@@ -58,15 +181,13 @@
     classTimeInput.value = time;
     lessonSearch.value = '';
     showAllLessons = false;
-    updateClassLink();
-    setClassStep(1);
-    window.requestAnimationFrame(() => {
-      classNameInput.focus();
-      classNameInput.select();
-    });
+    setClassStep(classId ? 2 : 1);
+    loadClasses();
+    if (classId) loadRecommendations().then(focusLessonSearch);
   }
 
   function setClassStep(stepNumber) {
+    classStep = stepNumber;
     classDialog.querySelectorAll('[data-class-step]').forEach(step => {
       const isActive = Number(step.dataset.classStep) === stepNumber;
       step.hidden = !isActive;
@@ -268,29 +389,34 @@
       return;
     }
     const scheduledAt = time.toISOString();
-    const input = { name: classNameInput.value.trim(), lessonId: lesson.id, expectedRevision: lesson.revision, scheduledAt, timeZone: classTimeZone };
+    const target = classMode === 'new' ? { className: classNameInput.value.trim() } : { classId: selectedClassId };
+    const input = { ...target, lessonId: lesson.id, expectedRevision: lesson.revision, scheduledAt, timeZone: classTimeZone };
     const payload = JSON.stringify(input);
     if (payload !== requestPayload) { requestKey = crypto.randomUUID(); requestPayload = payload; }
     setSaving(true);
     try {
-      const response = await fetch('/api/classes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...input, requestKey }) });
+      const response = await fetch('/api/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...input, requestKey }) });
       const result = await response.json();
       if (!response.ok) {
         if (response.status === 409) {
           selectedRecommendationId = null;
           await loadRecommendations();
         }
-        throw new Error(result.error || 'Не удалось создать класс.');
+        throw new Error(result.error || 'Не удалось запланировать занятие.');
       }
-      createdClass = result.lesson;
-      completionLink.textContent = new URL(createdClass.invitePath, window.location.origin).href;
-      completionLesson.textContent = createdClass.title;
-      document.getElementById('class-completion-time').textContent = new Intl.DateTimeFormat('ru', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(createdClass.scheduled_at));
+      createdSession = result.session;
+      const isNewClass = 'className' in target;
+      completionHeading.textContent = isNewClass ? 'Готово! Класс создан и урок ждёт.' : 'Готово! Занятие запланировано.';
+      completionHintNew.hidden = !isNewClass;
+      completionHintExisting.hidden = isNewClass;
+      completionLink.textContent = new URL(createdSession.classInvitePath, window.location.origin).href;
+      completionLesson.textContent = createdSession.title;
+      document.getElementById('class-completion-time').textContent = new Intl.DateTimeFormat('ru', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(createdSession.scheduled_at));
       setClassStep(3);
-      onCreated?.(createdClass);
+      onCreated?.(createdSession);
       window.requestAnimationFrame(() => copyClassLinkButton.focus());
     } catch (error) {
-      classError.textContent = error.message || 'Не удалось создать класс. Попробуйте ещё раз.';
+      classError.textContent = error.message || 'Не удалось запланировать занятие. Попробуйте ещё раз.';
     } finally { setSaving(false); }
   }
 
@@ -306,26 +432,55 @@
     button.addEventListener('click', closeClassModal);
   });
   classNameInput.addEventListener('input', updateClassLink);
+  classSearch.addEventListener('input', renderClassList);
+  classListRetry.addEventListener('click', loadClasses);
+  classModeTabs.addEventListener('click', event => {
+    const tab = event.target.closest('[data-mode]');
+    if (tab) setClassMode(tab.dataset.mode);
+  });
+  classModeTabs.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    const next = classModeTabs.querySelector(`[data-mode="${classMode === 'new' ? 'existing' : 'new'}"]`);
+    setClassMode(next.dataset.mode);
+    next.focus();
+  });
+  classList.addEventListener('click', event => {
+    const option = event.target.closest('.class-option');
+    if (option) selectClass(option.dataset.classId);
+  });
+  classList.addEventListener('keydown', event => {
+    if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    const options = [...classList.querySelectorAll('.class-option')];
+    if (!options.length) return;
+    const currentIndex = options.findIndex(option => option.dataset.classId === selectedClassId);
+    const nextIndex = (currentIndex + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+    event.preventDefault();
+    selectClass(options[nextIndex].dataset.classId, true);
+  });
   classNextButton.addEventListener('click', () => {
-    if (!classNameInput.value.trim()) {
+    if (!classesLoaded) return;
+    if (classMode === 'new' && !classNameInput.value.trim()) {
       classNameInput.focus();
       window.AppShell.showToast('Введите название класса');
       return;
     }
+    if (classMode === 'existing' && !selectedClass()) {
+      focusClassStep();
+      window.AppShell.showToast('Выберите класс');
+      return;
+    }
     setClassStep(2);
-    loadRecommendations().then(() => {
-      if (!classDialog.querySelector('[data-class-step="2"]').hidden) lessonSearch.focus();
-    });
+    loadRecommendations().then(focusLessonSearch);
   });
   classBackButton.addEventListener('click', () => {
     setClassStep(1);
-    classNameInput.focus();
+    focusClassStep();
   });
   attachLessonButton.addEventListener('click', saveClass);
   lessonSearch.addEventListener('input', filterRecommendations);
   document.getElementById('class-all-lessons').addEventListener('click', () => { showAllLessons = true; filterRecommendations(); lessonSearch.focus(); });
   document.getElementById('class-retry-lessons').addEventListener('click', loadRecommendations);
-  launchButton.addEventListener('click', () => { if (createdClass) window.location.href = createdClass.lessonPath; });
+  launchButton.addEventListener('click', () => { if (createdSession) window.location.href = createdSession.path; });
   copyClassLinkButton.addEventListener('click', copyClassInviteLink);
   completionDoneButton.addEventListener('click', closeClassModal);
   recommendationTrack.addEventListener('keydown', event => {

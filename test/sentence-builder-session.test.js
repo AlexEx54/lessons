@@ -7,10 +7,10 @@ const os = require('node:os');
 const path = require('node:path');
 const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
-const { createClass } = require('../lib/class-store.js');
+const { createClassSession } = require('../lib/class-store.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
 const { createSentenceBuilderExample } = require('../lib/sentence-builder-example.js');
-const { applyAction, readState, sessionPayload } = require('../lib/class-session-store.js');
+const { applyAction, readState, sessionPayload } = require('../lib/class-live-store.js');
 
 test('sentence builder shares progress, persists completion after reopen and resets without reshuffling', t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sentence-builder-session-'));
@@ -21,8 +21,8 @@ test('sentence builder shares progress, persists completion after reopen and res
   const content = createSyntheticLesson('Grammar', { template: 'template-2' });
   content.stages[7].content.splice(1, 0, createSentenceBuilderExample());
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
-  const lesson = createClass({ name: 'Grammar', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
-  const access = { role: 'teacher', classId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };
+  const lesson = createClassSession({ className: 'Grammar', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
+  const access = { role: 'teacher', sessionId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };
   let state = readState(lesson.id, db);
   const select = stageId => { state = applyAction(access, { type: 'select-stage', stageId, expectedVersion: state.version }, db); };
   const projected = role => sessionPayload(role, db).lesson.content.stages[7].content.find(item => item.type === 'sentenceBuilder').presentation;

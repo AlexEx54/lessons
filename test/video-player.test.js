@@ -16,7 +16,7 @@ function documentFixture() {
     elements.push(node); return node;
   } };
 }
-const component = { type: 'videoPlayer', id: 'watch-video', title: 'Watch', videoSrc: '/api/classes/example/assets/video.mp4' };
+const component = { type: 'videoPlayer', id: 'watch-video', title: 'Watch', videoSrc: '/api/sessions/example/assets/video.mp4' };
 test('play/pause preserve independent positions; align changes only position, with no echo', async t => {
   const doc = documentFixture(), sent = [];
   const node = renderVideoPlayer(component, { viewerRole: 'student', connected: true, peerPresent: true, sendMedia: m => sent.push(m) }, doc);

@@ -20,23 +20,41 @@
           <div class="class-dialog__heading">
             <span>Шаг 1 из 3</span>
             <span aria-hidden="true">⚡</span>
-            <h2 id="class-dialog-title">Для кого создаём класс?</h2>
+            <h2 id="class-dialog-title">Для кого занятие?</h2>
           </div>
-          <p id="class-dialog-description">Назовите класс так, чтобы вам было удобно.<br />Это может быть имя ученика или название группы.</p>
+          <p id="class-dialog-description">Выберите класс или создайте новый.<br />Класс — это ученик или группа с постоянной ссылкой.</p>
 
-          <label class="class-name-field">
-            <span class="visually-hidden">Название класса</span>
-            <input id="class-name-input" type="text" value="Новый класс" autocomplete="off" maxlength="80" />
-          </label>
+          <p class="class-list-status" id="class-list-status" role="status"></p>
+          <button class="class-list-retry" id="class-list-retry" type="button" hidden>Попробовать ещё раз</button>
 
-          <div class="class-link-preview">
+          <div class="class-mode" id="class-mode" role="tablist" aria-label="Класс для занятия" hidden>
+            <button class="class-mode__tab" id="class-mode-existing" type="button" role="tab" aria-controls="class-existing-panel" aria-selected="true" data-mode="existing">Мои классы</button>
+            <button class="class-mode__tab" id="class-mode-new" type="button" role="tab" aria-controls="class-new-panel" aria-selected="false" tabindex="-1" data-mode="new">Новый класс</button>
+          </div>
+
+          <div class="class-existing" id="class-existing-panel" role="tabpanel" aria-labelledby="class-mode-existing" hidden>
+            <label class="class-search">
+              <span class="visually-hidden">Найти класс</span>
+              <input id="class-search-input" type="search" placeholder="Найти класс" autocomplete="off" />
+            </label>
+            <div class="class-list" id="class-list" role="radiogroup" aria-label="Мои классы"></div>
+          </div>
+
+          <div id="class-new-panel" role="tabpanel" aria-labelledby="class-mode-new" hidden>
+            <label class="class-name-field">
+              <span class="visually-hidden">Название класса</span>
+              <input id="class-name-input" type="text" value="Новый класс" autocomplete="off" maxlength="80" />
+            </label>
+          </div>
+
+          <div class="class-link-preview" id="class-link-preview" hidden>
             <span class="class-link-preview__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M10.5 13.5a4 4 0 0 0 5.7.1l2.4-2.4a4 4 0 0 0-5.7-5.7l-1.4 1.4M13.5 10.5a4 4 0 0 0-5.7-.1l-2.4 2.4a4 4 0 0 0 5.7 5.7l1.4-1.4" /></svg>
             </span>
             <div>
-              <span>Ваша ссылка:</span>
+              <span>Ссылка класса:</span>
               <strong id="class-link-value">easyclass.ru/join/new-class</strong>
-              <small>Эту ссылку можно будет использовать для всех будущих занятий.</small>
+              <small>Ссылка постоянная: она всегда открывает ближайшее занятие.</small>
             </div>
           </div>
         </div>
@@ -90,10 +108,10 @@
       <img class="class-completion__decor" src="/assets/images/class-completion-decor.png" alt="" aria-hidden="true" />
 
       <div class="class-completion__content">
-        <h2 id="class-completion-title"><span aria-hidden="true">🎉</span> Готово! Класс создан и урок ждёт.</h2>
+        <h2 id="class-completion-title"><span aria-hidden="true">🎉</span> <span id="class-completion-heading">Готово! Класс создан и урок ждёт.</span></h2>
 
         <section class="class-completion__invite" aria-labelledby="class-completion-link-label">
-          <span class="visually-hidden" id="class-completion-link-label">Ссылка для входа в класс</span>
+          <span class="visually-hidden" id="class-completion-link-label">Постоянная ссылка класса</span>
           <strong id="class-completion-link">easyclass.ru/join/new-class</strong>
           <button class="class-completion__copy" id="copy-class-link-button" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8h10v12H9zM5 16H4V4h10v1" /></svg>
@@ -102,10 +120,14 @@
         </section>
 
         <p id="class-completion-time"></p>
-        <p class="class-completion__hint">
+        <p class="class-completion__hint" id="class-completion-hint-new">
           Отправьте эту ссылку ученику. Ему не нужно регистрироваться —<br />
           урок откроется в браузере в один клик.<br />
           Эта ссылка будет работать для всех ваших будущих занятий с учеником.
+        </p>
+        <p class="class-completion__hint" id="class-completion-hint-existing" hidden>
+          Ссылка класса прежняя — если ученик её уже получил, отправлять ничего не нужно.<br />
+          Она всегда открывает ближайшее занятие.
         </p>
 
         <div class="class-completion__lesson">

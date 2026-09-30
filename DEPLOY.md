@@ -59,7 +59,7 @@ Set these environment variables in the production `.env` on the VPS:
 ## Video calls
 
 The application handles WebRTC signaling at `/ws/video-calls/:id` and live lesson
-synchronization at `/ws/classes/:id`. Both currently require a single application
+synchronization at `/ws/sessions/:id`. Both currently require a single application
 process (participant connections are held in memory). The HTTPS reverse
 proxy must forward WebSocket upgrades and keep these connections open. A typical nginx
 location uses HTTP/1.1 together with `Upgrade` and `Connection` proxy headers.
@@ -127,9 +127,9 @@ The reverse proxy must permit 300 MiB request bodies (nginx:
 
 Video uploads stream into `DRAFT_ASSETS_DIR`. Published immutable copies live in
 `DRAFT_ASSETS_DIR/_videos`; MP4 rows in `library_assets` and `class_assets` contain
-small JSON file references instead of video bytes. Classes share the published
+small JSON file references instead of video bytes. Class sessions share the published
 file. Back up this directory together with SQLite. Do not delete published files
-when replacing draft videos: existing classes still reference them. Automatic
+when replacing draft videos: existing class sessions still reference them. Automatic
 collection of unreferenced published videos is not implemented.
 
 Class media signals use the existing authenticated class WebSocket. Play/pause

@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const test = require('node:test');
 const { createDocument } = require('./helpers/lesson-dom.js');
-const source = fs.readFileSync(path.join(__dirname, '../assets/class-session.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../assets/class-live.js'), 'utf8');
 async function fixture(role = 'student', quiz = null) {
   const document = createDocument(), sockets = [], timers = new Map(), intervals = new Map(), frames = [];
   const id = '11111111-1111-4111-8111-111111111111';
@@ -33,7 +33,7 @@ async function fixture(role = 'student', quiz = null) {
   const mounted = new Map([['choice', { updateState(selections) { frames.push(selections); }, setInteractive(value) { interactive = value; } }]]);
   let timerId = 0;
   const window = {
-    location: { pathname: `/classes/${id}${role === 'student' ? '/student' : ''}`, protocol: 'http:', host: 'localhost' },
+    location: { pathname: `/sessions/${id}${role === 'student' ? '/student' : ''}`, protocol: 'http:', host: 'localhost' },
     setTimeout(fn) { timers.set(++timerId, fn); return timerId; },
     clearTimeout(id) { timers.delete(id); }, addEventListener() {},
     setInterval(fn) { intervals.set(++timerId, fn); return timerId; },

@@ -29,7 +29,7 @@
   }
   function normalizeVideoPlayer(data) {
     if (!data || data.type !== 'videoPlayer' || !/^[a-z][a-z0-9-]*$/.test(data.id) || typeof data.title !== 'string' || !data.title.trim()) throw new Error('Некорректный видеоплеер.');
-    if (data.videoSrc && !/^\/api\/(?:lesson-draft-assets|library|classes)\/[a-zA-Z0-9/_-]+\.mp4$/.test(data.videoSrc)) throw new Error('Некорректный источник видео.');
+    if (data.videoSrc && !/^\/api\/(?:lesson-draft-assets|library|sessions)\/[a-zA-Z0-9/_-]+\.mp4$/.test(data.videoSrc)) throw new Error('Некорректный источник видео.');
     return { type: data.type, id: data.id, title: data.title.trim(), ...(data.videoSrc ? { videoSrc: data.videoSrc } : {}), ...(Number.isFinite(data.durationMs) ? { durationMs: data.durationMs } : {}), questions: normalizeVideoQuestions(data.questions, data.durationMs) };
   }
   function renderVideoPlayer(data, options = {}, documentRef = root.document) {

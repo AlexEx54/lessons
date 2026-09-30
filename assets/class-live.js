@@ -1,8 +1,8 @@
 (() => {
   'use strict';
-  const match = window.location.pathname.match(/^\/classes\/([a-f0-9-]{36})(\/student)?\/?$/i);
+  const match = window.location.pathname.match(/^\/sessions\/([a-f0-9-]{36})(\/student)?\/?$/i);
   if (!match) return;
-  const classId = match[1], role = match[2] ? 'student' : 'teacher';
+  const sessionId = match[1], role = match[2] ? 'student' : 'teacher';
   const byId = id => document.getElementById(id);
   let socket, reconnectTimer, toastTimer, lessonTimer, stopped = false, connected = false;
   let elapsedSeconds = 0;
@@ -132,7 +132,7 @@
   function connect() {
     if (stopped) return;
     setStatus('Подключаемся…', 'connecting');
-    socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/classes/${classId}?role=${role}`);
+    socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/sessions/${sessionId}?role=${role}`);
     socket.addEventListener('message', event => {
       const message = JSON.parse(event.data);
       if (['media-command', 'media-align', 'media-status'].includes(message.type)) {
@@ -184,14 +184,14 @@
   }
   async function load() {
     try {
-      const response = await fetch(`/api/classes/${classId}/live?role=${role}`, { cache: 'no-store' });
+      const response = await fetch(`/api/sessions/${sessionId}/live?role=${role}`, { cache: 'no-store' });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Не удалось открыть класс.');
       confirmed = payload.state;
       pointerComponentIds = payload.pointerComponentIds || [];
       availableStageIds = payload.availableStageIds;
       view.render(payload.lesson.content);
-      window.LessonNotes?.mount({ mode: 'class', id: classId, role });
+      window.LessonNotes?.mount({ mode: 'class', id: sessionId, role });
       paint();
       connect();
     } catch (error) { showError(error.message); }
