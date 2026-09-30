@@ -17,7 +17,7 @@ const {
 } = require('./lib/auth.js');
 const { getDatabase } = require('./lib/db.js');
 const { listLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, findLibraryAsset } = require('./lib/library-store.js');
-const { createClass, findClass, listClasses, findClassAsset } = require('./lib/class-store.js');
+const { createClass, updateClass, findClass, listClasses, findClassAsset } = require('./lib/class-store.js');
 const { joinClass, authorizeClass, sessionPayload, guestCanReadAsset } = require('./lib/class-session-store.js');
 const { createClassSessionSignaling } = require('./lib/class-session-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
@@ -1445,6 +1445,16 @@ const server = http.createServer(async (req, res) => {
       if (studentPage) serveStatic('/lesson-editor.html', res);
       else json(res, 200, sessionPayload(access, database));
     } catch (error) { json(res, error.statusCode || 500, { error: error.message }); }
+    return;
+  }
+  if (req.method === 'PATCH' && classDetail) {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    try {
+      json(res, 200, { lesson: updateClass(classDetail[1], await readJsonBody(req), user.id, database) });
+    } catch (error) {
+      json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось изменить занятие.' });
+    }
     return;
   }
   if (req.method === 'GET' && (classPage || classDetail)) {

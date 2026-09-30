@@ -28,7 +28,7 @@ function setup(t) {
   const lesson = createSyntheticLesson('Notes');
   lesson.notes = content('Start');
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(lesson));
-  const makeClass = () => createClass({ name: 'Notes', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID() }, teacher.id, db);
+  const makeClass = () => createClass({ name: 'Notes', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   return { db, teacher, makeClass };
 }
 
@@ -53,7 +53,7 @@ test('draft notes: ownership, version conflicts, formatting validation and publi
   }, db, '/unused');
   const publishedContent = JSON.parse(db.prepare('SELECT content_json FROM library_lessons WHERE id = ?').get(published.id).content_json);
   assert.deepEqual(publishedContent.notes, formatted);
-  const session = createClass({ name: 'Snapshot', lessonId: published.id, expectedRevision: published.revision, requestKey: crypto.randomUUID() }, teacher.id, db);
+  const session = createClass({ name: 'Snapshot', lessonId: published.id, expectedRevision: published.revision, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   saveDraftNotes(draft.id, teacher.id, { version: 1, content: content('Changed later') }, db);
   const doc = readClassNotes(session.id, db);
   assert.equal(textOf(doc), 'Prepared vocabulary');

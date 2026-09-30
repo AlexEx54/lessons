@@ -9,7 +9,7 @@ const { spawn } = require('node:child_process');
 const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
-const { createClass, listClasses, findClass, findClassByInvite, findClassAsset } = require('../lib/class-store.js');
+const { createClass, updateClass, listClasses, findClass, findClassByInvite, findClassAsset } = require('../lib/class-store.js');
 function fixture(t, dbPath = ':memory:') {
   const db = openDatabase(dbPath);
   t.after(() => db.close());
@@ -22,7 +22,7 @@ function fixture(t, dbPath = ':memory:') {
   const coverName = `${'b'.repeat(64)}.png`;
   db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', coverName, Buffer.from('cover-data'));
   db.prepare('UPDATE library_lessons SET cover = ? WHERE id = ?').run(`/api/library/superhero/assets/${coverName}`, 'superhero');
-  const input = { name: 'Анна', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), timeZone: 'Asia/Almaty' };
+  const input = { name: 'Анна', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z', timeZone: 'Asia/Almaty' };
   return { db, teacher, other, input, assetName };
 }
 test('class snapshot and media survive changes and removal of the source; access is owner-only', t => {
@@ -31,7 +31,7 @@ test('class snapshot and media survive changes and removal of the source; access
   assert.equal(lesson.name, 'Анна');
   assert.match(lesson.invitePath, /^\/join\/anna-[a-f0-9]{48}$/);
   assert.ok(lesson.cover.startsWith(`/api/classes/${lesson.id}/assets/`));
-  assert.equal(lesson.scheduled_at, null);
+  assert.equal(lesson.scheduled_at, '2099-01-01T10:00:00.000Z');
   assert.equal(findClass(lesson.id, other.id, db), null);
   assert.deepEqual(listClasses(other.id, db), []);
   assert.equal(findClassByInvite(lesson.invitePath.split('/').at(-1), other.id, db), null);
@@ -49,7 +49,7 @@ test('class snapshot and media survive changes and removal of the source; access
 });
 test('unavailable or changed lessons, missing assets and invalid input cannot create a class', t => {
   const { db, teacher, input, assetName } = fixture(t);
-  for (const patch of [{ name: '' }, { name: 'a'.repeat(81) }, { timeZone: 'Invalid' }, { scheduledAt: 'yesterday' }, { scheduledAt: '2000-01-01T00:00:00Z' }]) {
+  for (const patch of [{ name: '' }, { name: 'a'.repeat(81) }, { timeZone: 'Invalid' }, { scheduledAt: undefined }, { scheduledAt: '' }, { scheduledAt: 'yesterday' }, { scheduledAt: '2000-01-01T00:00:00Z' }]) {
     assert.throws(() => createClass({ ...input, ...patch }, teacher.id, db), { statusCode: 400 });
   }
   for (const patch of [{ lessonId: 'animals' }, { expectedRevision: 0 }, { lessonId: 'missing' }]) {
@@ -60,15 +60,29 @@ test('unavailable or changed lessons, missing assets and invalid input cannot cr
   assert.equal(db.prepare('SELECT count(*) n FROM classes').get().n, 0);
   assert.equal(db.prepare('SELECT count(*) n FROM class_assets').get().n, 0);
 });
-test('schedule sorts dated lessons before undated lessons and excludes finished classes', t => {
+test('schedule lists the latest lessons first, falls back to creation time and excludes finished classes', t => {
   const { db, teacher, input } = fixture(t);
-  const undated = createClass(input, teacher.id, db);
-  const later = createClass({ ...input, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-02T10:00:00Z' }, teacher.id, db);
-  const first = createClass({ ...input, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00Z' }, teacher.id, db);
-  assert.deepEqual(listClasses(teacher.id, db).map(item => item.id), [first.id, later.id, undated.id]);
-  assert.equal(new Set([first.invitePath, later.invitePath, undated.invitePath]).size, 3);
-  db.prepare("UPDATE classes SET status = 'completed' WHERE id = ?").run(first.id);
-  assert.deepEqual(listClasses(teacher.id, db).map(item => item.id), [later.id, undated.id]);
+  const create = scheduledAt => createClass({ ...input, requestKey: crypto.randomUUID(), scheduledAt }, teacher.id, db);
+  const early = create('2099-01-01T10:00:00Z'), late = create('2099-01-03T10:00:00Z'), legacy = create('2099-01-05T10:00:00Z');
+  db.prepare("UPDATE classes SET scheduled_at = NULL, created_at = '2099-01-02T00:00:00.000Z' WHERE id = ?").run(legacy.id);
+  assert.deepEqual(listClasses(teacher.id, db).map(item => item.id), [late.id, legacy.id, early.id]);
+  assert.equal(new Set([early.invitePath, late.invitePath, legacy.invitePath]).size, 3);
+  db.prepare("UPDATE classes SET status = 'completed' WHERE id = ?").run(late.id);
+  assert.deepEqual(listClasses(teacher.id, db).map(item => item.id), [legacy.id, early.id]);
+});
+test('teacher reschedules and cancels only their own upcoming lessons', t => {
+  const { db, teacher, other, input } = fixture(t);
+  const lesson = createClass(input, teacher.id, db);
+  const moved = updateClass(lesson.id, { scheduledAt: '2099-02-01T09:30:00Z' }, teacher.id, db);
+  assert.equal(moved.scheduled_at, '2099-02-01T09:30:00.000Z');
+  assert.equal(moved.content, undefined);
+  for (const body of [null, [], {}, { scheduledAt: null }, { scheduledAt: '2000-01-01T00:00:00Z' }, { status: 'completed' }]) {
+    assert.throws(() => updateClass(lesson.id, body, teacher.id, db), { statusCode: 400 });
+  }
+  assert.throws(() => updateClass(lesson.id, { status: 'cancelled' }, other.id, db), { statusCode: 404 });
+  assert.equal(updateClass(lesson.id, { status: 'cancelled' }, teacher.id, db).status, 'cancelled');
+  assert.deepEqual(listClasses(teacher.id, db), []);
+  assert.throws(() => updateClass(lesson.id, { scheduledAt: '2099-03-01T09:30:00Z' }, teacher.id, db), { statusCode: 404 });
 });
 test('class API creates once, renders schedule and teacher lesson, protects all routes and supports snapshot audio ranges', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'classes-http-'));
@@ -105,7 +119,7 @@ test('class API creates once, renders schedule and teacher lesson, protects all 
   assert.equal((await (await request('/api/classes')).json()).classes.length, 1);
   assert.equal((await (await request('/api/home-content')).json()).hasClasses, true);
   assert.equal((await (await request('/api/classes', otherCookie)).json()).classes.length, 0);
-  assert.match(await (await request('/schedule')).text(), /Предстоящие уроки/);
+  assert.match(await (await request('/schedule')).text(), /id="schedule-grid"/);
   assert.equal((await request(lesson.lessonPath)).status, 200);
   assert.equal((await request(lesson.lessonPath, null)).status, 302);
   assert.equal((await request(lesson.lessonPath, otherCookie)).status, 404);
@@ -130,6 +144,15 @@ test('class API creates once, renders schedule and teacher lesson, protects all 
   assert.equal(range.status, 206);
   assert.equal(await range.text(), 'audio');
   assert.equal((await (await request(`/api/classes/${lesson.id}`)).json()).lesson.title, lesson.title);
+  const detail = `/api/classes/${lesson.id}`;
+  assert.equal((await request(detail, null, 'PATCH', { status: 'cancelled' })).status, 401);
+  assert.equal((await request(detail, otherCookie, 'PATCH', { status: 'cancelled' })).status, 404);
+  assert.equal((await request(detail, cookie, 'PATCH', { scheduledAt: 'soon' })).status, 400);
+  const moved = await request(detail, cookie, 'PATCH', { scheduledAt: '2099-05-01T08:00:00Z' });
+  assert.equal((await moved.json()).lesson.scheduled_at, '2099-05-01T08:00:00.000Z');
+  assert.equal((await request(detail, cookie, 'PATCH', { status: 'cancelled' })).status, 200);
+  assert.equal((await (await request('/api/classes')).json()).classes.length, 0);
+  assert.equal((await request(`/join/${legacyToken}`, null)).status, 404);
 });
 
 test('invite names transliterate Russian, normalize punctuation and have a bounded fallback', () => {

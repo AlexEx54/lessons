@@ -6,3 +6,4 @@ tmp/
 .freebuff/
 .playwright-mcp/
 node_modules/
+.claude/

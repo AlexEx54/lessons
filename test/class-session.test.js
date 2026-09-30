@@ -46,7 +46,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
   for (const name of [publicAsset, privateAsset, leadAsset]) db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', name, Buffer.from('image'));
   db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', audioAsset, Buffer.from('audio'));
-  const makeClass = () => createClass({ name: 'Live test', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID() }, teacher.id, db);
+  const makeClass = () => createClass({ name: 'Live test', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const lesson = makeClass(), otherLesson = makeClass();
   const probe = require('node:net').createServer();
   await new Promise(resolve => probe.listen(0, '127.0.0.1', resolve));

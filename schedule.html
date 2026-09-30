@@ -1,9 +1,125 @@
-<section class="schedule-panel" aria-labelledby="schedule-title">
+<section class="schedule" aria-labelledby="schedule-title">
   <header class="schedule-heading">
-    <div><h2 id="schedule-title">Предстоящие уроки</h2><p id="schedule-time-zone"></p></div>
-    <a class="schedule-primary" href="/app?createClass=1">＋ Создать класс</a>
+    <h2 id="schedule-title">Расписание</h2>
+    <p>Планируйте занятия и быстро переходите к урокам</p>
   </header>
+
+  <div class="schedule-toolbar">
+    <div class="schedule-tabs" role="tablist" aria-label="Вид расписания">
+      <button class="schedule-tab" id="schedule-tab-calendar" type="button" role="tab" aria-controls="schedule-calendar" aria-selected="true" data-view="calendar">Календарь</button>
+      <button class="schedule-tab" id="schedule-tab-list" type="button" role="tab" aria-controls="schedule-list" aria-selected="false" tabindex="-1" data-view="list">Список</button>
+    </div>
+    <div class="schedule-week-nav" id="schedule-week-nav" hidden>
+      <button class="schedule-icon-button" id="schedule-prev" type="button" aria-label="Предыдущая неделя">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
+      </button>
+      <button class="schedule-icon-button" id="schedule-next" type="button" aria-label="Следующая неделя">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+      </button>
+      <div class="schedule-range">
+        <button class="schedule-range__button" id="schedule-range" type="button" aria-describedby="schedule-range-hint">
+          <span id="schedule-range-label"></span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg>
+        </button>
+        <span class="visually-hidden" id="schedule-range-hint">Выбрать другую неделю</span>
+        <input class="schedule-range__input" id="schedule-date" type="date" tabindex="-1" aria-hidden="true" />
+      </div>
+    </div>
+    <button class="schedule-create" id="schedule-create" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+      Запланировать урок
+    </button>
+  </div>
+
   <p id="schedule-status" role="status">Загружаем уроки…</p>
   <button id="schedule-retry" type="button" hidden>Попробовать ещё раз</button>
-  <div class="schedule-list" id="schedule-list"></div>
+
+  <div class="schedule-calendar" id="schedule-calendar" role="tabpanel" aria-labelledby="schedule-tab-calendar" hidden>
+    <div class="schedule-calendar__main">
+      <div class="schedule-undated" id="schedule-undated" hidden></div>
+      <div class="schedule-grid-scroll">
+        <div class="schedule-grid" id="schedule-grid"></div>
+      </div>
+    </div>
+
+    <aside class="schedule-details" aria-labelledby="schedule-details-title">
+      <h3 class="schedule-details__title" id="schedule-details-title">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg>
+        Выбранный урок
+      </h3>
+      <p class="schedule-details__empty" id="schedule-details-empty">На этой неделе занятий нет. Нажмите на свободное время в календаре, чтобы запланировать урок.</p>
+      <div class="schedule-details__body" id="schedule-details-body" hidden>
+        <img class="schedule-details__cover" id="schedule-details-cover" alt="" />
+        <div class="schedule-details__info">
+          <div class="schedule-details__heading">
+            <h4 id="schedule-details-lesson"></h4>
+            <span class="schedule-level" id="schedule-details-level"></span>
+          </div>
+          <ul class="schedule-details__meta">
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4.5 20c1.4-3.3 4.2-5 7.5-5s6.1 1.7 7.5 5" /></svg>
+              <span id="schedule-details-student"></span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg>
+              <span id="schedule-details-date"></span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>
+              <span id="schedule-details-time"></span>
+            </li>
+          </ul>
+        </div>
+        <div class="schedule-details__actions">
+          <a class="schedule-action schedule-action--primary" id="schedule-open">
+            <svg class="schedule-action__filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10-6.5z" /></svg>
+            Открыть урок
+          </a>
+          <button class="schedule-action" id="schedule-copy" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h8" /></svg>
+            Скопировать ссылку
+          </button>
+          <button class="schedule-action" id="schedule-reschedule" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h5" /><path d="M8 3v4M16 3v4M4 10h16" /><circle cx="17" cy="17" r="4" /><path d="M17 15.5V17l1 1" /></svg>
+            <span id="schedule-reschedule-label">Изменить дату и время</span>
+          </button>
+          <button class="schedule-action schedule-action--danger" id="schedule-cancel" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" /></svg>
+            Отменить занятие
+          </button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="schedule-list" id="schedule-list" role="tabpanel" aria-labelledby="schedule-tab-list" hidden></div>
+
+  <dialog class="schedule-dialog" id="schedule-reschedule-dialog" aria-labelledby="schedule-reschedule-title">
+    <form method="dialog">
+      <h3 id="schedule-reschedule-title">Дата и время занятия</h3>
+      <p id="schedule-reschedule-lesson"></p>
+      <label class="schedule-dialog__field">Когда
+        <input name="time" type="datetime-local" required />
+        <small id="schedule-time-zone"></small>
+      </label>
+      <p class="schedule-dialog__error" role="alert"></p>
+      <div class="schedule-dialog__actions">
+        <button class="schedule-action" type="button" data-close>Отмена</button>
+        <button class="schedule-action schedule-action--primary" type="submit">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="schedule-dialog" id="schedule-cancel-dialog" aria-labelledby="schedule-cancel-title">
+    <form method="dialog">
+      <h3 id="schedule-cancel-title">Отменить занятие?</h3>
+      <p id="schedule-cancel-lesson"></p>
+      <p class="schedule-dialog__hint">Занятие пропадёт из расписания, а ссылка-приглашение перестанет работать.</p>
+      <p class="schedule-dialog__error" role="alert"></p>
+      <div class="schedule-dialog__actions">
+        <button class="schedule-action" type="button" data-close>Не отменять</button>
+        <button class="schedule-action schedule-action--danger-solid" type="submit">Отменить занятие</button>
+      </div>
+    </form>
+  </dialog>
 </section>

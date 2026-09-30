@@ -17,7 +17,7 @@ test('reset each stage persists cleared component state, preserves other stages/
   const row = content.stages.find(stage => stage.id === 'grammar-focus').content.find(item => item.type === 'cardRow');
   row.items[0].studentVisibility = 'controlled';
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
-  const lesson = createClass({ name: 'Reset test', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID() }, teacher.id, db);
+  const lesson = createClass({ name: 'Reset test', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const access = { role: 'teacher', classId: lesson.id, ownerId: teacher.id };
   const exerciseTypes = new Set(['dragWordsInText', 'matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'checkboxChoice', 'gapFill', 'miniSituation']);
   const keys = component => [

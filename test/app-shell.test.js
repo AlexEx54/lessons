@@ -68,6 +68,18 @@ test('admin sees lesson creation and drafts links in both profile menus', async 
   assert.match(html, /class="new-lesson-dialog__create" type="button" data-create-lesson-draft/);
 });
 
+test('schedule loads its scripts in order and shares the class modal with the shell', async () => {
+  const html = await renderAppPage('schedule', {
+    user: { displayName: 'Анна', email: 'anna@example.com', role: 'teacher' },
+  });
+  const scripts = [...html.matchAll(/<script src="([^"]+)" defer><\/script>/g)].map(match => match[1]);
+
+  assert.deepEqual(scripts.slice(-3), ['/assets/class-modal.js', '/assets/schedule-calendar.js', '/assets/schedule.js']);
+  assert.match(html, /href="\/assets\/class-modal\.css"/);
+  assert.equal((html.match(/id="class-modal"/g) || []).length, 1);
+  assert.deepEqual(activeNavigationItems(html), ['/schedule']);
+});
+
 test('guest does not see create lesson', async () => {
   const html = await renderAppPage('library');
   assert.doesNotMatch(html, /data-open-new-lesson-modal/);

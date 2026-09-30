@@ -21,7 +21,7 @@ test('sentence builder shares progress, persists completion after reopen and res
   const content = createSyntheticLesson('Grammar', { template: 'template-2' });
   content.stages[7].content.splice(1, 0, createSentenceBuilderExample());
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
-  const lesson = createClass({ name: 'Grammar', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID() }, teacher.id, db);
+  const lesson = createClass({ name: 'Grammar', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const access = { role: 'teacher', classId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };
   let state = readState(lesson.id, db);
   const select = stageId => { state = applyAction(access, { type: 'select-stage', stageId, expectedVersion: state.version }, db); };

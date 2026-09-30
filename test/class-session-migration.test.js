@@ -21,7 +21,7 @@ test('historical live schema upgrades without losing sessions or lesson state', 
   }
   const user = createUser({ email: 'migration@test.local', displayName: 'Teacher', role: 'teacher', passwordHash: 'unused' }, db);
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(require('../lib/synthetic-lesson.js').createSyntheticLesson('Migration')));
-  const lesson = createClass({ name: 'Migration', lessonId: 'superhero', expectedRevision: 1, requestKey: require('node:crypto').randomUUID() }, user.id, db);
+  const lesson = createClass({ name: 'Migration', lessonId: 'superhero', expectedRevision: 1, requestKey: require('node:crypto').randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, user.id, db);
   const row = db.prepare('SELECT * FROM classes WHERE id = ?').get(lesson.id);
   const state = JSON.stringify({ activeStageId: 'warm-up', version: 7, selections: { choice: { item: 'option' } } });
   const expiry = Date.now() + 60000;

@@ -66,7 +66,7 @@ test('video upload, immutable publication, range access and class media signals'
   const publication = publishLesson(draft.id, admin.id, input, db, assets);
   const published = findLibraryLesson(publication.id, db).content.stages[0].content[0].videoSrc;
   assert.equal((await request(published, { method: 'HEAD' })).headers.get('content-length'), String(bytes.length));
-  const classroom = createClass({ name: 'Video class', lessonId: publication.id, expectedRevision: 1, requestKey: crypto.randomUUID() }, admin.id, db);
+  const classroom = createClass({ name: 'Video class', lessonId: publication.id, expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, admin.id, db);
   assert.deepEqual(classroom.content.stages[0].content[0].questions, [question]);
   const classSource = classroom.content.stages[0].content[0].videoSrc;
   const joined = await request(classroom.invitePath, { redirect: 'manual' }, '');

@@ -1,0 +1,54 @@
+(function (root) {
+  'use strict';
+  const DAY_MINUTES = 24 * 60;
+  const DEFAULT_HOURS = Object.freeze({ start: 9, end: 22 });
+  function startOfWeek(date) {
+    return addDays(date, -((date.getDay() + 6) % 7));
+  }
+  function addDays(date, days) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+  }
+  // Library durations look like "50 мин" or "30–45 мин"; the upper bound is what the slot must fit.
+  function durationMinutes(text) {
+    const numbers = String(text).match(/\d+/g);
+    return numbers ? Number(numbers.at(-1)) : 60;
+  }
+  function toLocalInputValue(date) {
+    const pad = value => String(value).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+  // Overlapping lessons share the day column: each gets a lane and the lane count of its overlap group.
+  function assignLanes(events) {
+    events.sort((a, b) => a.start - b.start);
+    let group = [], laneEnds = [];
+    const closeGroup = () => group.forEach(event => { event.lanes = laneEnds.length; });
+    for (const event of events) {
+      if (laneEnds.every(end => end <= event.start)) { closeGroup(); group = []; laneEnds = []; }
+      event.lane = laneEnds.findIndex(end => end <= event.start);
+      if (event.lane === -1) event.lane = laneEnds.length;
+      laneEnds[event.lane] = event.end;
+      group.push(event);
+    }
+    closeGroup();
+  }
+  // Minutes are counted from local midnight; visible hours grow to fit early or late lessons.
+  function layoutWeek(lessons, weekStart) {
+    const weekEnd = addDays(weekStart, 7);
+    const days = Array.from({ length: 7 }, () => []);
+    let { start: startHour, end: endHour } = DEFAULT_HOURS;
+    for (const lesson of lessons) {
+      const at = lesson.scheduled_at && new Date(lesson.scheduled_at);
+      if (!at || at < weekStart || at >= weekEnd) continue;
+      const start = at.getHours() * 60 + at.getMinutes();
+      const end = Math.min(start + durationMinutes(lesson.duration), DAY_MINUTES);
+      days[(at.getDay() + 6) % 7].push({ lesson, start, end });
+      startHour = Math.min(startHour, Math.floor(start / 60));
+      endHour = Math.max(endHour, Math.ceil(end / 60));
+    }
+    days.forEach(assignLanes);
+    return { days, startHour, endHour };
+  }
+  const api = { startOfWeek, addDays, durationMinutes, toLocalInputValue, layoutWeek };
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else root.ScheduleCalendar = api;
+})(typeof window === 'object' ? window : undefined);
