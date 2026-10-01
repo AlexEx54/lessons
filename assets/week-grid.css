@@ -23,6 +23,7 @@
 .week-grid__times span:last-child,
 .week-grid__slot:nth-last-child(1 of .week-grid__slot) { border-bottom: 0; }
 button.week-grid__slot:hover { background: #f8f6ff; }
+.week-grid__slot--past { background: repeating-linear-gradient(-45deg, transparent 0 6px, rgba(96, 54, 247, 0.04) 6px 7px); cursor: not-allowed; }
 button.week-grid__slot:hover::after,
 .week-grid__slot--picked::after { content: attr(data-label); position: absolute; inset: 0; display: grid; place-items: center; color: var(--purple); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .week-grid__slot--picked,
@@ -55,6 +56,35 @@ button.week-grid__event:hover { border-color: var(--purple); }
 .week-grid__event--past { border-color: #e4e1ee; background: #fafafd; box-shadow: none; }
 .week-grid__event--past .week-grid__event-time,
 .week-grid__event--past .week-grid__event-name { color: #8a8cab; }
+
+/* The line is drawn in every day column; --now is set by week-grid.js in minutes from the first visible hour. */
+.week-grid__now,
+.week-grid__now-label { position: absolute; top: calc(var(--now) * var(--hour-height) / 60); display: none; pointer-events: none; }
+.week-grid--now .week-grid__now,
+.week-grid--now .week-grid__now-label { display: block; }
+.week-grid__now { left: -1px; right: 0; z-index: 1; border-top: 1.5px dashed rgba(96, 54, 247, 0.4); }
+/* Centred like the hour labels, so the pill hides an hour label it overlaps. */
+.week-grid__now-label { left: 50%; padding: 1px 6px; border-radius: 6px; color: #fff; background: var(--purple); box-shadow: 0 0 0 5px #fff; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; transform: translate(-50%, -50%); }
+
+.week-grid__hint {
+  inset: auto;
+  max-width: 260px;
+  margin: 0;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(24, 20, 58, 0.94);
+  box-shadow: 0 12px 30px rgba(25, 15, 75, 0.24);
+  font-size: 13px;
+  line-height: 1.45;
+  opacity: 0;
+  transition: opacity 140ms ease, display 140ms allow-discrete, overlay 140ms allow-discrete;
+}
+/* Fades in on open and out on close, including the automatic hide. */
+.week-grid__hint:popover-open { opacity: 1; }
+@starting-style { .week-grid__hint:popover-open { opacity: 0; } }
+.week-grid__hint strong { display: block; margin-bottom: 2px; color: #fff; font-weight: 700; }
 
 @media (max-width: 760px) {
   .week-grid { grid-template-columns: 52px repeat(7, minmax(76px, 1fr)); }

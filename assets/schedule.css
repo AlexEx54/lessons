@@ -88,6 +88,7 @@
   .schedule-details__cover { grid-row: span 2; margin-bottom: 0; }
   .schedule-details__info { margin-top: 14px; }
   .schedule-details__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .schedule-details__actions .schedule-action--primary { grid-column: 1 / -1; }
 }
 @media (max-width: 760px) {
   .schedule { padding: 18px; }

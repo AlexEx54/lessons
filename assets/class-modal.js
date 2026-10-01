@@ -403,7 +403,7 @@
       }
       createdSession = result.session;
       const isNewClass = 'className' in target;
-      completionHeading.textContent = isNewClass ? 'Готово! Класс создан и урок ждёт.' : 'Готово! Занятие запланировано.';
+      completionHeading.textContent = isNewClass ? 'Готово! Класс создан и занятие запланировано.' : 'Готово! Занятие запланировано.';
       completionHintNew.hidden = !isNewClass;
       completionHintExisting.hidden = isNewClass;
       completionLink.textContent = new URL(createdSession.classInvitePath, window.location.origin).href;

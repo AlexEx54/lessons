@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { startOfWeek, addDays, durationMinutes, toLocalInputValue, longDate, weekRange, layoutWeek } = require('../assets/schedule-calendar.js');
+const { startOfWeek, addDays, durationMinutes, toLocalInputValue, longDate, weekRange, layoutWeek, nowOffset } = require('../assets/schedule-calendar.js');
 const at = (day, hour, minute = 0) => new Date(2026, 7, day, hour, minute).toISOString();
 const lesson = (id, scheduled_at, duration = '60 мин') => ({ id, scheduled_at, duration });
 const week = new Date(2026, 7, 10);
@@ -50,4 +50,14 @@ test('week layout places lessons by day, splits overlaps into lanes and fits the
   assert.deepEqual([layout.weekStart, layout.startHour, layout.endHour], [week, 7, 24]);
   const empty = layoutWeek([], week);
   assert.deepEqual([empty.startHour, empty.endHour], [9, 22]);
+});
+
+test('the current time is placed only inside the visible week and hours', () => {
+  const layout = layoutWeek([], week);
+  assert.equal(nowOffset(layout, new Date(2026, 7, 12, 14, 37)), 337);
+  assert.equal(nowOffset(layout, new Date(2026, 7, 16, 9)), 0);
+  assert.equal(nowOffset(layout, new Date(2026, 7, 12, 8, 59)), null);
+  assert.equal(nowOffset(layout, new Date(2026, 7, 12, 22)), null);
+  assert.equal(nowOffset(layout, new Date(2026, 7, 17, 12)), null);
+  assert.equal(nowOffset(layout, new Date(2026, 7, 9, 12)), null);
 });

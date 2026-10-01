@@ -59,7 +59,7 @@
     if (!visible.some(lesson => lesson.id === selectedId)) {
       selectedId = (visible.find(lesson => Date.parse(lesson.scheduled_at) >= Date.now()) ?? visible[0])?.id ?? null;
     }
-    window.WeekGrid.render(grid, layout, { slotLabel: 'Запланировать урок', selectable: true, selectedId });
+    window.WeekGrid.render(grid, layout, { slotLabel: 'Запланировать занятие', selectable: true, selectedId });
     renderDetails();
   }
   function listCard(lesson) {
@@ -72,21 +72,18 @@
     const time = element('p', 'schedule-time', formats.dateTime.format(new Date(lesson.scheduled_at)));
     body.append(time, element('h3', '', lesson.class_name), element('p', 'schedule-lesson', lesson.title), element('p', 'schedule-meta', `${lesson.level} · ${lesson.duration}`));
     const actions = element('div', 'schedule-actions');
-    const open = element('a', 'schedule-action schedule-action--primary', 'Открыть урок');
+    const open = element('a', 'schedule-action schedule-action--primary', 'Открыть занятие');
     open.href = lesson.path;
-    const copyButton = (label, copy) => {
-      const button = element('button', 'schedule-copy', label);
-      button.type = 'button';
-      button.addEventListener('click', copy);
-      return button;
-    };
-    actions.append(open, copyButton('Ссылка класса', () => copyClassLink(lesson)), copyButton('Ссылка на занятие', () => copySessionLink(lesson)));
+    const copy = element('button', 'schedule-copy', 'Ссылка класса');
+    copy.type = 'button';
+    copy.addEventListener('click', () => copyClassLink(lesson));
+    actions.append(open, copy);
     row.append(image, body, actions);
     return row;
   }
   function render() {
     renderCalendar();
-    list.replaceChildren(...(sessions.length ? sessions.map(listCard) : [element('p', 'schedule-empty', 'Пока нет занятий. Запланируйте первый урок — он появится здесь и в календаре.')]));
+    list.replaceChildren(...(sessions.length ? sessions.map(listCard) : [element('p', 'schedule-empty', 'Пока нет занятий. Запланируйте первое — оно появится здесь и в календаре.')]));
     clear.hidden = view !== 'list' || !sessions.length;
   }
   function setView(next) {
@@ -111,12 +108,12 @@
     weekStart = Calendar.startOfWeek(date);
     renderCalendar();
   }
-  async function copyLink(path, copiedMessage) {
-    try { await navigator.clipboard.writeText(new URL(path, location.origin).href); window.AppShell.showToast(copiedMessage); }
-    catch { window.AppShell.showToast('Не удалось скопировать ссылку.'); }
+  async function copyClassLink(lesson) {
+    try {
+      await navigator.clipboard.writeText(new URL(lesson.classInvitePath, location.origin).href);
+      window.AppShell.showToast('Ссылка класса скопирована. Она всегда открывает ближайшее занятие.');
+    } catch { window.AppShell.showToast('Не удалось скопировать ссылку.'); }
   }
-  const copyClassLink = lesson => copyLink(lesson.classInvitePath, 'Ссылка класса скопирована. Она всегда открывает ближайшее занятие.');
-  const copySessionLink = lesson => copyLink(lesson.sessionInvitePath, 'Ссылка на это занятие скопирована.');
   async function updateLesson(id, changes) {
     const response = await fetch(`/api/sessions/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changes) });
     const result = await response.json().catch(() => ({}));
@@ -125,7 +122,7 @@
   // The server owns the list order, so every change is followed by a fresh load.
   async function load() {
     retry.hidden = true;
-    if (!sessions.length) status.textContent = 'Загружаем уроки…';
+    if (!sessions.length) status.textContent = 'Загружаем занятия…';
     try {
       const response = await fetch('/api/sessions', { cache: 'no-store' });
       if (response.status === 401) { location.href = '/login?next=/schedule'; return false; }
@@ -219,7 +216,6 @@
     if (slot) planLesson(slot.dataset.time);
   });
   byId('schedule-copy').addEventListener('click', () => copyClassLink(selected()));
-  byId('schedule-copy-session').addEventListener('click', () => copySessionLink(selected()));
   byId('schedule-plan-more').addEventListener('click', () => planLesson('', selected().class_id));
   byId('schedule-reschedule').addEventListener('click', () => {
     const lesson = selected();

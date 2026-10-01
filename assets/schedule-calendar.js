@@ -60,7 +60,13 @@
     days.forEach(assignLanes);
     return { weekStart, days, startHour, endHour };
   }
-  const api = { startOfWeek, addDays, durationMinutes, toLocalInputValue, longDate, weekRange, layoutWeek };
+  // Minutes from the first visible hour to `now`, or null when `now` is outside the visible week or hours.
+  function nowOffset({ weekStart, startHour, endHour }, now = new Date()) {
+    if (now < weekStart || now >= addDays(weekStart, 7)) return null;
+    const minutes = now.getHours() * 60 + now.getMinutes() - startHour * 60;
+    return minutes >= 0 && minutes < (endHour - startHour) * 60 ? minutes : null;
+  }
+  const api = { startOfWeek, addDays, durationMinutes, toLocalInputValue, longDate, weekRange, layoutWeek, nowOffset };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.ScheduleCalendar = api;
 })(typeof window === 'object' ? window : undefined);

@@ -1,7 +1,7 @@
 <section class="schedule" aria-labelledby="schedule-title">
   <header class="schedule-heading">
     <h2 id="schedule-title">Расписание</h2>
-    <p>Планируйте занятия и быстро переходите к урокам</p>
+    <p>Планируйте занятия и быстро переходите к ним</p>
   </header>
 
   <div class="schedule-toolbar">
@@ -28,11 +28,11 @@
     <button class="schedule-action schedule-action--danger schedule-clear" id="schedule-clear" type="button" hidden>Очистить список</button>
     <button class="schedule-create" id="schedule-create" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-      Запланировать урок
+      Запланировать занятие
     </button>
   </div>
 
-  <p id="schedule-status" role="status">Загружаем уроки…</p>
+  <p id="schedule-status" role="status">Загружаем занятия…</p>
   <button id="schedule-retry" type="button" hidden>Попробовать ещё раз</button>
 
   <div class="schedule-calendar" id="schedule-calendar" role="tabpanel" aria-labelledby="schedule-tab-calendar" hidden>
@@ -45,9 +45,9 @@
     <aside class="schedule-details" aria-labelledby="schedule-details-title">
       <h3 class="schedule-details__title" id="schedule-details-title">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg>
-        Выбранный урок
+        Выбранное занятие
       </h3>
-      <p class="schedule-details__empty" id="schedule-details-empty">На этой неделе занятий нет. Нажмите на свободное время в календаре, чтобы запланировать урок.</p>
+      <p class="schedule-details__empty" id="schedule-details-empty">На этой неделе занятий нет. Нажмите на свободное время в календаре, чтобы запланировать занятие.</p>
       <div class="schedule-details__body" id="schedule-details-body" hidden>
         <img class="schedule-details__cover" id="schedule-details-cover" alt="" />
         <div class="schedule-details__info">
@@ -73,15 +73,11 @@
         <div class="schedule-details__actions">
           <a class="schedule-action schedule-action--primary" id="schedule-open">
             <svg class="schedule-action__filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10-6.5z" /></svg>
-            Открыть урок
+            Открыть занятие
           </a>
           <button class="schedule-action" id="schedule-copy" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h8" /></svg>
             Ссылка класса
-          </button>
-          <button class="schedule-action" id="schedule-copy-session" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 13.5a4 4 0 0 0 5.7.1l2.4-2.4a4 4 0 0 0-5.7-5.7l-1.4 1.4M13.5 10.5a4 4 0 0 0-5.7-.1l-2.4 2.4a4 4 0 0 0 5.7 5.7l1.4-1.4" /></svg>
-            Ссылка на занятие
           </button>
           <button class="schedule-action" id="schedule-plan-more" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
@@ -127,7 +123,7 @@
     <form method="dialog">
       <h3 id="schedule-cancel-title">Отменить занятие?</h3>
       <p id="schedule-cancel-lesson"></p>
-      <p class="schedule-dialog__hint">Занятие пропадёт из расписания, а ссылка на него перестанет работать. Ссылка класса продолжит вести на ближайшее занятие.</p>
+      <p class="schedule-dialog__hint">Занятие пропадёт из расписания. Ссылка класса продолжит вести на ближайшее занятие.</p>
       <p class="schedule-dialog__error" role="alert"></p>
       <div class="schedule-dialog__actions">
         <button class="schedule-action" type="button" data-close>Не отменять</button>
@@ -139,7 +135,7 @@
   <dialog class="schedule-dialog" id="schedule-clear-dialog" aria-labelledby="schedule-clear-title">
     <form method="dialog">
       <h3 id="schedule-clear-title">Удалить все занятия?</h3>
-      <p class="schedule-dialog__hint">Будут удалены все занятия, включая отменённые, вместе с материалами и заметками. Ссылки на занятия перестанут работать, а классы и их ссылки сохранятся. Это действие нельзя отменить.</p>
+      <p class="schedule-dialog__hint">Будут удалены все занятия, включая отменённые, вместе с материалами и заметками. Классы и их ссылки сохранятся. Это действие нельзя отменить.</p>
       <p class="schedule-dialog__error" role="alert"></p>
       <div class="schedule-dialog__actions">
         <button class="schedule-action" type="button" data-close>Не удалять</button>
