@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { startOfWeek, addDays, durationMinutes, toLocalInputValue, layoutWeek } = require('../assets/schedule-calendar.js');
+const { startOfWeek, addDays, durationMinutes, toLocalInputValue, longDate, weekRange, layoutWeek } = require('../assets/schedule-calendar.js');
 const at = (day, hour, minute = 0) => new Date(2026, 7, day, hour, minute).toISOString();
 const lesson = (id, scheduled_at, duration = '60 мин') => ({ id, scheduled_at, duration });
 const week = new Date(2026, 7, 10);
@@ -18,6 +18,15 @@ test('durations use the upper bound of library ranges and inputs use local time'
   assert.equal(durationMinutes('30–45 мин'), 45);
   assert.equal(durationMinutes(''), 60);
   assert.equal(toLocalInputValue(new Date(2026, 0, 5, 7, 5)), '2026-01-05T07:05');
+});
+
+test('dates and week ranges mention the year only outside the current one', () => {
+  const now = new Date(2026, 7, 12);
+  assert.equal(longDate(week, now), 'Понедельник, 10 августа');
+  assert.equal(longDate(new Date(2027, 0, 4), now), 'Понедельник, 4 января 2027 г.');
+  assert.equal(weekRange(week, now), '10–16 августа');
+  assert.equal(weekRange(new Date(2026, 7, 31), now), '31 августа – 6 сентября');
+  assert.equal(weekRange(new Date(2026, 11, 28), now), '28 декабря 2026 г. – 3 января 2027 г.');
 });
 
 test('week layout places lessons by day, splits overlaps into lanes and fits the visible hours', () => {
@@ -38,7 +47,7 @@ test('week layout places lessons by day, splits overlaps into lanes and fits the
   assert.deepEqual(layout.days[0].map(view), [['early', 450, 510, 0, 1]]);
   assert.deepEqual(layout.days[6].map(view), [['late', 1410, 1440, 0, 1]]);
   assert.equal(layout.days.flat().length, 6);
-  assert.deepEqual([layout.startHour, layout.endHour], [7, 24]);
+  assert.deepEqual([layout.weekStart, layout.startHour, layout.endHour], [week, 7, 24]);
   const empty = layoutWeek([], week);
   assert.deepEqual([empty.startHour, empty.endHour], [9, 22]);
 });

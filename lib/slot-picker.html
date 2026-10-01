@@ -1,0 +1,24 @@
+<dialog class="slot-picker" id="slot-picker" aria-labelledby="slot-picker-title" aria-describedby="slot-picker-description" closedby="any">
+  <header class="slot-picker__header">
+    <div>
+      <h2 id="slot-picker-title">Выберите время урока</h2>
+      <p id="slot-picker-description">Нажмите на свободное время — оно подставится в форму. Карточками отмечены ваши занятия.</p>
+    </div>
+    <button class="slot-picker__close" type="button" aria-label="Закрыть" data-close>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+    </button>
+  </header>
+  <div class="week-nav">
+    <button class="week-nav__control week-nav__step" id="slot-picker-prev" type="button" aria-label="Предыдущая неделя">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
+    </button>
+    <button class="week-nav__control week-nav__step" id="slot-picker-next" type="button" aria-label="Следующая неделя">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+    </button>
+    <p class="slot-picker__range" id="slot-picker-range" aria-live="polite"></p>
+    <p class="slot-picker__status" id="slot-picker-status" role="status"></p>
+  </div>
+  <div class="week-grid-scroll">
+    <div class="week-grid" id="slot-picker-grid"></div>
+  </div>
+</dialog>

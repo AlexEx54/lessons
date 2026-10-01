@@ -85,7 +85,15 @@
 
       <div class="class-picker-fields">
         <label>Поиск урока<input id="class-lesson-search" type="search" placeholder="Название, тема или уровень" /></label>
-        <label>Дата и время<input id="class-time-input" type="datetime-local" required /><small id="class-time-zone"></small></label>
+        <label>Дата и время
+          <span class="slot-field">
+            <input id="class-time-input" type="datetime-local" required />
+            <button class="slot-field__button" type="button" aria-label="Выбрать время в календаре" data-slot-picker>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg>
+            </button>
+          </span>
+          <small id="class-time-zone"></small>
+        </label>
       </div>
       <button id="class-retry-lessons" type="button" hidden>Попробовать ещё раз</button>
       <div class="recommendation-status" id="recommendation-status" role="status">Загружаем рекомендации…</div>

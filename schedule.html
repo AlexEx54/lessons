@@ -9,15 +9,15 @@
       <button class="schedule-tab" id="schedule-tab-calendar" type="button" role="tab" aria-controls="schedule-calendar" aria-selected="true" data-view="calendar">Календарь</button>
       <button class="schedule-tab" id="schedule-tab-list" type="button" role="tab" aria-controls="schedule-list" aria-selected="false" tabindex="-1" data-view="list">Список</button>
     </div>
-    <div class="schedule-week-nav" id="schedule-week-nav" hidden>
-      <button class="schedule-icon-button" id="schedule-prev" type="button" aria-label="Предыдущая неделя">
+    <div class="week-nav schedule-week-nav" id="schedule-week-nav" hidden>
+      <button class="week-nav__control week-nav__step" id="schedule-prev" type="button" aria-label="Предыдущая неделя">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
       </button>
-      <button class="schedule-icon-button" id="schedule-next" type="button" aria-label="Следующая неделя">
+      <button class="week-nav__control week-nav__step" id="schedule-next" type="button" aria-label="Следующая неделя">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
       </button>
       <div class="schedule-range">
-        <button class="schedule-range__button" id="schedule-range" type="button" aria-describedby="schedule-range-hint">
+        <button class="week-nav__control schedule-range__button" id="schedule-range" type="button" aria-describedby="schedule-range-hint">
           <span id="schedule-range-label"></span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg>
         </button>
@@ -37,8 +37,8 @@
 
   <div class="schedule-calendar" id="schedule-calendar" role="tabpanel" aria-labelledby="schedule-tab-calendar" hidden>
     <div class="schedule-calendar__main">
-      <div class="schedule-grid-scroll">
-        <div class="schedule-grid" id="schedule-grid"></div>
+      <div class="week-grid-scroll">
+        <div class="week-grid" id="schedule-grid"></div>
       </div>
     </div>
 
@@ -107,7 +107,12 @@
       <h3 id="schedule-reschedule-title">Дата и время занятия</h3>
       <p id="schedule-reschedule-lesson"></p>
       <label class="schedule-dialog__field">Когда
-        <input name="time" type="datetime-local" required />
+        <span class="slot-field">
+          <input name="time" type="datetime-local" required />
+          <button class="slot-field__button" type="button" aria-label="Выбрать время в календаре" data-slot-picker>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg>
+          </button>
+        </span>
         <small id="schedule-time-zone"></small>
       </label>
       <p class="schedule-dialog__error" role="alert"></p>

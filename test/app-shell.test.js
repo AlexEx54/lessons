@@ -68,15 +68,18 @@ test('admin sees lesson creation and drafts links in both profile menus', async 
   assert.match(html, /class="new-lesson-dialog__create" type="button" data-create-lesson-draft/);
 });
 
-test('schedule loads its scripts in order and shares the class modal with the shell', async () => {
+test('schedule loads its scripts in order and shares the class modal and slot picker with the shell', async () => {
   const html = await renderAppPage('schedule', {
     user: { displayName: 'Анна', email: 'anna@example.com', role: 'teacher' },
   });
   const scripts = [...html.matchAll(/<script src="([^"]+)" defer><\/script>/g)].map(match => match[1]);
 
-  assert.deepEqual(scripts.slice(-3), ['/assets/class-modal.js', '/assets/schedule-calendar.js', '/assets/schedule.js']);
+  assert.deepEqual(scripts.slice(-5), ['/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js', '/assets/schedule.js']);
   assert.match(html, /href="\/assets\/class-modal\.css"/);
+  assert.match(html, /href="\/assets\/week-grid\.css"[\s\S]*href="\/assets\/schedule\.css"/);
   assert.equal((html.match(/id="class-modal"/g) || []).length, 1);
+  assert.equal((html.match(/id="slot-picker"/g) || []).length, 1);
+  assert.equal((html.match(/data-slot-picker>/g) || []).length, 2);
   assert.deepEqual(activeNavigationItems(html), ['/schedule']);
 });
 

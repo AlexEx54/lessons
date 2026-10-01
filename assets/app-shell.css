@@ -9,6 +9,9 @@
   --lime: #dfff00;
   --surface: rgba(255, 255, 255, 0.94);
   --line: rgba(79, 56, 170, 0.12);
+  --grid-line: #efedf7;
+  --control-line: #e4e0f2;
+  --event-line: #cdc2fb;
   --shadow: 0 14px 40px rgba(64, 45, 139, 0.08);
 }
 

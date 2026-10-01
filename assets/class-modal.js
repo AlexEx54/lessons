@@ -418,6 +418,8 @@
   }
 
   document.addEventListener('keydown', event => {
+    // A native modal dialog opened over this one, such as the slot picker, handles its own keys.
+    if (document.querySelector('dialog:modal')) return;
     if (event.key === 'Escape' && classModal.classList.contains('class-modal--visible')) {
       closeClassModal();
       return;

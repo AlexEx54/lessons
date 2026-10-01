@@ -18,8 +18,6 @@
   };
   const timeInput = byId('schedule-reschedule-dialog').querySelector('input[name="time"]');
   const formats = {
-    weekday: new Intl.DateTimeFormat('ru', { weekday: 'short' }),
-    dayMonth: new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'short' }),
     time: new Intl.DateTimeFormat('ru', { hour: '2-digit', minute: '2-digit' }),
     dateTime: new Intl.DateTimeFormat('ru', { dateStyle: 'long', timeStyle: 'short' }),
   };
@@ -36,56 +34,9 @@
     if (text) node.textContent = text;
     return node;
   }
-  const capitalize = text => text.charAt(0).toUpperCase() + text.slice(1);
   const selected = () => sessions.find(lesson => lesson.id === selectedId);
-  const withYear = (options, ...dates) => dates.some(date => date.getFullYear() !== new Date().getFullYear()) ? { ...options, year: 'numeric' } : options;
   const lessonSummary = lesson => `${lesson.class_name} · ${lesson.title}`;
-  const longDate = date => capitalize(new Intl.DateTimeFormat('ru', withYear({ weekday: 'long', day: 'numeric', month: 'long' }, date)).format(date));
 
-  function slot(start, now) {
-    if (start <= now) return element('div', 'schedule-slot');
-    const button = element('button', 'schedule-slot');
-    button.type = 'button';
-    button.dataset.time = Calendar.toLocalInputValue(start);
-    button.tabIndex = -1;
-    button.setAttribute('aria-label', `Запланировать урок: ${longDate(start)}, ${formats.time.format(start)}`);
-    return button;
-  }
-  function eventCard({ lesson, start, end, lane, lanes }, startHour, now) {
-    const at = new Date(lesson.scheduled_at);
-    const card = element('button', 'schedule-event');
-    card.type = 'button';
-    card.dataset.id = lesson.id;
-    card.title = lesson.title;
-    card.classList.toggle('schedule-event--past', at < now);
-    card.style.cssText = `--start:${start - startHour * 60};--length:${end - start};--lane:${lane};--lanes:${lanes}`;
-    card.setAttribute('aria-pressed', String(lesson.id === selectedId));
-    card.setAttribute('aria-label', `${formats.time.format(at)}, ${lesson.class_name}, ${lesson.title}`);
-    card.append(element('span', 'schedule-event__time', formats.time.format(at)), element('strong', 'schedule-event__name', lesson.class_name));
-    return card;
-  }
-  function renderGrid({ days, startHour, endHour }) {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const hours = Array.from({ length: endHour - startHour }, (_, index) => startHour + index);
-    const dates = days.map((_, index) => Calendar.addDays(weekStart, index));
-    const heads = dates.map(date => {
-      const head = element('div', 'schedule-day-head');
-      head.classList.toggle('schedule-day-head--today', date.getTime() === today);
-      head.append(element('span', '', capitalize(formats.weekday.format(date))), element('small', '', formats.dayMonth.format(date).replace('.', '')));
-      return head;
-    });
-    const times = element('div', 'schedule-times');
-    times.append(...hours.map(hour => element('span', '', `${String(hour).padStart(2, '0')}:00`)));
-    const columns = dates.map((date, index) => {
-      const column = element('div', 'schedule-day');
-      column.append(...hours.map(hour => slot(new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour), now)));
-      column.append(...days[index].map(event => eventCard(event, startHour, now)));
-      return column;
-    });
-    grid.style.setProperty('--hours', hours.length);
-    grid.replaceChildren(element('div', 'schedule-grid__corner'), ...heads, times, ...columns);
-  }
   function renderDetails() {
     const lesson = selected();
     details.empty.hidden = Boolean(lesson);
@@ -96,20 +47,19 @@
     details.lesson.textContent = lesson.title;
     details.level.textContent = lesson.level;
     details.student.textContent = lesson.class_name;
-    details.date.textContent = longDate(at);
+    details.date.textContent = Calendar.longDate(at);
     details.time.textContent = `${formats.time.format(at)} · ${lesson.duration}`;
     details.open.href = lesson.path;
   }
   // Keeps the chosen lesson while it is on screen, otherwise picks the next lesson of the week.
   function renderCalendar() {
-    const weekEnd = Calendar.addDays(weekStart, 6);
-    byId('schedule-range-label').textContent = new Intl.DateTimeFormat('ru', withYear({ day: 'numeric', month: 'long' }, weekStart, weekEnd)).formatRange(weekStart, weekEnd);
+    byId('schedule-range-label').textContent = Calendar.weekRange(weekStart);
     const layout = Calendar.layoutWeek(sessions, weekStart);
     const visible = layout.days.flat().map(event => event.lesson);
     if (!visible.some(lesson => lesson.id === selectedId)) {
       selectedId = (visible.find(lesson => Date.parse(lesson.scheduled_at) >= Date.now()) ?? visible[0])?.id ?? null;
     }
-    renderGrid(layout);
+    window.WeekGrid.render(grid, layout, { slotLabel: 'Запланировать урок', selectable: true, selectedId });
     renderDetails();
   }
   function listCard(lesson) {
@@ -263,9 +213,9 @@
   dateInput.addEventListener('change', () => { if (dateInput.value) showWeek(new Date(`${dateInput.value}T00:00`)); });
   byId('schedule-create').addEventListener('click', () => planLesson());
   calendar.addEventListener('click', event => {
-    const lesson = event.target.closest('.schedule-event');
+    const lesson = event.target.closest('.week-grid__event');
     if (lesson) select(lesson.dataset.id);
-    const slot = event.target.closest('button.schedule-slot');
+    const slot = event.target.closest('button.week-grid__slot');
     if (slot) planLesson(slot.dataset.time);
   });
   byId('schedule-copy').addEventListener('click', () => copyClassLink(selected()));

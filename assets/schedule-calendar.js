@@ -17,6 +17,18 @@
     const pad = value => String(value).padStart(2, '0');
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
+  // Dates outside the current year carry it, so that "5 января" is never ambiguous.
+  function withYear(options, now, ...dates) {
+    return dates.every(date => date.getFullYear() === now.getFullYear()) ? options : { ...options, year: 'numeric' };
+  }
+  function longDate(date, now = new Date()) {
+    const text = new Intl.DateTimeFormat('ru', withYear({ weekday: 'long', day: 'numeric', month: 'long' }, now, date)).format(date);
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+  function weekRange(weekStart, now = new Date()) {
+    const weekEnd = addDays(weekStart, 6);
+    return new Intl.DateTimeFormat('ru', withYear({ day: 'numeric', month: 'long' }, now, weekStart, weekEnd)).formatRange(weekStart, weekEnd);
+  }
   // Overlapping lessons share the day column: each gets a lane and the lane count of its overlap group.
   function assignLanes(events) {
     events.sort((a, b) => a.start - b.start);
@@ -46,9 +58,9 @@
       endHour = Math.max(endHour, Math.ceil(end / 60));
     }
     days.forEach(assignLanes);
-    return { days, startHour, endHour };
+    return { weekStart, days, startHour, endHour };
   }
-  const api = { startOfWeek, addDays, durationMinutes, toLocalInputValue, layoutWeek };
+  const api = { startOfWeek, addDays, durationMinutes, toLocalInputValue, longDate, weekRange, layoutWeek };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.ScheduleCalendar = api;
 })(typeof window === 'object' ? window : undefined);
