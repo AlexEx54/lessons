@@ -33,6 +33,7 @@ function setup() {
     peerGeneration: 0, gatheredCandidateTypes: new Set(), iceServers: [],
     makingOffer: false, ignoreOffer: false, isSettingRemoteAnswerPending: false, polite: true,
     elements: { remoteVideo: {}, remotePlaceholder: {}, remotePlaceholderText: {} },
+    peerTitle: 'Ученик', waitingStatus: 'Ждём ученика', callEndedText: 'Вы завершили видеозвонок.',
     websocketUrl: () => 'ws://test', setConnection() {}, sendDiagnostic() {},
     sendMediaState() {}, send() {}, applyOutboundAudioTrack: async () => {},
     applyOutboundVideoTrack: async () => {},

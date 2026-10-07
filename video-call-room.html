@@ -63,7 +63,7 @@
           <video id="remote-video" autoplay playsinline></video>
           <div class="video-placeholder" id="remote-placeholder">
             <span aria-hidden="true">…</span>
-            <p id="remote-placeholder-text">Ждём второго участника</p>
+            <p id="remote-placeholder-text">Подключаемся к комнате…</p>
           </div>
           <div class="video-tile__label">
             <span id="remote-name">Участник</span>
@@ -121,7 +121,10 @@
       <span aria-hidden="true">✓</span>
       <h1 id="room-ended-title">Звонок завершён</h1>
       <p id="room-ended-message">Спасибо за занятие!</p>
-      <a id="room-exit-link" href="/">Вернуться</a>
+      <div class="room-ended__actions">
+        <a id="room-rejoin-link" href="/" hidden>Подключиться снова</a>
+        <a id="room-exit-link" href="/">Вернуться</a>
+      </div>
     </section>
   </main>
 

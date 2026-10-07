@@ -9,7 +9,7 @@ const { randomUUID } = require('node:crypto');
 const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
-const { createVideoCall, endVideoCall, clearVideoCallHistory } = require('../lib/video-call-store.js');
+const { createVideoCall, deleteVideoCall } = require('../lib/video-call-store.js');
 const { createVideoCallChat, MAX_CALL } = require('../lib/video-call-chat.js');
 
 async function fixture(t) {
@@ -19,8 +19,8 @@ async function fixture(t) {
   const other = createUser({ email: 'other@test.test', displayName: 'Другой', passwordHash: 'unused', role: 'admin' }, database);
   const cookie = `teach_session=${createSession(admin.id, database).token}`;
   const otherCookie = `teach_session=${createSession(other.id, database).token}`;
-  const call = createVideoCall({ ownerAdminId: admin.id }, database);
-  const otherCall = createVideoCall({ ownerAdminId: other.id }, database);
+  const call = createVideoCall({ ownerAdminId: admin.id, name: 'Алина' }, database);
+  const otherCall = createVideoCall({ ownerAdminId: other.id, name: 'Борис' }, database);
   const events = [];
   const directory = path.join(dir, 'files');
   let chat = createVideoCallChat({ database, directory, broadcast: (...args) => events.push(args) });
@@ -28,7 +28,7 @@ async function fixture(t) {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const teacher = `${base}/api/video-calls/${call.id}/chat`;
-  const guest = `${base}/api/public/video-calls/${call.guestToken}/chat`;
+  const guest = `${base}/api/public${call.guestPath.replace('/call/', '/video-calls/')}/chat`;
   t.after(async () => { chat.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); database.close(); fs.rmSync(dir, { recursive: true, force: true }); });
   return { directory, database, admin, call, otherCall, events, cookie, otherCookie, base, teacher, guest,
     restart() { chat.close(); database.close(); database = openDatabase(path.join(dir, 'app.sqlite')); chat = createVideoCallChat({ database, directory }); },
@@ -43,7 +43,7 @@ async function upload(url, name = 'тест.txt', body = 'пример') {
   return res.json();
 }
 
-test('chat persists text and files, deduplicates retries, recovers missed messages and reads archive after expiry', async t => {
+test('chat persists text and files, deduplicates retries, recovers missed messages and stays writable', async t => {
   const f = await fixture(t);
   const file = await upload(f.guest);
   const input = { clientId: randomUUID(), text: 'Привет 👋', name: 'Алина', attachments: [file.id] };
@@ -59,42 +59,41 @@ test('chat persists text and files, deduplicates retries, recovers missed messag
   assert.equal(second.status, 201); assert.equal((await second.json()).message.name, 'Преподаватель');
   const missed = await (await fetch(`${f.guest}?after=${saved.id}`)).json();
   assert.deepEqual(missed.messages.map(m => m.text), ['Ответ']);
-  endVideoCall(f.call.id, f.admin.id, f.database);
-  f.database.prepare("UPDATE video_calls SET expires_at = '2000-01-01T00:00:00.000Z' WHERE id = ?").run(f.call.id);
-  assert.equal((await post(f.guest, { clientId: randomUUID(), text: 'Поздно' })).status, 409);
-  assert.equal((await post(f.guest, input)).status, 200, 'lost acknowledgement can be retried after ending');
+  assert.equal((await post(f.guest, input)).status, 200, 'lost acknowledgement can be retried later');
   const download = await fetch(`${f.guest}/attachments/${file.id}`);
   assert.equal(await download.text(), 'пример');
   assert.match(download.headers.get('content-disposition'), /^attachment/);
   f.restart();
   const history = await (await fetch(f.guest)).json();
-  assert.equal(history.call.status, 'ended'); assert.equal(history.messages.length, 2);
+  assert.equal(history.messages.length, 2);
   assert.equal((await fetch(`${f.guest}/attachments/${file.id}`)).status, 200);
+  assert.equal((await post(f.guest, { clientId: randomUUID(), text: 'Между звонками' })).status, 201, 'the room chat never closes');
 });
 
 test('chat rejects unauthorized access, cross-call attachment reuse, executable previews, and excess attachments', async t => {
   const f = await fixture(t);
   assert.equal((await fetch(f.teacher)).status, 403);
   assert.equal((await fetch(f.teacher, { headers: { Cookie: f.otherCookie } })).status, 404);
-  assert.equal((await fetch(f.guest.replace(f.call.guestToken, 'invalid'))).status, 404);
+  assert.equal((await fetch(`${f.base}/api/public/video-calls/invalid/chat`)).status, 404);
   const cross = await fetch(f.teacher, { method: 'POST', headers: { Cookie: f.cookie, Origin: 'https://evil.test' }, body: '{}' });
   assert.equal(cross.status, 403);
   const svg = await upload(f.guest, 'image.svg', '<svg onload="alert(1)"/>');
   assert.equal((await fetch(`${f.guest}/attachments/${svg.id}`)).status, 404, 'pending files are private');
   const input = { clientId: randomUUID(), attachments: [svg.id] };
   assert.equal((await post(f.teacher, input, f.cookie)).status, 400, 'cannot adopt peer pending upload');
-  assert.equal((await post(`${f.base}/api/public/video-calls/${f.otherCall.guestToken}/chat`, input)).status, 400);
+  const otherGuest = `${f.base}/api/public${f.otherCall.guestPath.replace('/call/', '/video-calls/')}/chat`;
+  assert.equal((await post(otherGuest, input)).status, 400);
   assert.equal((await post(f.guest, { clientId: randomUUID(), attachments: Array.from({ length: 6 }, () => randomUUID()) })).status, 400);
   assert.equal((await post(f.guest, input)).status, 201);
   const download = await fetch(`${f.guest}/attachments/${svg.id}`);
   assert.equal(download.headers.get('content-type'), 'application/octet-stream');
   assert.match(download.headers.get('content-disposition'), /^attachment/);
   assert.equal(download.headers.get('x-content-type-options'), 'nosniff');
-  assert.equal((await fetch(`${f.base}/api/public/video-calls/${f.otherCall.guestToken}/chat/attachments/${svg.id}`)).status, 404);
+  assert.equal((await fetch(`${otherGuest}/attachments/${svg.id}`)).status, 404);
   assert.equal((await post(f.guest, { clientId: randomUUID(), attachments: [svg.id] })).status, 400, 'attached file cannot be reused');
 });
 
-test('file size and call quota are enforced; cleanup removes stale uploads and deleted call files', async t => {
+test('file size and room quota are enforced; cleanup removes stale uploads and deleted room files', async t => {
   const f = await fixture(t);
   const big = await fetch(`${f.guest}/attachments?name=big`, { method: 'POST', body: Buffer.alloc(25 * 1024 * 1024 + 1) });
   assert.equal(big.status, 413);
@@ -106,8 +105,7 @@ test('file size and call quota are enforced; cleanup removes stale uploads and d
   assert.equal(fs.existsSync(path.join(f.directory, f.call.id, file.id)), false);
   const retained = await upload(f.guest);
   assert.equal((await post(f.guest, { clientId: randomUUID(), attachments: [retained.id] })).status, 201);
-  endVideoCall(f.call.id, f.admin.id, f.database);
-  clearVideoCallHistory(f.admin.id, f.database); f.cleanup();
+  deleteVideoCall(f.call.id, f.admin.id, f.database); f.cleanup();
   assert.equal(f.database.prepare('SELECT COUNT(*) AS n FROM video_call_messages').get().n, 0);
   assert.equal(f.database.prepare('SELECT COUNT(*) AS n FROM video_call_attachments').get().n, 0);
   assert.equal(fs.existsSync(path.join(f.directory, f.call.id)), false);
@@ -129,7 +127,7 @@ test('history pagination has no gaps, raster preview and forced download have co
   assert.match(download.headers.get('content-disposition'), /^attachment/);
 });
 
-test('ending a call during upload rejects the file and releases reserved quota', async t => {
+test('deleting a room during upload rejects the file and releases reserved quota', async t => {
   const f = await fixture(t);
   let sendRest;
   const response = new Promise((resolve, reject) => {
@@ -143,8 +141,8 @@ test('ending a call during upload rejects the file and releases reserved quota',
     await new Promise(resolve => setTimeout(resolve, 5));
   }
   assert.equal(f.database.prepare('SELECT COUNT(*) AS n FROM video_call_attachments').get().n, 1);
-  endVideoCall(f.call.id, f.admin.id, f.database); sendRest();
-  assert.equal((await response).status, 409);
+  deleteVideoCall(f.call.id, f.admin.id, f.database); sendRest();
+  assert.equal((await response).status, 404);
   assert.equal(f.database.prepare('SELECT COUNT(*) AS n FROM video_call_attachments').get().n, 0);
   assert.deepEqual(fs.readdirSync(path.join(f.directory, f.call.id)), []);
 });

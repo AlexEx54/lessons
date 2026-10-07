@@ -96,6 +96,7 @@ check_files=(
   assets/library.js
   assets/lesson-editor.js
   assets/video-calls.js
+  assets/video-call-presence.js
   assets/video-call-room.js
   assets/components/this-or-that.js
   assets/components/audio-player.js
@@ -106,6 +107,7 @@ check_files=(
   lib/password.js
   lib/session-store.js
   lib/user-store.js
+  lib/invite-token.js
   lib/video-call-store.js
   lib/video-call-signaling.js
   lib/webrtc-config.js

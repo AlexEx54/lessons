@@ -6,10 +6,10 @@
     у: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y',
     ь: '', э: 'e', ю: 'yu', я: 'ya',
   };
-  function slug(name) {
+  function slug(name, fallback = 'new-class') {
     return String(name).trim().toLowerCase().split('').map(letter => letters[letter] ?? letter).join('')
       .normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '').slice(0, 48).replace(/-+$/g, '') || 'new-class';
+      .replace(/^-+|-+$/g, '').slice(0, 48).replace(/-+$/g, '') || fallback;
   }
   if (typeof module === 'object' && module.exports) module.exports = { slug };
   else root.ClassInvite = { slug };

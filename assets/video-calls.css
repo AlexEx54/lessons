@@ -57,25 +57,6 @@
 .calls-heading__create:hover { background: var(--purple-dark); }
 .calls-heading__create:disabled { opacity: .65; cursor: wait; }
 
-.calls-heading__clear {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid rgba(96, 54, 247, .28);
-  border-radius: 12px;
-  color: var(--purple);
-  background: transparent;
-  font-size: 13px;
-  font-weight: 750;
-  white-space: nowrap;
-}
-
-.calls-heading__clear:hover { background: rgba(96, 54, 247, .08); }
-.calls-heading__clear:disabled { opacity: .65; cursor: wait; }
-.calls-heading__clear[hidden] { display: none; }
-
 .calls-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -95,7 +76,7 @@
 }
 
 .call-card__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
-.call-card h3 { font-size: 16px; line-height: 1.35; letter-spacing: -.02em; }
+.call-card h3 { min-width: 0; font-size: 16px; line-height: 1.35; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .call-card__meta { margin-top: 13px; color: #85839d; font-size: 11px; line-height: 1.5; }
 
 .call-status {
@@ -108,8 +89,7 @@
   font-weight: 800;
 }
 
-.call-status--active { color: #197044; background: #dff7e9; }
-.call-status--ended, .call-status--expired { color: #66627b; background: #efedf5; }
+.call-status--live { color: #197044; background: #dff7e9; }
 
 .call-card__actions { display: flex; flex-wrap: wrap; margin-top: auto; padding-top: 18px; gap: 8px; }
 .call-card__actions a, .call-card__actions button {
@@ -126,7 +106,7 @@
   font-weight: 750;
 }
 .call-card__actions .call-card__join { color: #fff; border-color: var(--purple); background: var(--purple); }
-.call-card__actions .call-card__end { margin-left: auto; color: #b33a44; border-color: #f0cfd3; background: #fff8f8; }
+.call-card__actions .call-card__delete { margin-left: auto; color: #b33a44; border-color: #f0cfd3; background: #fff8f8; }
 .call-card__actions button:disabled { opacity: .55; cursor: wait; }
 
 .call-state {
@@ -145,6 +125,38 @@
 .call-state--error button { margin-top: 7px; padding: 9px 13px; border-radius: 9px; color: #fff; background: var(--purple); font-size: 12px; font-weight: 750; }
 .call-spinner { width: 28px; height: 28px; border: 3px solid #ded7ff; border-top-color: var(--purple); border-radius: 50%; animation: call-spin .8s linear infinite; }
 @keyframes call-spin { to { transform: rotate(360deg); } }
+
+.call-dialog {
+  width: min(440px, calc(100% - 32px));
+  padding: 0;
+  border: 0;
+  border-radius: 18px;
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(31, 22, 74, .24);
+}
+.call-dialog::backdrop { background: rgba(23, 21, 42, .45); }
+.call-dialog__form { display: grid; padding: 24px; gap: 14px; }
+.call-dialog h2 { font-size: 20px; letter-spacing: -.03em; }
+.call-dialog__field { display: grid; gap: 7px; font-size: 12px; font-weight: 750; }
+.call-dialog__field input {
+  min-height: 44px;
+  padding: 0 13px;
+  border: 1px solid #dcd5fb;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+.call-dialog__field input:focus { border-color: var(--purple); outline: 3px solid rgba(96, 54, 247, .14); }
+.call-dialog__hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.call-dialog__error { color: #b33a44; font-size: 12px; line-height: 1.5; }
+.call-dialog__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; margin-top: 4px; gap: 8px; }
+.call-dialog__actions button { min-height: 40px; padding: 0 15px; border-radius: 11px; font-size: 12px; font-weight: 750; }
+.call-dialog__cancel { border: 1px solid #dcd5fb; color: var(--purple); background: #fff; }
+.call-dialog__submit { color: #fff; background: var(--purple); }
+.call-dialog__submit:hover { background: var(--purple-dark); }
+.call-dialog__actions button:disabled { opacity: .6; cursor: wait; }
 
 @media (max-width: 760px) {
   .calls-panel { padding: 20px; }

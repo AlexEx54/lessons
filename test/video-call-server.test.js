@@ -127,7 +127,7 @@ function opened(socket) {
   });
 }
 
-test('admin creates a call, guest joins by invite, and signaling relays messages', async t => {
+test('a permanent room lets the student wait for the teacher, survives ending a call and is revoked on deletion', async t => {
   const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'teach-platform-video-call-'));
   const databasePath = path.join(temporaryDirectory, 'app.sqlite');
   const database = openDatabase(databasePath);
@@ -186,41 +186,54 @@ test('admin creates a call, guest joins by invite, and signaling relays messages
   assert.equal(page.status, 200);
   assert.match(await page.text(), /id="create-video-call"/);
 
-  const creation = await fetch(`${baseUrl}/api/video-calls`, {
-    method: 'POST',
-    headers: { Cookie: cookie },
+  const createRoom = body => fetch(`${baseUrl}/api/video-calls`, {
+    method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   });
+  assert.equal((await createRoom({ name: '   ' })).status, 400);
+  const creation = await createRoom({ name: 'Алина' });
   assert.equal(creation.status, 201);
-  const created = await creation.json();
-  assert.equal(created.call.status, 'waiting');
-  assert.match(created.guestPath, /^\/call\/[A-Za-z0-9_-]{40,}$/);
-  const guestToken = decodeURIComponent(created.guestPath.split('/').at(-1));
+  const created = (await creation.json()).call;
+  assert.equal(created.name, 'Алина');
+  assert.deepEqual(created.presence, { teacher: false, guest: false });
+  assert.match(created.guestPath, /^\/call\/alina-[a-f0-9]{48}$/);
+  const guestToken = created.guestPath.split('/').at(-1);
+  const listRoom = async () => (await (await fetch(`${baseUrl}/api/video-calls`, { headers: { Cookie: cookie } })).json())
+    .calls.find(call => call.id === created.id);
+  const guestUrl = `${wsBaseUrl}/ws/video-calls/${created.id}?role=guest&token=${guestToken}`;
+  const connectGuest = () => {
+    const socket = new WebSocket(guestUrl, { headers: { Origin: baseUrl } });
+    sockets.push(socket);
+    return socket;
+  };
 
-  const publicRoom = await fetch(`${baseUrl}/api/public/video-calls/${encodeURIComponent(guestToken)}`);
+  const publicRoom = await fetch(`${baseUrl}/api/public/video-calls/${guestToken}`);
   assert.equal(publicRoom.status, 200);
-  assert.deepEqual((await publicRoom.json()).iceServers, [{ urls: ['stun:stun.example.test:3478'] }]);
+  assert.deepEqual(await publicRoom.json(), { call: { id: created.id }, iceServers: [{ urls: ['stun:stun.example.test:3478'] }] });
   assert.equal((await fetch(`${baseUrl}${created.guestPath}`)).status, 200);
+  assert.equal((await fetch(`${baseUrl}/call/not-valid`)).status, 404);
   assert.equal((await fetch(`${baseUrl}/api/public/video-calls/not-valid`)).status, 404);
 
+  // The link is permanent, so the student may come before the teacher and wait.
+  const guestSocket = connectGuest();
+  const guestConnected = nextMessage(guestSocket, 'connected');
+  await opened(guestSocket);
+  assert.equal((await guestConnected).peerPresent, false);
+  assert.deepEqual((await listRoom()).presence, { teacher: false, guest: true });
+  assert.equal((await listRoom()).lastCallAt, null);
+
   const teacherSocket = new WebSocket(
-    `${wsBaseUrl}/ws/video-calls/${created.call.id}?role=teacher`,
+    `${wsBaseUrl}/ws/video-calls/${created.id}?role=teacher`,
     { headers: { Cookie: cookie, Origin: baseUrl } },
   );
   sockets.push(teacherSocket);
   const teacherConnected = nextMessage(teacherSocket, 'connected');
+  const guestSawTeacher = nextMessage(guestSocket, 'peer-joined');
   await opened(teacherSocket);
-  assert.equal((await teacherConnected).peerPresent, false);
-
-  const guestSocket = new WebSocket(
-    `${wsBaseUrl}/ws/video-calls/${created.call.id}?role=guest&token=${encodeURIComponent(guestToken)}`,
-    { headers: { Origin: baseUrl } },
-  );
-  sockets.push(guestSocket);
-  const guestConnected = nextMessage(guestSocket, 'connected');
-  const teacherSawGuest = nextMessage(teacherSocket, 'peer-joined');
-  await opened(guestSocket);
-  assert.equal((await guestConnected).peerPresent, true);
-  await teacherSawGuest;
+  assert.equal((await teacherConnected).peerPresent, true);
+  await guestSawTeacher;
+  const liveRoom = await listRoom();
+  assert.deepEqual(liveRoom.presence, { teacher: true, guest: true });
+  assert.ok(liveRoom.lastCallAt);
 
   const relayedState = nextMessage(guestSocket, 'media-state');
   teacherSocket.send(JSON.stringify({ type: 'media-state', audio: true, video: false, recording: true }));
@@ -229,22 +242,15 @@ test('admin creates a call, guest joins by invite, and signaling relays messages
   });
 
   const liveChat = nextMessage(guestSocket, 'chat-message');
-  const chatResponse = await fetch(`${baseUrl}/api/video-calls/${created.call.id}/chat`, {
+  const chatResponse = await fetch(`${baseUrl}/api/video-calls/${created.id}/chat`, {
     method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' },
     body: JSON.stringify({ clientId: require('node:crypto').randomUUID(), text: 'Материалы занятия' }),
   });
   assert.equal(chatResponse.status, 201);
   assert.equal((await liveChat).message.text, 'Материалы занятия');
 
-  const activeList = await fetch(`${baseUrl}/api/video-calls`, { headers: { Cookie: cookie } });
-  assert.equal((await activeList.json()).calls[0].status, 'active');
-
   const oldGuestClosed = new Promise(resolve => guestSocket.once('close', resolve));
-  const newGuest = new WebSocket(
-    `${wsBaseUrl}/ws/video-calls/${created.call.id}?role=guest&token=${encodeURIComponent(guestToken)}`,
-    { headers: { Origin: baseUrl } },
-  );
-  sockets.push(newGuest);
+  const newGuest = connectGuest();
   const newGuestConnected = nextMessage(newGuest, 'connected');
   await opened(newGuest);
   await newGuestConnected;
@@ -265,25 +271,39 @@ test('admin creates a call, guest joins by invite, and signaling relays messages
   assert.equal(pagehideLog.suppressedDiagnostics, 124);
   assert.notEqual(pagehideLog.connectionId, replacedLog.connectionId);
 
-  const replacement = await fetch(`${baseUrl}/api/video-calls/${created.call.id}/invite`, {
-    method: 'POST', headers: { Cookie: cookie },
-  });
-  assert.equal(replacement.status, 200);
-  const archiveToken = (await replacement.json()).guestPath.split('/').at(-1);
-  assert.equal((await fetch(`${baseUrl}/api/public/video-calls/${encodeURIComponent(guestToken)}`)).status, 404);
-
-  const ended = await fetch(`${baseUrl}/api/video-calls/${created.call.id}/end`, {
-    method: 'POST', headers: { Cookie: cookie },
-  });
+  // Ending a call disconnects both participants, but the room and its link stay.
+  const returningGuest = connectGuest();
+  const returningConnected = nextMessage(returningGuest, 'connected');
+  await opened(returningGuest);
+  await returningConnected;
+  const guestSawEnd = nextMessage(returningGuest, 'call-ended');
+  const returningClosed = new Promise(resolve => returningGuest.once('close', resolve));
+  const ended = await fetch(`${baseUrl}/api/video-calls/${created.id}/end`, { method: 'POST', headers: { Cookie: cookie } });
   assert.equal(ended.status, 200);
-  assert.equal((await ended.json()).call.status, 'ended');
-  assert.equal((await fetch(`${baseUrl}/api/video-calls/${created.call.id}`, { headers: { Cookie: cookie } })).status, 200);
-  const archiveRoom = await fetch(`${baseUrl}/api/public/video-calls/${archiveToken}`);
-  assert.equal(archiveRoom.status, 200);
-  assert.deepEqual((await archiveRoom.json()).iceServers, []);
-  const archive = await (await fetch(`${baseUrl}/api/public/video-calls/${archiveToken}/chat`)).json();
-  assert.equal(archive.messages[0].text, 'Материалы занятия');
+  await guestSawEnd;
+  assert.equal(await returningClosed, 4000);
   await waitForLog(row => row.state === 'close' && row.cause === 'call-ended' && row.role === 'teacher');
+  assert.deepEqual((await listRoom()).presence, { teacher: false, guest: false });
+  assert.equal((await fetch(`${baseUrl}/api/public/video-calls/${guestToken}`)).status, 200);
+  const archive = await (await fetch(`${baseUrl}/api/public/video-calls/${guestToken}/chat`)).json();
+  assert.equal(archive.messages[0].text, 'Материалы занятия');
+
+  const nextDayGuest = connectGuest();
+  const nextDayConnected = nextMessage(nextDayGuest, 'connected');
+  await opened(nextDayGuest);
+  assert.equal((await nextDayConnected).peerPresent, false);
+
+  // Deleting the room disconnects the student and revokes the link with the chat.
+  const nextDayClosed = new Promise(resolve => nextDayGuest.once('close', resolve));
+  const deleted = await fetch(`${baseUrl}/api/video-calls/${created.id}`, { method: 'DELETE', headers: { Cookie: cookie } });
+  assert.equal(deleted.status, 200);
+  assert.equal(await nextDayClosed, 4000);
+  assert.equal((await fetch(`${baseUrl}/api/video-calls/${created.id}`, { method: 'DELETE', headers: { Cookie: cookie } })).status, 404);
+  assert.equal((await fetch(`${baseUrl}${created.guestPath}`)).status, 404);
+  assert.equal((await fetch(`${baseUrl}/api/public/video-calls/${guestToken}/chat`)).status, 404);
+  const revoked = new WebSocket(guestUrl, { headers: { Origin: baseUrl } });
+  sockets.push(revoked);
+  assert.match((await new Promise(resolve => revoked.once('error', resolve))).message, /403/);
 });
 
 

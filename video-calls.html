@@ -4,35 +4,48 @@
     <div>
       <p class="calls-heading__eyebrow">Занятия онлайн</p>
       <h2 id="calls-title">Видеозвонки</h2>
-      <p>Создайте личную комнату и отправьте ученику безопасную ссылку.</p>
+      <p>У каждого ученика своя комната: отправьте ссылку один раз — она не меняется.</p>
     </div>
     <div class="calls-heading__actions">
-      <button class="calls-heading__clear" id="clear-video-call-history" type="button" hidden>
-        Очистить историю
-      </button>
-      <button class="calls-heading__create" id="create-video-call" type="button">
-        <span aria-hidden="true">＋</span> Создать видеозвонок
+      <button class="calls-heading__create" id="create-video-call" type="button" aria-haspopup="dialog">
+        <span aria-hidden="true">＋</span> Новая комната
       </button>
     </div>
   </header>
 
   <div class="call-state call-state--loading" id="calls-loading" role="status">
     <span class="call-spinner" aria-hidden="true"></span>
-    <p>Загружаем видеозвонки…</p>
+    <p>Загружаем комнаты…</p>
   </div>
 
   <div class="call-state call-state--error" id="calls-error" role="alert" hidden>
     <span aria-hidden="true">!</span>
-    <h3>Не удалось загрузить видеозвонки</h3>
+    <h3>Не удалось загрузить комнаты</h3>
     <p id="calls-error-message"></p>
     <button id="calls-retry" type="button">Попробовать снова</button>
   </div>
 
   <div class="call-state" id="calls-empty" hidden>
     <span aria-hidden="true">◉</span>
-    <h3>Звонков пока нет</h3>
-    <p>Создайте комнату — ссылка для ученика появится сразу.</p>
+    <h3>Комнат пока нет</h3>
+    <p>Создайте комнату для ученика — ссылка скопируется сразу.</p>
   </div>
 
   <div class="calls-grid" id="calls-grid" aria-live="polite"></div>
 </section>
+
+<dialog class="call-dialog" id="create-call-dialog" aria-labelledby="create-call-title">
+  <form class="call-dialog__form" id="create-call-form">
+    <h2 id="create-call-title">Новая комната</h2>
+    <label class="call-dialog__field">
+      <span>Имя ученика</span>
+      <input name="name" type="text" maxlength="80" autocomplete="off" required placeholder="Например, Алина" />
+    </label>
+    <p class="call-dialog__hint">Ссылку на комнату достаточно отправить ученику один раз — она не меняется.</p>
+    <p class="call-dialog__error" id="create-call-error" role="alert" hidden></p>
+    <div class="call-dialog__actions">
+      <button class="call-dialog__cancel" type="button" data-close>Отмена</button>
+      <button class="call-dialog__submit" type="submit">Создать и скопировать ссылку</button>
+    </div>
+  </form>
+</dialog>

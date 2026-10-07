@@ -23,15 +23,13 @@ const { createClassLiveSignaling } = require('./lib/class-live-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
 const { createUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
+const { INVITE_TOKEN_PATTERN } = require('./lib/invite-token.js');
 const {
-  clearVideoCallHistory,
   createVideoCall,
-  endVideoCall,
+  deleteVideoCall,
   findOwnedVideoCall,
-  findVideoCallByGuestToken,
+  findVideoCallByInviteToken,
   listVideoCalls,
-  resetInterruptedVideoCalls,
-  rotateVideoCallGuestToken,
 } = require('./lib/video-call-store.js');
 const { getIceServers } = require('./lib/webrtc-config.js');
 const { createVideoCallSignaling } = require('./lib/video-call-signaling.js');
@@ -113,7 +111,8 @@ const generationControllers = new Map();
 const generationSubscribers = new Map();
 let videoCallSignaling = null;
 
-resetInterruptedVideoCalls(database);
+const CLASS_INVITE_PAGE = new RegExp(`^/join/(${INVITE_TOKEN_PATTERN})(?:/([a-f0-9-]{36}))?/?$`, 'i');
+const GUEST_CALL_PAGE = new RegExp(`^/call/(${INVITE_TOKEN_PATTERN})/?$`, 'i');
 
 const interruptedGenerationIds = failInterruptedLessonGenerations(database);
 if (interruptedGenerationIds.length > 0) {
@@ -1294,11 +1293,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const guestVideoCallPage = pathname.match(/^\/call\/([^/]+)$/);
+  const guestVideoCallPage = pathname.match(GUEST_CALL_PAGE);
   if (req.method === 'GET' && guestVideoCallPage) {
-    let guestToken = '';
-    try { guestToken = decodeURIComponent(guestVideoCallPage[1]); } catch (_error) { /* handled below */ }
-    if (!findVideoCallByGuestToken(guestToken, database)) {
+    if (!findVideoCallByInviteToken(guestVideoCallPage[1], database)) {
       json(res, 404, { error: 'Ссылка на видеозвонок недействительна.' });
       return;
     }
@@ -1435,7 +1432,7 @@ const server = http.createServer(async (req, res) => {
   const sessionDetail = pathname.match(/^\/api\/sessions\/([a-f0-9-]{36})$/i);
   const studentPage = pathname.match(/^\/sessions\/([a-f0-9-]{36})\/student\/?$/i);
   const liveDetail = pathname.match(/^\/api\/sessions\/([a-f0-9-]{36})\/live$/i);
-  const classInvite = pathname.match(/^\/join\/([a-z0-9][a-z0-9-]{0,47}-[a-f0-9]{48})(?:\/([a-f0-9-]{36}))?\/?$/i);
+  const classInvite = pathname.match(CLASS_INVITE_PAGE);
   if (req.method === 'GET' && classInvite) {
     try {
       const joined = joinClass(req, classInvite[1], database, classInvite[2]);
@@ -1516,13 +1513,11 @@ const server = http.createServer(async (req, res) => {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     try {
-      const call = createVideoCall({ ownerAdminId: user.id }, database);
-      const guestPath = `/call/${encodeURIComponent(call.guestToken)}`;
-      delete call.guestToken;
-      json(res, 201, { call, guestPath });
+      const call = createVideoCall({ ownerAdminId: user.id, name: (await readJsonBody(req))?.name }, database);
+      json(res, 201, { call: { ...call, presence: videoCallSignaling.presence(call.id) } });
     } catch (error) {
-      console.error('Cannot create video call:', error);
-      json(res, 500, { error: 'Не удалось создать видеозвонок.' });
+      if (!error.statusCode) console.error('Cannot create video call:', error);
+      json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось создать комнату.' });
     }
     return;
   }
@@ -1530,53 +1525,25 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && pathname === '/api/video-calls') {
     const user = requireAdminAuth(req, res);
     if (!user) return;
-    json(res, 200, { calls: listVideoCalls(user.id, database) });
+    json(res, 200, {
+      calls: listVideoCalls(user.id, database).map(call => ({ ...call, presence: videoCallSignaling.presence(call.id) })),
+    });
     return;
   }
 
-  if (req.method === 'DELETE' && pathname === '/api/video-calls') {
-    const user = requireAdminAuth(req, res);
-    if (!user) return;
-    try {
-      const { deletedCount, deletedIds } = clearVideoCallHistory(user.id, database);
-      for (const callId of deletedIds) videoCallSignaling?.closeRoom(callId);
-      videoCallChat.cleanup();
-      json(res, 200, { deleted: deletedCount });
-    } catch (error) {
-      console.error('Cannot clear video call history:', error);
-      json(res, 500, { error: 'Не удалось очистить историю видеозвонков.' });
-    }
-    return;
-  }
-
-  const videoCallInviteRoute = pathname.match(/^\/api\/video-calls\/([^/]+)\/invite$/);
-  if (req.method === 'POST' && videoCallInviteRoute) {
-    const user = requireAdminAuth(req, res);
-    if (!user) return;
-    let callId = '';
-    try { callId = decodeURIComponent(videoCallInviteRoute[1]); } catch (_error) { /* handled below */ }
-    const guestToken = rotateVideoCallGuestToken(callId, user.id, database);
-    if (!guestToken) {
-      json(res, 409, { error: 'Звонок завершён или срок ссылки истёк.' });
-      return;
-    }
-    json(res, 200, { guestPath: `/call/${encodeURIComponent(guestToken)}` });
-    return;
-  }
-
+  // Ending a call disconnects both participants; the room and its link stay.
   const videoCallEndRoute = pathname.match(/^\/api\/video-calls\/([^/]+)\/end$/);
   if (req.method === 'POST' && videoCallEndRoute) {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     let callId = '';
     try { callId = decodeURIComponent(videoCallEndRoute[1]); } catch (_error) { /* handled below */ }
-    const call = endVideoCall(callId, user.id, database);
-    if (!call) {
+    if (!findOwnedVideoCall(callId, user.id, database)) {
       json(res, 404, { error: 'Видеозвонок не найден.' });
       return;
     }
-    videoCallSignaling?.closeRoom(callId);
-    json(res, 200, { call });
+    videoCallSignaling.closeRoom(callId);
+    json(res, 200, { ended: true });
     return;
   }
 
@@ -1584,33 +1551,37 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && publicVideoCallApi) {
     let guestToken = '';
     try { guestToken = decodeURIComponent(publicVideoCallApi[1]); } catch (_error) { /* handled below */ }
-    const call = findVideoCallByGuestToken(guestToken, database);
+    const call = findVideoCallByInviteToken(guestToken, database);
     if (!call) {
       json(res, 404, { error: 'Ссылка на видеозвонок недействительна.' });
       return;
     }
-    json(res, 200, {
-      call,
-      iceServers: ['waiting', 'active'].includes(call.status) ? getIceServers(`guest-${call.id.slice(0, 8)}`) : [],
-    });
+    json(res, 200, { call, iceServers: getIceServers(`guest-${call.id.slice(0, 8)}`) });
     return;
   }
 
   const ownedVideoCallApi = pathname.match(/^\/api\/video-calls\/([^/]+)$/);
-  if (req.method === 'GET' && ownedVideoCallApi) {
+  if (['GET', 'DELETE'].includes(req.method) && ownedVideoCallApi) {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     let callId = '';
     try { callId = decodeURIComponent(ownedVideoCallApi[1]); } catch (_error) { /* handled below */ }
+    if (req.method === 'DELETE') {
+      if (!deleteVideoCall(callId, user.id, database)) {
+        json(res, 404, { error: 'Видеозвонок не найден.' });
+        return;
+      }
+      videoCallSignaling.closeRoom(callId);
+      videoCallChat.cleanup();
+      json(res, 200, { deleted: true });
+      return;
+    }
     const call = findOwnedVideoCall(callId, user.id, database);
     if (!call) {
       json(res, 404, { error: 'Видеозвонок не найден.' });
       return;
     }
-    json(res, 200, {
-      call,
-      iceServers: ['waiting', 'active'].includes(call.status) ? getIceServers(`teacher-${user.id.slice(0, 8)}`) : [],
-    });
+    json(res, 200, { call, iceServers: getIceServers(`teacher-${user.id.slice(0, 8)}`) });
     return;
   }
 

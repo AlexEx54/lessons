@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  let endpoint, role, call, lastId = 0, syncing = false, again = false, unread = 0, busy = false;
+  let endpoint, role, lastId = 0, syncing = false, again = false, unread = 0, busy = false;
   let selected = [], attempt = null;
   const seen = new Set();
   const toggle = document.createElement('button');
@@ -11,12 +11,12 @@
   panel.id = 'call-chat'; panel.className = 'call-chat'; panel.hidden = true;
   panel.setAttribute('aria-label', 'Чат звонка');
   panel.innerHTML = `<div class="chat-heading"><strong>Чат звонка</strong><button type="button" class="chat-close" aria-label="Закрыть чат">×</button></div>
-    <p class="chat-info">Переписка и файлы сохраняются после звонка.</p>
+    <p class="chat-info">Переписка и файлы хранятся в комнате и доступны между звонками.</p>
     <div class="chat-messages" role="log" aria-label="Сообщения"><p class="chat-empty">Здесь будут сообщения и файлы занятия.</p></div>
     <p class="chat-error" role="status"></p><button class="chat-refresh" type="button" hidden>Повторить загрузку</button>
     <form class="chat-form"><textarea aria-label="Сообщение" placeholder="Написать сообщение…" maxlength="10000" rows="3"></textarea>
     <div class="chat-files"></div><div class="chat-actions"><button type="button" class="chat-attach">Прикрепить</button><span>25 МБ · до 5 файлов</span><button type="submit">Отправить</button></div>
-    <input type="file" multiple hidden /></form><p class="chat-readonly" hidden>Звонок завершён. Можно читать чат и скачивать файлы.</p>`;
+    <input type="file" multiple hidden /></form>`;
   document.body.append(panel);
   const $ = selector => panel.querySelector(selector);
   const log = $('.chat-messages'), form = $('.chat-form'), input = $('textarea'), picker = $('input');
@@ -25,11 +25,6 @@
   toggle.addEventListener('click', () => panel.hidden ? open() : close());
   $('.chat-close').addEventListener('click', close);
   panel.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
-  function status(updated) {
-    call = updated;
-    const ended = !['waiting', 'active'].includes(call.status);
-    form.hidden = ended; $('.chat-readonly').hidden = !ended;
-  }
   function receive(message, historical = false) {
     if (seen.has(message.id)) return;
     seen.add(message.id);
@@ -77,7 +72,6 @@
       let more; const historical = lastId === 0;
       do {
         const result = await request(`${endpoint}?after=${lastId}`);
-        status(result.call);
         result.messages.forEach(message => { receive(message, historical); lastId = Math.max(lastId, message.id); });
         more = result.hasMore;
       } while (more);
@@ -103,12 +97,12 @@
   $('.chat-attach').addEventListener('click', () => picker.click());
   picker.addEventListener('change', () => { addFiles(picker.files); picker.value = ''; });
   panel.addEventListener('dragover', event => { event.preventDefault(); });
-  panel.addEventListener('drop', event => { event.preventDefault(); if (!form.hidden) addFiles(event.dataTransfer.files); });
+  panel.addEventListener('drop', event => { event.preventDefault(); addFiles(event.dataTransfer.files); });
   input.addEventListener('paste', event => { if (event.clipboardData.files.length) { event.preventDefault(); addFiles(event.clipboardData.files); } });
   input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); form.requestSubmit(); } });
   form.addEventListener('submit', async event => {
     event.preventDefault();
-    if (busy || form.hidden || (!input.value.trim() && !selected.length && !attempt)) return;
+    if (busy || (!input.value.trim() && !selected.length && !attempt)) return;
     busy = true;
     if (!attempt) attempt = { clientId: crypto.randomUUID(), text: input.value, attachments: [], name: document.getElementById('participant-name').value };
     input.disabled = true; $('.chat-attach').disabled = true; $('button[type="submit"]').disabled = true; renderFiles();
@@ -139,11 +133,11 @@
     }
   });
   window.CallChat = { open, receive, sync, init(options) {
-    role = options.role; status(options.call);
+    role = options.role;
     endpoint = `/api/${role === 'guest' ? 'public/' : ''}video-calls/${encodeURIComponent(options.reference)}/chat`;
     toggle.hidden = false; sync();
-    // Also catches updates before joining video and a missed final socket event.
-    setInterval(() => { if (!document.hidden && ['waiting', 'active'].includes(call.status)) sync(); }, 5000);
+    // Also catches messages outside a call, when there is no socket to deliver them.
+    setInterval(() => { if (!document.hidden) sync(); }, 5000);
     window.addEventListener('online', sync);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
   } };

@@ -4,7 +4,16 @@
   const pathParts = window.location.pathname.split('/').filter(Boolean);
   const role = pathParts[0] === 'call' ? 'guest' : 'teacher';
   const roomReference = decodeURIComponent(pathParts[1] || '');
+  const roomEndpoint = role === 'teacher'
+    ? `/api/video-calls/${encodeURIComponent(roomReference)}`
+    : `/api/public/video-calls/${encodeURIComponent(roomReference)}`;
   const exitPath = role === 'teacher' ? '/video-calls' : '/';
+  // The room is permanent, so either participant may come first and wait for the other.
+  const peerTitle = role === 'teacher' ? 'Ученик' : 'Преподаватель';
+  const waitingStatus = role === 'teacher' ? 'Ждём ученика' : 'Ждём преподавателя';
+  const callEndedText = role === 'teacher' ? 'Вы завершили видеозвонок.' : 'Преподаватель завершил видеозвонок.';
+  // TURN credentials live at least five minutes, and a participant may wait much longer.
+  const ICE_REFRESH_MS = 4 * 60 * 1000;
   const elements = {
     brand: document.getElementById('room-brand'),
     connection: document.getElementById('room-connection'),
@@ -38,6 +47,7 @@
     leaveLabel: document.getElementById('leave-label'),
     ended: document.getElementById('room-ended'),
     endedMessage: document.getElementById('room-ended-message'),
+    rejoinLink: document.getElementById('room-rejoin-link'),
     exitLink: document.getElementById('room-exit-link'),
   };
 
@@ -189,7 +199,7 @@
   elements.exitLink.textContent = role === 'teacher' ? 'К списку звонков' : 'На главную';
   elements.leaveLabel.textContent = role === 'teacher' ? 'Завершить' : 'Выйти';
   elements.guestNameField.hidden = role !== 'guest';
-  elements.remoteName.textContent = role === 'teacher' ? 'Ученик' : 'Преподаватель';
+  elements.remoteName.textContent = peerTitle;
   elements.remoteVideo.addEventListener('playing', () => {
     updateRemoteVideoVisibility('playing');
   });
@@ -615,7 +625,8 @@
       audio: Boolean(track('audio')?.enabled) && mediaState.audio,
       video: Boolean(track('video')?.enabled) && mediaState.video,
       screen: Boolean(screenTrack),
-      name: role === 'guest' ? (elements.participantName.value.trim() || 'Ученик') : 'Преподаватель',
+      // Without a typed name the teacher keeps the room name as the student's label.
+      name: role === 'guest' ? elements.participantName.value.trim() : 'Преподаватель',
     });
   }
 
@@ -806,7 +817,6 @@
         online: navigator.onLine, ...lastSocketClose });
       lastSocketClose = null;
       reconnectAttempts = 0;
-      setConnection('Ждём второго участника');
       const configuredUrls = iceServers.map(server => server.urls).filter(Boolean);
       const turnServers = iceServers.filter(server => String(server.urls).startsWith('turn'));
       const turnHasCredentials = turnServers.length > 0
@@ -835,19 +845,25 @@
           sendDiagnostic('signaling-event', {
             state: message.peerPresent ? 'connected-with-peer' : 'connected-waiting',
           });
-          if (message.peerPresent) await createPeerConnection();
+          if (message.peerPresent) {
+            setConnection(`${peerTitle} подключается…`);
+            await createPeerConnection();
+          } else {
+            setConnection(waitingStatus);
+            elements.remotePlaceholderText.textContent = `${peerTitle} ещё не подключился. Звонок начнётся автоматически.`;
+          }
         } else if (message.type === 'peer-joined') {
           sendDiagnostic('signaling-event', { state: 'peer-joined' });
           // The peer has a new RTCPeerConnection, even if its old socket has
           // not timed out yet and no peer-left event was delivered.
           closePeerConnection();
-          setConnection('Участник подключается…');
+          setConnection(`${peerTitle} подключается…`);
           await createPeerConnection();
           sendMediaState();
         } else if (message.type === 'peer-left') {
           closePeerConnection();
-          setConnection('Второй участник вышел');
-          elements.remotePlaceholderText.textContent = 'Ждём второго участника';
+          setConnection(`${peerTitle} вышел`);
+          elements.remotePlaceholderText.textContent = `${waitingStatus} — звонок возобновится автоматически.`;
         } else if (message.type === 'signal') {
           await handleSignal(message);
         } else if (message.type === 'media-state') {
@@ -857,7 +873,7 @@
           updateRemoteVideoVisibility('media-state');
           reportMediaStats(peerConnection, 'media-state');
         } else if (message.type === 'call-ended') {
-          finishCall('Преподаватель завершил видеозвонок.');
+          finishCall(callEndedText);
         }
       } catch (error) {
         sendDiagnostic('peer-connection-error', {
@@ -872,7 +888,7 @@
       lastSocketClose = { closeCode: event.code, wasClean: event.wasClean,
         reconnectDelayMs: Math.min(5000, (reconnectAttempts + 1) * 1000) };
       if (event.code === 4000) {
-        finishCall('Преподаватель завершил видеозвонок.');
+        finishCall(callEndedText);
         return;
       }
       scheduleReconnect();
@@ -1093,6 +1109,9 @@
     elements.stage.hidden = true;
     elements.ended.hidden = false;
     elements.endedMessage.textContent = message;
+    // The link is permanent, so a fresh page load joins the same room again.
+    elements.rejoinLink.hidden = !room;
+    elements.rejoinLink.href = window.location.pathname;
     setConnection('Звонок завершён');
     window.CallChat?.open();
     window.CallChat?.sync();
@@ -1110,7 +1129,7 @@
         setConnection('Не удалось завершить звонок. Попробуйте ещё раз.', 'error');
         return;
       }
-      finishCall('Вы завершили видеозвонок.');
+      finishCall(callEndedText);
     } else {
       send({ type: 'leave' });
       finishCall('Вы вышли из видеозвонка.');
@@ -1134,25 +1153,34 @@
     elements.toggleBackground.setAttribute('aria-expanded', String(open));
   }
 
+  // A new peer connection always uses the latest credentials; current ones keep theirs.
+  async function refreshIceServers() {
+    if (leaving) return;
+    try {
+      const response = await fetch(roomEndpoint);
+      if (response.ok) iceServers = normalizeIceServers((await response.json()).iceServers);
+    } catch (_error) {
+      // The next refresh retries; until then the previous credentials stay in use.
+    }
+  }
+
   async function loadRoom() {
     if (!roomReference) {
       finishCall('Некорректная ссылка на видеозвонок.');
       return;
     }
     try {
-      const endpoint = role === 'teacher'
-        ? `/api/video-calls/${encodeURIComponent(roomReference)}`
-        : `/api/public/video-calls/${encodeURIComponent(roomReference)}`;
-      const response = await fetch(endpoint);
+      const response = await fetch(roomEndpoint);
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Комната недоступна.');
       room = payload.call;
-      window.CallChat.init({ role, reference: roomReference, call: room });
-      if (!['waiting', 'active'].includes(room.status)) {
-        finishCall('Переписка и файлы доступны в чате.');
-        return;
+      if (room.name) {
+        elements.remoteName.textContent = room.name;
+        document.title = `${room.name} — видеозвонок EasyClass`;
       }
+      window.CallChat.init({ role, reference: roomReference });
       iceServers = normalizeIceServers(payload.iceServers);
+      window.setInterval(refreshIceServers, ICE_REFRESH_MS);
       setConnection('Комната готова');
       if (new URLSearchParams(location.search).has('chat')) {
         window.CallChat.open();
@@ -1163,7 +1191,7 @@
     } catch (error) {
       elements.prejoin.hidden = true;
       elements.ended.hidden = false;
-      elements.endedMessage.textContent = error.message || 'Ссылка недействительна или срок её действия истёк.';
+      elements.endedMessage.textContent = error.message || 'Ссылка на видеозвонок недействительна.';
       setConnection('Комната недоступна', 'error');
     }
   }

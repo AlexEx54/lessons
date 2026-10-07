@@ -1101,3 +1101,38 @@ body[data-auth-state="authenticated"] .profile-menu__login,
 body[data-auth-state="guest"] .profile-menu__logout {
   display: none;
 }
+
+/* A student is waiting in one of the teacher's video call rooms. */
+.menu-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 8px;
+  padding: 0 5px;
+  border-radius: 20px;
+  color: #fff;
+  background: #ff342e;
+  font-size: 10px;
+  font-weight: 800;
+  vertical-align: 1px;
+}
+
+.profile-button.has-call-waiting,
+.mobile-avatar.has-call-waiting {
+  position: relative;
+}
+
+.profile-button.has-call-waiting::after,
+.mobile-avatar.has-call-waiting::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #f5f4ff;
+  border-radius: 50%;
+  background: #ff342e;
+}
+
+.profile-button.has-call-waiting::after { top: 6px; left: 52px; }
+.mobile-avatar.has-call-waiting::after { top: 0; right: 0; }
