@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { startOfWeek, addDays, durationMinutes, toLocalInputValue, longDate, weekRange, layoutWeek, nowOffset } = require('../assets/schedule-calendar.js');
+const { startOfWeek, addDays, durationMinutes, toLocalInputValue, nextFullHour, longDate, weekRange, layoutWeek, nowOffset } = require('../assets/schedule-calendar.js');
 const at = (day, hour, minute = 0) => new Date(2026, 7, day, hour, minute).toISOString();
 const lesson = (id, scheduled_at, duration = '60 мин') => ({ id, scheduled_at, duration });
 const week = new Date(2026, 7, 10);
@@ -18,6 +18,12 @@ test('durations use the upper bound of library ranges and inputs use local time'
   assert.equal(durationMinutes('30–45 мин'), 45);
   assert.equal(durationMinutes(''), 60);
   assert.equal(toLocalInputValue(new Date(2026, 0, 5, 7, 5)), '2026-01-05T07:05');
+});
+
+test('the next full hour is always in the future and rolls over midnight', () => {
+  assert.deepEqual(nextFullHour(new Date(2026, 9, 8, 19, 28)), new Date(2026, 9, 8, 20));
+  assert.deepEqual(nextFullHour(new Date(2026, 9, 8, 19, 0)), new Date(2026, 9, 8, 20));
+  assert.deepEqual(nextFullHour(new Date(2026, 9, 8, 23, 45)), new Date(2026, 9, 9, 0));
 });
 
 test('dates and week ranges mention the year only outside the current one', () => {

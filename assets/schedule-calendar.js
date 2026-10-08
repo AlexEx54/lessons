@@ -17,6 +17,9 @@
     const pad = value => String(value).padStart(2, '0');
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
+  function nextFullHour(now = new Date()) {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1);
+  }
   // Dates outside the current year carry it, so that "5 января" is never ambiguous.
   function withYear(options, now, ...dates) {
     return dates.every(date => date.getFullYear() === now.getFullYear()) ? options : { ...options, year: 'numeric' };
@@ -66,7 +69,7 @@
     const minutes = now.getHours() * 60 + now.getMinutes() - startHour * 60;
     return minutes >= 0 && minutes < (endHour - startHour) * 60 ? minutes : null;
   }
-  const api = { startOfWeek, addDays, durationMinutes, toLocalInputValue, longDate, weekRange, layoutWeek, nowOffset };
+  const api = { startOfWeek, addDays, durationMinutes, toLocalInputValue, nextFullHour, longDate, weekRange, layoutWeek, nowOffset };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.ScheduleCalendar = api;
 })(typeof window === 'object' ? window : undefined);

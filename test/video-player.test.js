@@ -111,13 +111,13 @@ test('questions stop each player independently, share answers and continue local
   assert.equal(teacherVideo.paused, false);
 });
 
-test('seeking past questions stops at the first one, including a second question at the same time', t => {
+test('playback stops at each question, including a second question at the same time', t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const doc = documentFixture();
   const node = renderVideoPlayer({ ...component, questions: [{ ...question, id: 'q-2' }, question] }, {}, doc);
   t.after(() => node.dispose());
   const video = doc.elements.find(e => e.tag === 'video');
-  video.currentTime = 90; video.emit('seeked');
+  video.currentTime = 10.3; video.emit('timeupdate');
   assert.equal(video.currentTime, 10);
   node.updateQuestionState({ 'q-1': { selectedOptionIds: ['a', 'c'], correct: true }, 'q-2': { selectedOptionIds: ['a'], correct: false } });
   t.mock.timers.tick(2000);
@@ -281,7 +281,7 @@ test('seeking onto a question waits for native range gesture completion before d
   const video = doc.elements.find(n => n.tag === 'video');
   const seek = doc.elements.find(n => n['aria-label'] === 'Позиция видео');
   const overlay = descendants(node).find(n => n.className === 'video-player__question');
-  seek.value = '20'; seek.emit('input');
+  seek.value = '10'; seek.emit('input');
   video.emit('seeked'); video.emit('timeupdate');
   assert.equal(seek.disabled, false);
   assert.equal(overlay.hidden, true);
@@ -291,4 +291,21 @@ test('seeking onto a question waits for native range gesture completion before d
   assert.equal(video.currentTime, 10);
   assert.equal(overlay.hidden, false);
   assert.equal(seek.disabled, true);
+});
+
+test('seeking skips earlier questions until playback runs through them again', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const doc = documentFixture();
+  const node = renderVideoPlayer({ ...component, questions: [question, { ...question, id: 'q-2', atMs: 30000 }] }, {}, doc);
+  t.after(() => node.dispose());
+  const video = doc.elements.find(n => n.tag === 'video');
+  const seek = doc.elements.find(n => n['aria-label'] === 'Позиция видео');
+  const overlay = descendants(node).find(n => n.className === 'video-player__question');
+  function seekTo(value) { seek.value = String(value); seek.emit('input'); seek.emit('change'); t.mock.timers.tick(0); }
+  seekTo(50);
+  video.currentTime = 50.25; video.emit('timeupdate');
+  assert.equal(overlay.hidden, true); assert.equal(video.currentTime, 50.25);
+  seekTo(5);
+  video.currentTime = 10.2; video.emit('timeupdate');
+  assert.equal(overlay.hidden, false); assert.equal(video.currentTime, 10);
 });

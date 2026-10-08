@@ -1,6 +1,7 @@
 (() => {
   'use strict';
 
+  const Calendar = window.ScheduleCalendar;
   const classModal = document.getElementById('class-modal');
   const classDialog = classModal.querySelector('.class-dialog');
   const classNameInput = document.getElementById('class-name-input');
@@ -158,7 +159,7 @@
     if (classStep === 1) focusClassStep();
   }
 
-  // `time` prefills the datetime-local field and `classId` preselects a class, skipping the first step.
+  // `time` prefills the datetime-local field (the next full hour by default) and `classId` preselects a class, skipping the first step.
   // `onCreated` receives the session right after it is saved.
   function openClassModal({ time = '', classId = null, onCreated: createdCallback = null } = {}) {
     if (savingClass) return;
@@ -176,7 +177,7 @@
     requestPayload = null;
     classError.textContent = '';
     classNameInput.value = classNameInput.defaultValue;
-    classTimeInput.value = time;
+    classTimeInput.value = time || Calendar.toLocalInputValue(Calendar.nextFullHour());
     lessonSearch.value = '';
     showAllLessons = false;
     setClassStep(classId ? 2 : 1);

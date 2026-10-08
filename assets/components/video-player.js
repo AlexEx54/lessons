@@ -90,6 +90,10 @@
       }
     }
     function pause() { blockedPlayback = false; desiredPlaying = false; playAttempt++; video.pause(); enable.hidden = true; }
+    // Questions fire only when playback runs through them. A jump restarts the
+    // watched range, so questions skipped by seeking wait until they are replayed.
+    let watchedFromMs = 0;
+    function jumpTo(seconds) { video.currentTime = seconds; watchedFromMs = Math.round(seconds * 1000); }
     const toggle = button('', () => {
       const action = video.paused ? 'play' : 'pause';
       // Start directly within the gesture to satisfy browser autoplay policies.
@@ -109,7 +113,7 @@
     let scrubbing = false, seekCommitTimer = null;
     seek.addEventListener('input', () => {
       if (activeQuestionId) return;
-      scrubbing = true; video.currentTime = Number(seek.value); paint();
+      scrubbing = true; jumpTo(Number(seek.value)); paint();
     });
     function finishSeek() {
       if (!scrubbing) return;
@@ -175,10 +179,11 @@
     function checkQuestion() {
       if (scrubbing || editorQuestion || !current.videoSrc) return false;
       if (activeQuestionId) return true;
-      const next = current.questions.find(q => !dismissed.has(q.id) && q.atMs <= Math.round(video.currentTime * 1000));
-      if (!next) return false;
+      const nowMs = Math.round(video.currentTime * 1000);
+      const next = current.questions.find(q => !dismissed.has(q.id) && q.atMs >= watchedFromMs && q.atMs <= nowMs);
+      if (!next) { watchedFromMs = nowMs; return false; }
       activeQuestionId = next.id; selectedIds = []; saveProgress();
-      pause(); video.currentTime = next.atMs / 1000; renderQuestion(); paint();
+      pause(); jumpTo(next.atMs / 1000); renderQuestion(); paint();
       return true;
     }
     function submitAnswer(q, ids) {
@@ -256,9 +261,9 @@
       markerChoices.hidden = true;
       if (editing) {
         delete previewAnswers[q.id]; selectedIds = []; activeQuestionId = q.id;
-        pause(); video.currentTime = q.atMs / 1000; renderQuestion(); paint();
+        pause(); jumpTo(q.atMs / 1000); renderQuestion(); paint();
       } else {
-        video.currentTime = q.atMs / 1000; checkQuestion(); paint();
+        jumpTo(q.atMs / 1000); checkQuestion(); paint();
       }
     }
     function renderMarkers() {
@@ -298,7 +303,7 @@
         id: uid(), atMs: Math.round(video.currentTime * 1000), mode: 'single', layout: 'vertical', wrongFeedback: '', text: '',
         options: [{ id: uid(), text: '' }, { id: uid(), text: '' }], correctOptionIds: [],
       };
-      if (question) video.currentTime = question.atMs / 1000;
+      if (question) jumpTo(question.atMs / 1000);
       editor.hidden = false; markDirty(true); paintEditor(); paint();
       editor.querySelector('textarea')?.focus();
     }
@@ -387,8 +392,8 @@
     }
     for (const event of ['play', 'pause', 'timeupdate', 'waiting', 'playing', 'seeked', 'ended']) video.addEventListener(event, () => { if (['timeupdate', 'seeked', 'play'].includes(event)) { if (activeQuestionId) { if (!video.paused) pause(); } else checkQuestion(); } paint(); report(event !== 'timeupdate'); });
     video.addEventListener('loadedmetadata', () => {
-      if (pendingPosition !== null) { video.currentTime = Math.min(pendingPosition, video.duration); pendingPosition = null; }
-      if (activeQuestion()) { pause(); video.currentTime = activeQuestion().atMs / 1000; renderQuestion(); }
+      if (pendingPosition !== null) { jumpTo(Math.min(pendingPosition, video.duration)); pendingPosition = null; }
+      if (activeQuestion()) { pause(); jumpTo(activeQuestion().atMs / 1000); renderQuestion(); }
       renderMarkers(); paint(); report(true);
     });
     video.addEventListener('error', () => { status.textContent = 'Не удалось загрузить видео. Попробуйте открыть урок заново.'; });
@@ -415,7 +420,7 @@
       fileControls.append(upload, remove, input, hint);
     }
     function setSource() {
-      pause(); pendingPosition = null;
+      pause(); pendingPosition = null; watchedFromMs = 0;
       if (current.videoSrc) video.src = current.videoSrc;
       else video.removeAttribute('src');
       video.hidden = controls.hidden = !current.videoSrc;
@@ -437,7 +442,7 @@
       revision = message.revision;
       if (message.type === 'media-align') {
         if (activeQuestionId) return;
-        if (video.readyState > 0) video.currentTime = Math.min(message.position, video.duration);
+        if (video.readyState > 0) jumpTo(Math.min(message.position, video.duration));
         else pendingPosition = message.position;
         checkQuestion();
       } else if (message.action === 'play') play(); else pause();
