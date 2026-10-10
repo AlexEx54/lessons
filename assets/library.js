@@ -1,7 +1,10 @@
 (() => {
   'use strict';
 
+  const PAGE_SIZE = 8;
   let libraryLessons = [];
+  let filtered = [];
+  let shown = 0;
 
   const quickLessonsMock = [
     { title: 'Тест на определение уровня', text: 'Идеальный старт для нового ученика', image: '/assets/images/recommendation-placement.png' },
@@ -18,7 +21,7 @@
     Grammar: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10M7 9h10M7 14h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M5 20h14a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" stroke="currentColor" stroke-width="1.7"/></svg>',
   };
 
-  const state = { age: 'all', level: 'all', category: 'all', query: '', expanded: false };
+  const state = { age: 'all', level: 'all', category: 'all', query: '' };
   const grid = document.getElementById('lesson-grid');
   const empty = document.getElementById('empty-state');
   const showMore = document.getElementById('show-more');
@@ -76,7 +79,10 @@
           const payload = await response.json();
           if (!response.ok) throw new Error(payload.error || 'Не удалось скрыть урок.');
           libraryLessons = libraryLessons.filter(lesson => lesson.id !== source.id);
-          render();
+          filtered = filtered.filter(lesson => lesson.id !== source.id);
+          shown -= 1;
+          article.remove();
+          updateListState();
           showToast('Урок снят с публикации.');
         } catch (error) { unpublish.disabled = false; showToast(error.message); }
       });
@@ -85,20 +91,36 @@
     return article;
   }
 
-  function render() {
-    const filtered = libraryLessons.filter(lesson => {
-      const query = state.query.toLocaleLowerCase('ru-RU');
-      return (state.age === 'all' || lesson.age === state.age)
-        && (state.level === 'all' || lesson.level === state.level)
-        && (state.category === 'all' || lesson.category === state.category)
-        && (!query || `${lesson.title} ${lesson.description} ${lesson.skills.join(' ')}`.toLocaleLowerCase('ru-RU').includes(query));
-    });
-    const visible = state.expanded ? filtered : filtered.slice(0, 8);
-    grid.replaceChildren(...visible.map(lessonCard));
+  function matchesFilters(lesson) {
+    const query = state.query.toLocaleLowerCase('ru-RU');
+    return (state.age === 'all' || lesson.age === state.age)
+      && (state.level === 'all' || lesson.level === state.level)
+      && (state.category === 'all' || lesson.category === state.category)
+      && (!query || `${lesson.title} ${lesson.description} ${lesson.skills.join(' ')}`.toLocaleLowerCase('ru-RU').includes(query));
+  }
+
+  function updateListState() {
     empty.hidden = filtered.length > 0;
     grid.hidden = filtered.length === 0;
-    showMore.hidden = filtered.length <= 8;
-    showMore.innerHTML = state.expanded ? 'Свернуть <span aria-hidden="true">↑</span>' : 'Показать ещё <span aria-hidden="true">↓</span>';
+    showMore.hidden = shown >= filtered.length;
+  }
+
+  // Appends the next page without touching cards that are already shown.
+  function appendPage() {
+    const page = filtered.slice(shown, shown + PAGE_SIZE);
+    const fragment = document.createDocumentFragment();
+    page.forEach(lesson => fragment.append(lessonCard(lesson)));
+    grid.append(fragment);
+    shown += page.length;
+    updateListState();
+  }
+
+  // Full rebuild — only when the lesson set or filters change.
+  function resetList() {
+    filtered = libraryLessons.filter(matchesFilters);
+    shown = 0;
+    grid.replaceChildren();
+    appendPage();
   }
 
   document.getElementById('filters').addEventListener('click', event => {
@@ -114,19 +136,13 @@
       button.classList.add('chip--active');
       state[filter] = button.dataset.value;
     }
-    state.expanded = false;
-    render();
+    resetList();
   });
   document.getElementById('lesson-search').addEventListener('input', event => {
     state.query = event.target.value.trim();
-    state.expanded = false;
-    render();
+    resetList();
   });
-  showMore.addEventListener('click', () => {
-    state.expanded = !state.expanded;
-    render();
-    if (!state.expanded) document.getElementById('library-title').scrollIntoView({ behavior: 'smooth' });
-  });
+  showMore.addEventListener('click', appendPage);
 
   const quickList = document.getElementById('quick-list');
   quickLessonsMock.forEach(item => {
@@ -156,7 +172,7 @@
       const payload = await response.json();
       if (!response.ok || !Array.isArray(payload.lessons)) throw new Error('Не удалось загрузить библиотеку.');
       libraryLessons = payload.lessons;
-      render();
+      resetList();
     } catch (_error) {
       document.getElementById('library-error').hidden = false;
     } finally {
