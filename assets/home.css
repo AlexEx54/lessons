@@ -214,11 +214,26 @@
   position: relative;
 }
 
+.library-panel [hidden] {
+  display: none;
+}
+
+.library-state {
+  padding: 36px 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.library-retry {
+  margin-top: 12px;
+  color: var(--purple);
+  text-decoration: underline;
+}
+
 .lesson-track {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(220px, 1fr);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-columns: calc((100% - 3 * 18px) / 4);
   gap: 18px;
   overflow-x: auto;
   padding: 2px 2px 3px;
@@ -363,7 +378,6 @@
   }
 
   .lesson-track {
-    grid-template-columns: none;
     grid-auto-columns: minmax(220px, 31%);
   }
 }

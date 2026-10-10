@@ -165,8 +165,7 @@ test('session API creates once, renders schedule and teacher lesson, protects al
   assert.equal((await request('/api/sessions', null)).status, 401);
   assert.equal((await request('/api/sessions', null, 'POST', input)).status, 401);
   assert.equal((await request('/api/classes', null)).status, 401);
-  const content = await (await request('/api/home-content')).json();
-  assert.deepEqual(content.onboardingRecommendations.map(item => item.id), ['superhero']);
+  assert.equal((await (await request('/api/home-content')).json()).hasClasses, false);
   const response = await request('/api/sessions', cookie, 'POST', input);
   assert.equal(response.status, 201);
   const { session } = await response.json();

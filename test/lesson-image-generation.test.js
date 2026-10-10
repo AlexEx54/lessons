@@ -167,6 +167,36 @@ test('coordinator serializes drafts and persists each generated 512x512 image im
   }
 });
 
+test('coordinator completes a lesson without image prompts without contacting Draw Things', async t => {
+  const { database, owner } = setup('image-none');
+  const assetsDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'lesson-none-'));
+  t.after(() => {
+    database.close();
+    fs.rmSync(assetsDirectory, { recursive: true, force: true });
+  });
+  const generator = new LessonImageGenerator({
+    database,
+    assetsDirectory,
+    clientFactory: () => { throw new Error('Draw Things must not be contacted.'); },
+  });
+  const pending = createLessonDraft({
+    ownerAdminId: owner.id, topic: 'No images', template: 'template-1', content: lesson([]),
+  }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, lesson([]), database);
+  generator.initialize(ready.id, ready.content);
+  generator.enqueue(ready.id, owner.id);
+
+  const generation = await waitFor(
+    () => {
+      const current = findLessonImageGeneration(ready.id, database);
+      return ['completed', 'failed', 'unavailable'].includes(current.status) && current;
+    },
+    'Image generation did not finish.',
+  );
+  assert.equal(generation.status, 'completed');
+  assert.equal(generation.total, 0);
+});
+
 test('stopping an active coordinator request keeps the draft in review and allows restart', async t => {
   const { database, owner } = setup('image-stop');
   const assetsDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'lesson-stop-'));

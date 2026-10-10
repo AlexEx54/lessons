@@ -11,7 +11,7 @@ const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
 const { createLessonDraft, completeLessonDraft, findLessonDraft, deleteLessonDraft } = require('../lib/lesson-draft-store.js');
 const { createLessonImageGeneration, setLessonImageGenerationStatus } = require('../lib/lesson-image-generation-store.js');
-const { listLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, findLibraryAsset } = require('../lib/library-store.js');
+const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, findLibraryAsset } = require('../lib/library-store.js');
 
 function fixture(t, dbPath = ':memory:') {
   const db = openDatabase(dbPath);
@@ -42,6 +42,36 @@ test('migration preserves ten unavailable cards and does not reseed on subsequen
   db.prepare("UPDATE library_lessons SET title = 'Changed' WHERE id = 'superhero'").run();
   applyMigrations(db);
   assert.equal(listLibraryLessons(db)[0].title, 'Changed');
+});
+
+test('home library selects up to twelve available new publications, ordered by publication date and id', t => {
+  const { db } = fixture(t);
+  assert.deepEqual(listNewLibraryLessons(db), []);
+  const insert = db.prepare(`INSERT INTO library_lessons
+    (id, title, age, level, category, description, skills_json, duration, cover,
+      badge, is_available, is_published, content_json, published_at, updated_at)
+    VALUES (?, 'Lesson', '12-14', 'A2', 'Speaking', 'Description', '["Speaking"]',
+      '45 мин', '/assets/images/lesson-travel.png', ?, ?, ?, '{}', ?, ?)`);
+  for (let day = 1; day <= 12; day++) {
+    const id = `new-${String(day).padStart(2, '0')}`;
+    insert.run(id, 'new', 1, 1, `2026-09-${String(day).padStart(2, '0')}T00:00:00.000Z`, '2026-10-01T00:00:00.000Z');
+  }
+  // Same publication date as new-12: ties are broken by id.
+  insert.run('new-12-tie', 'new', 1, 1, '2026-09-12T00:00:00.000Z', '2026-10-01T00:00:00.000Z');
+  // A metadata edit must not outrank a later publication.
+  db.prepare('UPDATE library_lessons SET updated_at = ? WHERE id = ?').run('2099-01-01T00:00:00.000Z', 'new-01');
+  for (const [id, badge, available, published] of [
+    ['hidden', 'new', 1, 0], ['unavailable', 'new', 0, 1],
+    ['popular', 'popular', 1, 1], ['unmarked', null, 1, 1],
+  ]) insert.run(id, badge, available, published, '2099-01-01T00:00:00.000Z', '2099-01-01T00:00:00.000Z');
+  const lessons = listNewLibraryLessons(db);
+  assert.deepEqual(lessons.map(lesson => lesson.id), [
+    'new-12', 'new-12-tie', 'new-11', 'new-10', 'new-09', 'new-08',
+    'new-07', 'new-06', 'new-05', 'new-04', 'new-03', 'new-02',
+  ]);
+  assert.ok(lessons.every(lesson => lesson.badge === 'new' && lesson.is_available && lesson.is_published));
+  assert.ok(lessons.every(lesson => !('content_json' in lesson)));
+  assert.deepEqual(lessons[0].skills, ['Speaking']);
 });
 
 test('publication copies content and files, updates one record, hides and republishes, survives draft deletion', t => {
@@ -142,6 +172,10 @@ test('library HTTP routes protect publication, placeholders, hidden lessons and 
   assert.ok(ready);
   const request = (route, cookie, method = 'GET', body) => fetch(url + route, { method, redirect: 'manual', headers: { ...(cookie ? { Cookie: cookie } : {}), 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
   assert.equal((await (await request('/api/library')).json()).lessons.length, 10);
+  assert.equal((await request('/api/home-content')).status, 401);
+  const initialHome = await (await request('/api/home-content', teacherCookie)).json();
+  assert.deepEqual(initialHome.libraryLessons, []);
+  assert.equal(initialHome.hasClasses, false);
   assert.equal((await request('/api/library/superhero', teacherCookie)).status, 404);
   assert.equal((await request('/library/superhero', teacherCookie)).status, 404);
   const route = `/api/lesson-drafts/${draft.id}/publication`;
@@ -151,6 +185,7 @@ test('library HTTP routes protect publication, placeholders, hidden lessons and 
   const response = await request(route, adminCookie, 'POST', input);
   assert.equal(response.status, 200);
   const { publication } = await response.json();
+  assert.deepEqual((await (await request('/api/home-content', teacherCookie)).json()).libraryLessons, []);
   assert.equal((await request(`/api/library/${publication.id}`)).status, 401);
   assert.equal((await request(`/library/${publication.id}`)).status, 302);
   const lesson = (await (await request(`/api/library/${publication.id}`, teacherCookie)).json()).lesson;
@@ -171,11 +206,18 @@ test('library HTTP routes protect publication, placeholders, hidden lessons and 
   assert.equal((await request(badgeRoute, otherCookie, 'PUT', { badge: 'unknown' })).status, 400);
   assert.equal((await request(badgeRoute, otherCookie, 'PUT', { badge: 'new' })).status, 200);
   assert.equal((await (await request('/api/library')).json()).lessons.find(item => item.id === publication.id).badge, 'new');
+  const newHome = await (await request('/api/home-content', teacherCookie)).json();
+  assert.deepEqual(newHome.libraryLessons.map(lesson => lesson.id), [publication.id]);
+  assert.equal(newHome.libraryLessons[0].cover, publication.cover);
+  assert.equal((await request(badgeRoute, otherCookie, 'PUT', { badge: 'popular' })).status, 200);
+  assert.deepEqual((await (await request('/api/home-content', teacherCookie)).json()).libraryLessons, []);
+  assert.equal((await request(badgeRoute, otherCookie, 'PUT', { badge: 'new' })).status, 200);
   const independentRoute = `/api/library/${publication.id}/publication`;
   assert.equal((await request(independentRoute, teacherCookie, 'DELETE', { expectedRevision: 3 })).status, 403);
   assert.equal((await request(independentRoute, otherCookie, 'DELETE', { expectedRevision: 3 })).status, 404);
   assert.equal((await request(independentRoute, adminCookie, 'DELETE', { expectedRevision: 3 })).status, 200);
   assert.equal((await request(`/api/library/${publication.id}`, teacherCookie)).status, 404);
+  assert.deepEqual((await (await request('/api/home-content', teacherCookie)).json()).libraryLessons, []);
 });
 
 test('uploaded cover is required, retained on updates, replaceable and independent of draft', t => {

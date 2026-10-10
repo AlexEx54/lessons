@@ -40,7 +40,11 @@
           <a href="/library.html">Смотреть всю библиотеку <span aria-hidden="true">→</span></a>
         </header>
         <div class="lesson-carousel">
-          <div class="lesson-track" id="lesson-track" aria-label="Новые уроки"></div>
-          <button class="carousel-next" id="carousel-next" type="button" aria-label="Показать следующие уроки">›</button>
+          <div class="library-state" id="library-state">
+            <p id="library-status" role="status">Загружаем новые уроки…</p>
+            <button class="library-retry" id="library-retry" type="button" hidden>Попробовать снова</button>
+          </div>
+          <div class="lesson-track" id="lesson-track" aria-label="Новые уроки" hidden></div>
+          <button class="carousel-next" id="carousel-next" type="button" aria-label="Показать следующие уроки" hidden>›</button>
         </div>
       </section>

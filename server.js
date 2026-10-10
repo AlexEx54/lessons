@@ -16,7 +16,7 @@ const {
   sessionCookie,
 } = require('./lib/auth.js');
 const { getDatabase } = require('./lib/db.js');
-const { listLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, findLibraryAsset } = require('./lib/library-store.js');
+const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, findLibraryAsset } = require('./lib/library-store.js');
 const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, findClassSessionAsset } = require('./lib/class-store.js');
 const { joinClass, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
 const { createClassLiveSignaling } = require('./lib/class-live-signaling.js');
@@ -380,54 +380,6 @@ async function runAiLessonGeneration({
     if (generationControllers.get(draftId) === controller) generationControllers.delete(draftId);
   }
 }
-
-// Временный серверный источник лент главной. Контракт можно сохранить при
-// подключении CMS/БД: клиент уже получает и главную ленту, и рекомендации шага 2 по API.
-const homeContentMock = {
-  libraryLessons: [
-    {
-      id: 'travel-and-transport',
-      level: 'A2',
-      title: 'Путешествия и транспорт',
-      description: 'Лексика и разговорные ситуации для поездок и перемещений.',
-      lessonCount: 12,
-      duration: '30–45 мин.',
-      coverSrc: '/assets/images/lesson-travel.png',
-      isNew: true,
-    },
-    {
-      id: 'work-and-technology',
-      level: 'B1',
-      title: 'Работа и технологии',
-      description: 'Профессиональная лексика и коммуникация в офисе.',
-      lessonCount: 10,
-      duration: '30–45 мин.',
-      coverSrc: '/assets/images/lesson-work-tech.png',
-      isNew: true,
-    },
-    {
-      id: 'everyday-communication',
-      level: 'B2',
-      title: 'Повседневное общение',
-      description: 'Фразы и диалоги на каждый день для уверенного общения.',
-      lessonCount: 15,
-      duration: '30–45 мин.',
-      coverSrc: '/assets/images/lesson-communication.png',
-      isNew: true,
-    },
-    {
-      id: 'discussion-and-argumentation',
-      level: 'C1',
-      title: 'Дискуссии и аргументация',
-      description: 'Развитие навыков обсуждения и выражения мнения.',
-      lessonCount: 8,
-      duration: '30–45 мин.',
-      coverSrc: '/assets/images/lesson-discussion.png',
-      isNew: true,
-    },
-  ],
-
-};
 
 function json(res, status, payload, extraHeaders = {}) {
   res.writeHead(status, {
@@ -1515,10 +1467,8 @@ const server = http.createServer(async (req, res) => {
     const user = requireTeacherAuth(req, res);
     if (!user) return;
     json(res, 200, {
-      ...homeContentMock,
+      libraryLessons: listNewLibraryLessons(database),
       hasClasses: Boolean(database.prepare('SELECT 1 FROM classes WHERE owner_id = ? LIMIT 1').get(user.id)),
-      onboardingRecommendations: listLibraryLessons(database).filter(lesson => lesson.is_available)
-        .map(lesson => ({ ...lesson, coverSrc: lesson.cover })),
     });
     return;
   }
