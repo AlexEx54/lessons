@@ -21,6 +21,8 @@
     time: new Intl.DateTimeFormat('ru', { hour: '2-digit', minute: '2-digit' }),
     dateTime: new Intl.DateTimeFormat('ru', { dateStyle: 'long', timeStyle: 'short' }),
   };
+  // Temporary: the old VPS proxies EasyClass for students whose ISP blocks the main one.
+  const MIRROR_ORIGIN = 'https://grekko.duckdns.org:8444';
   const params = new URLSearchParams(location.search);
   let sessions = [];
   let view = params.get('view') === 'list' ? 'list' : 'calendar';
@@ -108,10 +110,10 @@
     weekStart = Calendar.startOfWeek(date);
     renderCalendar();
   }
-  async function copyClassLink(lesson) {
+  async function copyClassLink(lesson, origin = location.origin, message = 'Ссылка класса скопирована. Она всегда открывает ближайшее занятие.') {
     try {
-      await navigator.clipboard.writeText(new URL(lesson.classInvitePath, location.origin).href);
-      window.AppShell.showToast('Ссылка класса скопирована. Она всегда открывает ближайшее занятие.');
+      await navigator.clipboard.writeText(new URL(lesson.classInvitePath, origin).href);
+      window.AppShell.showToast(message);
     } catch { window.AppShell.showToast('Не удалось скопировать ссылку.'); }
   }
   async function updateLesson(id, changes) {
@@ -216,6 +218,7 @@
     if (slot) planLesson(slot.dataset.time);
   });
   byId('schedule-copy').addEventListener('click', () => copyClassLink(selected()));
+  byId('schedule-copy-mirror').addEventListener('click', () => copyClassLink(selected(), MIRROR_ORIGIN, 'Резервная ссылка скопирована. Отправьте её, если основная не открывается.'));
   byId('schedule-plan-more').addEventListener('click', () => planLesson('', selected().class_id));
   byId('schedule-reschedule').addEventListener('click', () => {
     const lesson = selected();
