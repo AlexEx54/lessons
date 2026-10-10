@@ -29,7 +29,7 @@ test('home renders authenticated teacher profile data', async () => {
     user: { displayName: 'Анна & Ко', email: 'anna@example.com', role: 'teacher' },
   });
 
-  assert.match(html, /data-auth-state="authenticated"/);
+  assert.match(html, /data-auth-state="authenticated" data-user-role="teacher"/);
   assert.equal((html.match(/class="brand(?: brand--mobile)?" href="\/app"/g) || []).length, 2);
   assert.match(html, /Анна &amp; Ко/);
   assert.match(html, /anna@example\.com/);
@@ -42,6 +42,7 @@ test('admin sees lesson creation and drafts links in both profile menus', async 
     user: { displayName: 'Администратор', email: 'admin@example.com', role: 'admin' },
   });
 
+  assert.match(html, /data-user-role="admin"/);
   assert.equal((html.match(/data-open-new-lesson-modal/g) || []).length, 2);
   assert.equal((html.match(/>Создать урок<\/button>/g) || []).length, 2);
   assert.equal((html.match(/>Создать урок<\/button>\s*<a href="\/lesson-drafts" role="menuitem">Черновики уроков<\/a>/g) || []).length, 2);

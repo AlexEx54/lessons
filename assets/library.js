@@ -39,13 +39,129 @@
     return `<span class="skill-tag">${icon}${escapeHtml(skill)}</span>`;
   }
 
+  const BADGE_LABELS = { new: 'NEW', popular: 'Популярное' };
+  const BADGE_OPTIONS = [['new', 'Новый'], ['popular', 'Популярный'], [null, 'Без отметки']];
+  const isAdmin = document.body.dataset.userRole === 'admin';
+  const lessonMenu = isAdmin ? createLessonMenu() : null;
+  let lessonMenuOwner = null;
+
+  function renderBadge(article, badge) {
+    article.querySelector('.cover-badge')?.remove();
+    if (!badge) return;
+    const label = document.createElement('span');
+    label.className = `cover-badge cover-badge--${badge}`;
+    label.textContent = BADGE_LABELS[badge];
+    article.querySelector('.lesson-cover').append(label);
+  }
+
+  async function sendLessonRequest(url, method, body, fallbackError) {
+    const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || fallbackError);
+  }
+
+  async function changeBadge(lesson, article, badge) {
+    const previous = lesson.badge;
+    lesson.badge = badge;
+    renderBadge(article, badge);
+    try {
+      await sendLessonRequest(`/api/library/${encodeURIComponent(lesson.id)}/badge`, 'PUT', { badge }, 'Не удалось изменить отметку урока.');
+    } catch (error) {
+      lesson.badge = previous;
+      renderBadge(article, previous);
+      showToast(error.message);
+    }
+  }
+
+  async function unpublishLesson(lesson, article) {
+    try {
+      await sendLessonRequest(`/api/library/${encodeURIComponent(lesson.id)}/publication`, 'DELETE', { expectedRevision: lesson.revision }, 'Не удалось скрыть урок.');
+      libraryLessons = libraryLessons.filter(item => item.id !== lesson.id);
+      filtered = filtered.filter(item => item.id !== lesson.id);
+      shown -= 1;
+      article.remove();
+      updateListState();
+      showToast('Урок снят с публикации.');
+    } catch (error) { showToast(error.message); }
+  }
+
+  // One admin menu for all cards: it lives in the top layer, so the card's overflow does not clip it.
+  function createLessonMenu() {
+    const menu = document.createElement('div');
+    menu.className = 'lesson-menu';
+    menu.popover = 'auto';
+    menu.setAttribute('role', 'menu');
+    const hide = () => menu.hidePopover();
+    menu.addEventListener('toggle', event => {
+      if (event.newState === 'open') document.addEventListener('scroll', hide, { capture: true });
+      else document.removeEventListener('scroll', hide, { capture: true });
+    });
+    document.body.append(menu);
+    return menu;
+  }
+
+  function placeLessonMenu() {
+    const box = lessonMenuOwner.getBoundingClientRect();
+    const gap = 8;
+    const below = box.bottom + 6;
+    lessonMenu.style.left = `${Math.max(gap, Math.min(box.left, innerWidth - lessonMenu.offsetWidth - gap))}px`;
+    lessonMenu.style.top = `${below + lessonMenu.offsetHeight <= innerHeight - gap ? below : Math.max(gap, box.top - lessonMenu.offsetHeight - 6)}px`;
+  }
+
+  function menuItem(label, role, onSelect) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.setAttribute('role', role);
+    item.textContent = label;
+    item.addEventListener('click', () => { lessonMenu.hidePopover(); onSelect(); });
+    return item;
+  }
+
+  function lessonMenuItems(lesson, article) {
+    const items = BADGE_OPTIONS.map(([badge, label]) => {
+      const item = menuItem(label, 'menuitemradio', () => { if (lesson.badge !== badge) changeBadge(lesson, article, badge); });
+      item.setAttribute('aria-checked', String(lesson.badge === badge));
+      return item;
+    });
+    if (lesson.can_unpublish) {
+      const separator = document.createElement('hr');
+      separator.setAttribute('role', 'separator');
+      const unpublish = menuItem('Снять с публикации', 'menuitem', () => unpublishLesson(lesson, article));
+      unpublish.classList.add('lesson-menu__danger');
+      items.push(separator, unpublish);
+    }
+    return items;
+  }
+
+  function addLessonMenuButton(lesson, article) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'lesson-menu-button';
+    button.setAttribute('aria-label', 'Действия с уроком');
+    button.setAttribute('aria-haspopup', 'menu');
+    button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+    button.popoverTargetElement = lessonMenu;
+    // As the menu's invoker the button does not light-dismiss it; a second click closes it natively.
+    button.addEventListener('click', event => {
+      const isOpen = lessonMenu.matches(':popover-open');
+      if (isOpen && lessonMenuOwner === button) return;
+      // Opening here instead of natively places the menu before the first paint and moves an open menu between cards.
+      event.preventDefault();
+      lessonMenuOwner = button;
+      lessonMenu.replaceChildren(...lessonMenuItems(lesson, article));
+      if (!isOpen) lessonMenu.showPopover();
+      placeLessonMenu();
+      lessonMenu.querySelector('[aria-checked="true"]').focus({ preventScroll: true });
+    });
+    article.querySelector('.lesson-cover').append(button);
+  }
+
   function lessonCard(source) {
     const lesson = Object.fromEntries(Object.entries(source).map(([key, value]) => [key, typeof value === 'string' ? escapeHtml(value) : value]));
     const article = document.createElement('article');
     article.className = 'lesson-card';
-    const badge = lesson.badge ? `<span class="cover-badge ${lesson.badge === 'Популярное' ? 'cover-badge--popular' : ''}">${lesson.badge}</span>` : '';
     article.innerHTML = `
-      <div class="lesson-cover"><img src="${lesson.cover}" alt="" loading="lazy" decoding="async" />${badge}</div>
+      <div class="lesson-cover"><img src="${lesson.cover}" alt="" loading="lazy" decoding="async" /></div>
       <div class="lesson-body">
         <h3>${lesson.title}</h3>
         <p class="lesson-facts">${lesson.age.replace('-', '–')} лет <span>•</span> ${lesson.level}</p>
@@ -54,6 +170,7 @@
         <p class="lesson-duration"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4.5l2.5 1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>${lesson.duration}</p>
         <div class="lesson-actions"><button type="button" data-action="preview">Предпросмотр</button><button type="button" data-action="select">Выбрать урок</button></div>
       </div>`;
+    renderBadge(article, source.badge);
     const buttons = article.querySelectorAll('.lesson-actions button');
     if (!source.is_available) {
       buttons.forEach(button => { button.disabled = true; button.title = 'Урок пока недоступен'; });
@@ -64,30 +181,7 @@
       }));
       buttons[1].textContent = 'Открыть урок';
     }
-    if (source.can_unpublish) {
-      const unpublish = document.createElement('button');
-      unpublish.type = 'button';
-      unpublish.className = 'library-unpublish';
-      unpublish.textContent = 'Снять с публикации';
-      unpublish.addEventListener('click', async () => {
-        unpublish.disabled = true;
-        try {
-          const response = await fetch(`/api/library/${encodeURIComponent(source.id)}/publication`, {
-            method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ expectedRevision: source.revision }),
-          });
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.error || 'Не удалось скрыть урок.');
-          libraryLessons = libraryLessons.filter(lesson => lesson.id !== source.id);
-          filtered = filtered.filter(lesson => lesson.id !== source.id);
-          shown -= 1;
-          article.remove();
-          updateListState();
-          showToast('Урок снят с публикации.');
-        } catch (error) { unpublish.disabled = false; showToast(error.message); }
-      });
-      article.querySelector('.lesson-body').append(unpublish);
-    }
+    if (isAdmin) addLessonMenuButton(source, article);
     return article;
   }
 

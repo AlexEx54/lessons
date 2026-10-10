@@ -16,7 +16,7 @@ const {
   sessionCookie,
 } = require('./lib/auth.js');
 const { getDatabase } = require('./lib/db.js');
-const { listLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, findLibraryAsset } = require('./lib/library-store.js');
+const { listLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, findLibraryAsset } = require('./lib/library-store.js');
 const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, findClassSessionAsset } = require('./lib/class-store.js');
 const { joinClass, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
 const { createClassLiveSignaling } = require('./lib/class-live-signaling.js');
@@ -1380,6 +1380,20 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, { ok: true });
     } catch (error) {
       json(res, error.statusCode || 400, { error: error.statusCode ? error.message : 'Не удалось снять урок с публикации.' });
+    }
+    return;
+  }
+
+  const libraryBadge = pathname.match(/^\/api\/library\/([a-z0-9-]+)\/badge$/i);
+  if (libraryBadge && req.method === 'PUT') {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    try {
+      const body = await readJsonBody(req);
+      setLibraryLessonBadge(libraryBadge[1], user.id, body?.badge ?? null, database);
+      json(res, 200, { ok: true });
+    } catch (error) {
+      json(res, error.statusCode || 400, { error: error.statusCode ? error.message : 'Не удалось изменить отметку урока.' });
     }
     return;
   }

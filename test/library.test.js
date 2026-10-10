@@ -11,7 +11,7 @@ const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
 const { createLessonDraft, completeLessonDraft, findLessonDraft, deleteLessonDraft } = require('../lib/lesson-draft-store.js');
 const { createLessonImageGeneration, setLessonImageGenerationStatus } = require('../lib/lesson-image-generation-store.js');
-const { listLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, findLibraryAsset } = require('../lib/library-store.js');
+const { listLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, findLibraryAsset } = require('../lib/library-store.js');
 
 function fixture(t, dbPath = ':memory:') {
   const db = openDatabase(dbPath);
@@ -34,6 +34,8 @@ test('migration preserves ten unavailable cards and does not reseed on subsequen
   const cards = listLibraryLessons(db);
   assert.equal(cards.length, 10);
   assert.equal(cards[0].id, 'superhero');
+  assert.deepEqual(cards.filter(card => card.badge).map(card => [card.id, card.badge]),
+    [['superhero', 'new'], ['music', 'popular'], ['careers', 'new'], ['global', 'new']]);
   assert.ok(cards.every(card => !card.is_available && card.is_published));
   assert.equal(findLibraryLesson('superhero', db), null);
   assert.ok(cards.every(card => !('content_json' in card)));
@@ -76,6 +78,25 @@ test('publication copies content and files, updates one record, hides and republ
   assert.equal(listLibraryLessons(db, admin.id).find(item => item.id === published.id).can_unpublish, true);
   unpublishLibraryLesson(published.id, admin.id, 4, db);
   assert.equal(findLibraryLesson(published.id, db), null);
+});
+
+test('any admin marks any published lesson; the mark survives republication', t => {
+  const { db, dir, admin, other, teacher, draft, input } = fixture(t);
+  const published = publishLesson(draft.id, admin.id, input, db, dir);
+  const badgeOf = id => listLibraryLessons(db).find(item => item.id === id).badge;
+  setLibraryLessonBadge(published.id, other.id, 'popular', db);
+  assert.equal(badgeOf(published.id), 'popular');
+  publishLesson(draft.id, admin.id, { ...input, expectedRevision: 1, coverUpload: undefined, cover: published.cover }, db, dir);
+  assert.equal(badgeOf(published.id), 'popular');
+  setLibraryLessonBadge('animals', admin.id, 'new', db);
+  assert.equal(badgeOf('animals'), 'new');
+  setLibraryLessonBadge('animals', admin.id, null, db);
+  assert.equal(badgeOf('animals'), null);
+  assert.throws(() => setLibraryLessonBadge('animals', teacher.id, 'new', db), { statusCode: 403 });
+  assert.throws(() => setLibraryLessonBadge('animals', admin.id, 'NEW', db), { statusCode: 400 });
+  assert.throws(() => setLibraryLessonBadge('missing', admin.id, 'new', db), { statusCode: 404 });
+  unpublishLesson(draft.id, admin.id, 2, db);
+  assert.throws(() => setLibraryLessonBadge(published.id, admin.id, 'new', db), { statusCode: 404 });
 });
 
 test('publication rejects unauthorized users, stale content, missing files and invalid metadata atomically', t => {
@@ -145,6 +166,11 @@ test('library HTTP routes protect publication, placeholders, hidden lessons and 
   assert.equal((await request(assetUrl, teacherCookie)).status, 404);
   assert.equal((await request(route, adminCookie, 'POST', { ...input, expectedRevision: 2 })).status, 200);
   deleteLessonDraft(draft.id, admin.id, db);
+  const badgeRoute = `/api/library/${publication.id}/badge`;
+  assert.equal((await request(badgeRoute, teacherCookie, 'PUT', { badge: 'new' })).status, 403);
+  assert.equal((await request(badgeRoute, otherCookie, 'PUT', { badge: 'unknown' })).status, 400);
+  assert.equal((await request(badgeRoute, otherCookie, 'PUT', { badge: 'new' })).status, 200);
+  assert.equal((await (await request('/api/library')).json()).lessons.find(item => item.id === publication.id).badge, 'new');
   const independentRoute = `/api/library/${publication.id}/publication`;
   assert.equal((await request(independentRoute, teacherCookie, 'DELETE', { expectedRevision: 3 })).status, 403);
   assert.equal((await request(independentRoute, otherCookie, 'DELETE', { expectedRevision: 3 })).status, 404);

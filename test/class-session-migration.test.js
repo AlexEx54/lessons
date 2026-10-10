@@ -29,11 +29,12 @@ test('one-off classes are dropped for permanent classes while the library and dr
   db.prepare("INSERT INTO class_guest_sessions VALUES ('hash', 'old', ?)").run(Date.now() + 60000);
   db.prepare("INSERT INTO class_live_state VALUES ('old', '{}')").run();
   db.prepare("INSERT INTO class_notes VALUES ('old', ?, 1, '2026-09-01')").run(Buffer.from('notes'));
-  const library = () => [db.prepare('SELECT * FROM library_lessons ORDER BY id').all(), db.prepare('SELECT * FROM library_assets ORDER BY lesson_id, file_name').all()];
+  // Migration 017 converts badges to codes; that is covered by the library tests.
+  const library = () => [db.prepare('SELECT * FROM library_lessons ORDER BY id').all().map(({ badge, ...lesson }) => lesson), db.prepare('SELECT * FROM library_assets ORDER BY lesson_id, file_name').all()];
   const libraryBefore = library();
   applyMigrations(db);
   applyMigrations(db);
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get().n, 16);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get().n, 17);
   for (const table of ['classes', 'class_sessions', 'class_assets', 'class_guest_sessions', 'class_live_state', 'class_notes']) {
     assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n, 0, table);
   }

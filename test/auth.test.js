@@ -22,7 +22,7 @@ test('auth migrations are repeatable and create the expected tables', () => {
       'schema_migrations', 'sessions', 'sqlite_sequence', 'users', 'video_call_attachments', 'video_call_messages', 'video_calls',
     ],
   );
-  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 16);
+  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 17);
   assert.ok(database.prepare(
     "SELECT 1 FROM pragma_table_info('lesson_drafts') WHERE name = 'grammar_topic'",
   ).get());
