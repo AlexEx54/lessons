@@ -1,0 +1,6 @@
+[Unit]
+Description=Back up the EasyClass mail server
+
+[Service]
+Type=oneshot
+ExecStart=/opt/teach_platform/scripts/backup-mail.sh

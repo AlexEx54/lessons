@@ -1,0 +1,7 @@
+[Unit]
+Description=Sync the EasyClass mail certificate from Caddy
+After=caddy.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/teach_platform/scripts/sync-mail-certificate.sh
