@@ -15,6 +15,7 @@ const {
   getAuthenticatedUser,
   getSessionToken,
   getYandexState,
+  safeNextPath,
   sessionCookie,
   yandexStateCookie,
 } = require('./lib/auth.js');
@@ -536,10 +537,6 @@ function loginRedirect(pathname) {
   return `/login?next=${encodeURIComponent(pathname)}`;
 }
 
-function safeNextPath(next) {
-  return typeof next === 'string' && /^\/(?![/\\])/.test(next) ? next : '/app';
-}
-
 function getLessonIdFromPath(pathname, prefix, suffix = '') {
   if (!pathname.startsWith(prefix)) return '';
   if (suffix && !pathname.endsWith(suffix)) return '';
@@ -1056,7 +1053,7 @@ function sendDraftAsset(res, absolute, data, rangeHeader) {
   res.end(data.subarray(range.start, range.end + 1));
 }
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = requestUrl.pathname;
   if (await videoCallChat.handle(req, res, requestUrl)) return;
@@ -2467,6 +2464,14 @@ const server = http.createServer(async (req, res) => {
   }
 
   json(res, 405, { error: 'Method not allowed' });
+}
+
+const server = http.createServer((req, res) => {
+  handleRequest(req, res).catch(error => {
+    console.error('Unhandled request error:', req.method, req.url, error);
+    if (!res.headersSent) json(res, 500, { error: 'Внутренняя ошибка сервера.' });
+    else res.destroy();
+  });
 });
 
 videoCallSignaling = createVideoCallSignaling({ server, database, attachUpgrade: false });

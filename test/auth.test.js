@@ -6,6 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
+const { safeNextPath } = require('../lib/auth.js');
 const { openDatabase } = require('../lib/db.js');
 const { hashPassword, verifyPassword } = require('../lib/password.js');
 const { createSession, findUserBySessionToken } = require('../lib/session-store.js');
@@ -158,4 +159,16 @@ test('yandex users are created once, linked by email and never accept an empty p
   assert.equal(findOrCreateYandexUser({ id: '303', email: 'teacher@example.com', displayName: 'Другая' }, database), null);
   assert.equal(database.prepare('SELECT COUNT(*) AS count FROM users').get().count, 2);
   database.close();
+});
+
+test('next path stays local and is safe for the Location header', () => {
+  assert.equal(safeNextPath('/library/new?tab=1#top'), '/library/new?tab=1#top');
+  assert.equal(safeNextPath('/app?q=тест'), '/app?q=%D1%82%D0%B5%D1%81%D1%82');
+  assert.equal(safeNextPath('/library/%D1%83%D1%80%D0%BE%D0%BA'), '/library/%D1%83%D1%80%D0%BE%D0%BA');
+  for (const unsafe of [
+    null, '', 'app', 'https://evil.com', '//evil.com', '/\\evil.com', '//a b', '/\\%zz',
+    '/app\r\nSet-Cookie: x=1', '/app\u0001', '/app\u007f',
+  ]) {
+    assert.equal(safeNextPath(unsafe), '/app', JSON.stringify(unsafe));
+  }
 });
