@@ -26,17 +26,7 @@ async function waitForServer(url, child) {
   throw new Error('Server did not become ready.');
 }
 
-test('login protects teacher pages and exposes the current profile', async t => {
-  const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'teach-platform-auth-'));
-  const databasePath = path.join(temporaryDirectory, 'app.sqlite');
-  const database = openDatabase(databasePath);
-  createUser({
-    email: 'teacher@example.com',
-    displayName: 'Тестовый преподаватель',
-    passwordHash: await hashPassword('correct-password'),
-  }, database);
-  database.close();
-
+async function startServer(t, databasePath, env = {}) {
   const port = 21000 + Math.floor(Math.random() * 10000);
   const baseUrl = `http://127.0.0.1:${port}`;
   const child = childProcess.spawn(process.execPath, ['server.js'], {
@@ -47,15 +37,30 @@ test('login protects teacher pages and exposes the current profile', async t => 
       HOST: '127.0.0.1',
       PORT: String(port),
       NODE_ENV: 'test',
+      ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
   t.after(() => {
     child.kill('SIGTERM');
-    fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
   });
   await waitForServer(baseUrl, child);
+  return baseUrl;
+}
+
+test('login protects teacher pages and exposes the current profile', async t => {
+  const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'teach-platform-auth-'));
+  const databasePath = path.join(temporaryDirectory, 'app.sqlite');
+  const database = openDatabase(databasePath);
+  createUser({
+    email: 'teacher@example.com',
+    displayName: 'Тестовый преподаватель',
+    passwordHash: await hashPassword('correct-password'),
+  }, database);
+  database.close();
+  const baseUrl = await startServer(t, databasePath);
 
   const health = await fetch(`${baseUrl}/health`);
   assert.equal(health.status, 200);
@@ -181,4 +186,47 @@ test('login protects teacher pages and exposes the current profile', async t => 
   });
   assert.equal(logout.status, 204);
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
+});
+
+test('yandex login redirects with a state cookie and rejects forged callbacks', async t => {
+  const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'teach-platform-yandex-'));
+  const baseUrl = await startServer(t, path.join(temporaryDirectory, 'app.sqlite'), {
+    YANDEX_CLIENT_ID: 'client-id',
+    YANDEX_CLIENT_SECRET: 'client-secret',
+    YANDEX_REDIRECT_URI: 'https://easyclass.test/api/auth/yandex/callback',
+  });
+
+  const start = await fetch(`${baseUrl}/api/auth/yandex?next=%2Fschedule`, { redirect: 'manual' });
+  assert.equal(start.status, 302);
+  const authorizeUrl = new URL(start.headers.get('location'));
+  assert.equal(authorizeUrl.origin, 'https://oauth.yandex.ru');
+  const state = authorizeUrl.searchParams.get('state');
+  assert.match(state, /^[\w-]{32}$/);
+  const stateCookie = start.headers.get('set-cookie');
+  assert.match(stateCookie, /HttpOnly/);
+  assert.match(stateCookie, /Path=\/api\/auth\/yandex/);
+  assert.equal(decodeURIComponent(stateCookie.split(';')[0]), `yandex_oauth_state=${state} /schedule`);
+  const cookie = stateCookie.split(';')[0];
+
+  const unsafeNext = await fetch(`${baseUrl}/api/auth/yandex?next=%2F%2Fevil.example`, { redirect: 'manual' });
+  assert.match(decodeURIComponent(unsafeNext.headers.get('set-cookie')), /^yandex_oauth_state=[\w-]+ \/app;/);
+
+  const forged = await fetch(`${baseUrl}/api/auth/yandex/callback?code=x&state=forged`, {
+    headers: { Cookie: cookie },
+    redirect: 'manual',
+  });
+  assert.equal(forged.headers.get('location'), '/login?error=yandex_failed');
+  assert.match(forged.headers.get('set-cookie'), /Max-Age=0/);
+
+  const withoutCookie = await fetch(`${baseUrl}/api/auth/yandex/callback?code=x&state=${state}`, { redirect: 'manual' });
+  assert.equal(withoutCookie.headers.get('location'), '/login?error=yandex_failed');
+
+  const denied = await fetch(`${baseUrl}/api/auth/yandex/callback?error=access_denied&state=${state}`, {
+    headers: { Cookie: cookie },
+    redirect: 'manual',
+  });
+  assert.equal(denied.headers.get('location'), '/login?error=yandex_denied');
+
+  const loginPage = await fetch(`${baseUrl}/login`);
+  assert.match(await loginPage.text(), /href="\/api\/auth\/yandex"/);
 });

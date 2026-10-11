@@ -6,11 +6,24 @@
   const passwordInput = document.getElementById('password');
   const submitButton = document.getElementById('login-button');
   const errorBox = document.getElementById('login-error');
+  const yandexLink = document.getElementById('yandex-login');
+  const params = new URLSearchParams(window.location.search);
+
+  const YANDEX_ERRORS = {
+    yandex_denied: 'Вход через Яндекс отменён.',
+    yandex_failed: 'Не удалось войти через Яндекс. Попробуйте ещё раз.',
+    yandex_no_email: 'В аккаунте Яндекса не указан email. Добавьте его в Яндекс ID или войдите по почте.',
+    yandex_conflict: 'Этот email уже привязан к другому аккаунту Яндекса.',
+    account_blocked: 'Аккаунт заблокирован.',
+  };
 
   function safeNextPath() {
-    const next = new URLSearchParams(window.location.search).get('next') || '/app';
+    const next = params.get('next') || '/app';
     return next.startsWith('/') && !next.startsWith('//') ? next : '/app';
   }
+
+  errorBox.textContent = YANDEX_ERRORS[params.get('error')] || '';
+  yandexLink.href = `/api/auth/yandex?next=${encodeURIComponent(safeNextPath())}`;
 
   form.addEventListener('submit', async event => {
     event.preventDefault();

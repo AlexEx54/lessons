@@ -9,7 +9,7 @@ const { DatabaseSync } = require('node:sqlite');
 const { openDatabase } = require('../lib/db.js');
 const { hashPassword, verifyPassword } = require('../lib/password.js');
 const { createSession, findUserBySessionToken } = require('../lib/session-store.js');
-const { createUser, findUserByEmail } = require('../lib/user-store.js');
+const { createUser, findOrCreateYandexUser, findUserByEmail } = require('../lib/user-store.js');
 
 test('auth migrations are repeatable and create the expected tables', () => {
   const database = openDatabase(':memory:');
@@ -22,7 +22,7 @@ test('auth migrations are repeatable and create the expected tables', () => {
       'schema_migrations', 'sessions', 'sqlite_sequence', 'users', 'video_call_attachments', 'video_call_messages', 'video_calls',
     ],
   );
-  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 17);
+  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 18);
   assert.ok(database.prepare(
     "SELECT 1 FROM pragma_table_info('lesson_drafts') WHERE name = 'grammar_topic'",
   ).get());
@@ -127,5 +127,35 @@ test('users can be created as admins and invalid roles are rejected', async () =
     passwordHash: 'unused',
     role: 'owner',
   }, database), /Ожидается teacher или admin/);
+  database.close();
+});
+
+test('yandex users are created once, linked by email and never accept an empty password', async () => {
+  const database = openDatabase(':memory:');
+
+  const created = findOrCreateYandexUser({ id: '101', email: 'new@yandex.ru', displayName: 'Анна' }, database);
+  assert.equal(created.email, 'new@yandex.ru');
+  assert.equal(created.display_name, 'Анна');
+  assert.equal(created.role, 'teacher');
+  assert.equal(created.yandex_id, '101');
+  assert.equal(await verifyPassword('', created.password_hash), false);
+
+  const again = findOrCreateYandexUser({ id: '101', email: 'renamed@yandex.ru', displayName: 'Аня' }, database);
+  assert.equal(again.id, created.id);
+  assert.equal(again.email, 'new@yandex.ru');
+
+  const passwordUser = createUser({
+    email: 'teacher@example.com',
+    displayName: 'Мария',
+    passwordHash: await hashPassword('long-password-123'),
+  }, database);
+  const linked = findOrCreateYandexUser({ id: '202', email: 'teacher@example.com', displayName: 'Maria' }, database);
+  assert.equal(linked.id, passwordUser.id);
+  assert.equal(linked.display_name, 'Мария');
+  assert.equal(linked.yandex_id, '202');
+  assert.equal(await verifyPassword('long-password-123', linked.password_hash), true);
+
+  assert.equal(findOrCreateYandexUser({ id: '303', email: 'teacher@example.com', displayName: 'Другая' }, database), null);
+  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM users').get().count, 2);
   database.close();
 });

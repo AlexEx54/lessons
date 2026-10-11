@@ -1,0 +1,54 @@
+/* "Войти с Яндекс ID" block shared by the landing auth modal and /login. */
+.yandex-auth { display: grid; gap: 14px; margin: 0 0 22px; }
+
+.yandex-auth__divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  color: #85808f;
+  font-size: 14px;
+}
+
+.yandex-auth__divider::before,
+.yandex-auth__divider::after { content: ""; flex: 1; height: 1px; background: #e4e0ec; }
+
+.yandex-auth__button {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 12px;
+  color: #fff;
+  background: #000;
+  font-size: 17px;
+  font-weight: 550;
+  text-decoration: none;
+  transition: background 160ms ease;
+}
+
+.yandex-auth__button:hover { background: #282828; }
+.yandex-auth__button:focus-visible { outline: 3px solid rgba(89, 55, 239, 0.24); outline-offset: 2px; }
+.yandex-auth__button svg { width: 26px; height: 26px; flex: 0 0 26px; }
+
+.yandex-auth__note {
+  margin: 0;
+  color: #625d6c;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.yandex-auth__note button {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  color: #4a20ef;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.yandex-auth__note button:hover { text-decoration: underline; }

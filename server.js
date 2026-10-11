@@ -11,9 +11,12 @@ loadDotEnv(path.join(__dirname, '.env'));
 const { renderAppPage } = require('./lib/app-shell.js');
 const {
   clearSessionCookie,
+  clearYandexStateCookie,
   getAuthenticatedUser,
   getSessionToken,
+  getYandexState,
   sessionCookie,
+  yandexStateCookie,
 } = require('./lib/auth.js');
 const { getDatabase } = require('./lib/db.js');
 const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, findLibraryAsset } = require('./lib/library-store.js');
@@ -22,7 +25,8 @@ const { joinClass, authorizeSession, sessionPayload, guestCanReadAsset } = requi
 const { createClassLiveSignaling } = require('./lib/class-live-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
-const { createUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
+const { createUser, findOrCreateYandexUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
+const { fetchYandexProfile, yandexAuthorizeUrl, yandexConfig } = require('./lib/yandex-auth.js');
 const { INVITE_TOKEN_PATTERN } = require('./lib/invite-token.js');
 const {
   createVideoCall,
@@ -523,13 +527,17 @@ function requireAdminAuth(req, res) {
   return user;
 }
 
-function redirect(res, location) {
-  res.writeHead(302, { Location: location, 'Cache-Control': 'no-store' });
+function redirect(res, location, extraHeaders = {}) {
+  res.writeHead(302, { Location: location, 'Cache-Control': 'no-store', ...extraHeaders });
   res.end();
 }
 
 function loginRedirect(pathname) {
   return `/login?next=${encodeURIComponent(pathname)}`;
+}
+
+function safeNextPath(next) {
+  return typeof next === 'string' && /^\/(?![/\\])/.test(next) ? next : '/app';
 }
 
 function getLessonIdFromPath(pathname, prefix, suffix = '') {
@@ -1168,6 +1176,53 @@ const server = http.createServer(async (req, res) => {
     const session = createSession(user.id, database);
     json(res, 201, { user }, {
       'Set-Cookie': sessionCookie(session.token, session.expiresAt),
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/auth/yandex') {
+    const config = yandexConfig();
+    if (!config) {
+      console.error('Yandex login is not configured: set YANDEX_CLIENT_ID, YANDEX_CLIENT_SECRET, YANDEX_REDIRECT_URI.');
+      redirect(res, '/login?error=yandex_failed');
+      return;
+    }
+    const state = crypto.randomBytes(24).toString('base64url');
+    const next = safeNextPath(requestUrl.searchParams.get('next'));
+    redirect(res, yandexAuthorizeUrl(config, state), {
+      'Set-Cookie': yandexStateCookie(state, next),
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/auth/yandex/callback') {
+    const { state: expectedState, next } = getYandexState(req);
+    const fail = reason => redirect(res, `/login?error=${reason}`, { 'Set-Cookie': clearYandexStateCookie() });
+    const code = requestUrl.searchParams.get('code');
+    if (!expectedState || requestUrl.searchParams.get('state') !== expectedState) return fail('yandex_failed');
+    if (!code) return fail(requestUrl.searchParams.get('error') === 'access_denied' ? 'yandex_denied' : 'yandex_failed');
+
+    let profile;
+    try {
+      profile = await fetchYandexProfile(yandexConfig(), code);
+    } catch (error) {
+      console.error('Cannot sign in with Yandex:', error);
+      return fail('yandex_failed');
+    }
+    const email = normalizeEmail(profile.email);
+    if (!EMAIL_PATTERN.test(email) || email.length > MAX_EMAIL_LENGTH) return fail('yandex_no_email');
+
+    const storedUser = findOrCreateYandexUser({
+      id: profile.id,
+      email,
+      displayName: profile.displayName.slice(0, MAX_DISPLAY_NAME_LENGTH) || email.split('@')[0],
+    }, database);
+    if (!storedUser) return fail('yandex_conflict');
+    if (storedUser.status !== 'active') return fail('account_blocked');
+
+    const session = createSession(storedUser.id, database);
+    redirect(res, safeNextPath(next), {
+      'Set-Cookie': [sessionCookie(session.token, session.expiresAt), clearYandexStateCookie()],
     });
     return;
   }

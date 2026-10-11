@@ -55,6 +55,8 @@ Set these environment variables in the production `.env` on the VPS:
 - `WEBRTC_TURN_URLS`: comma-separated coturn URLs, normally UDP and TCP variants.
 - `WEBRTC_TURN_SHARED_SECRET`: the coturn `static-auth-secret` used to create temporary credentials.
 - `WEBRTC_TURN_CREDENTIAL_TTL_SECONDS`: temporary TURN credential lifetime; defaults to one hour.
+- `YANDEX_CLIENT_ID` and `YANDEX_CLIENT_SECRET`: Yandex ID app credentials from oauth.yandex.ru (scopes `login:email`, `login:info`).
+- `YANDEX_REDIRECT_URI`: must exactly match a Redirect URI of that app; production is `https://www.easyclass-edu.ru/api/auth/yandex/callback`. Without these three variables the «Войти с Яндекс ID» button returns to `/login` with an error.
 
 ## Video calls
 
