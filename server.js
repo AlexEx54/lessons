@@ -1274,17 +1274,13 @@ async function handleRequest(req, res) {
       redirect(res, loginRedirect('/video-calls'));
       return;
     }
-    if (user.role !== 'admin') {
-      json(res, 403, { error: 'Раздел доступен только администратору.' });
-      return;
-    }
     await serveAppPage('videoCalls', res, { user });
     return;
   }
 
   const teacherVideoCallPage = pathname.match(/^\/video-calls\/([^/]+)$/);
   if (req.method === 'GET' && teacherVideoCallPage) {
-    const user = requireAdminAuth(req, res);
+    const user = requireTeacherAuth(req, res);
     if (!user) return;
     let callId = '';
     try { callId = decodeURIComponent(teacherVideoCallPage[1]); } catch (_error) { /* handled below */ }
@@ -1526,7 +1522,7 @@ async function handleRequest(req, res) {
   }
 
   if (req.method === 'POST' && pathname === '/api/video-calls') {
-    const user = requireAdminAuth(req, res);
+    const user = requireTeacherAuth(req, res);
     if (!user) return;
     try {
       const call = createVideoCall({ ownerAdminId: user.id, name: (await readJsonBody(req))?.name }, database);
@@ -1539,7 +1535,7 @@ async function handleRequest(req, res) {
   }
 
   if (req.method === 'GET' && pathname === '/api/video-calls') {
-    const user = requireAdminAuth(req, res);
+    const user = requireTeacherAuth(req, res);
     if (!user) return;
     json(res, 200, {
       calls: listVideoCalls(user.id, database).map(call => ({ ...call, presence: videoCallSignaling.presence(call.id) })),
@@ -1550,7 +1546,7 @@ async function handleRequest(req, res) {
   // Ending a call disconnects both participants; the room and its link stay.
   const videoCallEndRoute = pathname.match(/^\/api\/video-calls\/([^/]+)\/end$/);
   if (req.method === 'POST' && videoCallEndRoute) {
-    const user = requireAdminAuth(req, res);
+    const user = requireTeacherAuth(req, res);
     if (!user) return;
     let callId = '';
     try { callId = decodeURIComponent(videoCallEndRoute[1]); } catch (_error) { /* handled below */ }
@@ -1578,7 +1574,7 @@ async function handleRequest(req, res) {
 
   const ownedVideoCallApi = pathname.match(/^\/api\/video-calls\/([^/]+)$/);
   if (['GET', 'DELETE'].includes(req.method) && ownedVideoCallApi) {
-    const user = requireAdminAuth(req, res);
+    const user = requireTeacherAuth(req, res);
     if (!user) return;
     let callId = '';
     try { callId = decodeURIComponent(ownedVideoCallApi[1]); } catch (_error) { /* handled below */ }

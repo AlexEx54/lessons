@@ -132,10 +132,10 @@ test('a permanent room lets the student wait for the teacher, survives ending a 
   const databasePath = path.join(temporaryDirectory, 'app.sqlite');
   const database = openDatabase(databasePath);
   createUser({
-    email: 'admin@example.com',
-    displayName: 'Администратор',
+    email: 'teacher@example.com',
+    displayName: 'Преподаватель',
     passwordHash: await hashPassword('correct-password'),
-    role: 'admin',
+    role: 'teacher',
   }, database);
   database.close();
 
@@ -177,7 +177,7 @@ test('a permanent room lets the student wait for the teacher, survives ending a 
   const login = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'admin@example.com', password: 'correct-password' }),
+    body: JSON.stringify({ email: 'teacher@example.com', password: 'correct-password' }),
   });
   assert.equal(login.status, 200);
   const cookie = login.headers.get('set-cookie').split(';')[0];

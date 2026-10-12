@@ -15,8 +15,8 @@ const { createVideoCallChat, MAX_CALL } = require('../lib/video-call-chat.js');
 async function fixture(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'call-chat-'));
   let database = openDatabase(path.join(dir, 'app.sqlite'));
-  const admin = createUser({ email: 'chat@test.test', displayName: 'Преподаватель', passwordHash: 'unused', role: 'admin' }, database);
-  const other = createUser({ email: 'other@test.test', displayName: 'Другой', passwordHash: 'unused', role: 'admin' }, database);
+  const admin = createUser({ email: 'chat@test.test', displayName: 'Преподаватель', passwordHash: 'unused', role: 'teacher' }, database);
+  const other = createUser({ email: 'other@test.test', displayName: 'Другой', passwordHash: 'unused', role: 'teacher' }, database);
   const cookie = `teach_session=${createSession(admin.id, database).token}`;
   const otherCookie = `teach_session=${createSession(other.id, database).token}`;
   const call = createVideoCall({ ownerAdminId: admin.id, name: 'Алина' }, database);

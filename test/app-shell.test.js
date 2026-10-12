@@ -8,7 +8,7 @@ const { renderAppPage } = require('../lib/app-shell.js');
 const ROOT = path.join(__dirname, '..');
 
 function activeNavigationItems(html) {
-  return [...html.matchAll(/<a class="nav-item nav-item--active" href="([^"]+)" aria-current="page">/g)]
+  return [...html.matchAll(/<a class="nav-item nav-item--active" href="([^"]+)" aria-current="page"[^>]*>/g)]
     .map(match => match[1]);
 }
 
@@ -37,6 +37,22 @@ test('home renders authenticated teacher profile data', async () => {
   assert.doesNotMatch(html, /id="new-lesson-modal"/);
 });
 
+test('teacher reaches video calls from the sidebar and both profile menus and gets waiting-student alerts', async () => {
+  const html = await renderAppPage('home', {
+    user: { displayName: 'Анна', email: 'anna@example.com', role: 'teacher' },
+  });
+
+  assert.match(html, /<a class="nav-item" href="\/video-calls" data-video-calls-link>/);
+  assert.equal((html.match(/href="\/video-calls" role="menuitem" data-video-calls-link>Видеозвонки<\/a>/g) || []).length, 2);
+  assert.doesNotMatch(html, /href="\/lesson-drafts"/);
+  assert.match(html, /src="\/assets\/video-call-presence\.js"/);
+});
+
+test('support card opens the Telegram support group', async () => {
+  const html = await renderAppPage('library');
+  assert.match(html, /<a class="support-card" href="https:\/\/t\.me\/\+albE0gXCUfY1YmJi" target="_blank" rel="noopener">/);
+});
+
 test('admin sees lesson creation and drafts links in both profile menus', async () => {
   const html = await renderAppPage('home', {
     user: { displayName: 'Администратор', email: 'admin@example.com', role: 'admin' },
@@ -47,7 +63,6 @@ test('admin sees lesson creation and drafts links in both profile menus', async 
   assert.equal((html.match(/>Создать урок<\/button>/g) || []).length, 2);
   assert.equal((html.match(/>Создать урок<\/button>\s*<a href="\/lesson-drafts" role="menuitem">Черновики уроков<\/a>/g) || []).length, 2);
   assert.equal((html.match(/href="\/lesson-drafts"/g) || []).length, 2);
-  assert.equal((html.match(/href="\/video-calls" role="menuitem">Видеозвонки<\/a>/g) || []).length, 2);
   assert.equal((html.match(/id="new-lesson-modal"/g) || []).length, 1);
   assert.match(html, /placeholder="Напр\. Luca Cartoon"/);
   assert.match(html, /name="warmUpTopic"/);
@@ -75,7 +90,7 @@ test('schedule loads its scripts in order and shares the class modal and slot pi
   });
   const scripts = [...html.matchAll(/<script src="([^"]+)" defer><\/script>/g)].map(match => match[1]);
 
-  assert.deepEqual(scripts.slice(-5), ['/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js', '/assets/schedule.js']);
+  assert.deepEqual(scripts.slice(-6), ['/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js', '/assets/video-call-presence.js', '/assets/schedule.js']);
   assert.match(html, /href="\/assets\/class-modal\.css"/);
   assert.match(html, /href="\/assets\/week-grid\.css"[\s\S]*href="\/assets\/schedule\.css"/);
   assert.equal((html.match(/id="class-modal"/g) || []).length, 1);
@@ -88,6 +103,8 @@ test('guest does not see create lesson', async () => {
   const html = await renderAppPage('library');
   assert.doesNotMatch(html, /data-open-new-lesson-modal/);
   assert.doesNotMatch(html, /id="new-lesson-modal"/);
+  assert.doesNotMatch(html, /role="menuitem" data-video-calls-link/);
+  assert.doesNotMatch(html, /video-call-presence\.js/);
 });
 
 test('library renders inside the shared shell with one active navigation item', async () => {
@@ -114,15 +131,16 @@ test('lesson drafts render inside the shared shell for an admin', async () => {
   assert.deepEqual(activeNavigationItems(html), []);
 });
 
-test('video calls render inside the shared shell for an admin', async () => {
+test('video calls render inside the shared shell for a teacher', async () => {
   const html = await renderAppPage('videoCalls', {
-    user: { displayName: 'Администратор', email: 'admin@example.com', role: 'admin' },
+    user: { displayName: 'Анна', email: 'anna@example.com', role: 'teacher' },
   });
 
   assert.match(html, /<title>Видеозвонки — EasyClass<\/title>/);
   assert.match(html, /href="\/assets\/video-calls\.css"/);
   assert.match(html, /src="\/assets\/video-calls\.js"/);
   assert.match(html, /id="create-video-call"/);
+  assert.deepEqual(activeNavigationItems(html), ['/video-calls']);
 });
 
 test('hidden video call states cannot be forced visible by their layout styles', () => {

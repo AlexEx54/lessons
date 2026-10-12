@@ -38,16 +38,20 @@
           <img class="nav-item__icon" src="/assets/images/nav/schedule.png" alt="" width="32" height="32" aria-hidden="true" />
           <span>Расписание</span>
         </a>
+        <a class="nav-item{{VIDEO_CALLS_ACTIVE_CLASS}}" href="/video-calls"{{VIDEO_CALLS_ARIA_CURRENT}} data-video-calls-link>
+          <img class="nav-item__icon" src="/assets/images/nav/video-calls.png" alt="" width="32" height="32" aria-hidden="true" />
+          <span>Видеозвонки</span>
+        </a>
         <button class="nav-item" type="button" data-coming-soon="Настройки">
           <img class="nav-item__icon" src="/assets/images/nav/settings.png" alt="" width="32" height="32" aria-hidden="true" />
           <span>Настройки</span>
         </button>
       </nav>
 
-      <button class="support-card" type="button" data-coming-soon="Поддержка">
+      <a class="support-card" href="{{SUPPORT_URL}}" target="_blank" rel="noopener">
         <span class="support-card__icon" aria-hidden="true">?</span>
         <span><strong>Нужна помощь?</strong><small>Напишите нам в поддержку</small></span>
-      </button>
+      </a>
     </aside>
 
     <main class="content {{CONTENT_CLASS}}">
@@ -69,7 +73,7 @@
               <small>{{USER_EMAIL}}</small>
             </div>
             <a class="profile-menu__login" href="/login" role="menuitem">Войти</a>
-{{MOBILE_ADMIN_MENU_ITEMS}}
+{{MOBILE_TEACHER_MENU_ITEMS}}
             <button class="profile-menu__logout" id="mobile-logout-button" type="button" role="menuitem">Выйти</button>
           </div>
         </div>
@@ -93,7 +97,7 @@
           </button>
           <div class="profile-menu" id="profile-menu" role="menu" hidden>
             <a class="profile-menu__login" href="/login" role="menuitem">Войти</a>
-{{DESKTOP_ADMIN_MENU_ITEMS}}
+{{DESKTOP_TEACHER_MENU_ITEMS}}
             <button class="profile-menu__logout" id="logout-button" type="button" role="menuitem">Выйти</button>
           </div>
           </div>
@@ -115,7 +119,7 @@
   <script src="/assets/week-grid.js" defer></script>
   <script src="/assets/slot-picker.js" defer></script>
   <script src="/assets/class-modal.js" defer></script>
-{{ADMIN_SCRIPTS}}
+{{TEACHER_SCRIPTS}}
 {{PAGE_SCRIPTS}}
 </body>
 </html>

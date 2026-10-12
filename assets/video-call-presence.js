@@ -3,7 +3,7 @@
 
   // Rooms are permanent, so a student may come in while the teacher is busy elsewhere in the cabinet.
   const POLL_MS = 15000;
-  const menuLinks = [...document.querySelectorAll('a[href="/video-calls"][role="menuitem"]')];
+  const menuLinks = [...document.querySelectorAll('[data-video-calls-link]')];
   const avatars = ['profile-button', 'mobile-profile-button'].map(id => document.getElementById(id)).filter(Boolean);
   let waitingIds = null;
 

@@ -1118,6 +1118,8 @@ body[data-auth-state="guest"] .profile-menu__logout {
   vertical-align: 1px;
 }
 
+.nav-item .menu-badge { margin-left: auto; }
+
 .profile-button.has-call-waiting,
 .mobile-avatar.has-call-waiting {
   position: relative;
