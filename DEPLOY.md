@@ -58,6 +58,19 @@ Set these environment variables in the production `.env` on the VPS:
 - `YANDEX_CLIENT_ID` and `YANDEX_CLIENT_SECRET`: Yandex ID app credentials from oauth.yandex.ru (scopes `login:email`, `login:info`).
 - `YANDEX_REDIRECT_URI`: must exactly match a Redirect URI of that app; production is `https://www.easyclass-edu.ru/api/auth/yandex/callback`. Without these three variables the «Войти с Яндекс ID» button returns to `/login` with an error.
 
+## Caddy
+
+[`deploy/caddy/Caddyfile`](deploy/caddy/Caddyfile) is the source of truth for
+`/etc/caddy/Caddyfile`; `npm run deploy` does not install it. The canonical host is
+`www.easyclass-edu.ru`: the session cookie is host-only, so the bare domain only
+redirects there. Before applying a change, make sure no lesson or call is live,
+because a reload drops open WebSockets:
+
+```bash
+scp deploy/caddy/Caddyfile root@179.254.163.97:/etc/caddy/Caddyfile
+ssh root@179.254.163.97 'caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile && systemctl reload caddy'
+```
+
 ## Video calls
 
 The application handles WebRTC signaling at `/ws/video-calls/:id` and live lesson
@@ -158,14 +171,9 @@ in its admin UI.
 
 1. DNS at Beget: `A mail.easyclass-edu.ru → 179.254.163.97`. In the u1host panel set
    the PTR of `179.254.163.97` to `mail.easyclass-edu.ru`.
-2. Add a site to `/etc/caddy/Caddyfile` so Caddy issues the certificate, then
-   `systemctl reload caddy`:
-
-   ```
-   mail.easyclass-edu.ru {
-   	respond 404
-   }
-   ```
+2. Make sure the `mail.easyclass-edu.ru` site from
+   [`deploy/caddy/Caddyfile`](deploy/caddy/Caddyfile) is applied, so Caddy issues
+   the certificate (see [Caddy](#caddy)).
 
 3. Deploy the repository, then on the server run
    `/opt/teach_platform/scripts/install-stalwart.sh` and

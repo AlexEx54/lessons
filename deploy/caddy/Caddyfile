@@ -1,0 +1,23 @@
+www.easyclass-edu.ru {
+	# Access log for understanding how teachers use the cabinet; static assets are skipped as noise.
+	log {
+		output file /var/log/caddy/easyclass-access.log {
+			roll_size 50MiB
+			roll_keep 10
+			roll_keep_for 720h
+		}
+	}
+	@assets path /assets/*
+	skip_log @assets
+	reverse_proxy 127.0.0.1:8787
+}
+
+# One canonical host: the session cookie is host-only, and the Yandex OAuth callback and the grekko mirror use www.
+easyclass-edu.ru {
+	redir https://www.easyclass-edu.ru{uri} 308
+}
+
+# Certificate only: Stalwart reads it via teach-platform-mail-cert-sync.
+mail.easyclass-edu.ru {
+	respond 404
+}
