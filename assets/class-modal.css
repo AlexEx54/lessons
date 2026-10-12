@@ -335,10 +335,10 @@ body.modal-open {
 }
 
 .class-link-preview strong {
-  overflow: hidden;
+  min-width: 0;
   color: var(--purple);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-all;
+  user-select: all;
 }
 
 .class-link-preview small {
@@ -652,16 +652,17 @@ body.modal-open {
   box-shadow: 0 15px 35px rgba(75, 46, 173, 0.13);
 }
 
+/* The token is the link: it is shown in full and selected as a whole, so a hand-copied link still works. */
 .class-completion__invite strong {
   display: block;
   max-width: 100%;
-  overflow: hidden;
   color: var(--purple);
-  font-size: 28px;
-  line-height: 1.25;
-  letter-spacing: -0.03em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 20px;
+  line-height: 1.35;
+  text-align: center;
+  word-break: break-all;
+  text-wrap: balance;
+  user-select: all;
 }
 
 .class-completion__copy {
@@ -932,7 +933,7 @@ body.modal-open {
   }
 
   .class-completion__invite strong {
-    font-size: clamp(18px, 5.5vw, 24px);
+    font-size: 16px;
   }
 
   .class-completion__copy {

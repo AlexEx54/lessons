@@ -13,6 +13,7 @@
   };
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   let authReturnFocus = null;
+  let authNextPath = '/app';
   let toastTimer = null;
 
   const showcasePages = [
@@ -55,7 +56,7 @@
     showcaseTrack.innerHTML = showcasePages.map((page, pageIndex) => `
       <div class="lesson-showcase__page" role="group" aria-roledescription="страница" aria-label="${pageIndex + 1} из ${showcasePages.length}">
         ${page.map(lesson => `
-          <a class="showcase-card" href="/library.html" aria-label="Открыть урок ${lesson.title}">
+          <a class="showcase-card" href="/library.html" data-auth-open="register" aria-label="Открыть урок ${lesson.title}">
             <div class="showcase-card__cover">
               <img src="${lesson.image}" alt="" width="720" height="405" loading="lazy" decoding="async" />
               <span class="showcase-card__level">${lesson.level}</span>
@@ -127,8 +128,17 @@
     });
   }
 
-  function openAuth(name) {
+  function safeNextPath(path) {
+    return path && path.startsWith('/') && !path.startsWith('//') ? path : '/app';
+  }
+
+  // Signing in from the window returns the teacher to the page they were heading to.
+  function openAuth(name, nextPath) {
     if (!authModal) return;
+    authNextPath = safeNextPath(nextPath);
+    authModal.querySelectorAll('.yandex-auth__button').forEach(link => {
+      link.href = `/api/auth/yandex?next=${encodeURIComponent(authNextPath)}`;
+    });
     authReturnFocus = document.activeElement;
     setAuthTab(name);
     authModal.hidden = false;
@@ -240,7 +250,7 @@
         throw error;
       }
       completed = true;
-      window.location.assign('/app');
+      window.location.assign(authNextPath);
     } catch (error) {
       showAuthError(form, error.message || 'Не удалось выполнить запрос.', error.input);
     } finally {
@@ -265,11 +275,13 @@
     link.addEventListener('click', () => setMenu(false));
   });
 
-  document.querySelectorAll('[data-auth-open]').forEach(button => {
-    button.addEventListener('click', () => {
-      setMenu(false);
-      openAuth(button.dataset.authOpen);
-    });
+  // Delegated, because showcase cards are rendered later. A link keeps its href as the destination after sign-in.
+  document.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-auth-open]');
+    if (!trigger) return;
+    event.preventDefault();
+    setMenu(false);
+    openAuth(trigger.dataset.authOpen, trigger instanceof HTMLAnchorElement ? trigger.pathname : undefined);
   });
 
   authTabs.forEach((tab, index) => {
@@ -335,6 +347,13 @@
   });
 
   renderShowcase();
+
+  // The server sends guests here from closed pages such as the library.
+  const requestedAuth = new URLSearchParams(window.location.search);
+  if (requestedAuth.has('auth')) {
+    openAuth(requestedAuth.get('auth'), requestedAuth.get('next'));
+    window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+  }
 
   showcasePrevious?.addEventListener('click', () => setShowcasePage(showcasePage - 1));
   showcaseNext?.addEventListener('click', () => setShowcasePage(showcasePage + 1));

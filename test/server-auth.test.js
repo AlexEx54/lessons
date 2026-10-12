@@ -71,8 +71,9 @@ test('login protects teacher pages and exposes the current profile', async t => 
   const landingHtml = await publicLanding.text();
   assert.match(landingHtml, /data-auth-form="register"/);
   assert.match(landingHtml, /data-auth-form="login"/);
-  const publicLibrary = await fetch(`${baseUrl}/library.html`);
-  assert.equal(publicLibrary.status, 200);
+  const guestLibrary = await fetch(`${baseUrl}/library.html`, { redirect: 'manual' });
+  assert.equal(guestLibrary.status, 302);
+  assert.equal(guestLibrary.headers.get('location'), '/?auth=register&next=%2Flibrary.html');
   const hiddenEnvironment = await fetch(`${baseUrl}/.env`);
   assert.equal(hiddenEnvironment.status, 404);
 

@@ -171,7 +171,8 @@ test('library HTTP routes protect publication, placeholders, hidden lessons and 
   }
   assert.ok(ready);
   const request = (route, cookie, method = 'GET', body) => fetch(url + route, { method, redirect: 'manual', headers: { ...(cookie ? { Cookie: cookie } : {}), 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
-  assert.equal((await (await request('/api/library')).json()).lessons.length, 10);
+  assert.equal((await request('/api/library')).status, 401);
+  assert.equal((await (await request('/api/library', teacherCookie)).json()).lessons.length, 10);
   assert.equal((await request('/api/home-content')).status, 401);
   const initialHome = await (await request('/api/home-content', teacherCookie)).json();
   assert.deepEqual(initialHome.libraryLessons, []);
@@ -187,7 +188,9 @@ test('library HTTP routes protect publication, placeholders, hidden lessons and 
   const { publication } = await response.json();
   assert.deepEqual((await (await request('/api/home-content', teacherCookie)).json()).libraryLessons, []);
   assert.equal((await request(`/api/library/${publication.id}`)).status, 401);
-  assert.equal((await request(`/library/${publication.id}`)).status, 302);
+  const guestLessonPage = await request(`/library/${publication.id}`);
+  assert.equal(guestLessonPage.status, 302);
+  assert.equal(guestLessonPage.headers.get('location'), `/?auth=register&next=${encodeURIComponent(`/library/${publication.id}`)}`);
   const lesson = (await (await request(`/api/library/${publication.id}`, teacherCookie)).json()).lesson;
   assert.equal((await request(`/library/${publication.id}`, teacherCookie)).status, 200);
   const assetUrl = lesson.content.stages[0].content[0].audioSrc;
@@ -205,7 +208,7 @@ test('library HTTP routes protect publication, placeholders, hidden lessons and 
   assert.equal((await request(badgeRoute, teacherCookie, 'PUT', { badge: 'new' })).status, 403);
   assert.equal((await request(badgeRoute, otherCookie, 'PUT', { badge: 'unknown' })).status, 400);
   assert.equal((await request(badgeRoute, otherCookie, 'PUT', { badge: 'new' })).status, 200);
-  assert.equal((await (await request('/api/library')).json()).lessons.find(item => item.id === publication.id).badge, 'new');
+  assert.equal((await (await request('/api/library', teacherCookie)).json()).lessons.find(item => item.id === publication.id).badge, 'new');
   const newHome = await (await request('/api/home-content', teacherCookie)).json();
   assert.deepEqual(newHome.libraryLessons.map(lesson => lesson.id), [publication.id]);
   assert.equal(newHome.libraryLessons[0].cover, publication.cover);

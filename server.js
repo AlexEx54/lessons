@@ -537,6 +537,11 @@ function loginRedirect(pathname) {
   return `/login?next=${encodeURIComponent(pathname)}`;
 }
 
+// The library is the landing's main showcase, so guests get its registration window instead of the bare login page.
+function registrationRedirect(pathname) {
+  return `/?auth=register&next=${encodeURIComponent(pathname)}`;
+}
+
 function getLessonIdFromPath(pathname, prefix, suffix = '') {
   if (!pathname.startsWith(prefix)) return '';
   if (suffix && !pathname.endsWith(suffix)) return '';
@@ -1325,7 +1330,12 @@ async function handleRequest(req, res) {
   }
 
   if (req.method === 'GET' && pathname === '/library.html') {
-    await serveAppPage('library', res, { user: getAuthenticatedUser(req, database) });
+    const user = getAuthenticatedUser(req, database);
+    if (!user) {
+      redirect(res, registrationRedirect(pathname));
+      return;
+    }
+    await serveAppPage('library', res, { user });
     return;
   }
 
@@ -1335,8 +1345,9 @@ async function handleRequest(req, res) {
   }
 
   if (req.method === 'GET' && pathname === '/api/library') {
-    const user = getAuthenticatedUser(req, database);
-    json(res, 200, { lessons: listLibraryLessons(database, user?.role === 'admin' ? user.id : null) });
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    json(res, 200, { lessons: listLibraryLessons(database, user.role === 'admin' ? user.id : null) });
     return;
   }
 
@@ -1345,7 +1356,7 @@ async function handleRequest(req, res) {
   if (req.method === 'GET' && (libraryPage || libraryDetail)) {
     const user = getAuthenticatedUser(req, database);
     if (!user) {
-      if (libraryPage) redirect(res, loginRedirect(pathname));
+      if (libraryPage) redirect(res, registrationRedirect(pathname));
       else json(res, 401, { error: 'Войдите для просмотра урока.' });
       return;
     }
