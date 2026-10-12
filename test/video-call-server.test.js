@@ -361,3 +361,21 @@ test('socket and FPS diagnostics accept bounded fields and exclude close reasons
     assert.deepEqual(sanitizeVideoCallDiagnostic({ event: 'video-rtp-stats', averageFps: value }), { event: 'video-rtp-stats' });
   }
 });
+
+test('negotiation diagnostics accept bounded ICE snapshot fields and reject arbitrary values', () => {
+  const snapshot = {
+    event: 'peer-connection-snapshot', state: 'stalled', elapsedMs: 15_002,
+    signalingState: 'have-local-offer', iceGatheringState: 'gathering', iceConnectionState: 'new',
+    connectionState: 'new', transceivers: 4, iceTransports: ['new/gathering', 'checking/complete'],
+    localCandidates: 0, remoteCandidates: 5, remoteCandidateErrors: 1, candidatePairs: 0,
+    candidatePairStates: ['waiting', 'failed'], remoteCandidateTypes: ['host', 'relay'],
+  };
+  assert.deepEqual(sanitizeVideoCallDiagnostic(snapshot), snapshot);
+  assert.deepEqual(sanitizeVideoCallDiagnostic({ event: 'negotiation', state: 'remote-offer',
+    setupPending: true, collision: false, trigger: 'remote-offer' }),
+  { event: 'negotiation', state: 'remote-offer', setupPending: true, collision: false, trigger: 'remote-offer' });
+  assert.deepEqual(sanitizeVideoCallDiagnostic({ event: 'peer-connection-snapshot',
+    signalingState: 'unknown', iceTransports: ['new/new', '192.0.2.1'], transceivers: 65,
+    elapsedMs: -1, setupPending: 'yes', trigger: 'arbitrary', candidatePairStates: 'failed',
+    sdp: 'v=0' }), { event: 'peer-connection-snapshot', iceTransports: ['new/new'] });
+});

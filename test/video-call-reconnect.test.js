@@ -8,8 +8,8 @@ const source = fs.readFileSync(require('node:path').join(__dirname, '../assets/v
 function setup() {
   const connections = [];
   const context = vm.createContext({
-    console, connections,
-    window: { clearTimeout() {}, clearInterval() {}, setInterval() { return 1; } },
+    console, connections, performance,
+    window: { setTimeout() { return 1; }, clearTimeout() {}, clearInterval() {}, setInterval() { return 1; } },
     WebSocket: class {
       handlers = {};
       addEventListener(type, handler) { this.handlers[type] = handler; }
@@ -21,6 +21,7 @@ function setup() {
       constructor() { connections.push(this); }
       close() { this.closed = true; }
       addTransceiver() { return {}; }
+      getTransceivers() { return []; }
       async setRemoteDescription(description) {
         if (this.oldSession) throw new Error('Incompatible m-line order from new peer');
         this.remoteDescription = description;
@@ -66,4 +67,22 @@ test('signaling that arrives while the call is finishing does not create a media
   await c.socket.message({ type: 'signal', description: { type: 'offer', sdp: 'late' } });
   assert.equal(c.connections.length, 0);
   assert.equal(c.peerConnection, null);
+});
+
+test('an offer applied during connection setup and an unconnected close are both diagnosed', async () => {
+  const c = setup();
+  const diagnostics = [];
+  c.sendDiagnostic = (event, details = {}) => diagnostics.push({ event, ...details });
+  let finishSetup;
+  c.applyOutboundVideoTrack = () => new Promise(resolve => { finishSetup = resolve; });
+  const joining = c.socket.message({ type: 'peer-joined' });
+  await c.socket.message({ type: 'signal', description: { type: 'offer', sdp: 'early' } });
+  finishSetup();
+  await joining;
+  assert.deepEqual(diagnostics.find(item => item.event === 'negotiation'),
+    { event: 'negotiation', state: 'remote-offer', setupPending: true, collision: false });
+  await c.socket.message({ type: 'peer-left' });
+  const snapshot = diagnostics.find(item => item.event === 'peer-connection-snapshot');
+  assert.equal(snapshot.state, 'closed-unconnected');
+  assert.deepEqual([snapshot.transceivers, snapshot.localCandidates, snapshot.remoteCandidates], [0, 0, 0]);
 });

@@ -499,7 +499,9 @@
   }
 
   function sendDiagnostic(event, details = {}) {
-    send({ type: 'diagnostic', event, pageSession, peerGeneration, pageHidden: document.hidden, ...details });
+    // Server logs have second precision; elapsedMs orders events within one connection attempt.
+    const elapsedMs = peerConnection ? Math.round(performance.now() - peerConnection.diagnosticCreatedAt) : undefined;
+    send({ type: 'diagnostic', event, pageSession, peerGeneration, pageHidden: document.hidden, elapsedMs, ...details });
   }
 
   function diagnosticTrackId(track) {
@@ -634,6 +636,12 @@
     window.clearInterval(mediaStatsTimer);
     mediaStatsTimer = null;
     remoteMediaState = {};
+    if (peerConnection) {
+      window.clearTimeout(peerConnection.diagnosticSnapshotTimer);
+      if (!peerConnection.diagnosticConnected) {
+        sendDiagnostic('peer-connection-snapshot', { state: 'closed-unconnected', ...connectionSnapshot(peerConnection) });
+      }
+    }
     peerConnection?.close();
     peerConnection = null;
     audioTransceiver = null;
@@ -643,9 +651,51 @@
     elements.remotePlaceholder.hidden = false;
   }
 
+  // Synchronous part of the snapshot, so it can still be collected right before close().
+  function connectionSnapshot(connection) {
+    const transceivers = connection.getTransceivers();
+    const iceTransports = new Set(transceivers.map(item => item.sender.transport?.iceTransport).filter(Boolean));
+    return {
+      signalingState: connection.signalingState,
+      iceGatheringState: connection.iceGatheringState,
+      iceConnectionState: connection.iceConnectionState,
+      connectionState: connection.connectionState,
+      transceivers: transceivers.length,
+      iceTransports: [...iceTransports].map(transport => `${transport.state}/${transport.gatheringState}`),
+      localCandidates: connection.diagnosticCandidates.local,
+      remoteCandidates: connection.diagnosticCandidates.remote,
+      remoteCandidateErrors: connection.diagnosticCandidates.remoteErrors,
+      candidateTypes: [...gatheredCandidateTypes],
+    };
+  }
+
+  async function reportConnectionSnapshot(connection, reason) {
+    if (connection !== peerConnection || connection.diagnosticConnected) return;
+    const details = { state: reason, ...connectionSnapshot(connection) };
+    try {
+      const pairStates = new Set();
+      const remoteTypes = new Set();
+      let pairs = 0;
+      (await connection.getStats()).forEach(report => {
+        if (report.type === 'candidate-pair') {
+          pairs += 1;
+          pairStates.add(report.state);
+        } else if (report.type === 'remote-candidate') {
+          remoteTypes.add(candidateType(report));
+        }
+      });
+      Object.assign(details, { candidatePairs: pairs, candidatePairStates: [...pairStates],
+        remoteCandidateTypes: [...remoteTypes] });
+    } catch (error) {
+      details.errorText = `${error?.name || 'Error'}: ${error?.message || 'getStats failed'}`;
+    }
+    if (connection === peerConnection) sendDiagnostic('peer-connection-snapshot', details);
+  }
+
   async function createPeerConnection() {
     if (peerConnection) return peerConnection;
     gatheredCandidateTypes.clear();
+    const createdAt = performance.now();
     let connection;
     try {
       connection = new RTCPeerConnection({ iceServers });
@@ -659,6 +709,10 @@
     }
     peerConnection = connection;
     peerGeneration += 1;
+    Object.assign(connection, { diagnosticCreatedAt: createdAt, diagnosticSetupPending: true,
+      diagnosticCandidates: { local: 0, remote: 0, remoteErrors: 0 } });
+    sendDiagnostic('peer-connection-setup', { state: 'created' });
+    connection.diagnosticSnapshotTimer = window.setTimeout(() => reportConnectionSnapshot(connection, 'stalled'), 15_000);
     mediaStatsTimer = window.setInterval(() => reportMediaStats(connection), 30_000);
     makingOffer = false;
     ignoreOffer = false;
@@ -668,6 +722,7 @@
 
     connection.onicecandidate = event => {
       if (event.candidate) {
+        connection.diagnosticCandidates.local += 1;
         const type = candidateType(event.candidate);
         if (type) gatheredCandidateTypes.add(type);
         send({ type: 'signal', candidate: event.candidate });
@@ -723,6 +778,8 @@
       if (peerConnection !== connection) return;
       sendDiagnostic('peer-connection-state', { state: connection.connectionState });
       if (connection.connectionState === 'connected') {
+        connection.diagnosticConnected = true;
+        window.clearTimeout(connection.diagnosticSnapshotTimer);
         setConnection('Соединение установлено', 'connected');
         updateRemoteVideoVisibility('connected');
         window.setTimeout(() => reportSelectedCandidate(connection), 500);
@@ -730,10 +787,19 @@
         setConnection('Соединение прервано, восстанавливаем…', 'error');
       }
     };
+    connection.onsignalingstatechange = () => {
+      if (peerConnection !== connection) return;
+      sendDiagnostic('signaling-state', { state: connection.signalingState,
+        transceivers: connection.getTransceivers().length });
+    };
     connection.onnegotiationneeded = async () => {
       try {
         makingOffer = true;
         await connection.setLocalDescription();
+        // An answer here means a remote offer was applied before this negotiation started.
+        if (connection === peerConnection) sendDiagnostic('negotiation', {
+          state: `local-${connection.localDescription.type}`, trigger: 'negotiationneeded',
+        });
         send({ type: 'signal', description: connection.localDescription });
       } catch (error) {
         if (connection === peerConnection) sendDiagnostic('peer-connection-error', {
@@ -748,8 +814,13 @@
     // every handler before adding transceivers so the initial offer cannot be lost.
     audioTransceiver = connection.addTransceiver('audio', { direction: 'sendrecv' });
     videoTransceiver = connection.addTransceiver('video', { direction: 'sendrecv' });
-    await applyOutboundAudioTrack();
-    await applyOutboundVideoTrack();
+    try {
+      await applyOutboundAudioTrack();
+      await applyOutboundVideoTrack();
+    } finally {
+      connection.diagnosticSetupPending = false;
+    }
+    if (connection === peerConnection) sendDiagnostic('peer-connection-setup', { state: 'complete' });
     return connection;
   }
 
@@ -761,18 +832,27 @@
           && (connection.signalingState === 'stable' || isSettingRemoteAnswerPending);
         const offerCollision = message.description.type === 'offer' && !readyForOffer;
         ignoreOffer = !polite && offerCollision;
+        sendDiagnostic('negotiation', {
+          state: ignoreOffer ? 'offer-ignored' : `remote-${message.description.type}`,
+          setupPending: connection.diagnosticSetupPending, collision: offerCollision,
+        });
         if (ignoreOffer) return;
         isSettingRemoteAnswerPending = message.description.type === 'answer';
         await connection.setRemoteDescription(message.description);
         isSettingRemoteAnswerPending = false;
         if (message.description.type === 'offer') {
           await connection.setLocalDescription();
+          if (connection === peerConnection) sendDiagnostic('negotiation', {
+            state: `local-${connection.localDescription.type}`, trigger: 'remote-offer',
+          });
           send({ type: 'signal', description: connection.localDescription });
         }
       } else if (message.candidate) {
         try {
           await connection.addIceCandidate(message.candidate);
+          connection.diagnosticCandidates.remote += 1;
         } catch (error) {
+          connection.diagnosticCandidates.remoteErrors += 1;
           if (!ignoreOffer) throw error;
         }
       }
