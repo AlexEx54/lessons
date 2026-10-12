@@ -288,6 +288,16 @@ test('a permanent room lets the student wait for the teacher, survives ending a 
   const archive = await (await fetch(`${baseUrl}/api/public/video-calls/${guestToken}/chat`)).json();
   assert.equal(archive.messages[0].text, 'Материалы занятия');
 
+  // An unmasked client frame, as sent when Caddy reloads, drops only that socket.
+  const malformedGuest = connectGuest();
+  const malformedConnected = nextMessage(malformedGuest, 'connected');
+  await opened(malformedGuest);
+  await malformedConnected;
+  const malformedClosed = new Promise(resolve => malformedGuest.once('close', resolve));
+  malformedGuest._socket.write(Buffer.from([0x89, 0x00]));
+  await malformedClosed;
+  assert.equal((await fetch(`${baseUrl}/api/public/video-calls/${guestToken}`)).status, 200);
+
   const nextDayGuest = connectGuest();
   const nextDayConnected = nextMessage(nextDayGuest, 'connected');
   await opened(nextDayGuest);
