@@ -199,9 +199,16 @@
     showMore.hidden = shown >= filtered.length;
   }
 
+  // The grid is auto-fit, so the column count depends on the viewport width.
+  function columnCount() {
+    return getComputedStyle(grid).gridTemplateColumns.split(' ').length;
+  }
+
   // Appends the next page without touching cards that are already shown.
+  // The page is at least PAGE_SIZE cards and is rounded up to end on a full row.
   function appendPage() {
-    const page = filtered.slice(shown, shown + PAGE_SIZE);
+    const columns = columnCount();
+    const page = filtered.slice(shown, Math.ceil((shown + PAGE_SIZE) / columns) * columns);
     const fragment = document.createDocumentFragment();
     page.forEach(lesson => fragment.append(lessonCard(lesson)));
     grid.append(fragment);
@@ -214,6 +221,7 @@
     filtered = libraryLessons.filter(matchesFilters);
     shown = 0;
     grid.replaceChildren();
+    grid.hidden = false; // A hidden grid has no tracks to measure.
     appendPage();
   }
 
