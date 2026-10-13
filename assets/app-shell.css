@@ -243,7 +243,6 @@ p { margin: 0; }
 }
 
 .notification-button {
-  position: relative;
   display: grid;
   place-items: center;
   width: 46px;
@@ -262,23 +261,6 @@ p { margin: 0; }
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.notification-button span {
-  position: absolute;
-  top: 3px;
-  right: 2px;
-  display: grid;
-  place-items: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  border: 2px solid #f5f4ff;
-  border-radius: 20px;
-  color: #fff;
-  background: #ff342e;
-  font-size: 10px;
-  font-weight: 800;
 }
 
 .profile-button {
@@ -1023,6 +1005,41 @@ p { margin: 0; }
 
 .mobile-profile-wrap {
   position: relative;
+}
+
+.notifications-wrap {
+  position: relative;
+}
+
+.notifications-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  left: 50%;
+  width: 320px;
+  padding: 16px;
+  border: 1px solid rgba(63, 46, 110, 0.12);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(51, 36, 92, 0.16);
+  transform: translateX(-50%);
+}
+
+.notifications-panel[hidden] {
+  display: none;
+}
+
+.notifications-panel h2 {
+  margin-bottom: 12px;
+  color: #352b54;
+  font-size: 16px;
+  text-align: center;
+}
+
+.notifications-panel__empty {
+  padding: 20px 0 8px;
+  color: #746a8b;
+  text-align: center;
 }
 
 .profile-menu {

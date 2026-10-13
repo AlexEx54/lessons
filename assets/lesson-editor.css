@@ -162,7 +162,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .lesson-plan-hidden .lesson-layout { grid-template-columns: 1fr; }
 
 .lesson-content { min-width: 0; padding: 38px clamp(28px, 5vw, 76px) 80px; background: linear-gradient(180deg, #fff 0%, #fefeff 100%); }
-.lesson-content__inner { width: min(100%, 980px); margin: 0 auto; }
+.lesson-content__inner { width: min(100%, 980px); margin: 0 auto; transition: opacity 180ms ease; }
 .stage-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 13px; }
 .stage-heading h1 { margin: 0; font-size: clamp(26px, 2.8vw, 34px); letter-spacing: -.03em; }
 .teacher-version { padding: 7px 10px; border-radius: 6px; color: var(--purple); background: var(--purple-soft); font-size: 11px; font-weight: 650; }
@@ -186,6 +186,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .lesson-loading, .lesson-error { width: min(100%, 700px); margin: 90px auto; padding: 35px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); text-align: center; }
 .lesson-error strong { display: block; margin-bottom: 10px; color: var(--ink); }
 .lesson-error a { display: inline-block; margin-top: 10px; color: var(--purple); font-weight: 650; }
+.lesson-connection { position: sticky; top: 104px; z-index: 10; width: min(100%, 980px); margin: 0 auto 24px; padding: 13px 17px; border: 1px solid #fbd38d; border-radius: 10px; color: #92400e; background: #fffbeb; box-shadow: 0 8px 24px rgba(20, 20, 45, .08); font-size: 14px; line-height: 1.45; }
+.lesson-connection[data-state='closed'] { color: #3f3f46; background: #fafafa; border-color: #d4d4d8; }
+/* Short reconnects are routine; only surface the banner if the outage lasts. */
+.lesson-connection[data-state='lost'] { animation: lesson-connection-reveal 180ms ease 10s both; }
+@keyframes lesson-connection-reveal { from { opacity: 0; } }
+.lesson-content:has(.lesson-connection:not([hidden])) .lesson-content__inner { opacity: .35; pointer-events: none; }
+.lesson-content:has(.lesson-connection[data-state='lost']:not([hidden])) .lesson-content__inner { transition-delay: 10s; }
 .lesson-toast { position: fixed; right: 24px; bottom: 24px; z-index: 40; max-width: 340px; padding: 13px 17px; border-radius: 9px; color: #fff; background: #1b1c33; box-shadow: 0 12px 32px rgba(20, 20, 45, .2); opacity: 0; transform: translateY(12px); pointer-events: none; transition: 180ms ease; font-size: 13px; }
 .lesson-toast--visible { opacity: 1; transform: translateY(0); }
 
@@ -196,6 +203,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
   .lesson-layout { min-height: calc(100vh - 142px - var(--image-generation-banner-height)); }
   .lesson-plan { top: 0; height: 100vh; }
   .show-plan { position: absolute; top: 16px; z-index: 16; }
+  .lesson-connection { top: 16px; }
 }
 
 @media (max-width: 700px) {
@@ -209,6 +217,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
   .lesson-layout { grid-template-columns: 1fr; }
   .lesson-plan { position: fixed; inset: 0 auto 0 0; z-index: 30; width: min(86vw, 300px); height: 100vh; box-shadow: 16px 0 38px rgba(28, 24, 58, .14); }
   .lesson-content { padding: 28px 16px 60px; }
+  .lesson-connection { width: auto; margin-left: 32px; }
   .empty-stage { min-height: 330px; padding: 48px 22px 32px; }
   .stage-pagination { grid-template-columns: 1fr 1fr; }
   .stage-pagination button { width: 100%; }

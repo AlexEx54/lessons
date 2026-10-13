@@ -113,6 +113,18 @@ test('disconnect drops unconfirmed clicks, restores server state and replacement
   assert.equal(f.sockets.length, 2);
   assert.equal(f.isInteractive(), false);
 });
+test('student whose slot is taken keeps retrying and explains why the board is inactive', async () => {
+  const f = await fixture(), notice = f.document.getElementById('lesson-connection');
+  f.sockets[0].close(4003, 'Ученик уже подключён.');
+  assert.equal(notice.hidden, false);
+  assert.match(notice.textContent, /ссылка ученика открыта в другой вкладке/);
+  assert.equal(f.isInteractive(), false);
+  for (const timer of [...f.timers.values()]) timer();
+  assert.equal(f.sockets.length, 2);
+  f.sockets[1].receive({ type: 'snapshot', state: f.initial });
+  assert.equal(notice.hidden, true);
+  assert.equal(f.isInteractive(), true);
+});
 test('teacher receives peer selections without echo and can interact', async () => {
   const f = await fixture('teacher'), socket = f.sockets[0];
   socket.receive({ type: 'snapshot', state: f.initial });

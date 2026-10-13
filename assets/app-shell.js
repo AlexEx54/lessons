@@ -12,6 +12,13 @@
   const mobileProfileButton = document.getElementById('mobile-profile-button');
   const profileMenu = document.getElementById('profile-menu');
   const mobileProfileMenu = document.getElementById('mobile-profile-menu');
+  const notificationsButton = document.getElementById('notifications-button');
+  const notificationsPanel = document.getElementById('notifications-panel');
+  const headerMenus = [
+    [profileButton, profileMenu],
+    [mobileProfileButton, mobileProfileMenu],
+    [notificationsButton, notificationsPanel],
+  ].filter(([button, menu]) => button && menu);
   const logoutButton = document.getElementById('logout-button');
   const mobileLogoutButton = document.getElementById('mobile-logout-button');
   const newLessonModal = document.getElementById('new-lesson-modal');
@@ -104,15 +111,22 @@
     setMobileAccessibility(false);
   }
 
-  function closeProfileMenu() {
-    if (profileMenu && profileButton) {
-      profileMenu.hidden = true;
-      profileButton.setAttribute('aria-expanded', 'false');
-    }
-    if (mobileProfileMenu && mobileProfileButton) {
-      mobileProfileMenu.hidden = true;
-      mobileProfileButton.setAttribute('aria-expanded', 'false');
-    }
+  function getOpenHeaderMenu() {
+    return headerMenus.find(([, menu]) => !menu.hidden) || null;
+  }
+
+  function closeHeaderMenus() {
+    headerMenus.forEach(([button, menu]) => {
+      menu.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function toggleHeaderMenu(button, menu) {
+    const willOpen = menu.hidden;
+    closeHeaderMenus();
+    menu.hidden = !willOpen;
+    button.setAttribute('aria-expanded', String(willOpen));
   }
 
   function getOpenNewLessonSelect() {
@@ -180,7 +194,7 @@
   function openNewLessonModal(event) {
     if (!newLessonModal || !newLessonDialog) return;
     newLessonReturnFocus = event.currentTarget;
-    closeProfileMenu();
+    closeHeaderMenus();
     closeNavigation({ restoreFocus: false });
     closeNewLessonSelect();
     newLessonModal.classList.add('new-lesson-modal--visible');
@@ -278,13 +292,6 @@
     }
   }
 
-  function toggleProfileMenu() {
-    if (!profileMenu || !profileButton) return;
-    const willOpen = profileMenu.hidden;
-    profileMenu.hidden = !willOpen;
-    profileButton.setAttribute('aria-expanded', String(willOpen));
-  }
-
   async function logout() {
     if (logoutButton) logoutButton.disabled = true;
     if (mobileLogoutButton) mobileLogoutButton.disabled = true;
@@ -322,6 +329,13 @@
     if (event.key === 'Escape' && newLessonModal?.classList.contains('new-lesson-modal--visible')) {
       event.preventDefault();
       closeNewLessonModal();
+      return;
+    }
+    const openHeaderMenu = getOpenHeaderMenu();
+    if (event.key === 'Escape' && openHeaderMenu) {
+      event.preventDefault();
+      closeHeaderMenus();
+      openHeaderMenu[0].focus();
       return;
     }
     if (event.key === 'Escape' && body.classList.contains('nav-open')) {
@@ -365,17 +379,11 @@
   });
 
   mobileMedia.addEventListener('change', syncViewportState);
-  profileButton?.addEventListener('click', event => {
-    event.stopPropagation();
-    toggleProfileMenu();
-  });
-  mobileProfileButton?.addEventListener('click', event => {
-    event.stopPropagation();
-    if (!mobileProfileMenu) return;
-    const willOpen = mobileProfileMenu.hidden;
-    closeProfileMenu();
-    mobileProfileMenu.hidden = !willOpen;
-    mobileProfileButton.setAttribute('aria-expanded', String(willOpen));
+  headerMenus.forEach(([button, menu]) => {
+    button.addEventListener('click', event => {
+      event.stopPropagation();
+      toggleHeaderMenu(button, menu);
+    });
   });
   logoutButton?.addEventListener('click', logout);
   mobileLogoutButton?.addEventListener('click', logout);
@@ -408,7 +416,7 @@
   });
   createLessonDraftButton?.addEventListener('click', createLessonDraft);
   document.addEventListener('click', event => {
-    if (!event.target.closest('.profile-menu-wrap') && !event.target.closest('.mobile-profile-wrap')) closeProfileMenu();
+    if (!headerMenus.some(([, menu]) => menu.contains(event.target))) closeHeaderMenus();
     if (!event.target.closest('[data-new-lesson-select]')) closeNewLessonSelect();
   });
   window.AppShell = Object.freeze({ closeNavigation, showToast });

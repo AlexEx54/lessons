@@ -4,7 +4,7 @@
   if (!match) return;
   const sessionId = match[1], role = match[2] ? 'student' : 'teacher';
   const byId = id => document.getElementById(id);
-  let socket, reconnectTimer, toastTimer, lessonTimer, stopped = false, connected = false;
+  let socket, reconnectTimer, toastTimer, lessonTimer, stopped = false, connected = false, slotTaken = false;
   let elapsedSeconds = 0;
   let confirmed, inFlight = false, pending = [], reconnectDelay = 500;
   const viewState = { lesson: null, activeIndex: 0 };
@@ -27,6 +27,13 @@
     if (state) status.dataset.state = state;
     else delete status.dataset.state;
   };
+  const notice = byId('lesson-connection');
+  const showNotice = (text, state) => {
+    notice.hidden = !text;
+    notice.textContent = text || '';
+    notice.dataset.state = state || '';
+  };
+  const slotTakenNotice = 'Место ученика занято другим устройством. Возможно, ссылка ученика открыта в другой вкладке. Подключимся автоматически, как только место освободится.';
   const resetButton = byId('reset-stage-progress');
   resetButton.hidden = role !== 'teacher';
   resetButton.disabled = true;
@@ -131,7 +138,7 @@
   }
   function connect() {
     if (stopped) return;
-    setStatus('Подключаемся…', 'connecting');
+    if (!slotTaken) setStatus('Подключаемся…', 'connecting');
     socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/sessions/${sessionId}?role=${role}`);
     socket.addEventListener('message', event => {
       const message = JSON.parse(event.data);
@@ -152,7 +159,7 @@
         return;
       }
       if (!['snapshot', 'action', 'action-error'].includes(message.type)) return;
-      if (message.type === 'snapshot') { connected = true; reconnectDelay = 500; }
+      if (message.type === 'snapshot') { connected = true; reconnectDelay = 500; slotTaken = false; showNotice(null); }
       if (inFlight && ((message.type === 'action' && message.actorRole === role) || message.type === 'action-error')) {
         pending.shift();
         inFlight = false;
@@ -171,13 +178,23 @@
       inFlight = false;
       paint();
       if (stopped) return;
-      if ([4001, 4003, 4004, 4008].includes(event.code)) {
-        stopped = true;
-        setStatus(event.reason || 'Подключение закрыто', 'closed');
-        notify(event.reason || 'Откройте ссылку заново.');
+      // The student slot is held by another device; it may free up, so keep polling instead of giving up.
+      if (event.code === 4003) {
+        slotTaken = true;
+        setStatus('Место ученика занято', 'lost');
+        showNotice(slotTakenNotice, 'waiting');
+        reconnectTimer = window.setTimeout(connect, 5000);
         return;
       }
+      if ([4001, 4004, 4008].includes(event.code)) {
+        stopped = true;
+        setStatus(event.reason || 'Подключение закрыто', 'closed');
+        showNotice(event.reason || 'Подключение закрыто. Откройте ссылку заново.', 'closed');
+        return;
+      }
+      slotTaken = false;
       setStatus('Связь потеряна. Подключаемся…', 'lost');
+      showNotice('Связь потеряна. Подключаемся…', 'lost');
       reconnectTimer = window.setTimeout(connect, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 2, 10000);
     });

@@ -182,7 +182,7 @@ function mount(options) {
   }
   function live() {
     const doc = new Y.Doc();
-    let socket, persistence, identity, connected = false, stopped = false, reconnectTimer, sendTimer;
+    let socket, persistence, identity, connected = false, stopped = false, slotTaken = false, reconnectTimer, sendTimer;
     let vector, flight = null, sequence = 0, serial = 0, backoff = 500;
     const remote = {};
     hint.textContent = 'Общие заметки: учитель и ученик могут писать одновременно.';
@@ -201,7 +201,7 @@ function mount(options) {
     });
     function connect() {
       if (stopped) return;
-      status('Подключаемся…', 'saving');
+      if (!slotTaken) status('Подключаемся…', 'saving');
       socket = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws/notes/${options.id}?role=${options.role}`);
       const current = socket;
       let messages = Promise.resolve();
@@ -223,7 +223,7 @@ function mount(options) {
             Y.applyUpdate(doc, decode(message.state), remote);
             vector = decode(message.vector);
             if (!editor) createEditor(null, doc, true);
-            connected = true; backoff = 500; flight = null; dirty = true;
+            connected = true; backoff = 500; slotTaken = false; flight = null; dirty = true;
             flush();
           } else if (message.type === 'update') {
             Y.applyUpdate(doc, decode(message.update), remote);
@@ -243,7 +243,14 @@ function mount(options) {
         connected = false; flight = null;
         panel.querySelector('.notes-presence').hidden = true;
         if (stopped) return;
-        if ([4001, 4003, 4004, 4008, 4009].includes(event.code)) {
+        // The student slot is held by another device; it may free up, so keep polling instead of giving up.
+        if (event.code === 4003) {
+          slotTaken = true;
+          status('Место ученика занято другим устройством. Возможно, ссылка ученика открыта в другой вкладке. Подключимся автоматически.', 'offline');
+          reconnectTimer = setTimeout(connect, 5000); return;
+        }
+        slotTaken = false;
+        if ([4001, 4004, 4008, 4009].includes(event.code)) {
           stopped = true; lock(); status(event.reason || 'Подключение закрыто.', 'error'); return;
         }
         status('Нет связи — переподключаемся…', 'offline');

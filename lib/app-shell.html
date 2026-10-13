@@ -85,10 +85,15 @@
           <p>{{PAGE_SUBTITLE}}</p>
         </div>
         <div class="account-actions">
-          <button class="notification-button" type="button" data-coming-soon="Уведомления" aria-label="Уведомления: 2 новых">
+          <div class="notifications-wrap">
+          <button class="notification-button" id="notifications-button" type="button" aria-label="Уведомления" aria-controls="notifications-panel" aria-expanded="false">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4"/></svg>
-            <span>2</span>
           </button>
+          <section class="notifications-panel" id="notifications-panel" aria-labelledby="notifications-title" hidden>
+            <h2 id="notifications-title">Уведомления</h2>
+            <p class="notifications-panel__empty">Пока уведомлений нет</p>
+          </section>
+          </div>
           <div class="profile-menu-wrap">
           <button class="profile-button" id="profile-button" type="button" aria-haspopup="menu" aria-expanded="false">
             <img src="/assets/images/teacher-avatar-transparent.webp" alt="" width="62" height="62" />
