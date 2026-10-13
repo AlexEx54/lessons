@@ -17,6 +17,7 @@ const {
   getYandexState,
   safeNextPath,
   sessionCookie,
+  setUserIdHeader,
   yandexStateCookie,
 } = require('./lib/auth.js');
 const { DEFAULT_DB_PATH, getDatabase } = require('./lib/db.js');
@@ -1124,6 +1125,7 @@ function sendDraftAsset(res, absolute, data, rangeHeader) {
 async function handleRequest(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = requestUrl.pathname;
+  setUserIdHeader(req, res, database);
   if (await videoCallChat.handle(req, res, requestUrl)) return;
 
   const notesDraft = pathname.match(/^\/api\/lesson-drafts\/([a-f0-9-]{36})\/notes$/i);

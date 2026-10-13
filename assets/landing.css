@@ -1978,6 +1978,14 @@ body.auth-modal-open { overflow: hidden; }
 }
 
 .auth-form__error:empty { display: none; }
+.auth-form__error--notice {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid #f2d36b;
+  border-radius: 10px;
+  color: #6b4a00;
+  background: #fff6d6;
+}
 .auth-form__control:has(input[aria-invalid="true"]) { border-color: #cf3553; box-shadow: 0 0 0 3px rgba(207, 53, 83, 0.1); }
 
 .auth-form__submit {

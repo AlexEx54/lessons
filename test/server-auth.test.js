@@ -94,6 +94,7 @@ test('login protects teacher pages and exposes the current profile', async t => 
   const landingHtml = await publicLanding.text();
   assert.match(landingHtml, /data-auth-form="register"/);
   assert.match(landingHtml, /data-auth-form="login"/);
+  assert.equal(publicLanding.headers.get('x-user-id'), null);
   const guestLibrary = await fetch(`${baseUrl}/library.html`, { redirect: 'manual' });
   assert.equal(guestLibrary.status, 302);
   assert.equal(guestLibrary.headers.get('location'), '/?auth=register&next=%2Flibrary.html');
@@ -221,6 +222,7 @@ test('login protects teacher pages and exposes the current profile', async t => 
   const currentUser = (await me.json()).user;
   assert.equal(currentUser.displayName, 'Тестовый преподаватель');
   assert.equal(currentUser.role, 'teacher');
+  assert.equal(me.headers.get('x-user-id'), currentUser.id);
 
   const app = await fetch(`${baseUrl}/app`, { headers: { Cookie: cookie } });
   assert.equal(app.status, 200);
@@ -238,6 +240,8 @@ test('login protects teacher pages and exposes the current profile', async t => 
   });
   assert.equal(logout.status, 204);
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
+  const afterLogout = await fetch(`${baseUrl}/app`, { headers: { Cookie: cookie }, redirect: 'manual' });
+  assert.equal(afterLogout.headers.get('x-user-id'), null);
 });
 
 test('yandex login redirects with a state cookie and rejects forged callbacks', async t => {

@@ -13,8 +13,12 @@
   };
   const registerForm = authModal?.querySelector('[data-auth-form="register"]');
   const verifyForm = authModal?.querySelector('[data-auth-form="verify"]');
+  const loginForm = authModal?.querySelector('[data-auth-form="login"]');
   const resendButton = verifyForm?.querySelector('[data-register-resend]');
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Sending a code email can keep the server busy for up to ~40 s, so the form waits a little longer.
+  const REQUEST_TIMEOUT_MS = 45_000;
+  const CONNECTION_ERROR = 'Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.';
   let authReturnFocus = null;
   let authNextPath = '/app';
   let toastTimer = null;
@@ -165,26 +169,51 @@
 
   function clearAuthError(form) {
     const errorBox = form.querySelector('.auth-form__error');
-    if (errorBox) errorBox.textContent = '';
+    if (errorBox) {
+      errorBox.textContent = '';
+      errorBox.classList.remove('auth-form__error--notice');
+    }
     form.querySelectorAll('[aria-invalid="true"]').forEach(input => input.removeAttribute('aria-invalid'));
   }
 
   function showAuthError(form, message, input) {
     const errorBox = form.querySelector('.auth-form__error');
-    if (errorBox) errorBox.textContent = message;
+    if (errorBox) {
+      errorBox.textContent = message;
+      errorBox.classList.remove('auth-form__error--notice');
+    }
     if (input) {
       input.setAttribute('aria-invalid', 'true');
       input.focus();
     }
   }
 
+  // A lost or stalled response becomes a readable error instead of a form that waits forever.
   async function postJson(endpoint, requestBody) {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(requestBody),
-    });
-    const payload = await response.json().catch(() => ({}));
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let response;
+    let responseText;
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+      responseText = await response.text();
+    } catch (_error) {
+      throw new Error(CONNECTION_ERROR);
+    } finally {
+      window.clearTimeout(timeout);
+    }
+
+    let payload = {};
+    try {
+      payload = JSON.parse(responseText);
+    } catch (_error) {
+      // A proxy error page is not JSON; the caller falls back to its own message.
+    }
     return { response, payload };
   }
 
@@ -229,6 +258,21 @@
     registerForm.elements['register-email'].focus();
   }
 
+  // An existing account cannot be registered again, so the teacher continues on the sign-in tab.
+  function showExistingAccount(email) {
+    window.clearInterval(resendTimer);
+    registrationToken = '';
+    setRegisterStep('details');
+    setAuthTab('login');
+    clearAuthError(loginForm);
+    loginForm.elements['login-email'].value = email;
+    loginForm.elements['login-password'].value = '';
+    const notice = loginForm.querySelector('.auth-form__error');
+    notice.textContent = 'Аккаунт с этим email уже есть — войдите по паролю или через Яндекс ID.';
+    notice.classList.add('auth-form__error--notice');
+    loginForm.elements['login-password'].focus();
+  }
+
   async function resendRegistrationCode() {
     clearAuthError(verifyForm);
     resendButton.disabled = true;
@@ -245,8 +289,8 @@
       }
       startResendCountdown(payload.resendAfter);
       verifyForm.elements['verify-code'].focus();
-    } catch (_error) {
-      showAuthError(verifyForm, 'Не удалось отправить код.');
+    } catch (error) {
+      showAuthError(verifyForm, error.message);
       startResendCountdown(0);
     }
   }
@@ -301,7 +345,7 @@
       endpoint: '/api/auth/register',
       body: { displayName, email, password: passwordInput.value, termsAccepted: true },
       pendingLabel: 'Отправляем код…',
-      errorInputs: { 409: emailInput },
+      onConflict: () => showExistingAccount(email),
       onSuccess: showCodeStep,
     };
   }
@@ -316,6 +360,8 @@
       body: { token: registrationToken, code: codeInput.value },
       pendingLabel: 'Проверяем…',
       errorInputs: { 400: codeInput, 429: codeInput },
+      // The same email may have signed up another way (e.g. Yandex) while the code was on its way.
+      onConflict: () => showExistingAccount(registerForm.elements['register-email'].value.trim()),
     };
   }
 
@@ -343,6 +389,10 @@
       // 410 means the pending registration expired or was replaced: the code step cannot finish it.
       if (response.status === 410) {
         showDetailsStep(payload.error);
+        return;
+      }
+      if (response.status === 409 && request.onConflict) {
+        request.onConflict();
         return;
       }
       if (!response.ok) {
@@ -411,7 +461,8 @@
     });
     form.addEventListener('input', event => {
       event.target.removeAttribute('aria-invalid');
-      const errorBox = form.querySelector('.auth-form__error');
+      // A notice is a hint for the next step, so it stays while the teacher types.
+      const errorBox = form.querySelector('.auth-form__error:not(.auth-form__error--notice)');
       if (errorBox) errorBox.textContent = '';
     });
   });
