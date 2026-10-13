@@ -195,6 +195,7 @@
     const emailInput = form.elements['register-email'];
     const passwordInput = form.elements['register-password'];
     const termsInput = form.elements.terms;
+    const consentInput = form.elements.consent;
     const displayName = nameInput.value.trim();
     const email = emailInput.value.trim();
 
@@ -209,6 +210,9 @@
     }
     if (!termsInput.checked) {
       return { error: 'Необходимо принять условия регистрации.', input: termsInput };
+    }
+    if (!consentInput.checked) {
+      return { error: 'Необходимо дать согласие на обработку персональных данных.', input: consentInput };
     }
     return {
       endpoint: '/api/auth/register',

@@ -76,6 +76,11 @@ test('login protects teacher pages and exposes the current profile', async t => 
   assert.equal(guestLibrary.headers.get('location'), '/?auth=register&next=%2Flibrary.html');
   const hiddenEnvironment = await fetch(`${baseUrl}/.env`);
   assert.equal(hiddenEnvironment.status, 404);
+  for (const page of ['/terms', '/privacy', '/consent']) {
+    const legal = await fetch(`${baseUrl}${page}`);
+    assert.equal(legal.status, 200, page);
+    assert.match(legal.headers.get('content-type'), /^text\/html/);
+  }
 
   const appWithoutSession = await fetch(`${baseUrl}/app`, { redirect: 'manual' });
   assert.equal(appWithoutSession.status, 302);

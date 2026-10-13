@@ -118,6 +118,7 @@ let videoCallSignaling = null;
 
 const CLASS_INVITE_PAGE = new RegExp(`^/join/(${INVITE_TOKEN_PATTERN})(?:/([a-f0-9-]{36}))?/?$`, 'i');
 const GUEST_CALL_PAGE = new RegExp(`^/call/(${INVITE_TOKEN_PATTERN})/?$`, 'i');
+const LEGAL_PAGES = new Set(['/terms', '/privacy', '/consent']);
 
 const interruptedGenerationIds = failInterruptedLessonGenerations(database);
 if (interruptedGenerationIds.length > 0) {
@@ -1078,6 +1079,11 @@ async function handleRequest(req, res) {
         : saveDraftNotes(notesDraft[1], user.id, await readJsonBody(req), database);
       json(res, 200, notes);
     } catch (error) { json(res, error.statusCode || 400, { error: error.message }); }
+    return;
+  }
+
+  if (req.method === 'GET' && LEGAL_PAGES.has(pathname)) {
+    serveStatic(`${pathname}.html`, res);
     return;
   }
 

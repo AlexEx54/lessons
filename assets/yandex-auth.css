@@ -40,15 +40,5 @@
   text-align: center;
 }
 
-.yandex-auth__note button {
-  display: inline;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  color: #4a20ef;
-  background: none;
-  font: inherit;
-  cursor: pointer;
-}
-
-.yandex-auth__note button:hover { text-decoration: underline; }
+.yandex-auth__note a { color: #4a20ef; text-decoration: none; }
+.yandex-auth__note a:hover { text-decoration: underline; }

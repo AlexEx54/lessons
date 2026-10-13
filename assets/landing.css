@@ -1959,7 +1959,7 @@ body.auth-modal-open { overflow: hidden; }
 }
 
 .auth-form__forgot:hover,
-.auth-form__consent button:hover { text-decoration: underline; }
+.auth-form__consent a:hover { text-decoration: underline; }
 
 .auth-form__error {
   margin: -5px 0;
@@ -2005,7 +2005,7 @@ body.auth-modal-open { overflow: hidden; }
   accent-color: #4a20ef;
 }
 
-.auth-form__consent button { display: inline; color: #4a20ef; text-align: left; }
+.auth-form__consent a { color: #4a20ef; }
 
 .auth-modal button:focus-visible { outline: 3px solid rgba(89, 55, 239, 0.24); outline-offset: 2px; }
 .auth-modal input:focus-visible { outline: none; }
