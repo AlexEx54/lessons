@@ -607,21 +607,21 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
   };
   const responses = [
     { schema: 'easyclass_lesson_metadata', user: 'Lesson topic: Travel choices', generated: LESSON_METADATA },
-    { schema: 'easyclass_template_two_warm_up', user: 'Lesson topic: City transport',
+    { schema: 'easyclass_template_2_warm_up', user: 'Lesson topic: City transport',
       generated: { rows: [{ ...rows[0], answer: 'plane' }, ...rows.slice(1)] } },
-    { schema: 'easyclass_template_two_warm_up', user: 'Lesson topic: City transport', generated: { rows } },
-    { schema: 'easyclass_template_two_lead_in', user: 'Lesson topic: Travel choices\nGrammar topic: Past Simple', generated: leadIn },
-    { schema: 'easyclass_template_two_target_vocabulary', generated: targetVocabulary, user: [
+    { schema: 'easyclass_template_2_warm_up', user: 'Lesson topic: City transport', generated: { rows } },
+    { schema: 'easyclass_template_2_lead_in', user: 'Lesson topic: Travel choices\nGrammar topic: Past Simple', generated: leadIn },
+    { schema: 'easyclass_template_2_target_vocabulary', generated: targetVocabulary, user: [
       'Lesson topic: Travel choices', 'Grammar topic: Past Simple', 'Guess statements from the Lead-In:',
       '1. Somebody in our stories missed a train.', '2. Somebody in our stories travelled by boat.',
     ].join('\n') },
-    { schema: 'easyclass_template_two_grammar_presentation', generated: GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION,
+    { schema: 'easyclass_template_2_grammar_presentation', generated: GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION,
       user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
-    { schema: 'easyclass_template_two_grammar_focus', generated: GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS,
+    { schema: 'easyclass_template_2_grammar_focus', generated: GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS,
       user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
-    { schema: 'easyclass_template_two_guided_communication', generated: GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION,
+    { schema: 'easyclass_template_2_guided_speaking', generated: GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION,
       user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
-    { schema: 'easyclass_wrap_up', generated: GENERATED_TEMPLATE_TWO_WRAP_UP,
+    { schema: 'easyclass_template_2_wrap_up', generated: GENERATED_TEMPLATE_TWO_WRAP_UP,
       user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
   ];
   let openRouterRequestCount = 0;

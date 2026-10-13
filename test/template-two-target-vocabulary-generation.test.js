@@ -2,13 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  TEMPLATE_2_TARGET_VOCABULARY_RESPONSE_SCHEMA,
-  applyTemplateTwoTargetVocabularyToSkeleton,
-  buildTemplateTwoTargetVocabularyContent,
-  createTemplateTwoSkeleton,
-  templateTwoTargetVocabularyMessages,
-} = require('../lib/ai-lesson-generator.js');
+const { createGenerationSkeleton } = require('../lib/lesson-generation-plan.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
 const {
@@ -16,11 +10,13 @@ const {
   GENERATED_TEMPLATE_TWO_TARGET_VOCABULARY: GENERATED,
   TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR,
 } = require('./fixtures/generated-template-two.js');
+const { applyStage, stageContent, stageRequest, statements, templateTwoPlan } = require('./helpers/template-two.js');
 
-const GUESS_STATEMENTS = GENERATED_TEMPLATE_TWO_LEAD_IN.guessStatements;
+const variables = { leadInGuesses: statements(GENERATED_TEMPLATE_TWO_LEAD_IN.guessStatements, 4) };
+const buildVocabulary = generated => stageContent('target-vocabulary', generated, { variables });
 
 test('generated Template 2 Target Vocabulary builds stories, guess answers and all tasks', () => {
-  const content = buildTemplateTwoTargetVocabularyContent(GENERATED, GUESS_STATEMENTS);
+  const content = buildVocabulary(GENERATED);
   assert.deepEqual(content.map(component => component.type), [
     'teacherNote', 'markdownCard', 'storyCards', 'markdownCard', 'multipleChoice',
     'dropdownChoice', 'dragWordsInText', 'gapFill', 'personalizedQuestions', 'markdownCard',
@@ -47,9 +43,12 @@ test('generated Template 2 Target Vocabulary builds stories, guess answers and a
   assert.equal(extra.gaps[9].answer, 'campfire');
   assert.equal(questions.items[0].id, 'question-1');
   assert.match(starters.text, /- \*\*Last summer I \.\.\.\*\*/);
+});
 
-  const lesson = applyTemplateTwoTargetVocabularyToSkeleton(createTemplateTwoSkeleton('Summer time'), GENERATED, GUESS_STATEMENTS);
-  assert.equal(lesson.stages[2].content.length, 10);
+test('Template 2 Target Vocabulary hands the words to later stages', () => {
+  const { variables: next } = applyStage('target-vocabulary', GENERATED, { variables });
+  assert.deepEqual(next.targetVocabulary, GENERATED.vocabularyItems);
+  assert.deepEqual(next.leadInGuesses, variables.leadInGuesses);
 });
 
 test('synthetic Template 2 Target Vocabulary answers its own Lead-In guesses', () => {
@@ -62,28 +61,29 @@ test('synthetic Template 2 Target Vocabulary answers its own Lead-In guesses', (
 });
 
 test('generated Template 2 Target Vocabulary rejects damaged content', () => {
-  assert.throws(
-    () => buildTemplateTwoTargetVocabularyContent({ ...GENERATED, stories: GENERATED.stories.slice(1) }, GUESS_STATEMENTS),
-    /4 истории/,
-  );
+  assert.throws(() => buildVocabulary({ ...GENERATED, stories: GENERATED.stories.slice(1) }), /нужно ровно 4 \(историй\)/);
   const wrongStory = structuredClone(GENERATED);
   wrongStory.guessChecks[0].story = 'Nobody';
-  assert.throws(() => buildTemplateTwoTargetVocabularyContent(wrongStory, GUESS_STATEMENTS), /дословно совпадать/);
+  assert.throws(() => buildVocabulary(wrongStory), /дословно совпадать/);
   const madeUpEvidence = structuredClone(GENERATED);
   madeUpEvidence.guessChecks[1].evidence = 'I lost my hat.';
-  assert.throws(() => buildTemplateTwoTargetVocabularyContent(madeUpEvidence, GUESS_STATEMENTS), /дословно совпадать/);
+  assert.throws(() => buildVocabulary(madeUpEvidence), /дословно совпадать/);
   const markdownStarter = structuredClone(GENERATED);
   markdownStarter.sentenceStarters[0] = '**Last summer** I ...';
-  assert.throws(() => buildTemplateTwoTargetVocabularyContent(markdownStarter, GUESS_STATEMENTS), /без разметки/);
+  assert.throws(() => buildVocabulary(markdownStarter), /без разметки/);
   const wrongAnswer = structuredClone(GENERATED);
   wrongAnswer.contextChoices[0].answer = 'campfire';
-  assert.throws(() => buildTemplateTwoTargetVocabularyContent(wrongAnswer, GUESS_STATEMENTS));
+  assert.throws(() => buildVocabulary(wrongAnswer));
+  const repeatedWord = structuredClone(GENERATED);
+  repeatedWord.vocabularyItems[1].term = 'Go camping';
+  assert.throws(() => buildVocabulary(repeatedWord), /«Vocabulary»: слова не должны повторяться/);
 });
 
 test('Template 2 Target Vocabulary prompt passes the topic, grammar and Lead-In guesses', () => {
-  const messages = templateTwoTargetVocabularyMessages('Summer time', 'Past Simple', GUESS_STATEMENTS, { ageGroup: '15-18', level: 'B1' });
+  const { messages, schema } = stageRequest('target-vocabulary', { topic: 'Summer time', variables, profile: { ageGroup: '15-18', level: 'B1' } });
   assert.match(messages[0].content, /CEFR level: B1/);
   assert.match(messages[0].content, /confirmed or clearly contradicted by exactly one story/);
+  assert.match(messages[0].content, /In the stories, put every vocabulary item in bold/);
   assert.match(messages[0].content, /Never copy them/);
   assert.equal(messages[1].content, [
     'Lesson topic: Summer time',
@@ -92,11 +92,13 @@ test('Template 2 Target Vocabulary prompt passes the topic, grammar and Lead-In 
     '1. Somebody in our stories went camping last summer.',
     '2. Somebody in our stories lost a hat at the beach.',
   ].join('\n'));
-  assert.deepEqual(TEMPLATE_2_TARGET_VOCABULARY_RESPONSE_SCHEMA.properties.guessChecks.items.properties.answer.enum, ['fact', 'myth']);
+  assert.equal(schema.properties.guessChecks.minItems, 2);
+  assert.deepEqual(schema.properties.guessChecks.items.properties.answer.enum, ['fact', 'myth']);
 });
 
 test('Template 2 recovery rebuilds Target Vocabulary with the recovered Lead-In guesses', () => {
-  const recovered = recoverLessonGeneration(TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR, createTemplateTwoSkeleton('Summer time'), 'template-2');
+  const recovered = recoverLessonGeneration(TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR, createGenerationSkeleton('template-2', 'Summer time'), templateTwoPlan());
   assert.equal(recovered.complete, false);
-  assert.deepEqual(Object.keys(recovered.recoveredSections), ['lessonMetadata', 'warmUp', 'leadIn', 'targetVocabulary']);
+  assert.equal(recovered.validOutput, TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR);
+  assert.deepEqual(Object.keys(recovered.recoveredSections), ['lessonMetadata', 'warm-up', 'lead-in', 'target-vocabulary']);
 });

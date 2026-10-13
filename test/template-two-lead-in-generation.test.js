@@ -2,15 +2,11 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  TEMPLATE_2_LEAD_IN_RESPONSE_SCHEMA,
-  applyTemplateTwoLeadInToSkeleton,
-  buildTemplateTwoLeadInContent,
-  createTemplateTwoSkeleton,
-  templateTwoLeadInMessages,
-} = require('../lib/ai-lesson-generator.js');
+const { createGenerationSkeleton } = require('../lib/lesson-generation-plan.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { GENERATED_TEMPLATE_TWO_WARM_UP } = require('./fixtures/generated-template-two.js');
+const { applyStage, stageContent, stageRequest, templateTwoPlan } = require('./helpers/template-two.js');
 
 const GENERATED = {
   checkStatements: [
@@ -21,9 +17,10 @@ const GENERATED = {
   guessStatements: ['Somebody in our stories went camping last summer.', 'Somebody in our stories lost a hat at the beach.'],
   speakingSupport: ['In summer, people usually…', 'Last summer I…'],
 };
+const buildLeadIn = generated => stageContent('lead-in', generated);
 
 test('generated Template 2 Lead-In builds the note, Fact or Myth, support, and answer key', () => {
-  const [note, exercise, support, key] = buildTemplateTwoLeadInContent(GENERATED);
+  const [note, exercise, support, key] = buildLeadIn(GENERATED);
   assert.equal(note.id, 'lead-in-teacher-note');
   assert.match(note.text, /^\*\*Say:\*\* "Now let's play a game called '\*\*Fact or Myth\?\*\*'/);
   assert.match(note.text, /the words \*\*Fact\*\* \(100% true\) and \*\*Myth\*\* \(false \/ not true\)/);
@@ -46,65 +43,61 @@ test('generated Template 2 Lead-In builds the note, Fact or Myth, support, and a
   assert.equal(key.studentVisibility, 'teacherOnly');
   assert.match(key.text, /^1\. \*\*FACT\*\* — The sun can burn/);
   assert.match(key.text, /\n5\. \*\*GUESS 🤷\*\*/);
+});
 
-  const lesson = applyTemplateTwoLeadInToSkeleton(createTemplateTwoSkeleton('Summer time'), GENERATED);
-  assert.deepEqual(lesson.stages[1].content, [note, exercise, support, key]);
+test('Template 2 Lead-In hands its guesses to the stories with their task numbers', () => {
+  const { variables } = applyStage('lead-in', GENERATED);
+  assert.deepEqual(variables.leadInGuesses, [
+    { number: 4, text: 'Somebody in our stories went camping last summer.' },
+    { number: 5, text: 'Somebody in our stories lost a hat at the beach.' },
+  ]);
 });
 
 test('synthetic Template 2 Lead-In uses the same teacher note', () => {
   const [note, exercise, support] = createSyntheticLesson('Heroes', { template: 'template-2' }).stages[1].content;
-  assert.equal(note.text, buildTemplateTwoLeadInContent(GENERATED)[0].text);
+  assert.equal(note.text, buildLeadIn(GENERATED)[0].text);
   assert.equal(exercise.items[0].text, 'Batman has got a black cape and a black mask.');
   assert.match(support.text, /Batman has got…/);
 });
 
 test('generated Template 2 Lead-In rejects damaged content', () => {
   assert.throws(
-    () => buildTemplateTwoLeadInContent({ ...GENERATED, checkStatements: GENERATED.checkStatements.slice(1) }),
-    /3 утверждения на проверку, 2 на догадку/,
+    () => buildLeadIn({ ...GENERATED, checkStatements: GENERATED.checkStatements.slice(1) }),
+    /нужно ровно 3 \(утверждений на проверку\)/,
   );
-  assert.throws(() => buildTemplateTwoLeadInContent({ ...GENERATED, speakingSupport: ['Only one…'] }), /2 опоры/);
+  assert.throws(() => buildLeadIn({ ...GENERATED, speakingSupport: ['Only one…'] }), /«Speaking Support»: нужно ровно 2/);
   const wrongAnswer = structuredClone(GENERATED);
   wrongAnswer.checkStatements[1].answer = 'maybe';
-  assert.throws(() => buildTemplateTwoLeadInContent(wrongAnswer), /Некорректный ответ в строке 2/);
+  assert.throws(() => buildLeadIn(wrongAnswer), /Некорректный ответ в строке 2/);
   const markdownStatement = structuredClone(GENERATED);
   markdownStatement.guessStatements[1] = 'Somebody in our stories lost a **hat**.';
-  assert.throws(() => buildTemplateTwoLeadInContent(markdownStatement), /без разметки/);
+  assert.throws(() => buildLeadIn(markdownStatement), /без разметки/);
   assert.throws(
-    () => buildTemplateTwoLeadInContent({ ...GENERATED, speakingSupport: ['# Heading', 'Last summer I…'] }),
-    /Speaking Support должны быть обычным текстом/,
+    () => buildLeadIn({ ...GENERATED, speakingSupport: ['# Heading', 'Last summer I…'] }),
+    /«Speaking Support»: нужен обычный текст без разметки/,
   );
 });
 
-test('Template 2 Lead-In prompt uses the topic, grammar, and a neutral guess format', () => {
-  const messages = templateTwoLeadInMessages('Summer time', 'Past Simple', { ageGroup: '15-18', level: 'B1' });
+test('Template 2 Lead-In prompt uses the topic, grammar, a neutral guess format and the stories ahead', () => {
+  const { messages, schema } = stageRequest('lead-in', { topic: 'Summer time', profile: { ageGroup: '15-18', level: 'B1' } });
   assert.match(messages[0].content, /CEFR level: B1/);
   assert.match(messages[0].content, /Fact or Myth\? template/);
+  // The stories in Target Vocabulary ask the Lead-In to prepare guesses for them.
+  assert.match(messages[0].content, /Later in this lesson the student reads four short first-person stories/);
   assert.match(messages[0].content, /Start each with "Somebody in our stories"/);
   assert.match(messages[0].content, /Never copy them/);
   assert.equal(messages[1].content, 'Lesson topic: Summer time\nGrammar topic: Past Simple');
-  assert.deepEqual(TEMPLATE_2_LEAD_IN_RESPONSE_SCHEMA.required, ['checkStatements', 'guessStatements', 'speakingSupport']);
-  assert.deepEqual(
-    TEMPLATE_2_LEAD_IN_RESPONSE_SCHEMA.properties.checkStatements.items.properties.answer.enum,
-    ['fact', 'myth'],
-  );
+  assert.deepEqual(schema.required, ['checkStatements', 'guessStatements', 'speakingSupport']);
+  assert.deepEqual(schema.properties.checkStatements.items.properties.answer.enum, ['fact', 'myth']);
 });
 
 test('Template 2 recovery restores Lead-In and waits for Target Vocabulary', () => {
-  const warmUp = {
-    rows: [
-      { options: ['beach', 'sea', 'sand', 'snow'], answer: 'snow', explanation: 'It is cold; the others are at the seaside.' },
-      { options: ['swim', 'hot', 'run', 'jump'], answer: 'hot', explanation: 'It is an adjective; the others are verbs.' },
-      { options: ['hat', 'sunglasses', 'scarf', 'shorts'], answer: 'scarf', explanation: 'It is for winter; the others are for summer.' },
-      { options: ['ice cream', 'lemonade', 'soup', 'watermelon'], answer: 'soup', explanation: 'It is hot food; the others are cold.' },
-    ],
-  };
   const output = [
     `=== Lesson Metadata ===\n${JSON.stringify({ coverImagePrompt: 'Summer cover, no text.' })}`,
-    `=== Warm-Up ===\n${JSON.stringify(warmUp)}`,
-    `=== Lead-In ===\n${JSON.stringify(GENERATED)}`,
+    `=== Warm Up ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_WARM_UP)}`,
+    `=== Lead In ===\n${JSON.stringify(GENERATED)}`,
   ].join('\n\n');
-  const recovered = recoverLessonGeneration(output, createTemplateTwoSkeleton('Summer time'), 'template-2');
+  const recovered = recoverLessonGeneration(output, createGenerationSkeleton('template-2', 'Summer time'), templateTwoPlan());
   assert.equal(recovered.complete, false);
-  assert.deepEqual(Object.keys(recovered.recoveredSections), ['lessonMetadata', 'warmUp', 'leadIn']);
+  assert.deepEqual(Object.keys(recovered.recoveredSections), ['lessonMetadata', 'warm-up', 'lead-in']);
 });

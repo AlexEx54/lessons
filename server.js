@@ -106,16 +106,11 @@ const {
   retryLessonGeneration,
   updateLessonGenerationStream,
 } = require('./lib/lesson-generation-store.js');
-const { getLessonGenerationSections } = require('./lib/lesson-generation-sections.js');
+const { createGenerationPlan, createGenerationSkeleton } = require('./lib/lesson-generation-plan.js');
 const { recoverLessonGeneration } = require('./lib/lesson-generation-recovery.js');
 const { stopInterruptedLessonImageGenerations } = require('./lib/lesson-image-generation-store.js');
 const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
-const {
-  LESSON_MODEL_OPTIONS,
-  OPENROUTER_BASE_URL,
-  createLessonSkeleton,
-  createTemplateTwoSkeleton,
-} = require('./lib/ai-lesson-generator.js');
+const { LESSON_MODEL_OPTIONS, OPENROUTER_BASE_URL } = require('./lib/ai-lesson-generator.js');
 
 const PORT = process.env.PORT || 8787;
 const HOST = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
@@ -288,7 +283,7 @@ async function runAiLessonGeneration({
   let completedUsage = initialUsage;
   let providerGenerationId = '';
   let flushTimer = null;
-  let activeSection = 'Warm-Up';
+  let activeSection = 'урок';
 
   function flushStream() {
     if (flushTimer) {
@@ -303,7 +298,8 @@ async function runAiLessonGeneration({
     flushTimer = setTimeout(flushStream, 500);
   }
 
-  async function generateSection(sectionName, sectionTopic, generator) {
+  async function generateSection(plan, step, state) {
+    const sectionName = step.name;
     activeSection = sectionName;
     const reasoningHeader = `${reasoning ? '\n\n' : ''}=== ${sectionName} ===\n`;
     const outputHeader = `${output ? '\n\n' : ''}=== ${sectionName} ===\n`;
@@ -313,10 +309,7 @@ async function runAiLessonGeneration({
     publishGenerationEvent(draftId, 'output', { delta: outputHeader });
     scheduleFlush();
 
-    const result = await generator({
-      topic: sectionTopic,
-      ageGroup,
-      level,
+    const result = await plan.generate(step.key, state, {
       apiKey: process.env.OPENROUTER_API_KEY,
       baseUrl: process.env.OPENROUTER_BASE_URL || OPENROUTER_BASE_URL,
       model,
@@ -345,32 +338,22 @@ async function runAiLessonGeneration({
     return result;
   }
 
-  function recoverOrGenerate(key, sectionName, sectionTopic, generator) {
-    if (Object.hasOwn(recoveredSections, key)) {
-      return Promise.resolve({ generated: recoveredSections[key], usage: {} });
-    }
-    return generateSection(sectionName, sectionTopic, generator);
+  async function answerFor(plan, step, state) {
+    if (!step.needsModel) return {};
+    if (Object.hasOwn(recoveredSections, step.key)) return recoveredSections[step.key];
+    return (await generateSection(plan, step, state)).generated;
   }
 
   try {
     if (typeof model !== 'string' || !model.trim()) {
       throw new Error('Модель генерации не задана.');
     }
-    const sections = getLessonGenerationSections(template);
-    const completedSections = {};
-    const context = { topic, warmUpTopic, grammarTopic };
-    let lesson = skeleton;
-    for (const section of sections) {
-      const sectionOptions = section.options?.(context, completedSections) || {};
-      const result = await recoverOrGenerate(
-        section.key,
-        section.name,
-        sectionOptions.topic ?? topic,
-        options => section.generate({ ...options, ...sectionOptions }),
-      );
-      lesson = section.apply(lesson, result.generated, completedSections);
-      completedSections[section.key] = result.generated;
+    const plan = createGenerationPlan(template, { topic, warmUpTopic, grammarTopic, ageGroup, level });
+    let state = plan.start(skeleton);
+    for (const step of plan.steps) {
+      state = plan.apply(step.key, state, await answerFor(plan, step, state));
     }
+    const { lesson } = state;
     database.exec('BEGIN IMMEDIATE');
     try {
       completeLessonDraft(draftId, ownerAdminId, lesson, database);
@@ -1885,10 +1868,9 @@ async function handleRequest(req, res) {
       let lesson;
       database.exec('BEGIN IMMEDIATE');
       try {
-        const createSkeleton = template === 'template-2' ? createTemplateTwoSkeleton : createLessonSkeleton;
         lesson = synthetic
           ? createSyntheticLesson(topic, { template })
-          : createSkeleton(topic, { ageGroup, level, model });
+          : createGenerationSkeleton(template, topic, { ageGroup, level, model });
         lesson.meta.ageGroup = ageGroup;
         lesson.meta.level = level;
         pendingDraft = createLessonDraft({
@@ -1979,13 +1961,18 @@ async function handleRequest(req, res) {
         return;
       }
 
-      const createSkeleton = draft.template === 'template-2' ? createTemplateTwoSkeleton : createLessonSkeleton;
-      const skeleton = draft.content || createSkeleton(draft.topic, {
+      const skeleton = draft.content || createGenerationSkeleton(draft.template, draft.topic, {
         ageGroup: draft.ageGroup,
         level: draft.level,
         model,
       });
-      const recovery = recoverLessonGeneration(generation.output, skeleton, draft.template);
+      const recovery = recoverLessonGeneration(generation.output, skeleton, createGenerationPlan(draft.template, {
+        topic: draft.topic,
+        warmUpTopic: draft.warmUpTopic,
+        grammarTopic: draft.grammarTopic,
+        ageGroup: draft.ageGroup,
+        level: draft.level,
+      }));
       if (!recovery.complete && !process.env.OPENROUTER_API_KEY) {
         json(res, 503, { error: 'Нейрогенерация временно недоступна: OPENROUTER_API_KEY не настроен.' });
         return;

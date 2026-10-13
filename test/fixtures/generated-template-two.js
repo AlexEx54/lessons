@@ -65,16 +65,17 @@ const GENERATED_TEMPLATE_TWO_WARM_UP = {
   ],
 };
 
-// Recovery output of every section before Grammar Presentation.
+// Recovery output of every step before Grammar Presentation; headers are the stage titles.
 const TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR = [
   `=== Lesson Metadata ===\n${JSON.stringify({ coverImagePrompt: 'Summer cover, no text.' })}`,
-  `=== Warm-Up ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_WARM_UP)}`,
-  `=== Lead-In ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_LEAD_IN)}`,
+  `=== Warm Up ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_WARM_UP)}`,
+  `=== Lead In ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_LEAD_IN)}`,
   `=== Target Vocabulary ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_TARGET_VOCABULARY)}`,
 ].join('\n\n');
 
 module.exports = {
   GENERATED_TEMPLATE_TWO_LEAD_IN,
+  GENERATED_TEMPLATE_TWO_WARM_UP,
   GENERATED_TEMPLATE_TWO_TARGET_VOCABULARY,
   TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR,
 };

@@ -106,7 +106,7 @@ const CONTROLS = [
     fields: ['items'],
     params: { count: { min: 1, max: 5, default: 2 } },
     schema: ({ params }) => ({ items: stringArray(params.count) }),
-    rules: ({ params, f }) => [`${f.items}: exactly ${params.count} items.`],
+    rules: ({ params, f }) => [`${f.items}: exactly ${params.count} items.`, 'Write list items without Markdown.'],
     build: (data, { id }) => ({ type: 'markdownCard', id, text: data.items.join('\n') }),
     example: ({ params }) => ({ items: Array.from({ length: params.count }, (_, index) => `Item ${index + 1}`) }),
   },
@@ -226,7 +226,8 @@ test('stage request assembles the prompt, the flat schema and the context', () =
   ].join('\n'));
   // warmUpTopic falls back to topic.
   assert.equal(guess.messages[1].content, 'Lesson topic: Clothes');
-  assert.deepEqual(guess.schema.required, ['checks', 'guesses', 'success']);
+  // Answer fields follow display order: the note with the slot comes before the game.
+  assert.deepEqual(guess.schema.required, ['success', 'checks', 'guesses']);
   assert.equal(guess.schema.additionalProperties, false);
   assert.equal(guess.schemaName, 'easyclass_test_template_guess');
 
@@ -241,6 +242,8 @@ test('stage request assembles the prompt, the flat schema and the context', () =
     'vocabularyItems: exactly 3 items.',
     'Words about the topic.',
     'sentenceStarters: exactly 2 items.',
+    // Both lists share this rule; the prompt keeps it once.
+    'Write list items without Markdown.',
     'challengeItems: exactly 2 items.',
     'Return JSON matching the supplied schema and nothing else.',
   ].join('\n'));

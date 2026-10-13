@@ -1,0 +1,990 @@
+{
+  "schemaVersion": "lesson-template-v1",
+  "id": "template-2",
+  "title": "Шаблон 2",
+  "description": "Odd One Out, Fact or Myth, истории со словами, видео, грамматика, карточки для разговора и 3–2–1.",
+  "inputs": {
+    "topic": {
+      "label": "Тема урока"
+    },
+    "warmUpTopic": {
+      "label": "Тема Warm-Up",
+      "optional": true,
+      "fallback": "topic"
+    },
+    "grammarTopic": {
+      "label": "Грамматика"
+    }
+  },
+  "lesson": {
+    "durationMinutes": 50
+  },
+  "stages": [
+    {
+      "id": "warm-up",
+      "title": "Warm Up",
+      "subtitle": "Find the Odd One Out!",
+      "durationMinutes": 5,
+      "icon": "sparkles",
+      "context": {
+        "Lesson topic": "$input.warmUpTopic"
+      },
+      "instructions": "Generate only the variable content for a five-minute Warm-Up in the existing Find the Odd One Out template.",
+      "blocks": [
+        {
+          "id": "warm-up-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Goal:** The main goal of this stage is to activate the student's background knowledge, get them speaking right away, and introduce the topic of the lesson.\n\n**Error Correction:** Focus purely on fluency. Do not interrupt the student to correct grammar or minor pronunciation mistakes. Praise their ideas and create a welcoming atmosphere!\n\n**Say:** \"Hello! How are you today? Are you ready for our lesson? Let's start our lesson with a quick game called 'Find the Odd One Out'. Look at the first row of words. Three of them are connected, but one is different. Which word doesn't belong here? Can you explain why?\"\n\n**Teacher's Tips (Handling the activity):**\n\n- **Encourage Full Sentences:** If the student just shouts out one word (e.g., \"{{exampleWord}}!\"), point to the Support box. Ask them: \"Can you explain it using this sentence? '{{exampleWord}} is the odd one out because...'\"\n- **Accept Alternative Answers:** Students often think outside the box. If they choose a \"wrong\" word but provide a logical, creative explanation, praise them for it! (\"That's a great reason!\") After praising, gently guide them to the intended category: \"Now let's look at it from another angle. What do the other three words have in common?\"\n- **Scaffolding for weaker students:** If they struggle to name the category, help them with leading questions about the words' functions or characteristics: \"What do you do with [Word A] and [Word B]? Are they actions / places / objects / feelings?\""
+          },
+          "slots": {
+            "exampleWord": {
+              "from": "warm-up-odd-one-out.items[0].answer",
+              "capitalize": true
+            }
+          }
+        },
+        {
+          "id": "warm-up-odd-one-out",
+          "kind": "generated",
+          "control": "oddOneOut",
+          "params": {
+            "rows": 4
+          },
+          "chrome": {
+            "title": "Find the Odd One Out!",
+            "instruction": "Look at the four words in each row. Find the odd word and explain your choice."
+          },
+          "instructions": "Use a different kind of category in each row, for example part of speech, meaning group, function, or place. Keep the difficulty growing slightly from row 1 to row 4.\nEvery word must be directly connected to the provided topic, so that the rows together introduce it.\nPlace the odd word in a different position in different rows.\nexplanation is for the teacher: one short English sentence that names why the odd word is different and what the other three have in common, for example “It is an adjective; the other words can be verbs.”"
+        },
+        {
+          "id": "warm-up-odd-one-out-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "from": [
+            "warm-up-odd-one-out"
+          ],
+          "chrome": {
+            "title": "Answer Keys"
+          }
+        }
+      ]
+    },
+    {
+      "id": "lead-in",
+      "title": "Lead In",
+      "subtitle": "Fact or Myth?",
+      "durationMinutes": 5,
+      "icon": "compass",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic"
+      },
+      "instructions": "Generate only the variable content for a five-minute Lead-In in the existing Fact or Myth? template.\nEvery statement is one short sentence at the target CEFR level.",
+      "blocks": [
+        {
+          "id": "lead-in-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Say:** \"Now let's play a game called '**Fact or Myth?**'. I will show you some statements. You need to read them and decide: is it a true **Fact**, or a false **Myth**?\"\n\n**Teacher's Tips (Handling the activity):**\n\n- **Check Understanding:** Before you start, make sure the student understands the words **Fact** (100% true) and **Myth** (false / not true). You can use thumbs up 👍 and thumbs down 👎 gestures to make it fun.\n- **Elicit Explanations (Questions 1–3):** For the general knowledge statements, don't just accept a one-word answer. Point to the **Speaking Support** box and ask: \"Why do you think so? Can you prove it?\"\n- **The \"Guess\" Factor (Questions 4–5):** The last few statements are usually directly related to the stories they are about to explore. The student cannot know the answer yet. **Do not reveal the correct answer here!** Let them guess. Ask: \"What do you think? Let's make a guess.\"\n\n**Post-Task Discussion**\n\n**Say:** \"You have some really interesting ideas! But are your guesses for the last questions actually right? Well, there is only one way to find out. Let's move to the next part of our lesson, read the stories, and check our answers!\""
+          }
+        },
+        {
+          "id": "lead-in-fact-or-myth",
+          "kind": "generated",
+          "control": "factOrMyth",
+          "params": {
+            "checkStatements": 3,
+            "guessStatements": 2
+          },
+          "chrome": {
+            "title": "Read the sentences. Is it a FACT or MYTH?",
+            "instruction": "Choose Fact or Myth for each sentence.",
+            "guessNote": "Students guess now and check later in the stories."
+          },
+          "exports": {
+            "guessStatements": "leadInGuesses"
+          },
+          "instructions": "checkStatements: statements about the lesson topic in general that the student can judge from everyday knowledge and explain. Include at least one fact and at least one myth. Use only common, uncontroversial knowledge: no exact dates, numbers, records, and nothing that is true only in some places or is a matter of opinion. Present Simple is fine here.\nguessStatements: statements about one concrete detail of the people in the stories. Start each with \"Somebody in our stories\". Use the target grammar. Choose details that are easy to show in a short story: appearance, things they have, actions, places, or feelings. The student cannot know the answer and must guess.\nStyle examples from other lessons. Never copy them; adapt the idea to the given topic and grammar:\n- Superheroes, have got: check \"All superheroes have got a cape.\" (myth); guess \"Somebody in our stories has got green hair.\"; support \"Spider-Man hasn’t got…\"\n- Summer time, Past Simple: check \"You can get a sunburn on a cloudy day.\" (fact); guess \"Somebody in our stories went camping last summer.\"; support \"In summer, people usually…\""
+        },
+        {
+          "id": "lead-in-speaking-support",
+          "kind": "generated",
+          "control": "listCard",
+          "params": {
+            "items": 2,
+            "format": "paragraphs",
+            "fixedBefore": [
+              "I think it’s a fact / myth because…"
+            ],
+            "plainText": true
+          },
+          "fields": {
+            "items": "speakingSupport"
+          },
+          "chrome": {
+            "title": "Speaking Support",
+            "icon": "chat",
+            "accentColor": "#E5AD16",
+            "studentVisibility": "always"
+          },
+          "instructions": "speakingSupport: unfinished sentence starters, ending with \"…\", that help the student justify an answer about this topic."
+        },
+        {
+          "id": "lead-in-fact-or-myth-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "from": [
+            "lead-in-fact-or-myth"
+          ],
+          "chrome": {
+            "title": "Answer Keys"
+          }
+        }
+      ]
+    },
+    {
+      "id": "target-vocabulary",
+      "title": "Target Vocabulary",
+      "subtitle": "Explore & Practise New Words",
+      "durationMinutes": 8,
+      "icon": "cards",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Guess statements from the Lead-In": "$var.leadInGuesses"
+      },
+      "instructions": "Generate only the variable content for an eight-minute Target Vocabulary section in the existing template. The application adds titles, instructions, Teacher’s Notes and answer keys.\nAll English must be natural and at the target CEFR level.\nStyle examples below come from another lesson (Superheroes, have got). Never copy them; adapt the idea to the given topic and grammar.\nApart from the ** and [[...]] markers described below, use plain text only: no other Markdown, HTML, or brackets.",
+      "blocks": [
+        {
+          "id": "target-vocabulary-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "blocks": [
+              {
+                "type": "teacherNoteBlock",
+                "id": "target-vocabulary-pronunciation-check",
+                "title": "Pronunciation Check",
+                "titleColor": "#6545F5",
+                "icon": "audio",
+                "text": "Используйте эти онлайн-словари, чтобы проверить и включить произношение:\n\n- Cambridge Dictionary – cambridge.org/dictionary\n- Merriam-Webster – merriam-webster.com\n- Oxford Learner’s Dictionaries – oxfordlearnersdictionaries.com",
+                "tip": {
+                  "text": "Включите аудио ученику и попросите его повторить.\nОбратите внимание на ударение в новых словах и фразах."
+                }
+              },
+              {
+                "type": "teacherNoteBlock",
+                "id": "target-vocabulary-exercise-lead-in",
+                "title": "What to Say & How to Lead Into Each Exercise",
+                "titleColor": "#20A85B",
+                "icon": "chat",
+                "text": "**Task 1:** Прочитайте истории. Попросите ученика обратить внимание на выделенные слова. Затем вернитесь к догадкам 4–5 из Lead-In и проверьте их вместе: ответы — в карточке «Lead-In: Check Your Guesses».\n\n**Task 2:** Попросите ученика выбрать значение каждого слова. При затруднении вернитесь к историям. После ошибки можно попробовать ещё раз.\n\n**Task 3:** Сначала прочитайте весь текст, затем выберите слова из выпадающих списков. В конце попросите ученика прочитать получившуюся историю вслух.\n\n**Task 4:** Попросите ученика перетащить слова в пропуски. Каждое слово используется один раз. Затем прочитайте предложения вслух.\n\n**Extra Task:** При необходимости нажмите «Показать», чтобы открыть дополнительное задание ученику. Попросите написать английские слова рядом с русскими подсказками.\n\n**Task 5:** Задайте ученику вопросы о нём самом. Используйте follow-up вопросы и Sentence Starters. Правильных и неправильных ответов нет."
+              },
+              {
+                "type": "teacherNoteBlock",
+                "id": "target-vocabulary-extra-phrases",
+                "title": "Extra Teacher Phrases You Can Use",
+                "titleColor": "#6545F5",
+                "icon": "chatDots",
+                "text": "При необходимости задайте ученику дополнительные вопросы:\n\n- “Can you think of another example?”\n- “What does this mean in your own words?”\n- “Let’s use this word in a sentence together.”\n- “Good! Can you say it another way?”"
+              }
+            ]
+          }
+        },
+        {
+          "id": "target-vocabulary-card",
+          "kind": "generated",
+          "control": "vocabularyList",
+          "params": {
+            "items": 10,
+            "distractors": true
+          },
+          "fields": {
+            "items": "vocabularyItems"
+          },
+          "chrome": {
+            "title": "Vocabulary",
+            "icon": "book",
+            "accentColor": "#20A85B",
+            "studentVisibility": "controlled"
+          },
+          "exports": {
+            "vocabulary": "targetVocabulary"
+          },
+          "instructions": "vocabularyItems: useful words or short phrases for the topic."
+        },
+        {
+          "id": "target-vocabulary-stories",
+          "kind": "generated",
+          "control": "storyCards",
+          "params": {
+            "stories": 4,
+            "minWords": 40,
+            "maxWords": 60,
+            "grammarUses": 2
+          },
+          "chrome": {
+            "title": "Task 1. Read the stories. Pay attention to the words in bold.",
+            "colors": [
+              "#EAE4FC",
+              "#FCE3F0",
+              "#FFF0E5",
+              "#E2FBFB"
+            ]
+          },
+          "inputs": {
+            "highlight": "targetVocabulary",
+            "guesses": "leadInGuesses"
+          },
+          "instructions": "Four different people talk about the lesson topic. Choose people who fit the topic naturally.\nStyle example for a story: \"Hi! I'm Forest Elf. I've got **green hair** and two **pointed ears**. I can talk to animals.\""
+        },
+        {
+          "id": "target-vocabulary-guess-answers",
+          "kind": "derived",
+          "control": "storyGuessKey",
+          "from": "target-vocabulary-stories",
+          "inputs": {
+            "guesses": "leadInGuesses"
+          },
+          "chrome": {
+            "title": "Lead-In: Check Your Guesses",
+            "accentColor": "#E5AD16"
+          }
+        },
+        {
+          "id": "target-vocabulary-meanings",
+          "kind": "derived",
+          "control": "vocabularyMeanings",
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "Task 2. Choose the correct meaning for the words from the text.",
+            "instruction": "Choose one answer for each question."
+          }
+        },
+        {
+          "id": "target-vocabulary-context-dropdown",
+          "kind": "generated",
+          "control": "contextDropdown",
+          "params": {
+            "gaps": 8,
+            "options": 3,
+            "minWords": 70,
+            "maxWords": 110
+          },
+          "fields": {
+            "text": "contextText",
+            "choices": "contextChoices"
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "Task 3. Vocabulary in Context — Dropdown",
+            "instruction": "Fill in the blanks with the correct words from the dropdown lists."
+          },
+          "instructions": "contextText is about a new person connected to the topic."
+        },
+        {
+          "id": "target-vocabulary-drag-words",
+          "kind": "generated",
+          "control": "dragSentences",
+          "params": {
+            "sentences": 6
+          },
+          "fields": {
+            "sentences": "dragSentences"
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "Task 4. Drag the correct words into the gaps.",
+            "instruction": "Use each word once."
+          },
+          "instructions": "Style example for dragSentences: \"Night Fox has got a black [[mask]] over his eyes.\""
+        },
+        {
+          "id": "target-vocabulary-type-words",
+          "kind": "generated",
+          "control": "translationHints",
+          "fields": {
+            "sentences": "translationSentences"
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "Extra Task. Type the English words.",
+            "instruction": "Type the English word or phrase next to each Russian hint.",
+            "studentVisibility": "controlled"
+          },
+          "instructions": "Style example for translationSentences: before \"Shadow Girl has got a black\", hint \"маска\", answer \"mask\""
+        },
+        {
+          "id": "target-vocabulary-personalized-questions",
+          "kind": "generated",
+          "control": "personalizedQuestions",
+          "params": {
+            "items": 4
+          },
+          "fields": {
+            "questions": "personalizedQuestions"
+          },
+          "inputs": {
+            "highlight": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "Task 5 · Personalised Questions",
+            "instruction": "Answer the questions out loud. There are no right or wrong answers!"
+          },
+          "instructions": "personalizedQuestions are about the student’s own life and experience."
+        },
+        {
+          "id": "target-vocabulary-sentence-starters-card",
+          "kind": "generated",
+          "control": "listCard",
+          "params": {
+            "items": 3,
+            "format": "boldBullets",
+            "intro": "Use these starters if you need help answering.",
+            "plainText": true
+          },
+          "fields": {
+            "items": "sentenceStarters"
+          },
+          "chrome": {
+            "title": "Support: Sentence Starters",
+            "icon": "chat",
+            "accentColor": "#20A85B",
+            "studentVisibility": "always"
+          },
+          "instructions": "sentenceStarters: short starters that help answer the personalized questions, ending with \"...\"."
+        }
+      ]
+    },
+    {
+      "id": "watch-and-interact",
+      "title": "Watch & interact",
+      "subtitle": "Predict, Watch & Discuss",
+      "durationMinutes": 10,
+      "icon": "video",
+      "blocks": [
+        {
+          "id": "watch-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "- Before watching, ask the student to predict what the video is about. Accept any guess and ask why.\n\n- After watching, return to the prediction and discuss what happened. Help the student answer with a short sentence.\n\n- Use the speaking support if the student needs help giving a reason.\n\n**Say:** “What do you think this video is about? Choose your guess and tell me why.”"
+          }
+        },
+        {
+          "id": "watch-prediction",
+          "kind": "static",
+          "component": {
+            "type": "multipleChoice",
+            "mode": "guess",
+            "title": "Before watching",
+            "instruction": "Prediction — choose your guess.",
+            "items": [
+              {
+                "id": "video-topic",
+                "question": "What do you think this video is about?",
+                "options": [
+                  "About teenagers arguing with parents",
+                  "About an unusual lizard",
+                  "About a boy who wants to become famous"
+                ],
+                "answer": null
+              }
+            ]
+          }
+        },
+        {
+          "id": "watch-video",
+          "kind": "static",
+          "component": {
+            "type": "videoPlayer",
+            "title": "Watch the video"
+          }
+        },
+        {
+          "id": "watch-discussion",
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
+            "title": "After watching",
+            "icon": "chat",
+            "accentColor": "#8257E5",
+            "studentVisibility": "always",
+            "headingSize": "large",
+            "layout": "stacked",
+            "variant": "discussion",
+            "sections": [
+              {
+                "id": "discussion",
+                "title": "Discussion / Speaking",
+                "text": "Would you like to try this? Why / why not?"
+              },
+              {
+                "id": "support",
+                "title": "Speaking support",
+                "text": "*Yes, I would because…*\n\n*No, I wouldn’t because…*"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "grammar-presentation",
+      "title": "Grammar Presentation",
+      "subtitle": "Complete the Rule",
+      "durationMinutes": 5,
+      "icon": "cap",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "Generate only the variable student-facing content for a five-minute Grammar Presentation in the existing Guided Discovery template.\nThe supplied Grammar topic is authoritative: explain and practise exactly that grammar without replacing it with a different structure.\nUse the Lesson topic as the natural context for examples and check sentences while keeping every grammar example accurate.\nAll generated copy must be in natural English at the target CEFR level.\nDo not generate Teacher’s Notes, component titles, instructions, IDs, colors, visibility settings, or Answer Key formatting; the application adds them statically.\nAll questions and activities must be supported by the five examples and rules in this section. The section must be self-contained.\nNaturally reuse some supplied Target Vocabulary in examples and check sentences. Inflection is allowed. Do not force every word or a quota; clear and accurate target grammar takes priority.",
+      "blocks": [
+        {
+          "id": "grammar-presentation-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Guided discovery**\n\nLet the student discover the rule before explaining it. Use the examples in this section as the starting point.\n\n**Notice and discuss**\n\nSay: “Read the examples. What do you notice about the highlighted words?” Work through the concept-checking questions. Ask the student to point to an example that supports each answer.\n\n**Build the rule**\n\nSay: “Use the examples to choose the missing words.” If the student gets stuck, focus on one example and offer a choice between two words. Then use Quick Rule to confirm meaning and form.\n\n**Check understanding**\n\nSay: “Read and tick the four grammatically correct sentences. Explain your choices.” Ask the student to correct the remaining sentences. Use the Answer Key explanations when needed.\n\n**Support and challenge**\n\nGive thinking time and let the student reread the examples. For an extra challenge, ask for one personal example using the target grammar.\n\n**Before moving on**\n\nCheck that the student can explain the main rule in simple words and produce one accurate example. If needed, revisit one example and try again."
+          }
+        },
+        {
+          "id": "grammar-presentation-notice-rule",
+          "kind": "generated",
+          "control": "numberedPanel",
+          "params": {
+            "items": 5,
+            "boldTargetGrammar": true
+          },
+          "fields": {
+            "items": "examples"
+          },
+          "chrome": {
+            "heading": "Notice the Rule",
+            "subheading": "Look at the examples. What grammar structure is used here?",
+            "accentColor": "#6545F5",
+            "showBorder": false
+          },
+          "instructions": "examples: short example sentences."
+        },
+        {
+          "id": "grammar-presentation-concept-checking",
+          "kind": "generated",
+          "control": "numberedPanel",
+          "params": {
+            "items": 4
+          },
+          "fields": {
+            "items": "conceptCheckingQuestions"
+          },
+          "chrome": {
+            "heading": "Concept-checking questions:",
+            "accentColor": "#20A85B",
+            "showBorder": true
+          },
+          "instructions": "conceptCheckingQuestions: keep them concise and guide the learner to discover meaning, use, and form from the examples."
+        },
+        {
+          "id": "grammar-presentation-complete-the-rule",
+          "kind": "generated",
+          "control": "ruleGaps",
+          "params": {
+            "gaps": 4,
+            "distractors": 2
+          },
+          "fields": {
+            "items": "ruleItems",
+            "distractors": "ruleDistractors"
+          },
+          "chrome": {
+            "title": "Complete the Rule",
+            "instruction": "Drag the correct words into the gaps."
+          }
+        },
+        {
+          "id": "grammar-presentation-quick-rule",
+          "kind": "generated",
+          "control": "quickRule",
+          "params": {
+            "minSections": 1,
+            "maxSections": 3
+          },
+          "fields": {
+            "sections": "quickRuleSections"
+          },
+          "chrome": {
+            "title": "Quick Rule",
+            "layout": "columns",
+            "icon": "bulb",
+            "accentColor": "#6545F5",
+            "studentVisibility": "always"
+          },
+          "instructions": "Use concise Markdown bullet points to cover meaning, affirmative form, and relevant negative/question forms, with an example at the target CEFR level where useful."
+        },
+        {
+          "id": "grammar-presentation-check-the-rule",
+          "kind": "generated",
+          "control": "correctSentences",
+          "params": {
+            "sentences": 8,
+            "correct": 4
+          },
+          "fields": {
+            "items": "checkItems"
+          },
+          "chrome": {
+            "title": "Task 2. Tick the sentences that are correct.",
+            "instruction": "Read the sentences and tick the grammatically correct ones.",
+            "question": "Which four sentences are grammatically correct?"
+          }
+        },
+        {
+          "id": "grammar-presentation-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "chrome": {
+            "title": "Answer key",
+            "layout": "columns"
+          },
+          "from": [
+            {
+              "block": "grammar-presentation-complete-the-rule",
+              "title": "Task 1 Rule",
+              "id": "task-one-answers"
+            },
+            {
+              "block": "grammar-presentation-check-the-rule",
+              "part": "answers",
+              "title": "Task 2",
+              "id": "task-two-answers"
+            },
+            {
+              "block": "grammar-presentation-check-the-rule",
+              "part": "explanations",
+              "title": "Short explanations:",
+              "id": "short-explanations"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grammar-focus",
+      "title": "Grammar Focus",
+      "subtitle": "Practice the Rule",
+      "durationMinutes": 8,
+      "icon": "cap",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "Generate all variable content for a Grammar Focus section in the existing template: four controlled-practice tasks, an extra translation task, writing support, and Teacher’s Notes.\nThe supplied Grammar topic is authoritative. Every task must accurately practise exactly that grammar.\nUse the Lesson topic as one coherent natural context and reuse some supplied Target Vocabulary where it fits.\nAll generated lesson copy, including Teacher’s Notes, must be in English at the target CEFR level. The only exception is translations[].ru, which must be natural Russian.\nDo not generate component titles, instructions, IDs, colors, icons, visibility settings, numbering, or answer-key formatting; the application adds them.\nDo not use Markdown or HTML in Tasks 1–4 or translations. Never generate [[gap IDs]] or {{gap}} markers.",
+      "blocks": [
+        {
+          "id": "grammar-focus-teacher-note",
+          "kind": "generated",
+          "control": "teacherNoteSections",
+          "params": {
+            "format": "blocks",
+            "sections": [
+              {
+                "key": "transitionPhrases",
+                "id": "grammar-focus-transition-phrases",
+                "title": "Transition phrases",
+                "titleColor": "#6545F5",
+                "icon": "chatDots"
+              },
+              {
+                "key": "struggleTips",
+                "id": "grammar-focus-struggle-tips",
+                "title": "Tips if the student struggles",
+                "titleColor": "#2F80ED",
+                "icon": "chat"
+              },
+              {
+                "key": "correctionTiming",
+                "id": "grammar-focus-correction-timing",
+                "title": "Correct now / later",
+                "titleColor": "#E0812D",
+                "icon": "chat"
+              },
+              {
+                "key": "successCriteria",
+                "id": "grammar-focus-free-practice-success",
+                "title": "Success criteria",
+                "titleColor": "#20A85B",
+                "icon": "chatDots"
+              }
+            ]
+          },
+          "fields": {
+            "notes": "teacherNotes"
+          },
+          "instructions": "Teacher’s Notes must provide four concise Markdown texts: transition phrases, grammar-specific struggle tips, correction timing, and measurable success criteria for Tasks 1–4 and the Extra Task."
+        },
+        {
+          "id": "grammar-focus-choose-the-correct-options",
+          "kind": "generated",
+          "control": "choiceSentences",
+          "params": {
+            "items": 8,
+            "options": 3
+          },
+          "fields": {
+            "items": "task1Items"
+          },
+          "chrome": {
+            "title": "**Task 1. Choose the correct options.**",
+            "instruction": "Read each sentence and choose the correct grammar option.",
+            "accentColor": "#6545F5"
+          },
+          "instructions": "Vary the position of correct options and include affirmative, negative, and question forms whenever the grammar topic supports them."
+        },
+        {
+          "id": "grammar-focus-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "chrome": {
+            "title": "Answer Key & Explanations",
+            "layout": "columns"
+          },
+          "from": [
+            {
+              "block": "grammar-focus-choose-the-correct-options",
+              "part": "answers",
+              "title": "Answers",
+              "id": "answers"
+            },
+            {
+              "block": "grammar-focus-choose-the-correct-options",
+              "part": "explanations",
+              "title": "Short explanations",
+              "id": "short-explanations"
+            }
+          ]
+        },
+        {
+          "id": "grammar-focus-complete-the-gaps",
+          "kind": "generated",
+          "control": "cueGaps",
+          "params": {
+            "items": 8
+          },
+          "fields": {
+            "items": "task2Items"
+          },
+          "chrome": {
+            "title": "Task 2. Complete the gaps with the correct form of the verbs.",
+            "instruction": "Read each sentence and type the correct form of the verb.",
+            "accentColor": "#2F80ED"
+          },
+          "instructions": "task2Items are separate sentences, not a dialogue."
+        },
+        {
+          "id": "grammar-focus-complete-the-gaps-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "from": [
+            "grammar-focus-complete-the-gaps"
+          ]
+        },
+        {
+          "id": "grammar-focus-correct-the-mistakes",
+          "kind": "generated",
+          "control": "sentenceCorrection",
+          "params": {
+            "items": 8
+          },
+          "fields": {
+            "items": "correctionItems"
+          },
+          "chrome": {
+            "title": "Task 3. Correct the mistakes.",
+            "instruction": "There is one mistake in each sentence. Rewrite it correctly.",
+            "accentColor": "#6545F5"
+          }
+        },
+        {
+          "id": "grammar-focus-correct-the-mistakes-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "from": [
+            "grammar-focus-correct-the-mistakes"
+          ]
+        },
+        {
+          "id": "grammar-focus-match-sentence-halves",
+          "kind": "generated",
+          "control": "sentenceHalves",
+          "params": {
+            "pairs": 6
+          },
+          "fields": {
+            "items": "matchingItems"
+          },
+          "chrome": {
+            "title": "Task 4. Match the sentence halves."
+          }
+        },
+        {
+          "id": "grammar-focus-translate-sentences",
+          "kind": "generated",
+          "control": "translationSentences",
+          "params": {
+            "items": 10
+          },
+          "fields": {
+            "items": "translations"
+          },
+          "chrome": {
+            "title": "**Extra Task. Translate the sentences.**",
+            "instruction": "Translate the sentences from Russian to English.",
+            "accentColor": "#6545F5",
+            "studentVisibility": "controlled",
+            "fieldSize": "wide"
+          },
+          "instructions": "Choose sentences that have one clear, unambiguous English translation."
+        },
+        {
+          "id": "grammar-focus-translate-sentences-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "from": [
+            "grammar-focus-translate-sentences"
+          ]
+        },
+        {
+          "id": "grammar-focus-practice-support-row",
+          "kind": "row",
+          "blocks": [
+            {
+              "id": "grammar-focus-writing-support",
+              "kind": "generated",
+              "control": "listCard",
+              "params": {
+                "items": 5,
+                "format": "numbered"
+              },
+              "fields": {
+                "items": "writingSupport"
+              },
+              "chrome": {
+                "title": "Writing Support",
+                "icon": "pencil",
+                "accentColor": "#20A85B",
+                "studentVisibility": "always"
+              },
+              "instructions": "writingSupport: short sentence starters that help the learner use the target grammar."
+            },
+            {
+              "id": "grammar-focus-support",
+              "kind": "generated",
+              "control": "wordBankSupport",
+              "params": {
+                "words": 8,
+                "minimumTask": "Write 3 sentences if you need extra support."
+              },
+              "fields": {
+                "words": "supportWordBank"
+              },
+              "inputs": {
+                "vocabulary": "targetVocabulary"
+              },
+              "chrome": {
+                "title": "Support",
+                "icon": "lifeRing",
+                "accentColor": "#20A85B",
+                "studentVisibility": "always"
+              },
+              "instructions": "Create one natural modelSentence using the target grammar and lesson context."
+            },
+            {
+              "id": "grammar-focus-challenge",
+              "kind": "generated",
+              "control": "listCard",
+              "params": {
+                "items": 5,
+                "format": "bullets"
+              },
+              "fields": {
+                "items": "challengeItems"
+              },
+              "chrome": {
+                "title": "Challenge",
+                "icon": "trophy",
+                "accentColor": "#6545F5",
+                "studentVisibility": "always"
+              },
+              "instructions": "challengeItems: concise conditions, including a negative, a question, a reason, target vocabulary, and linked ideas when compatible with the grammar."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "guided-speaking",
+      "title": "Guided Communication",
+      "subtitle": "Choose a Card",
+      "durationMinutes": 8,
+      "icon": "chat",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "Generate the variable content for an eight-minute Guided Communication stage: three task cards; the learner chooses one and discusses it with the teacher.\nThe supplied Grammar topic is authoritative: every card must naturally elicit it in its questions, phrases and sentence starters. Use the Lesson topic as the context.\nAll content must be natural English at the target CEFR level. Do not use Russian, Markdown or HTML.\nDo not generate card numbers, cover emojis, colors, IDs, labels like \"Card 1\", or stage instructions; the application adds them.",
+      "blocks": [
+        {
+          "id": "guided-communication-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Start:** You start. Ask: “What would you like to do?”\n\n**For weaker students:** Give 2 options and ask short questions.\n\n**For stronger students:** Ask for reasons, alternatives and compromise.\n\n**Watch for:** questions, reactions, suggestions, agreeing/disagreeing.\n\n**If stuck:** Give a choice or a sentence starter: “I think ___ because...”\n\n**Target language:** Aim for 2 target words + 2 grammar examples. Adjust to the student.\n\n**Correct:** Help only if communication stops. Save other corrections for the end.\n\n**Success:** {{successCriteria}}"
+          },
+          "slots": {
+            "successCriteria": {
+              "rule": "one short measurable sentence describing what the learner can do by the end of the stage."
+            }
+          }
+        },
+        {
+          "id": "guided-communication-instruction",
+          "kind": "static",
+          "component": {
+            "type": "taskPrompt",
+            "variant": "followUp",
+            "title": "Choose a card",
+            "text": "Choose a card, turn it over, and do the task."
+          }
+        },
+        {
+          "id": "guided-communication-cards",
+          "kind": "generated",
+          "control": "communicationCards",
+          "params": {
+            "cards": 3,
+            "questions": 4,
+            "vocabularyMin": 6,
+            "vocabularyMax": 10,
+            "phrases": 5,
+            "starters": 5
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "chrome": {
+            "covers": [
+              {
+                "emoji": "😎",
+                "backgroundColor": "#C7DDFB"
+              },
+              {
+                "emoji": "🤩",
+                "backgroundColor": "#ECEBFF"
+              },
+              {
+                "emoji": "🤓",
+                "backgroundColor": "#DFCEF3"
+              }
+            ]
+          },
+          "instructions": "Card 1: the learner describes or talks about themselves or their own experience.\nCard 2: the learner imagines, compares or gives opinions with reasons.\nCard 3: the learner asks the teacher questions. Its miniTask must ask the learner to ask the teacher questions, and its miniTaskExample must start with \"Example:\" and show one such question.\nSet miniTaskExample to an empty string on cards 1 and 2."
+        }
+      ]
+    },
+    {
+      "id": "wrap-up",
+      "title": "Wrap-Up",
+      "subtitle": "3–2–1",
+      "durationMinutes": 3,
+      "icon": "check",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "Generate only the variable content for a three-minute Wrap-Up in the existing 3–2–1 template.\nUse the Lesson topic, Grammar topic, and exact Target Vocabulary to review the lesson coherently.\nAll generated copy, including Teacher’s Notes, must be natural English at the target CEFR level. Do not use Russian or any other language.\nDo not generate component titles, IDs, labels, colors, icons, visibility settings, numbering, or Self-assessment; the application adds them statically.",
+      "blocks": [
+        {
+          "id": "wrap-up-teacher-note",
+          "kind": "generated",
+          "control": "teacherNoteSections",
+          "params": {
+            "format": "list",
+            "sections": [
+              {
+                "key": "signsOfSuccess",
+                "title": "Signs of success"
+              },
+              {
+                "key": "struggleSupport",
+                "title": "If the student struggles"
+              },
+              {
+                "key": "positiveEnding",
+                "title": "Positive ending"
+              }
+            ]
+          },
+          "fields": {
+            "notes": "teacherNotes"
+          },
+          "instructions": "Teacher’s Notes must contain three concise parts: measurable signs of success, specific support if the learner struggles, and a ready-to-say positive ending."
+        },
+        {
+          "id": "wrap-up-three-two-one",
+          "kind": "generated",
+          "control": "threeTwoOne",
+          "params": {
+            "twoCues": 2
+          },
+          "chrome": {
+            "oneLabel": "Can-do question"
+          },
+          "instructions": "The threePrompt must ask the learner to recall three words or phrases from the supplied Target Vocabulary in connection with the lesson topic.\nThe twoPrompt must ask for two topic-related sentences that accurately use the supplied Grammar topic.\nEach of the twoCues must be concrete, give a different topic-related idea for one sentence and make the intended grammar use clear without supplying the complete answer.\nThe onePrompt must be one practical can-do question about the lesson topic that invites a short personal answer and use of the target grammar or vocabulary."
+        },
+        {
+          "id": "wrap-up-self-assessment",
+          "kind": "static",
+          "component": {
+            "type": "selfAssessment",
+            "title": "Self-assessment: How do you feel about today’s lesson?"
+          }
+        },
+        {
+          "id": "wrap-up-possible-language",
+          "kind": "generated",
+          "control": "listCard",
+          "params": {
+            "items": 3,
+            "format": "slashSeparated"
+          },
+          "fields": {
+            "items": "possibleLanguage"
+          },
+          "chrome": {
+            "title": "Possible language:",
+            "icon": "chat",
+            "accentColor": "#6545F5",
+            "studentVisibility": "always"
+          },
+          "instructions": "possibleLanguage: short Possible language supports. Make them useful for answering the two and one steps, and naturally include the target grammar and relevant supplied vocabulary where possible."
+        }
+      ]
+    }
+  ]
+}
