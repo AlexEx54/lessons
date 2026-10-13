@@ -308,14 +308,6 @@
     link.addEventListener('click', () => closeNavigation({ restoreFocus: false }));
   });
 
-  document.querySelectorAll('[data-coming-soon]').forEach(button => {
-    button.addEventListener('click', () => {
-      closeNavigation();
-      const label = button.dataset.comingSoon;
-      showToast(label ? `${label}: этот раздел скоро появится.` : 'Этот раздел скоро появится.');
-    });
-  });
-
   document.querySelectorAll('[data-toast]').forEach(button => {
     button.addEventListener('click', () => showToast(button.dataset.toast));
   });

@@ -1,0 +1,49 @@
+<!-- Настройки преподавателя. Общий AppShell добавляется серверным renderer. -->
+<section class="settings-panel" aria-labelledby="settings-title">
+  <header class="settings-heading">
+    <p class="settings-heading__eyebrow">Профиль</p>
+    <h2 id="settings-title">Настройки</h2>
+    <p>Имя и аватарка показываются в шапке кабинета.</p>
+  </header>
+
+  <form class="settings-form" id="settings-form" inert>
+    <label class="settings-field">
+      <span>Имя</span>
+      <input name="displayName" type="text" maxlength="80" autocomplete="name" required />
+    </label>
+
+    <section class="settings-section" aria-labelledby="settings-avatar-title">
+      <h3 id="settings-avatar-title">Аватарка</h3>
+      <div class="settings-avatar">
+        <img class="settings-avatar__preview" id="settings-avatar-preview" alt="Текущая аватарка" width="112" height="112" data-user-avatar />
+        <div class="settings-avatar__actions">
+          <div class="settings-avatar__buttons">
+            <button class="settings-button settings-button--primary" id="settings-avatar-upload" type="button">Загрузить фото</button>
+            <button class="settings-button" id="settings-avatar-remove" type="button" hidden>Удалить фото</button>
+          </div>
+          <p class="settings-hint">JPG, PNG или WebP. Фото обрежется до квадрата по центру.</p>
+          <input id="settings-avatar-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+        </div>
+      </div>
+
+      <fieldset class="settings-choices">
+        <legend>Стандартная аватарка <span>— когда фото не загружено</span></legend>
+        <label class="settings-choice">
+          <input type="radio" name="defaultAvatar" value="female" />
+          <img src="/assets/images/teacher-avatar-transparent.webp" alt="" width="72" height="72" />
+          <span>Женская</span>
+        </label>
+        <label class="settings-choice">
+          <input type="radio" name="defaultAvatar" value="male" />
+          <img src="/assets/images/teacher-avatar-male.webp" alt="" width="72" height="72" />
+          <span>Мужская</span>
+        </label>
+      </fieldset>
+    </section>
+
+    <p class="settings-error" id="settings-error" role="alert" hidden></p>
+    <div class="settings-actions">
+      <button class="settings-button settings-button--primary" type="submit">Сохранить</button>
+    </div>
+  </form>
+</section>

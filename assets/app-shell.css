@@ -283,6 +283,12 @@ p { margin: 0; }
   object-fit: contain;
 }
 
+/* Uploaded photos are square, default avatars are transparent illustrations. */
+[data-user-avatar][src^="/api/avatars/"] {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .profile-button strong,
 .profile-button small { display: block; }
 
