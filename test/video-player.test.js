@@ -309,3 +309,19 @@ test('seeking skips earlier questions until playback runs through them again', t
   video.currentTime = 10.2; video.emit('timeupdate');
   assert.equal(overlay.hidden, false); assert.equal(video.currentTime, 10);
 });
+
+test('loading spinner appears only when loading takes noticeable time', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const doc = documentFixture();
+  const node = renderVideoPlayer(component, {}, doc);
+  t.after(() => node.dispose());
+  const video = doc.elements.find(n => n.tag === 'video');
+  const loading = doc.elements.find(n => n.className === 'video-player__loading');
+  assert.equal(loading.hidden, true);
+  t.mock.timers.tick(300); assert.equal(loading.hidden, false);
+  video.emit('loadedmetadata'); assert.equal(loading.hidden, true);
+  video.emit('seeking'); video.emit('seeked'); t.mock.timers.tick(300);
+  assert.equal(loading.hidden, true);
+  video.emit('waiting'); t.mock.timers.tick(300); assert.equal(loading.hidden, false);
+  video.emit('playing'); assert.equal(loading.hidden, true);
+});

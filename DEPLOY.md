@@ -136,9 +136,14 @@ and download its attachments.
 
 ### Watch & interact videos
 
-Install `ffprobe` (provided by the `ffmpeg` package) on the server, or set
-`FFPROBE_PATH` to its executable. Upload validation accepts MP4 with H.264 video
-and optional AAC audio, up to 300 MiB. No transcoding is performed.
+Install the `ffmpeg` package (`ffprobe` and `ffmpeg`) on the server, or set
+`FFPROBE_PATH` and `FFMPEG_PATH` to the executables. Upload validation accepts MP4
+with H.264 video and optional AAC audio, up to 300 MiB. No transcoding is performed,
+but fragmented MP4s and files with the index at the end are remuxed (`-c copy
+-movflags +faststart`): otherwise browsers walk or download the whole file before
+playback starts. Videos uploaded before this change are fixed in place with
+`sudo -u teachplatform node scripts/remux-videos.js /var/lib/teach_platform/draft-assets`
+(lists affected files; add `--apply` to rewrite them). Run it when no lessons are live.
 The reverse proxy must permit 300 MiB request bodies (nginx:
 `client_max_body_size 300m;`) and allow sufficient upload time.
 

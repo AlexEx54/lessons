@@ -161,7 +161,15 @@
     const frame = doc.createElement('div'); frame.className = 'video-player__frame';
     const overlay = doc.createElement('div'); overlay.className = 'video-player__question'; overlay.hidden = true;
     overlay.setAttribute('role', 'group'); overlay.setAttribute('aria-label', 'Вопрос к видео');
-    frame.append(video, overlay);
+    // Shown only when loading takes noticeable time, so short seeks inside buffered video do not flicker.
+    const loading = doc.createElement('div'); loading.className = 'video-player__loading'; loading.hidden = true; loading.setAttribute('aria-hidden', 'true');
+    let loadingTimer = null;
+    function setLoading(value) {
+      root.clearTimeout(loadingTimer); loadingTimer = null;
+      if (value) loadingTimer = root.setTimeout(() => { loading.hidden = false; }, 300);
+      else loading.hidden = true;
+    }
+    frame.append(video, loading, overlay);
     const markers = doc.createElement('div'); markers.className = 'video-player__markers'; markers.setAttribute('aria-label', 'Вопросы на шкале видео');
     timeline.append(markers);
     const markerChoices = doc.createElement('div'); markerChoices.className = 'video-player__marker-choices'; markerChoices.hidden = true;
@@ -396,6 +404,8 @@
       if (activeQuestion()) { pause(); jumpTo(activeQuestion().atMs / 1000); renderQuestion(); }
       renderMarkers(); paint(); report(true);
     });
+    for (const event of ['waiting', 'seeking']) video.addEventListener(event, () => setLoading(true));
+    for (const event of ['loadedmetadata', 'canplay', 'playing', 'seeked', 'error']) video.addEventListener(event, () => setLoading(false));
     video.addEventListener('error', () => { status.textContent = 'Не удалось загрузить видео. Попробуйте открыть урок заново.'; });
     const fileControls = doc.createElement('div'); fileControls.className = 'video-player__files';
     if (options.onUpload) {
@@ -424,7 +434,7 @@
       if (current.videoSrc) video.src = current.videoSrc;
       else video.removeAttribute('src');
       video.hidden = controls.hidden = !current.videoSrc;
-      video.load(); paint();
+      video.load(); setLoading(Boolean(current.videoSrc)); paint();
     }
     let peerUpdated = 0;
     const timer = live ? root.setInterval(() => {
@@ -455,7 +465,7 @@
       if (!connected || !peerPresent) { pause(); peerUpdated = 0; if (align) { peerStatus.textContent = 'Ученик не подключён'; } }
       paint();
     };
-    section.dispose = () => { disposed = true; root.clearTimeout(seekCommitTimer); clearFeedbackTimer(); if (timer) root.clearInterval(timer); pause(); video.removeAttribute('src'); video.load(); };
+    section.dispose = () => { disposed = true; root.clearTimeout(seekCommitTimer); root.clearTimeout(loadingTimer); clearFeedbackTimer(); if (timer) root.clearInterval(timer); pause(); video.removeAttribute('src'); video.load(); };
     section.append(title, frame, controls, editor, fileControls, status); setSource(); renderMarkers(); renderQuestion();
     if (!current.videoSrc) status.textContent = 'Видео пока не загружено.';
     return section;

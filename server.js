@@ -1075,14 +1075,17 @@ function parseByteRange(header, total) {
 }
 
 function sendVideoFile(req, res, absolute) {
-  let size;
-  try { size = fs.statSync(absolute).size; }
+  let stat;
+  try { stat = fs.statSync(absolute); }
   catch { json(res, 404, { error: 'Видео не найдено.' }); return; }
-  const range = req.method !== 'HEAD' && req.headers.range ? parseByteRange(req.headers.range, size) : null;
-  if (req.method !== 'HEAD' && req.headers.range && !range) {
+  const { size } = stat, lastModified = stat.mtime.toUTCString();
+  // Files may be rewritten in place, so a cached part of the old file must not be combined with new bytes.
+  const rangeHeader = req.method !== 'HEAD' && (!req.headers['if-range'] || req.headers['if-range'] === lastModified) ? req.headers.range : undefined;
+  const range = rangeHeader ? parseByteRange(rangeHeader, size) : null;
+  if (rangeHeader && !range) {
     res.writeHead(416, { 'Content-Range': `bytes */${size}` }); res.end(); return;
   }
-  const headers = { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600',
+  const headers = { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600', 'Last-Modified': lastModified,
     'Content-Length': range ? range.end - range.start + 1 : size };
   if (range) headers['Content-Range'] = `bytes ${range.start}-${range.end}/${size}`;
   res.writeHead(range ? 206 : 200, headers);
