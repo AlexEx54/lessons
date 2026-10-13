@@ -14,7 +14,7 @@ APP_DATA_DIR=${APP_DATA_DIR:-/var/lib/teach_platform}
 SERVICE_NAME=${SERVICE_NAME:-teach-platform.service}
 PUBLIC_URL=${PUBLIC_URL:-https://www.easyclass-edu.ru}
 ALLOW_DIRTY=${ALLOW_DIRTY:-0}
-BACKUP_RETENTION=${BACKUP_RETENTION:-5}
+BACKUP_RETENTION=${BACKUP_RETENTION:-1}
 
 SSH_TARGET="${SERVER_USER}@${SERVER_HOST}"
 SSH_OPTIONS=(-p "$SERVER_PORT" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)

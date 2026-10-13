@@ -14,11 +14,11 @@ npm run deploy
 
 The script runs local checks, tests a staging copy on port `8788`, creates application
 and persistent-data backups in `/root/deploy-backups`, restarts the systemd service,
-and rolls back automatically if the new version fails its health checks. The five most
-recent backup pairs are retained by default. Override this with `BACKUP_RETENTION`:
+and rolls back automatically if the new version fails its health checks. Only the backup
+pair of the latest deploy is retained by default. Override this with `BACKUP_RETENTION`:
 
 ```bash
-BACKUP_RETENTION=10 npm run deploy
+BACKUP_RETENTION=3 npm run deploy
 ```
 
 Deploying a dirty working tree is blocked by default. To deploy it intentionally:
