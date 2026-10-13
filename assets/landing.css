@@ -1959,7 +1959,15 @@ body.auth-modal-open { overflow: hidden; }
 }
 
 .auth-form__forgot:hover,
+.auth-form__link:hover:not(:disabled),
 .auth-form__consent a:hover { text-decoration: underline; }
+
+.auth-form__control input.auth-form__code { font-size: 22px; font-weight: 650; letter-spacing: 0.3em; }
+
+.auth-form__code-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 20px; }
+
+.auth-form__link { color: #4a20ef; font-size: 15px; font-weight: 550; }
+.auth-form__link:disabled { color: #85808f; cursor: default; }
 
 .auth-form__error {
   margin: -5px 0;

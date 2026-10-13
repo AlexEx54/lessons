@@ -511,59 +511,95 @@
       </div>
 
       <div class="auth-modal__panel" id="auth-register-panel" role="tabpanel" aria-labelledby="auth-register-tab" hidden>
-        <h2>Создать аккаунт</h2>
-        <p class="auth-modal__intro">Начните бесплатно и получите доступ<br />к готовым урокам уже сейчас.</p>
+        <div data-register-step="details">
+          <h2>Создать аккаунт</h2>
+          <p class="auth-modal__intro">Начните бесплатно и получите доступ<br />к готовым урокам уже сейчас.</p>
 
-        <div class="yandex-auth">
-          <a class="yandex-auth__button" href="/api/auth/yandex">
-            <svg viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="13" fill="#fc3f1d" /><path d="M14.6 19.5v-13h-1.9c-2.4 0-3.8 1.3-3.8 3.5s1.4 3.5 3.8 3.5h1.9m-2.4 0-3.4 6" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" /></svg>
-            Войти с Яндекс ID
-          </a>
-          <p class="yandex-auth__note">Продолжая с Яндекс ID, вы принимаете <a href="/terms" target="_blank">Пользовательское соглашение</a>, даёте <a href="/consent" target="_blank">согласие на обработку персональных данных</a> и&nbsp;подтверждаете, что ознакомились с&nbsp;<a href="/privacy" target="_blank">Политикой конфиденциальности</a>.</p>
-          <p class="yandex-auth__divider">или</p>
+          <div class="yandex-auth">
+            <a class="yandex-auth__button" href="/api/auth/yandex">
+              <svg viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="13" fill="#fc3f1d" /><path d="M14.6 19.5v-13h-1.9c-2.4 0-3.8 1.3-3.8 3.5s1.4 3.5 3.8 3.5h1.9m-2.4 0-3.4 6" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" /></svg>
+              Войти с Яндекс ID
+            </a>
+            <p class="yandex-auth__note">Продолжая с Яндекс ID, вы принимаете <a href="/terms" target="_blank">Пользовательское соглашение</a>, даёте <a href="/consent" target="_blank">согласие на обработку персональных данных</a> и&nbsp;подтверждаете, что ознакомились с&nbsp;<a href="/privacy" target="_blank">Политикой конфиденциальности</a>.</p>
+            <p class="yandex-auth__divider">или</p>
+          </div>
+
+          <form class="auth-form auth-form--register" data-auth-form="register" novalidate>
+            <label class="auth-form__field">
+              <span>Имя</span>
+              <span class="auth-form__control">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5.5 20v-2.2c0-3 2.6-5.3 6.5-5.3s6.5 2.3 6.5 5.3V20z" /></svg>
+                <input type="text" name="register-name" placeholder="Введите ваше имя" autocomplete="name" maxlength="80" required data-auth-initial />
+              </span>
+            </label>
+
+            <label class="auth-form__field">
+              <span>Email</span>
+              <span class="auth-form__control">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h17v12h-17zM4 7l8 6 8-6" /></svg>
+                <input type="email" name="register-email" placeholder="Введите ваш email" autocomplete="email" maxlength="254" required />
+              </span>
+            </label>
+
+            <label class="auth-form__field">
+              <span>Пароль</span>
+              <span class="auth-form__control">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 10h11v10h-11zM8.5 10V7.5a3.5 3.5 0 017 0V10" /></svg>
+                <input type="password" name="register-password" placeholder="Придумайте пароль" autocomplete="new-password" minlength="10" maxlength="256" required />
+                <button class="auth-form__password-toggle" type="button" aria-label="Показать пароль" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5 9.5-5 9.5 5 9.5 5-3.5 5-9.5 5-9.5-5-9.5-5z" /><circle cx="12" cy="12" r="2.5" /></svg>
+                </button>
+              </span>
+            </label>
+
+            <label class="auth-form__field">
+              <span>Повторите пароль</span>
+              <span class="auth-form__control">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 10h11v10h-11zM8.5 10V7.5a3.5 3.5 0 017 0V10" /></svg>
+                <input type="password" name="register-password-confirm" placeholder="Введите пароль ещё раз" autocomplete="new-password" maxlength="256" required />
+                <button class="auth-form__password-toggle" type="button" aria-label="Показать пароль" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5 9.5-5 9.5 5 9.5 5-3.5 5-9.5 5-9.5-5-9.5-5z" /><circle cx="12" cy="12" r="2.5" /></svg>
+                </button>
+              </span>
+            </label>
+
+            <p class="auth-form__error" role="alert" aria-live="polite"></p>
+            <button class="auth-form__submit" type="submit">Зарегистрироваться</button>
+
+            <label class="auth-form__consent">
+              <input type="checkbox" name="terms" required />
+              <span>Принимаю условия <a href="/terms" target="_blank">Пользовательского соглашения</a> и&nbsp;подтверждаю ознакомление с&nbsp;<a href="/privacy" target="_blank">Политикой конфиденциальности</a></span>
+            </label>
+
+            <label class="auth-form__consent">
+              <input type="checkbox" name="consent" required />
+              <span>Даю <a href="/consent" target="_blank">согласие на обработку персональных данных</a></span>
+            </label>
+          </form>
         </div>
 
-        <form class="auth-form auth-form--register" data-auth-form="register" novalidate>
-          <label class="auth-form__field">
-            <span>Имя</span>
-            <span class="auth-form__control">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5.5 20v-2.2c0-3 2.6-5.3 6.5-5.3s6.5 2.3 6.5 5.3V20z" /></svg>
-              <input type="text" name="register-name" placeholder="Введите ваше имя" autocomplete="name" maxlength="80" required data-auth-initial />
-            </span>
-          </label>
+        <div data-register-step="code" hidden>
+          <h2>Подтвердите email</h2>
+          <p class="auth-modal__intro">Мы отправили 6-значный код на <strong data-register-email></strong>. Введите его, чтобы завершить регистрацию.</p>
 
-          <label class="auth-form__field">
-            <span>Email</span>
-            <span class="auth-form__control">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h17v12h-17zM4 7l8 6 8-6" /></svg>
-              <input type="email" name="register-email" placeholder="Введите ваш email" autocomplete="email" maxlength="254" required />
-            </span>
-          </label>
+          <form class="auth-form" data-auth-form="verify" novalidate>
+            <label class="auth-form__field">
+              <span>Код из письма</span>
+              <span class="auth-form__control">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h17v12h-17zM4 7l8 6 8-6" /></svg>
+                <input class="auth-form__code" type="text" name="verify-code" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" required data-auth-initial />
+              </span>
+            </label>
 
-          <label class="auth-form__field">
-            <span>Пароль</span>
-            <span class="auth-form__control">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 10h11v10h-11zM8.5 10V7.5a3.5 3.5 0 017 0V10" /></svg>
-              <input type="password" name="register-password" placeholder="Придумайте пароль" autocomplete="new-password" minlength="10" maxlength="256" required />
-              <button class="auth-form__password-toggle" type="button" aria-label="Показать пароль" aria-pressed="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5 9.5-5 9.5 5 9.5 5-3.5 5-9.5 5-9.5-5-9.5-5z" /><circle cx="12" cy="12" r="2.5" /></svg>
-              </button>
-            </span>
-          </label>
+            <p class="auth-form__error" role="alert" aria-live="polite"></p>
+            <button class="auth-form__submit" type="submit">Подтвердить</button>
 
-          <p class="auth-form__error" role="alert" aria-live="polite"></p>
-          <button class="auth-form__submit" type="submit">Зарегистрироваться</button>
-
-          <label class="auth-form__consent">
-            <input type="checkbox" name="terms" required />
-            <span>Принимаю условия <a href="/terms" target="_blank">Пользовательского соглашения</a> и&nbsp;подтверждаю ознакомление с&nbsp;<a href="/privacy" target="_blank">Политикой конфиденциальности</a></span>
-          </label>
-
-          <label class="auth-form__consent">
-            <input type="checkbox" name="consent" required />
-            <span>Даю <a href="/consent" target="_blank">согласие на обработку персональных данных</a></span>
-          </label>
-        </form>
+            <div class="auth-form__code-actions">
+              <button class="auth-form__link" type="button" data-register-resend>Отправить код ещё раз</button>
+              <button class="auth-form__link" type="button" data-register-back>Изменить данные</button>
+            </div>
+          </form>
+        </div>
       </div>
     </section>
   </div>

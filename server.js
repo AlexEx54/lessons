@@ -25,8 +25,20 @@ const { listClasses, createClassSession, updateClassSession, clearClassSessions,
 const { joinClass, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
 const { createClassLiveSignaling } = require('./lib/class-live-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
+const { sendRegistrationCode } = require('./lib/mailer.js');
+const { clientIp, createRateLimiter } = require('./lib/rate-limiter.js');
+const {
+  RESEND_COOLDOWN_MS,
+  confirmRegistration,
+  createRegistrationCode,
+  findPendingRegistration,
+  findPendingRegistrationByToken,
+  renewRegistrationCode,
+  savePendingRegistration,
+  secondsUntilResend,
+} = require('./lib/registration-store.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
-const { createUser, findOrCreateYandexUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
+const { findOrCreateYandexUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
 const { fetchYandexProfile, yandexAuthorizeUrl, yandexConfig } = require('./lib/yandex-auth.js');
 const { INVITE_TOKEN_PATTERN } = require('./lib/invite-token.js');
 const {
@@ -134,6 +146,15 @@ const MAX_DISPLAY_NAME_LENGTH = 80;
 const MAX_EMAIL_LENGTH = 254;
 const MIN_PASSWORD_LENGTH = 10;
 const MAX_PASSWORD_LENGTH = 256;
+const REGISTRATION_CODE_PATTERN = /^\d{6}$/;
+const REGISTRATION_CODE_ERRORS = Object.freeze({
+  missing: [410, 'Код истёк. Отправьте форму регистрации ещё раз.'],
+  attempts: [429, 'Слишком много неверных попыток. Запросите новый код.'],
+  invalid: [400, 'Неверный код.'],
+  exists: [409, 'Аккаунт с таким email уже существует.'],
+});
+// Caps code emails per client IP, so the form cannot be used to mail many strangers.
+const registrationMailLimiter = createRateLimiter({ limit: 10, windowMs: 60 * 60 * 1000 });
 const MAX_DRAFT_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_DRAFT_AUDIO_BYTES = 20 * 1024 * 1024;
 const DRAFT_IMAGE_TYPES = Object.freeze({
@@ -541,6 +562,28 @@ function loginRedirect(pathname) {
 // The library is the landing's main showcase, so guests get its registration window instead of the bare login page.
 function registrationRedirect(pathname) {
   return `/?auth=register&next=${encodeURIComponent(pathname)}`;
+}
+
+function rejectEarlyResend(res, pending) {
+  const retryAfter = secondsUntilResend(pending);
+  if (retryAfter === 0) return false;
+  json(res, 429, { error: `Код уже отправлен. Повторить можно через ${retryAfter} с.`, retryAfter });
+  return true;
+}
+
+async function sendRegistrationCodeLimited(req, res, email, code) {
+  if (!registrationMailLimiter.take(clientIp(req))) {
+    json(res, 429, { error: 'Слишком много писем за последний час. Попробуйте позже.' });
+    return false;
+  }
+  try {
+    await sendRegistrationCode(email, code);
+    return true;
+  } catch (error) {
+    console.error('Cannot send registration code:', error);
+    json(res, 502, { error: 'Не удалось отправить письмо с кодом. Попробуйте позже.' });
+    return false;
+  }
 }
 
 function getLessonIdFromPath(pathname, prefix, suffix = '') {
@@ -1163,26 +1206,64 @@ async function handleRequest(req, res) {
       json(res, 409, { error: 'Аккаунт с таким email уже существует.' });
       return;
     }
+    if (rejectEarlyResend(res, findPendingRegistration(email, database))) return;
 
-    let user;
+    const code = createRegistrationCode();
+    const passwordHash = await hashPassword(password);
+    if (!(await sendRegistrationCodeLimited(req, res, email, code))) return;
+    const token = savePendingRegistration({ email, displayName, passwordHash, code }, database);
+    json(res, 202, { email, token, resendAfter: RESEND_COOLDOWN_MS / 1000 });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/auth/register/resend') {
+    let body;
     try {
-      user = createUser({
-        displayName,
-        email,
-        passwordHash: await hashPassword(password),
-      }, database);
+      body = await readJsonBody(req);
     } catch (error) {
-      if (error.code === 'ERR_SQLITE_CONSTRAINT_UNIQUE' || /UNIQUE constraint failed/i.test(error.message)) {
-        json(res, 409, { error: 'Аккаунт с таким email уже существует.' });
-        return;
-      }
-      console.error('Cannot register user:', error);
-      json(res, 500, { error: 'Не удалось создать аккаунт.' });
+      json(res, 400, { error: error.message || 'Некорректный запрос.' });
       return;
     }
 
-    const session = createSession(user.id, database);
-    json(res, 201, { user }, {
+    const pending = findPendingRegistrationByToken(body.token, database);
+    if (!pending) {
+      const [status, message] = REGISTRATION_CODE_ERRORS.missing;
+      json(res, status, { error: message });
+      return;
+    }
+    if (rejectEarlyResend(res, pending)) return;
+
+    const code = createRegistrationCode();
+    if (!(await sendRegistrationCodeLimited(req, res, pending.email, code))) return;
+    renewRegistrationCode(body.token, code, database);
+    json(res, 200, { resendAfter: RESEND_COOLDOWN_MS / 1000 });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/auth/register/verify') {
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (error) {
+      json(res, 400, { error: error.message || 'Некорректный запрос.' });
+      return;
+    }
+
+    const code = typeof body.code === 'string' ? body.code.trim() : '';
+    if (!REGISTRATION_CODE_PATTERN.test(code)) {
+      json(res, 400, { error: 'Введите 6-значный код из письма.' });
+      return;
+    }
+
+    const result = confirmRegistration(body.token, code, database);
+    if (result.error) {
+      const [status, message] = REGISTRATION_CODE_ERRORS[result.error];
+      json(res, status, { error: message });
+      return;
+    }
+
+    const session = createSession(result.user.id, database);
+    json(res, 201, { user: result.user }, {
       'Set-Cookie': sessionCookie(session.token, session.expiresAt),
     });
     return;

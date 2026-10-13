@@ -11,10 +11,15 @@
     login: document.getElementById('auth-login-panel'),
     register: document.getElementById('auth-register-panel'),
   };
+  const registerForm = authModal?.querySelector('[data-auth-form="register"]');
+  const verifyForm = authModal?.querySelector('[data-auth-form="verify"]');
+  const resendButton = verifyForm?.querySelector('[data-register-resend]');
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   let authReturnFocus = null;
   let authNextPath = '/app';
   let toastTimer = null;
+  let registrationToken = '';
+  let resendTimer = null;
 
   const showcasePages = [
     [
@@ -145,7 +150,8 @@
     body.classList.add('auth-modal-open');
     window.requestAnimationFrame(() => {
       authModal.classList.add('auth-modal--visible');
-      authPanels[name]?.querySelector('[data-auth-initial]')?.focus();
+      [...(authPanels[name]?.querySelectorAll('[data-auth-initial]') || [])]
+        .find(input => !input.closest('[hidden]'))?.focus();
     });
   }
 
@@ -172,6 +178,79 @@
     }
   }
 
+  async function postJson(endpoint, requestBody) {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+    const payload = await response.json().catch(() => ({}));
+    return { response, payload };
+  }
+
+  function setRegisterStep(step) {
+    authPanels.register.querySelectorAll('[data-register-step]').forEach(element => {
+      element.hidden = element.dataset.registerStep !== step;
+    });
+  }
+
+  function startResendCountdown(seconds) {
+    window.clearInterval(resendTimer);
+    let left = Math.ceil(seconds || 0);
+    const render = () => {
+      resendButton.disabled = left > 0;
+      resendButton.textContent = left > 0 ? `Отправить ещё раз через ${left} с` : 'Отправить код ещё раз';
+    };
+    render();
+    resendTimer = window.setInterval(() => {
+      left -= 1;
+      render();
+      if (left <= 0) window.clearInterval(resendTimer);
+    }, 1000);
+  }
+
+  function showCodeStep({ email, token, resendAfter }) {
+    registrationToken = token;
+    authPanels.register.querySelector('[data-register-email]').textContent = email;
+    verifyForm.reset();
+    clearAuthError(verifyForm);
+    setRegisterStep('code');
+    startResendCountdown(resendAfter);
+    verifyForm.elements['verify-code'].focus();
+  }
+
+  // The form keeps what the teacher typed, so after an expired code it only needs to be sent again.
+  function showDetailsStep(message) {
+    window.clearInterval(resendTimer);
+    registrationToken = '';
+    setRegisterStep('details');
+    clearAuthError(registerForm);
+    if (message) showAuthError(registerForm, message);
+    registerForm.elements['register-email'].focus();
+  }
+
+  async function resendRegistrationCode() {
+    clearAuthError(verifyForm);
+    resendButton.disabled = true;
+    try {
+      const { response, payload } = await postJson('/api/auth/register/resend', { token: registrationToken });
+      if (response.status === 410) {
+        showDetailsStep(payload.error);
+        return;
+      }
+      if (!response.ok) {
+        showAuthError(verifyForm, payload.error || 'Не удалось отправить код.');
+        startResendCountdown(payload.retryAfter);
+        return;
+      }
+      startResendCountdown(payload.resendAfter);
+      verifyForm.elements['verify-code'].focus();
+    } catch (_error) {
+      showAuthError(verifyForm, 'Не удалось отправить код.');
+      startResendCountdown(0);
+    }
+  }
+
   function loginRequest(form) {
     const emailInput = form.elements['login-email'];
     const passwordInput = form.elements['login-password'];
@@ -194,6 +273,7 @@
     const nameInput = form.elements['register-name'];
     const emailInput = form.elements['register-email'];
     const passwordInput = form.elements['register-password'];
+    const passwordConfirmInput = form.elements['register-password-confirm'];
     const termsInput = form.elements.terms;
     const consentInput = form.elements.consent;
     const displayName = nameInput.value.trim();
@@ -208,6 +288,9 @@
     if (passwordInput.value.length < 10 || passwordInput.value.length > 256) {
       return { error: 'Пароль должен содержать от 10 до 256 символов.', input: passwordInput };
     }
+    if (passwordConfirmInput.value !== passwordInput.value) {
+      return { error: 'Пароли не совпадают.', input: passwordConfirmInput };
+    }
     if (!termsInput.checked) {
       return { error: 'Необходимо принять условия регистрации.', input: termsInput };
     }
@@ -217,18 +300,32 @@
     return {
       endpoint: '/api/auth/register',
       body: { displayName, email, password: passwordInput.value, termsAccepted: true },
-      pendingLabel: 'Создаём аккаунт…',
-      emailInput,
+      pendingLabel: 'Отправляем код…',
+      errorInputs: { 409: emailInput },
+      onSuccess: showCodeStep,
     };
   }
+
+  function verifyRequest(form) {
+    const codeInput = form.elements['verify-code'];
+    if (codeInput.value.length !== 6) {
+      return { error: 'Введите 6-значный код из письма.', input: codeInput };
+    }
+    return {
+      endpoint: '/api/auth/register/verify',
+      body: { token: registrationToken, code: codeInput.value },
+      pendingLabel: 'Проверяем…',
+      errorInputs: { 400: codeInput, 429: codeInput },
+    };
+  }
+
+  const AUTH_REQUESTS = { login: loginRequest, register: registrationRequest, verify: verifyRequest };
 
   async function submitAuthForm(form) {
     if (form.dataset.submitting === 'true') return;
     clearAuthError(form);
 
-    const request = form.dataset.authForm === 'register'
-      ? registrationRequest(form)
-      : loginRequest(form);
+    const request = AUTH_REQUESTS[form.dataset.authForm](form);
     if (request.error) {
       showAuthError(form, request.error, request.input);
       return;
@@ -242,16 +339,20 @@
     let completed = false;
 
     try {
-      const response = await fetch(request.endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(request.body),
-      });
-      const payload = await response.json().catch(() => ({}));
+      const { response, payload } = await postJson(request.endpoint, request.body);
+      // 410 means the pending registration expired or was replaced: the code step cannot finish it.
+      if (response.status === 410) {
+        showDetailsStep(payload.error);
+        return;
+      }
       if (!response.ok) {
         const error = new Error(payload.error || 'Не удалось выполнить запрос.');
-        error.input = response.status === 409 ? request.emailInput : null;
+        error.input = request.errorInputs?.[response.status];
         throw error;
+      }
+      if (request.onSuccess) {
+        request.onSuccess(payload);
+        return;
       }
       completed = true;
       window.location.assign(authNextPath);
@@ -314,6 +415,13 @@
       if (errorBox) errorBox.textContent = '';
     });
   });
+
+  // Accepts a pasted code with spaces or dashes.
+  verifyForm?.elements['verify-code'].addEventListener('input', event => {
+    event.target.value = event.target.value.replace(/\D/g, '').slice(0, 6);
+  });
+  resendButton?.addEventListener('click', resendRegistrationCode);
+  verifyForm?.querySelector('[data-register-back]').addEventListener('click', () => showDetailsStep());
 
   authModal?.querySelectorAll('.auth-form__password-toggle').forEach(button => {
     button.addEventListener('click', () => {

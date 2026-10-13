@@ -57,6 +57,8 @@ Set these environment variables in the production `.env` on the VPS:
 - `WEBRTC_TURN_CREDENTIAL_TTL_SECONDS`: temporary TURN credential lifetime; defaults to one hour.
 - `YANDEX_CLIENT_ID` and `YANDEX_CLIENT_SECRET`: Yandex ID app credentials from oauth.yandex.ru (scopes `login:email`, `login:info`).
 - `YANDEX_REDIRECT_URI`: must exactly match a Redirect URI of that app; production is `https://www.easyclass-edu.ru/api/auth/yandex/callback`. Without these three variables the «Войти с Яндекс ID» button returns to `/login` with an error.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`: mailbox that sends registration codes; production is `mail.easyclass-edu.ru`, `465`, `noreply@easyclass-edu.ru` and that mailbox's password (see «Mail»). Without them registration answers «Не удалось отправить письмо с кодом».
+- `MAIL_FROM`: optional sender header; defaults to `EasyClass <SMTP_USER>`.
 
 ## Caddy
 

@@ -37,17 +37,40 @@ async function startServer(t, databasePath, env = {}) {
       HOST: '127.0.0.1',
       PORT: String(port),
       NODE_ENV: 'test',
+      // Overrides the local .env, so tests print codes instead of mailing them.
+      SMTP_HOST: '',
       ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  let output = '';
+  child.stdout.on('data', chunk => { output += chunk; });
 
   t.after(() => {
     child.kill('SIGTERM');
     fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
   });
   await waitForServer(baseUrl, child);
-  return baseUrl;
+  return { baseUrl, output: () => output };
+}
+
+// Without SMTP settings the server prints the code instead of mailing it.
+async function waitForRegistrationCode(output, email) {
+  const pattern = new RegExp(`Registration code for ${email}: (\\d{6})`);
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const match = output().match(pattern);
+    if (match) return match[1];
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  throw new Error(`No registration code was printed for ${email}.`);
+}
+
+function postJson(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 }
 
 test('login protects teacher pages and exposes the current profile', async t => {
@@ -60,7 +83,7 @@ test('login protects teacher pages and exposes the current profile', async t => 
     passwordHash: await hashPassword('correct-password'),
   }, database);
   database.close();
-  const baseUrl = await startServer(t, databasePath);
+  const { baseUrl, output } = await startServer(t, databasePath);
 
   const health = await fetch(`${baseUrl}/health`);
   assert.equal(health.status, 200);
@@ -112,12 +135,35 @@ test('login protects teacher pages and exposes the current profile', async t => 
       termsAccepted: true,
     }),
   });
-  assert.equal(registration.status, 201);
-  const registeredUser = (await registration.json()).user;
+  assert.equal(registration.status, 202);
+  assert.equal(registration.headers.get('set-cookie'), null);
+  const pendingRegistration = await registration.json();
+  assert.equal(pendingRegistration.email, 'new@example.com');
+  assert.equal(pendingRegistration.resendAfter, 60);
+  const { token } = pendingRegistration;
+  const code = await waitForRegistrationCode(output, 'new@example.com');
+
+  const earlyResend = await postJson(`${baseUrl}/api/auth/register/resend`, { token });
+  assert.equal(earlyResend.status, 429);
+  assert.ok((await earlyResend.json()).retryAfter > 0);
+  const unknownResend = await postJson(`${baseUrl}/api/auth/register/resend`, { token: 'unknown' });
+  assert.equal(unknownResend.status, 410);
+
+  const malformedCode = await postJson(`${baseUrl}/api/auth/register/verify`, { token, code: '12ab' });
+  assert.equal(malformedCode.status, 400);
+  const wrongCode = await postJson(`${baseUrl}/api/auth/register/verify`, { token, code: code === '000000' ? '111111' : '000000' });
+  assert.equal(wrongCode.status, 400);
+  assert.equal(wrongCode.headers.get('set-cookie'), null);
+  const foreignToken = await postJson(`${baseUrl}/api/auth/register/verify`, { token: 'unknown', code });
+  assert.equal(foreignToken.status, 410);
+
+  const verification = await postJson(`${baseUrl}/api/auth/register/verify`, { token, code });
+  assert.equal(verification.status, 201);
+  const registeredUser = (await verification.json()).user;
   assert.equal(registeredUser.displayName, 'Новый преподаватель');
   assert.equal(registeredUser.email, 'new@example.com');
   assert.equal(registeredUser.role, 'teacher');
-  const registrationCookie = registration.headers.get('set-cookie').split(';')[0];
+  const registrationCookie = verification.headers.get('set-cookie').split(';')[0];
   assert.match(registrationCookie, /^teach_session=/);
 
   const registeredProfile = await fetch(`${baseUrl}/api/auth/me`, {
@@ -196,7 +242,7 @@ test('login protects teacher pages and exposes the current profile', async t => 
 
 test('yandex login redirects with a state cookie and rejects forged callbacks', async t => {
   const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'teach-platform-yandex-'));
-  const baseUrl = await startServer(t, path.join(temporaryDirectory, 'app.sqlite'), {
+  const { baseUrl } = await startServer(t, path.join(temporaryDirectory, 'app.sqlite'), {
     YANDEX_CLIENT_ID: 'client-id',
     YANDEX_CLIENT_SECRET: 'client-secret',
     YANDEX_REDIRECT_URI: 'https://easyclass.test/api/auth/yandex/callback',
