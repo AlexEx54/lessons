@@ -34,7 +34,7 @@
       return {
         id: item.id,
         question: plainText(item.question, 'an item question', true),
-        followUp: plainText(item.followUp, 'an item follow-up'),
+        followUp: plainText(item.followUp, 'an item follow-up', true),
       };
     });
   }
@@ -130,7 +130,7 @@
         arrow.textContent = '↪';
         const followUpText = doc.createElement('div');
         followUpText.className = 'personalized-questions__follow-up-text';
-        renderInlineMarkdown(followUpText, `*Follow-up: ${item.followUp}*`, doc);
+        renderInlineMarkdown(followUpText, `Follow-up: ${item.followUp}`, doc);
         followUp.append(arrow, followUpText);
         body.append(question, followUp);
         row.append(body);
@@ -206,7 +206,7 @@
         row.append(
           rowHeader,
           field('Вопрос (поддерживает **выделение**)', item.question, value => { item.question = value; updateDirty(); }, true),
-          field('Follow-up', item.followUp, value => { item.followUp = value; updateDirty(); }, true),
+          field('Follow-up (поддерживает **выделение**)', item.followUp, value => { item.followUp = value; updateDirty(); }, true),
         );
         rows.append(row);
       });

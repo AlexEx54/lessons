@@ -53,6 +53,7 @@
 .personalized-questions__follow-up-text p { margin: 0; }
 .personalized-questions__question strong { color: #6545f5; font-weight: 750; }
 .personalized-questions__follow-up { display: flex; align-items: flex-start; margin-top: 7px; gap: 9px; color: #4d5164; font-size: 13px; line-height: 1.55; }
+.personalized-questions__follow-up-text { font-style: italic; }
 .personalized-questions__arrow { flex: 0 0 auto; color: #8f93a3; font-size: 17px; line-height: 1.25; }
 .personalized-questions__editor { margin-top: 16px; }
 .personalized-questions__editor-general,

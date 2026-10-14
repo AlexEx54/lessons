@@ -17,7 +17,7 @@ function component(overrides = {}) {
     items: [{
       id: 'favorite-time-outdoors',
       question: ' What’s your favorite way to **spend time outdoors**? ',
-      followUp: ' Who do you usually spend that time with? ',
+      followUp: ' Who do you usually **spend time** with? ',
     }],
     ...overrides,
   };
@@ -32,7 +32,7 @@ test('personalized questions normalizes its stable JSON contract and inline emph
     items: [{
       id: 'favorite-time-outdoors',
       question: 'What’s your favorite way to **spend time outdoors**?',
-      followUp: 'Who do you usually spend that time with?',
+      followUp: 'Who do you usually **spend time** with?',
     }],
   });
   const twelve = Array.from({ length: 12 }, (_, index) => ({
@@ -63,6 +63,9 @@ test('personalized questions rejects malformed counts, ids, unsafe markup, and u
   assert.throws(() => normalizePersonalizedQuestions(component({ items: [{
     id: 'link-question', question: '[Question](https://example.com)', followUp: 'Why?',
   }] })), /safe inline Markdown/);
+  assert.throws(() => normalizePersonalizedQuestions(component({ items: [{
+    id: 'html-follow-up', question: 'Question?', followUp: '<b>Why?</b>',
+  }] })), /safe inline Markdown in an item follow-up/);
   assert.throws(() => normalizePersonalizedQuestions(component({ items: [{
     id: 'multiline-question', question: 'Question?\n- Another', followUp: 'Why?',
   }] })), /safe inline Markdown/);
