@@ -35,10 +35,11 @@
       list: container.querySelector('.new-lesson-select__list'),
       value: container.querySelector('.new-lesson-select__value'),
       input: container.querySelector('input[type="hidden"]'),
-      options: [...container.querySelectorAll('.new-lesson-select__option')],
+      get options() { return [...container.querySelectorAll('.new-lesson-select__option')]; },
     }))
     : [];
   const newLessonSelectInput = newLessonModal?.querySelector('[data-new-lesson-template-value]');
+  const newLessonTemplateSelect = newLessonSelects.find(select => select.input === newLessonSelectInput);
   const newLessonModelInput = newLessonModal?.querySelector('[data-new-lesson-model-value]');
   const newLessonChoiceGroups = newLessonModal
     ? [...newLessonModal.querySelectorAll('[data-new-lesson-choice-group]')]
@@ -174,10 +175,6 @@
     });
     select.value.textContent = label;
     select.input.value = value;
-    if (select.input === newLessonSelectInput) {
-      const hint = newLessonModal.querySelector('[data-template-two-hint]');
-      if (hint) hint.hidden = value !== 'template-2';
-    }
     closeNewLessonSelect({ restoreFocus: true });
   }
 
@@ -191,6 +188,33 @@
     openSelect.options[nextIndex]?.focus();
   }
 
+  // Copies change on the templates page, so the list is loaded on every opening.
+  // The previous choice stays selected while it still exists.
+  async function loadNewLessonTemplates() {
+    if (!newLessonTemplateSelect) return;
+    try {
+      const response = await fetch('/api/lesson-templates', { cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось загрузить шаблоны.');
+      const { list, value, input } = newLessonTemplateSelect;
+      const selected = payload.templates.find(template => template.id === input.value) || payload.templates[0];
+      list.replaceChildren(...payload.templates.map(template => {
+        const option = document.createElement('li');
+        option.className = 'new-lesson-select__option';
+        option.setAttribute('role', 'option');
+        option.tabIndex = -1;
+        option.dataset.value = template.id;
+        option.setAttribute('aria-selected', String(template === selected));
+        option.textContent = template.title;
+        return option;
+      }));
+      value.textContent = selected?.title || 'Шаблонов нет';
+      input.value = selected?.id || '';
+    } catch (error) {
+      showToast(error.message || 'Не удалось загрузить шаблоны.');
+    }
+  }
+
   function openNewLessonModal(event) {
     if (!newLessonModal || !newLessonDialog) return;
     newLessonReturnFocus = event.currentTarget;
@@ -201,6 +225,7 @@
     newLessonModal.setAttribute('aria-hidden', 'false');
     body.classList.add('new-lesson-modal-open');
     window.requestAnimationFrame(() => newLessonTopic?.focus());
+    loadNewLessonTemplates();
   }
 
   function closeNewLessonModal() {
@@ -225,6 +250,10 @@
     if (!grammarTopic) {
       showToast('Укажите тему Grammar.');
       newLessonGrammarTopic.focus();
+      return;
+    }
+    if (!newLessonSelectInput.value) {
+      showToast('Выберите шаблон урока.');
       return;
     }
     const ageGroup = newLessonModal
@@ -390,11 +419,11 @@
       event.stopPropagation();
       toggleNewLessonSelect(select);
     });
-    select.options.forEach(option => {
-      option.addEventListener('click', event => {
-        event.stopPropagation();
-        selectNewLessonOption(select, option);
-      });
+    select.list?.addEventListener('click', event => {
+      const option = event.target.closest('.new-lesson-select__option');
+      if (!option) return;
+      event.stopPropagation();
+      selectNewLessonOption(select, option);
     });
   });
   newLessonChoiceGroups.forEach(group => {

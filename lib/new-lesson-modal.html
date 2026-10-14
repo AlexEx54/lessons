@@ -73,14 +73,12 @@
             aria-controls="new-lesson-template-list"
             aria-labelledby="new-lesson-template-label new-lesson-template-value"
           >
-            <span class="new-lesson-select__value" id="new-lesson-template-value">Шаблон 1</span>
+            <span class="new-lesson-select__value" id="new-lesson-template-value">Загружаем шаблоны…</span>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
           </button>
-          <ul class="new-lesson-select__list" id="new-lesson-template-list" role="listbox" aria-labelledby="new-lesson-template-label" hidden>
-            <li class="new-lesson-select__option" role="option" tabindex="-1" data-value="template-1" aria-selected="true">Шаблон 1</li>
-            <li class="new-lesson-select__option" role="option" tabindex="-1" data-value="template-2" aria-selected="false">Шаблон 2</li>
-          </ul>
-          <input type="hidden" name="template" value="template-1" data-new-lesson-template-value />
+          <!-- Options come from /api/lesson-templates each time the modal opens. -->
+          <ul class="new-lesson-select__list" id="new-lesson-template-list" role="listbox" aria-labelledby="new-lesson-template-label" hidden></ul>
+          <input type="hidden" name="template" value="" data-new-lesson-template-value />
         </div>
       </div>
 
@@ -107,7 +105,6 @@
         </div>
       </div>
 
-      <p data-template-two-hint hidden>Шаблон 2: нейросеть генерирует Warm Up, остальные этапы пока берутся из синтетического шаблона.</p>
       <label class="new-lesson-synthetic" for="new-lesson-synthetic">
         <input id="new-lesson-synthetic" name="synthetic" type="checkbox" />
         <span class="new-lesson-synthetic__control" aria-hidden="true">

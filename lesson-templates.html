@@ -1,0 +1,30 @@
+<!-- Раздел шаблонов уроков. Общий AppShell добавляется серверным renderer. -->
+<section class="templates-panel" aria-labelledby="templates-title">
+  <header class="templates-heading">
+    <div>
+      <p class="templates-heading__eyebrow">Генерация уроков</p>
+      <h2 id="templates-title">Шаблоны уроков</h2>
+      <p>Системные шаблоны можно скопировать. Копии видят и меняют все администраторы.</p>
+    </div>
+  </header>
+
+  <div class="templates-state" id="templates-loading" role="status">
+    <span class="templates-spinner" aria-hidden="true"></span>
+    <p>Загружаем шаблоны…</p>
+  </div>
+
+  <div class="templates-state templates-state--error" id="templates-error" role="alert" hidden>
+    <h3>Не удалось загрузить шаблоны</h3>
+    <p id="templates-error-message"></p>
+    <button id="templates-retry-load" type="button">Попробовать снова</button>
+  </div>
+
+  <div id="templates-content" hidden>
+    <h3 class="templates-section-title">Системные</h3>
+    <div class="templates-grid" id="templates-system"></div>
+
+    <h3 class="templates-section-title">Копии</h3>
+    <p class="templates-empty" id="templates-copies-empty" hidden>Копий пока нет. Скопируйте системный шаблон, чтобы начать.</p>
+    <div class="templates-grid" id="templates-copies" aria-live="polite"></div>
+  </div>
+</section>

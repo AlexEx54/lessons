@@ -1372,6 +1372,20 @@ async function handleRequest(req, res) {
     return;
   }
 
+  if (req.method === 'GET' && (pathname === '/lesson-templates' || pathname === '/lesson-templates/')) {
+    const user = getAuthenticatedUser(req, database);
+    if (!user) {
+      redirect(res, loginRedirect('/lesson-templates'));
+      return;
+    }
+    if (user.role !== 'admin') {
+      json(res, 403, { error: 'Раздел доступен только администратору.' });
+      return;
+    }
+    await serveAppPage('lessonTemplates', res, { user });
+    return;
+  }
+
   if (req.method === 'GET' && (pathname === '/settings' || pathname === '/settings/')) {
     const user = getAuthenticatedUser(req, database);
     if (!user) {

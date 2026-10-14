@@ -1,0 +1,233 @@
+.templates-panel {
+  min-height: 560px;
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, .86);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, .95);
+  box-shadow: var(--shadow);
+}
+
+.templates-heading__eyebrow {
+  margin-bottom: 7px;
+  color: var(--purple);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.templates-heading h2 {
+  margin-bottom: 7px;
+  font-size: 28px;
+  letter-spacing: -.04em;
+}
+
+.templates-heading p:last-child {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.templates-section-title {
+  margin: 28px 0 12px;
+  color: #5d5a7a;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.templates-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.templates-empty {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.template-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 18px;
+  border: 1px solid rgba(79, 56, 170, .11);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 7px 20px rgba(48, 34, 103, .055);
+}
+
+.template-card--system { background: #fbfaff; }
+
+.template-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.template-card h4 {
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  line-height: 1.35;
+  letter-spacing: -.02em;
+}
+
+.template-card__badge {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: 8px;
+  color: #5030c9;
+  background: #eee9ff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.template-card__description {
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+  color: #74728d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.template-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  gap: 7px 13px;
+  color: #85839d;
+  font-size: 11px;
+}
+
+.template-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 17px;
+  gap: 8px;
+}
+
+.template-card__actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid #dcd5fb;
+  border-radius: 10px;
+  color: var(--purple);
+  background: #fff;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.template-card__actions button:hover { border-color: #b9a9ff; background: var(--purple-soft); }
+.template-card__actions button:disabled { opacity: .55; cursor: wait; }
+
+.template-card__actions .template-card__primary {
+  border-color: var(--purple);
+  color: #fff;
+  background: var(--purple);
+}
+
+.template-card__actions .template-card__primary:hover { background: var(--purple-dark); }
+
+.template-card__actions .template-card__delete {
+  margin-left: auto;
+  border-color: #f0cfd3;
+  color: #c43f4a;
+  background: #fff8f8;
+}
+
+.template-card__actions .template-card__delete:hover { border-color: #dd7880; background: #fff0f1; }
+
+.template-card__note {
+  margin-top: auto;
+  padding-top: 17px;
+  color: #85839d;
+  font-size: 11px;
+}
+
+.template-form {
+  display: grid;
+  gap: 12px;
+}
+
+.template-form label {
+  display: grid;
+  gap: 6px;
+  color: #45425f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.template-form input,
+.template-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #dcd5fb;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.template-form textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+
+.template-form input:focus,
+.template-form textarea:focus {
+  border-color: var(--purple);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(96, 54, 247, .1);
+}
+
+.template-form .template-card__actions { padding-top: 4px; }
+
+.templates-state {
+  display: grid;
+  justify-items: center;
+  padding: 72px 20px;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.templates-state[hidden] { display: none; }
+
+.templates-state--error h3 { color: #94323a; font-size: 16px; }
+
+.templates-state button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #dcd5fb;
+  border-radius: 10px;
+  color: var(--purple);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.templates-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e6e0ff;
+  border-top-color: var(--purple);
+  border-radius: 50%;
+  animation: templates-spin 800ms linear infinite;
+}
+
+@keyframes templates-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 720px) {
+  .templates-panel { padding: 20px 14px; }
+  .templates-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .templates-spinner { animation: none; }
+}

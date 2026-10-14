@@ -45,6 +45,7 @@ test('teacher reaches video calls from the sidebar and both profile menus and ge
   assert.match(html, /<a class="nav-item" href="\/video-calls" data-video-calls-link>/);
   assert.equal((html.match(/href="\/video-calls" role="menuitem" data-video-calls-link>Видеозвонки<\/a>/g) || []).length, 2);
   assert.doesNotMatch(html, /href="\/lesson-drafts"/);
+  assert.doesNotMatch(html, /href="\/lesson-templates"/);
   assert.match(html, /src="\/assets\/video-call-presence\.js"/);
 });
 
@@ -53,7 +54,7 @@ test('support card opens the Telegram support group', async () => {
   assert.match(html, /<a class="support-card" href="https:\/\/t\.me\/\+albE0gXCUfY1YmJi" target="_blank" rel="noopener">/);
 });
 
-test('admin sees lesson creation and drafts links in both profile menus', async () => {
+test('admin sees lesson creation, drafts and templates links in both profile menus', async () => {
   const html = await renderAppPage('home', {
     user: { displayName: 'Администратор', email: 'admin@example.com', role: 'admin' },
   });
@@ -63,14 +64,16 @@ test('admin sees lesson creation and drafts links in both profile menus', async 
   assert.equal((html.match(/>Создать урок<\/button>/g) || []).length, 2);
   assert.equal((html.match(/>Создать урок<\/button>\s*<a href="\/lesson-drafts" role="menuitem">Черновики уроков<\/a>/g) || []).length, 2);
   assert.equal((html.match(/href="\/lesson-drafts"/g) || []).length, 2);
+  assert.equal((html.match(/Черновики уроков<\/a>\s*<a href="\/lesson-templates" role="menuitem">Шаблоны уроков<\/a>/g) || []).length, 2);
   assert.equal((html.match(/id="new-lesson-modal"/g) || []).length, 1);
   assert.match(html, /placeholder="Напр\. Luca Cartoon"/);
   assert.match(html, /name="warmUpTopic"/);
   assert.match(html, /placeholder="Необязательно — по умолчанию тема урока"/);
   assert.match(html, /id="new-lesson-grammar-topic"[^>]*name="grammarTopic"[^>]*required/);
-  assert.equal((html.match(/data-value="template-1"[^>]*>Шаблон 1<\/li>/g) || []).length, 1);
+  assert.match(html, /id="new-lesson-template-list" role="listbox"[^>]*hidden><\/ul>/);
   assert.match(html, /data-new-lesson-select/);
-  assert.match(html, /name="template" value="template-1"/);
+  assert.match(html, /name="template" value=""/);
+  assert.doesNotMatch(html, /data-template-two-hint/);
   assert.equal((html.match(/data-new-lesson-choice-group/g) || []).length, 2);
   assert.match(html, /<legend>Возраст ученика<\/legend>/);
   assert.match(html, /data-value="9-11"/);
@@ -128,6 +131,19 @@ test('lesson drafts render inside the shared shell for an admin', async () => {
   assert.match(html, /src="\/assets\/lesson-drafts\.js"/);
   assert.match(html, /class="content content--lesson-drafts"/);
   assert.match(html, /id="draft-grid"/);
+  assert.deepEqual(activeNavigationItems(html), []);
+});
+
+test('lesson templates render inside the shared shell for an admin', async () => {
+  const html = await renderAppPage('lessonTemplates', {
+    user: { displayName: 'Администратор', email: 'admin@example.com', role: 'admin' },
+  });
+
+  assert.match(html, /<title>Шаблоны уроков — EasyClass<\/title>/);
+  assert.match(html, /href="\/assets\/lesson-templates\.css"/);
+  assert.match(html, /src="\/assets\/lesson-templates\.js"/);
+  assert.match(html, /class="content content--lesson-templates"/);
+  assert.match(html, /id="templates-copies"/);
   assert.deepEqual(activeNavigationItems(html), []);
 });
 

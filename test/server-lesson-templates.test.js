@@ -76,6 +76,12 @@ test('admins copy, rename and delete templates and create drafts from copies', a
     body: body === undefined ? undefined : (typeof body === 'string' ? body : JSON.stringify(body)),
   });
 
+  const guestPage = await fetch(`${baseUrl}/lesson-templates`, { redirect: 'manual' });
+  assert.equal(guestPage.status, 302);
+  assert.equal((await fetch(`${baseUrl}/lesson-templates`, { headers: { Cookie: teacherCookie } })).status, 403);
+  const adminPage = await fetch(`${baseUrl}/lesson-templates`, { headers: { Cookie: cookie } });
+  assert.equal(adminPage.status, 200);
+  assert.match(await adminPage.text(), /id="templates-copies"/);
   assert.equal((await call('GET', '/api/lesson-templates', { auth: teacherCookie })).status, 403);
   assert.equal((await call('POST', '/api/lesson-templates/template-2/copy', { auth: teacherCookie })).status, 403);
   const initial = await (await call('GET', '/api/lesson-templates')).json();
