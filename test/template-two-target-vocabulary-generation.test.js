@@ -2,7 +2,6 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { createGenerationSkeleton } = require('../lib/lesson-generation-plan.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
 const {
@@ -10,7 +9,7 @@ const {
   GENERATED_TEMPLATE_TWO_TARGET_VOCABULARY: GENERATED,
   TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR,
 } = require('./fixtures/generated-template-two.js');
-const { applyStage, stageContent, stageRequest, statements, templateTwoPlan } = require('./helpers/template-two.js');
+const { applyStage, stageContent, stageRequest, statements, templateTwoPlan, templateTwoSkeleton } = require('./helpers/template-two.js');
 
 const variables = { leadInGuesses: statements(GENERATED_TEMPLATE_TWO_LEAD_IN.guessStatements, 4) };
 const buildVocabulary = generated => stageContent('target-vocabulary', generated, { variables });
@@ -97,7 +96,7 @@ test('Template 2 Target Vocabulary prompt passes the topic, grammar and Lead-In 
 });
 
 test('Template 2 recovery rebuilds Target Vocabulary with the recovered Lead-In guesses', () => {
-  const recovered = recoverLessonGeneration(TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR, createGenerationSkeleton('template-2', 'Summer time'), templateTwoPlan());
+  const recovered = recoverLessonGeneration(TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR, templateTwoSkeleton('Summer time'), templateTwoPlan());
   assert.equal(recovered.complete, false);
   assert.equal(recovered.validOutput, TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR);
   assert.deepEqual(Object.keys(recovered.recoveredSections), ['lessonMetadata', 'warm-up', 'lead-in', 'target-vocabulary']);

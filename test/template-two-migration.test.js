@@ -8,14 +8,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const old = require('../lib/ai-lesson-generator.js');
-const { createGenerationSkeleton } = require('../lib/lesson-generation-plan.js');
 const PROMPT_CHANGES = require('./fixtures/template-two-prompt-changes.js');
 const fixtures = require('./fixtures/generated-template-two.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION } = require('./fixtures/generated-template-two-grammar-presentation.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS, TRAVEL_TERMS } = require('./fixtures/generated-template-two-grammar-focus.js');
 const { GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION } = require('./fixtures/generated-template-two-guided-communication.js');
 const { GENERATED_TEMPLATE_TWO_WRAP_UP } = require('./fixtures/generated-template-two-wrap-up.js');
-const { TEMPLATE_TWO, byId, statements } = require('./helpers/template-two.js');
+const { TEMPLATE_TWO, byId, statements, templateTwoSkeleton } = require('./helpers/template-two.js');
 
 const profile = { ageGroup: '15-18', level: 'B1' };
 const topic = 'Summer time';
@@ -135,7 +134,7 @@ for (const stage of STAGES) {
     t.mock.method(console, 'warn', () => {});
     const expected = withSeededRandom(t, random => stage.build(old.createTemplateTwoSkeleton(topic), structuredClone(stage.answer), random));
     const actual = withSeededRandom(t, random => TEMPLATE_TWO.apply(stage.key, {
-      lesson: createGenerationSkeleton('template-2', topic), variables: stage.variables || {},
+      lesson: templateTwoSkeleton(topic), variables: stage.variables || {},
     }, structuredClone(stage.answer), { random }));
     assert.deepEqual(byId(actual.lesson.stages, stage.key).content, shortItemIds(byId(expected.stages, stage.key).content));
   });
@@ -143,5 +142,5 @@ for (const stage of STAGES) {
 
 test('the skeleton is the same, including the static Watch stage', () => {
   const options = { ageGroup: '9-11', level: 'B2', model: 'test/model' };
-  assert.deepEqual(createGenerationSkeleton('template-2', topic, options), old.createTemplateTwoSkeleton(topic, options));
+  assert.deepEqual(templateTwoSkeleton(topic, options), old.createTemplateTwoSkeleton(topic, options));
 });

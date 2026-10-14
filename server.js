@@ -58,6 +58,7 @@ const {
   deleteLessonDraft,
   failLessonDraft,
   findLessonDraft,
+  findLessonDraftTemplate,
   listLessonDrafts,
   retryLessonDraft,
   updateAudioPlayer,
@@ -106,7 +107,14 @@ const {
   retryLessonGeneration,
   updateLessonGenerationStream,
 } = require('./lib/lesson-generation-store.js');
-const { createGenerationPlan, createGenerationSkeleton } = require('./lib/lesson-generation-plan.js');
+const { createExampleLesson, createGenerationPlan, createGenerationSkeleton } = require('./lib/lesson-generation-plan.js');
+const {
+  copyLessonTemplate,
+  deleteLessonTemplate,
+  findLessonTemplate,
+  listLessonTemplates,
+  updateLessonTemplate,
+} = require('./lib/lesson-template-store.js');
 const { recoverLessonGeneration } = require('./lib/lesson-generation-recovery.js');
 const { stopInterruptedLessonImageGenerations } = require('./lib/lesson-image-generation-store.js');
 const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
@@ -268,7 +276,7 @@ async function runAiLessonGeneration({
   grammarTopic,
   ageGroup,
   level,
-  template,
+  templateDefinition,
   model,
   skeleton,
   recoveredSections = {},
@@ -348,7 +356,7 @@ async function runAiLessonGeneration({
     if (typeof model !== 'string' || !model.trim()) {
       throw new Error('Модель генерации не задана.');
     }
-    const plan = createGenerationPlan(template, { topic, warmUpTopic, grammarTopic, ageGroup, level });
+    const plan = createGenerationPlan(templateDefinition, { topic, warmUpTopic, grammarTopic, ageGroup, level });
     let state = plan.start(skeleton);
     for (const step of plan.steps) {
       state = plan.apply(step.key, state, await answerFor(plan, step, state));
@@ -1800,6 +1808,40 @@ async function handleRequest(req, res) {
     return;
   }
 
+  if (req.method === 'GET' && pathname === '/api/lesson-templates') {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    json(res, 200, { templates: listLessonTemplates(database) });
+    return;
+  }
+
+  const lessonTemplateCopy = pathname.match(/^\/api\/lesson-templates\/([^/]+)\/copy$/);
+  const lessonTemplateDetail = pathname.match(/^\/api\/lesson-templates\/([^/]+)$/);
+  if ((req.method === 'POST' && lessonTemplateCopy)
+    || (['PATCH', 'DELETE'].includes(req.method) && lessonTemplateDetail)) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    try {
+      const id = decodeURIComponent((lessonTemplateCopy || lessonTemplateDetail)[1]);
+      if (req.method === 'DELETE') {
+        deleteLessonTemplate(id, database);
+        json(res, 200, { ok: true });
+        return;
+      }
+      const body = await readJsonBody(req).catch(error => { throw Object.assign(error, { statusCode: 400 }); });
+      if (req.method === 'POST') {
+        json(res, 201, { template: copyLessonTemplate({ id, title: body.title, createdBy: user.id }, database) });
+      } else {
+        const { revision, title, description } = body;
+        json(res, 200, { template: updateLessonTemplate({ id, revision, title, description }, database) });
+      }
+    } catch (error) {
+      if (!error.statusCode) console.error('Cannot change lesson template:', error);
+      json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось изменить шаблон.' });
+    }
+    return;
+  }
+
   if (req.method === 'POST' && pathname === '/api/lesson-drafts') {
     const user = requireAdminAuth(req, res);
     if (!user) return;
@@ -1845,7 +1887,8 @@ async function handleRequest(req, res) {
       json(res, 400, { error: 'Выбран неизвестный уровень сложности.' });
       return;
     }
-    if (!['template-1', 'template-2'].includes(template)) {
+    const templateEntry = template ? findLessonTemplate(template, database) : null;
+    if (!templateEntry) {
       json(res, 400, { error: 'Выбран неизвестный шаблон урока.' });
       return;
     }
@@ -1868,9 +1911,10 @@ async function handleRequest(req, res) {
       let lesson;
       database.exec('BEGIN IMMEDIATE');
       try {
-        lesson = synthetic
-          ? createSyntheticLesson(topic, { template })
-          : createGenerationSkeleton(template, topic, { ageGroup, level, model });
+        // System templates keep their hand-written synthetic lessons until step 0c.
+        if (!synthetic) lesson = createGenerationSkeleton(templateEntry.definition, topic, { ageGroup, level, model });
+        else if (templateEntry.system) lesson = createSyntheticLesson(topic, { template });
+        else lesson = createExampleLesson(templateEntry.definition, topic, { ageGroup, level });
         lesson.meta.ageGroup = ageGroup;
         lesson.meta.level = level;
         pendingDraft = createLessonDraft({
@@ -1881,6 +1925,7 @@ async function handleRequest(req, res) {
           ageGroup,
           level,
           template,
+          templateSnapshot: templateEntry.definition,
           content: synthetic ? undefined : lesson,
         }, database);
         createLessonGeneration({
@@ -1917,7 +1962,7 @@ async function handleRequest(req, res) {
             grammarTopic,
             ageGroup,
             level,
-            template,
+            templateDefinition: templateEntry.definition,
             model,
             skeleton: lesson,
           });
@@ -1961,12 +2006,13 @@ async function handleRequest(req, res) {
         return;
       }
 
-      const skeleton = draft.content || createGenerationSkeleton(draft.template, draft.topic, {
+      const templateDefinition = findLessonDraftTemplate(draftId, user.id, database);
+      const skeleton = draft.content || createGenerationSkeleton(templateDefinition, draft.topic, {
         ageGroup: draft.ageGroup,
         level: draft.level,
         model,
       });
-      const recovery = recoverLessonGeneration(generation.output, skeleton, createGenerationPlan(draft.template, {
+      const recovery = recoverLessonGeneration(generation.output, skeleton, createGenerationPlan(templateDefinition, {
         topic: draft.topic,
         warmUpTopic: draft.warmUpTopic,
         grammarTopic: draft.grammarTopic,
@@ -1999,7 +2045,7 @@ async function handleRequest(req, res) {
           grammarTopic: draft.grammarTopic,
           ageGroup: draft.ageGroup,
           level: draft.level,
-          template: draft.template,
+          templateDefinition,
           model,
           skeleton,
           recoveredSections: recovery.recoveredSections,

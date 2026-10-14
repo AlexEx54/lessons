@@ -320,7 +320,7 @@
 
     const meta = document.createElement('div');
     meta.className = 'draft-card__meta';
-    addText(meta, 'span', '', ({ 'template-1': 'Шаблон 1', 'template-2': 'Шаблон 2' })[draft.template] || draft.template);
+    addText(meta, 'span', '', draft.templateTitle);
     addText(meta, 'span', '', `Обновлён ${formatDate(draft.updatedAt)}`);
     addText(meta, 'span', 'draft-card__cost', formatCost(draft));
     card.append(meta);

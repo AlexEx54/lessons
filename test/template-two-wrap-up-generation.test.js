@@ -1,7 +1,6 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createGenerationSkeleton } = require('../lib/lesson-generation-plan.js');
 const { createTemplateTwoLesson } = require('../lib/synthetic-template-two.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { GENERATED_TEMPLATE_TWO_WRAP_UP } = require('./fixtures/generated-template-two-wrap-up.js');
@@ -9,7 +8,7 @@ const { GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION } = require('./fixtures/gene
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS, TRAVEL_TERMS } = require('./fixtures/generated-template-two-grammar-focus.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION } = require('./fixtures/generated-template-two-grammar-presentation.js');
 const { TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR } = require('./fixtures/generated-template-two.js');
-const { TEMPLATE_TWO, applyStage, byId, stageContent, stageRequest, templateTwoPlan } = require('./helpers/template-two.js');
+const { TEMPLATE_TWO, applyStage, byId, stageContent, stageRequest, templateTwoPlan, templateTwoSkeleton } = require('./helpers/template-two.js');
 
 const vocabularyItems = TRAVEL_TERMS.map(term => ({ term, definition: 'meaning' }));
 const variables = { targetVocabulary: vocabularyItems };
@@ -23,7 +22,7 @@ test('Template 2 Wrap-Up is the last generated step and receives grammar and voc
 });
 
 test('Template 2 Wrap-Up fills the synthetic structure and keeps other stages', () => {
-  const skeleton = createGenerationSkeleton('template-2', 'Travel');
+  const skeleton = templateTwoSkeleton('Travel');
   const synthetic = createTemplateTwoLesson('Travel');
   const { lesson } = applyStage('wrap-up', GENERATED_TEMPLATE_TWO_WRAP_UP, { variables });
   assert.deepEqual(lesson.stages.filter(stage => stage.id !== 'wrap-up'), skeleton.stages.filter(stage => stage.id !== 'wrap-up'));
@@ -50,7 +49,7 @@ test('Template 2 Wrap-Up rejects Russian in the 3–2–1 task and only warns ab
 test('Template 2 recovery completes with Wrap-Up and drops an interrupted one', t => {
   // The shared recovery fixture has summer vocabulary, so the travel word lists only warn.
   t.mock.method(console, 'warn', () => {});
-  const skeleton = createGenerationSkeleton('template-2', 'Summer time');
+  const skeleton = templateTwoSkeleton('Summer time');
   const beforeWrapUp = [
     TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR,
     `=== Grammar Presentation ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION)}`,

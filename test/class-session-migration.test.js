@@ -6,7 +6,6 @@ const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 const { applyMigrations } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
-const { createLessonDraft } = require('../lib/lesson-draft-store.js');
 
 test('one-off classes are dropped for permanent classes while the library and drafts stay intact', t => {
   const db = new DatabaseSync(':memory:');
@@ -19,7 +18,9 @@ test('one-off classes are dropped for permanent classes while the library and dr
     db.prepare('INSERT INTO schema_migrations VALUES (?, ?)').run(name, '2026-09-30');
   }
   const user = createUser({ email: 'migration@test.local', displayName: 'Teacher', role: 'admin', passwordHash: 'unused' }, db);
-  const draft = createLessonDraft({ ownerAdminId: user.id, topic: 'Kept', template: 'general' }, db);
+  // Raw SQL: the draft store writes columns that later migrations add.
+  db.prepare(`INSERT INTO lesson_drafts (id, owner_admin_id, topic, template_id, created_at, updated_at)
+    VALUES ('kept', ?, 'Kept', 'general', '2026-09-01', '2026-09-01')`).run(user.id);
   const asset = `${'a'.repeat(64)}.png`;
   db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', asset, Buffer.from('image'));
   db.prepare(`INSERT INTO classes (id, owner_id, request_key, request_json, invite_token, name, library_lesson_id, library_revision,
@@ -34,12 +35,12 @@ test('one-off classes are dropped for permanent classes while the library and dr
   const libraryBefore = library();
   applyMigrations(db);
   applyMigrations(db);
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get().n, 20);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get().n, 21);
   for (const table of ['classes', 'class_sessions', 'class_assets', 'class_guest_sessions', 'class_live_state', 'class_notes']) {
     assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n, 0, table);
   }
   assert.equal(db.prepare("SELECT 1 FROM sqlite_schema WHERE name IN ('class_live_commands', 'class_guest_sessions_legacy')").get(), undefined);
   assert.deepEqual(library(), libraryBefore);
-  assert.equal(db.prepare('SELECT id FROM lesson_drafts').get().id, draft.id);
+  assert.equal(db.prepare('SELECT id FROM lesson_drafts').get().id, 'kept');
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
 });

@@ -4,8 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { CONTROL_CATALOG } = require('../lib/template-controls/index.js');
 const { compileTemplate } = require('../lib/lesson-templates/template-engine.js');
-const { createGenerationSkeleton } = require('../lib/lesson-generation-plan.js');
-const { TEMPLATE_TWO } = require('./helpers/template-two.js');
+const { TEMPLATE_TWO, templateTwoSkeleton } = require('./helpers/template-two.js');
 
 // A two-stage template around one generated block: the first stage provides a vocabulary
 // and guesses, the second binds every input of the block to them.
@@ -67,7 +66,7 @@ test('every generated control builds its example with default, smallest and larg
 
 test('Template 2 builds a whole lesson from control examples', () => {
   const state = exampleRun(TEMPLATE_TWO);
-  const skeleton = createGenerationSkeleton('template-2', 'Topic');
+  const skeleton = templateTwoSkeleton('Topic');
   assert.deepEqual(state.lesson.stages.map(stage => stage.id), skeleton.stages.map(stage => stage.id));
   assert.ok(state.lesson.stages.every(stage => stage.content.length > 0));
   assert.deepEqual(Object.keys(state.variables).sort(), ['leadInGuesses', 'targetVocabulary']);

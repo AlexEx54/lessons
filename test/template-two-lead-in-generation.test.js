@@ -2,11 +2,10 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { createGenerationSkeleton } = require('../lib/lesson-generation-plan.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
 const { GENERATED_TEMPLATE_TWO_WARM_UP } = require('./fixtures/generated-template-two.js');
-const { applyStage, stageContent, stageRequest, templateTwoPlan } = require('./helpers/template-two.js');
+const { applyStage, stageContent, stageRequest, templateTwoPlan, templateTwoSkeleton } = require('./helpers/template-two.js');
 
 const GENERATED = {
   checkStatements: [
@@ -97,7 +96,7 @@ test('Template 2 recovery restores Lead-In and waits for Target Vocabulary', () 
     `=== Warm Up ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_WARM_UP)}`,
     `=== Lead In ===\n${JSON.stringify(GENERATED)}`,
   ].join('\n\n');
-  const recovered = recoverLessonGeneration(output, createGenerationSkeleton('template-2', 'Summer time'), templateTwoPlan());
+  const recovered = recoverLessonGeneration(output, templateTwoSkeleton('Summer time'), templateTwoPlan());
   assert.equal(recovered.complete, false);
   assert.deepEqual(Object.keys(recovered.recoveredSections), ['lessonMetadata', 'warm-up', 'lead-in']);
 });

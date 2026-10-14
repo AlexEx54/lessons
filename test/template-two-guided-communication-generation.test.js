@@ -1,14 +1,13 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createGenerationSkeleton } = require('../lib/lesson-generation-plan.js');
 const { createTemplateTwoLesson } = require('../lib/synthetic-template-two.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION } = require('./fixtures/generated-template-two-guided-communication.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS, TRAVEL_TERMS } = require('./fixtures/generated-template-two-grammar-focus.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION } = require('./fixtures/generated-template-two-grammar-presentation.js');
 const { TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR } = require('./fixtures/generated-template-two.js');
-const { applyStage, byId, stageContent, stageRequest, templateTwoPlan } = require('./helpers/template-two.js');
+const { applyStage, byId, stageContent, stageRequest, templateTwoPlan, templateTwoSkeleton } = require('./helpers/template-two.js');
 
 const vocabularyItems = TRAVEL_TERMS.map(term => ({ term, definition: 'meaning' }));
 const variables = { targetVocabulary: vocabularyItems };
@@ -17,7 +16,7 @@ const build = answer => stageContent('guided-speaking', answer, { variables });
 
 test('Template 2 Guided Communication fills the synthetic structure and keeps other stages', t => {
   const warn = t.mock.method(console, 'warn', () => {});
-  const skeleton = createGenerationSkeleton('template-2', 'Travel');
+  const skeleton = templateTwoSkeleton('Travel');
   const synthetic = createTemplateTwoLesson('Travel');
   const { lesson } = applyStage('guided-speaking', GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION, { variables });
   assert.deepEqual(byId(lesson.stages, 'watch-and-interact'), byId(skeleton.stages, 'watch-and-interact'));
@@ -80,7 +79,7 @@ test('Template 2 Guided Communication prompt receives grammar and vocabulary', (
 test('Template 2 recovery keeps Guided Communication and drops an interrupted one', t => {
   // The shared recovery fixture has summer vocabulary, so the travel word lists only warn.
   t.mock.method(console, 'warn', () => {});
-  const skeleton = createGenerationSkeleton('template-2', 'Summer time');
+  const skeleton = templateTwoSkeleton('Summer time');
   const beforeCommunication = [
     TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR,
     `=== Grammar Presentation ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION)}`,

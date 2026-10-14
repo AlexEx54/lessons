@@ -2,12 +2,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { OPENROUTER_MODEL } = require('../lib/ai-lesson-generator.js');
-const { createGenerationSkeleton } = require('../lib/lesson-generation-plan.js');
 const { createTemplateTwoLesson } = require('../lib/synthetic-template-two.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION: generated } = require('./fixtures/generated-template-two-grammar-presentation.js');
 const { TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR } = require('./fixtures/generated-template-two.js');
-const { applyStage, byId, stageContent, stageRequest, templateTwoPlan } = require('./helpers/template-two.js');
+const { applyStage, byId, stageContent, stageRequest, templateTwoPlan, templateTwoSkeleton } = require('./helpers/template-two.js');
 
 const vocabularyItems = Array.from({ length: 10 }, (_, index) => ({ term: `travel word ${index}`, definition: 'meaning' }));
 const variables = { targetVocabulary: vocabularyItems };
@@ -58,7 +57,7 @@ test('Template 2 Grammar Presentation prompt receives vocabulary and grammar and
 });
 
 test('Template 2 recovery keeps Grammar Presentation and drops an interrupted one', () => {
-  const skeleton = createGenerationSkeleton('template-2', 'Summer time');
+  const skeleton = templateTwoSkeleton('Summer time');
   const output = `${TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR}\n\n=== Grammar Presentation ===\n${JSON.stringify(generated)}`;
   const recovered = recoverLessonGeneration(output, skeleton, templateTwoPlan());
   assert.equal(recovered.validOutput, output);
@@ -70,7 +69,7 @@ test('Template 2 recovery keeps Grammar Presentation and drops an interrupted on
 
 test('Template 2 plan sends the stage prompt with structured output and validates the answer', async () => {
   const plan = templateTwoPlan({ topic: 'Travel' });
-  const state = { lesson: createGenerationSkeleton('template-2', 'Travel'), variables };
+  const state = { lesson: templateTwoSkeleton('Travel'), variables };
   const request = stageRequest('grammar-presentation', { variables, profile: { ageGroup: '12-14', level: 'A2' } });
   const reply = answer => new Response(`data: ${JSON.stringify({ choices: [{ delta: { content: JSON.stringify(answer) } }] })}\n\ndata: [DONE]\n\n`, { headers: { 'Content-Type': 'text/event-stream' } });
   const connection = answer => ({

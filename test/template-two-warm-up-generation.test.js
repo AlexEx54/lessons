@@ -3,10 +3,10 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { applyLessonMetadataToSkeleton } = require('../lib/ai-lesson-generator.js');
-const { createGenerationPlan, createGenerationSkeleton } = require('../lib/lesson-generation-plan.js');
+const { createGenerationPlan } = require('../lib/lesson-generation-plan.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
-const { stageContent, stageRequest, templateTwoPlan } = require('./helpers/template-two.js');
+const { stageContent, stageRequest, templateTwoPlan, templateTwoSkeleton } = require('./helpers/template-two.js');
 
 const GENERATED = {
   rows: [
@@ -23,7 +23,7 @@ const GENERATED = {
 const buildWarmUp = generated => stageContent('warm-up', generated);
 
 test('Template 2 AI skeleton keeps synthetic stages and leaves generated stages empty for the model', () => {
-  const skeleton = createGenerationSkeleton('template-2', '  Travel  ', { ageGroup: '9-11', level: 'B1', model: 'test/model' });
+  const skeleton = templateTwoSkeleton('  Travel  ', { ageGroup: '9-11', level: 'B1', model: 'test/model' });
   const synthetic = createSyntheticLesson('Travel', { template: 'template-2' });
   assert.equal(skeleton.meta.topic, 'Travel');
   assert.equal(skeleton.meta.level, 'B1');
@@ -85,7 +85,7 @@ test('Template 2 Warm-Up prompt and schema ask only for the four rows', () => {
 });
 
 test('Template 2 recovery knows only its own steps', () => {
-  const skeleton = createGenerationSkeleton('template-2', 'Travel');
+  const skeleton = templateTwoSkeleton('Travel');
   const plan = templateTwoPlan({ topic: 'Travel' });
   const metadata = { coverImagePrompt: 'Travel cover, no text.' };
   const output = `=== Lesson Metadata ===\n${JSON.stringify(metadata)}\n\n=== Warm Up ===\n${JSON.stringify(GENERATED)}`;
@@ -103,7 +103,6 @@ test('Template 2 recovery knows only its own steps', () => {
   assert.deepEqual(Object.keys(partial.recoveredSections), ['lessonMetadata']);
   assert.equal(partial.validOutput, `=== Lesson Metadata ===\n${JSON.stringify(metadata)}`);
 
-  const templateOne = createGenerationPlan('template-1', { topic: 'Travel', grammarTopic: 'Past Simple' });
+  const templateOne = createGenerationPlan(null, { topic: 'Travel', grammarTopic: 'Past Simple' });
   assert.equal(recoverLessonGeneration(output, skeleton, templateOne).complete, false);
-  assert.throws(() => createGenerationPlan('template-9', { topic: 'Travel' }), /Неизвестный шаблон/);
 });

@@ -1,13 +1,12 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createGenerationSkeleton } = require('../lib/lesson-generation-plan.js');
 const { createTemplateTwoLesson } = require('../lib/synthetic-template-two.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS, TRAVEL_TERMS } = require('./fixtures/generated-template-two-grammar-focus.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION } = require('./fixtures/generated-template-two-grammar-presentation.js');
 const { TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR } = require('./fixtures/generated-template-two.js');
-const { applyStage, byId, stageContent, stageRequest, templateTwoPlan } = require('./helpers/template-two.js');
+const { applyStage, byId, stageContent, stageRequest, templateTwoPlan, templateTwoSkeleton } = require('./helpers/template-two.js');
 
 const vocabularyItems = TRAVEL_TERMS.map(term => ({ term, definition: 'meaning' }));
 const variables = { targetVocabulary: vocabularyItems };
@@ -16,7 +15,7 @@ const build = (answer, random) => stageContent('grammar-focus', answer, { variab
 
 test('Template 2 Grammar Focus fills the synthetic structure and keeps other stages', t => {
   const warn = t.mock.method(console, 'warn', () => {});
-  const skeleton = createGenerationSkeleton('template-2', 'Travel');
+  const skeleton = templateTwoSkeleton('Travel');
   const synthetic = createTemplateTwoLesson('Travel');
   const { lesson } = applyStage('grammar-focus', GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS, { variables, random: () => 0 });
   for (const id of ['watch-and-interact', 'guided-speaking', 'wrap-up']) {
@@ -114,7 +113,7 @@ test('Template 2 Grammar Focus prompt receives grammar and vocabulary', () => {
 test('Template 2 recovery keeps Grammar Focus and drops an interrupted one', t => {
   // The shared recovery fixture has summer vocabulary, so the travel word bank only warns.
   t.mock.method(console, 'warn', () => {});
-  const skeleton = createGenerationSkeleton('template-2', 'Summer time');
+  const skeleton = templateTwoSkeleton('Summer time');
   const beforeFocus = `${TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR}\n\n=== Grammar Presentation ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION)}`;
   const output = `${beforeFocus}\n\n=== Grammar Focus ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS)}`;
   const recovered = recoverLessonGeneration(output, skeleton, templateTwoPlan());
