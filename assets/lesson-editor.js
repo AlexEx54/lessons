@@ -1468,6 +1468,8 @@
       state.imageGeneration = payload.draft.imageGeneration;
       render(payload.draft.content);
       window.LessonNotes.mount({ mode: 'draft', id: state.draftId });
+      // Drafts have no second participant, so reactions only play locally as a preview.
+      window.ClassReactions?.create();
       updateImageGenerationBanner();
       scheduleImageGenerationPoll();
     } catch (error) {

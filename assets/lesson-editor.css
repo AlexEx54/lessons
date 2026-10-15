@@ -96,7 +96,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .lesson-identity small { color: var(--muted); font-size: 12px; }
 .lesson-header__actions { display: flex; align-items: stretch; gap: 14px; }
 
-.timer-card, .teacher-screen, .end-lesson, .reset-stage {
+.timer-card, .teacher-screen, .end-lesson, .reset-stage, .reaction-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -116,7 +116,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .timer-card strong { font-size: 13px; font-variant-numeric: tabular-nums; }
 .timer-card em { color: var(--muted); font-style: normal; font-weight: 500; }
 .timer-card small { margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 500; }
-.timer-card svg, .teacher-screen svg, .end-lesson svg, .reset-stage svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.timer-card svg, .teacher-screen svg, .end-lesson svg, .reset-stage svg, .reaction-toggle svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .timer-card > svg { margin-left: 8px; color: #777b90; }
 .end-lesson { color: #ef4b57; }
 
@@ -242,4 +242,25 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 }
 @media (prefers-reduced-motion: reduce) {
   .lesson-pointer-target { animation: none; outline-color: #dc2626; }
+}
+
+.lesson-reactions { position: relative; display: flex; }
+.lesson-reactions[hidden] { display: none; }
+.reaction-toggle { flex: none; width: 48px; padding: 8px; color: var(--purple); }
+.reaction-toggle:hover, .reaction-toggle[aria-expanded="true"] { background: var(--purple-soft); }
+.reaction-toggle:focus-visible { outline: 2px solid var(--purple); outline-offset: 3px; }
+.lesson-reaction-picker { position: absolute; top: calc(100% + 8px); right: 0; z-index: 25; display: flex; padding: 6px; gap: 2px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 12px 32px rgba(20, 20, 45, .14); }
+.lesson-reaction-picker[hidden] { display: none; }
+.lesson-reaction-picker button { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 10px; background: transparent; transition: transform 120ms ease, background 120ms ease; }
+.lesson-reaction-picker button:hover { background: var(--purple-soft); transform: translateY(-2px) scale(1.08); }
+.lesson-reaction-picker button:active { transform: scale(.9); }
+.lesson-reaction-picker button:focus-visible { outline: 2px solid var(--purple); outline-offset: 1px; }
+.lesson-reaction-picker img { width: 34px; height: 34px; }
+.lesson-reaction-layer { position: fixed; right: 24px; bottom: 24px; z-index: 35; width: 140px; height: min(60vh, 460px); pointer-events: none; }
+.lesson-reaction { position: absolute; bottom: 0; width: 48px; height: 48px; margin-left: -24px; opacity: 0; filter: drop-shadow(0 4px 8px rgba(20, 20, 45, .18)); will-change: transform, opacity; }
+@media (max-width: 700px) {
+  /* Anchor to the header itself: the picker is wider than the space left of the toggle. */
+  .lesson-reactions { position: static; }
+  .lesson-reaction-picker { right: 16px; left: 16px; justify-content: space-between; }
+  .lesson-reaction-layer { right: 8px; bottom: 88px; }
 }

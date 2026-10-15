@@ -74,6 +74,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
     const socket = new WebSocket(`ws://127.0.0.1:${port}/ws/sessions/${id}?role=${role}`, { headers: { Cookie: cookie || '', Origin: origin } });
     sockets.push(socket);
     const messages = [], waiters = [];
+    socket.messages = messages;
     socket.on('message', raw => {
       const message = JSON.parse(raw);
       const index = waiters.findIndex(waiter => waiter.type === message.type);
@@ -155,9 +156,17 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   await teacherSocket.next('pointer');
   await studentSocket.next('pointer');
   const action = { type: 'select-option', stageId: 'warm-up', componentId: choice.id, itemId: choice.items[0].id, optionId: choice.items[0].options[0].id, expectedVersion: 0 };
+  // Reactions are relayed to the peer only, unknown kinds and bursts are dropped without closing the socket.
+  teacherSocket.send(JSON.stringify({ type: 'reaction', kind: 'heart' }));
+  assert.deepEqual(await studentSocket.next('reaction'), { type: 'reaction', kind: 'heart', fromRole: 'teacher' });
+  studentSocket.send(JSON.stringify({ type: 'reaction', kind: 'unknown' }));
+  for (let i = 0; i < 5; i++) studentSocket.send(JSON.stringify({ type: 'reaction', kind: 'clap' }));
   studentSocket.send(JSON.stringify(action));
   const first = (await teacherSocket.next('action')).state;
   assert.equal(first.version, 1);
+  assert.deepEqual(teacherSocket.messages.filter(message => message.type === 'reaction'), [{ type: 'reaction', kind: 'clap', fromRole: 'student' }]);
+  teacherSocket.messages.splice(teacherSocket.messages.findIndex(message => message.type === 'reaction'), 1);
+  assert.equal(studentSocket.messages.some(message => message.type === 'reaction'), false);
   assert.equal(first.selections[choice.id][choice.items[0].id], action.optionId);
   assert.deepEqual((await studentSocket.next('action')).state, first);
   studentSocket.send(JSON.stringify(action));

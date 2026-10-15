@@ -15,9 +15,11 @@
   }
   let feedback = false;
   let pointerComponentIds = [];
-  const pointer = window.ClassPointer?.create({ role, notify, send: message => {
+  const sendEphemeral = message => {
     if (connected && socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
-  } });
+  };
+  const pointer = window.ClassPointer?.create({ role, notify, send: sendEphemeral });
+  const reactions = window.ClassReactions?.create({ send: sendEphemeral });
   const adapters = window.ClassComponentAdapters;
   const status = byId('teacher-screen');
   status.disabled = true;
@@ -149,6 +151,7 @@
       if (message.type === 'media-error') { notify(message.error); return; }
       if (message.type === 'pointer') { pointer?.receive(message); return; }
       if (message.type === 'pointer-error') { notify(message.error); return; }
+      if (message.type === 'reaction') { reactions?.receive(message); return; }
       if (message.type === 'presence') {
         peerPresent = message.peerPresent;
         paint();

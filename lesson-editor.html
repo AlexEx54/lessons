@@ -63,6 +63,12 @@
           <span><strong><span id="elapsed-time">00:00</span> <em>/ <span id="total-time">45:00</span></em></strong><small>Lesson time</small></span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
         </button>
+        <div class="lesson-reactions" id="lesson-reactions" hidden>
+          <button class="reaction-toggle" id="lesson-reactions-toggle" type="button" title="Реакции" aria-label="Реакции" aria-expanded="false" aria-controls="lesson-reaction-picker">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/></svg>
+          </button>
+          <div class="lesson-reaction-picker" id="lesson-reaction-picker" hidden></div>
+        </div>
         <button class="teacher-screen lesson-pointer" id="lesson-pointer" type="button" title="Указка" aria-label="Указка" aria-pressed="false" hidden disabled>
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg>
         </button>
@@ -131,6 +137,7 @@
       </main>
     </div>
   </div>
+  <div class="lesson-reaction-layer" id="lesson-reaction-layer" aria-hidden="true"></div>
   <div class="lesson-toast" id="lesson-toast" role="status" aria-live="polite"></div>
   <script src="/assets/components/component-tree.js" defer></script>
   <script src="/assets/components/safe-markdown.js" defer></script>
@@ -176,6 +183,7 @@
   <script src="/assets/class-component-adapters.js" defer></script>
   <script src="/assets/lesson-notes.bundle.js" defer></script>
   <script src="/assets/class-pointer.js" defer></script>
+  <script src="/assets/class-reactions.js" defer></script>
   <script src="/assets/class-live.js" defer></script>
   <script src="/assets/lesson-editor.js" defer></script>
 </body>
