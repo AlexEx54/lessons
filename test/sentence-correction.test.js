@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const { createDocument } = require('./helpers/lesson-dom.js');
 const { normalizeSentenceCorrection, createSentenceCorrectionAnswerKey, renderSentenceCorrection } = require('../assets/components/sentence-correction.js');
 const { normalizeMarkdownCard } = require('../assets/components/markdown-card.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const model = require('../assets/components/exercise-state.js');
 const { applyComponentAction, studentComponent, clearComponentState } = require('../lib/class-component-handlers.js');
 const source = { type: 'sentenceCorrection', id: 'corrections', title: 'Correct the mistakes.',
@@ -144,7 +144,7 @@ test('queued typing is replayed after acknowledgements and teacher adapter stays
 });
 
 test('template two adds eight corrections after Task 2 without changing template one', () => {
-  const lesson = createSyntheticLesson('Grammar', { template: 'template-2' });
+  const lesson = syntheticLesson('template-2');
   const content = lesson.stages.find(stage => stage.id === 'grammar-focus').content;
   const task = content[5];
   assert.equal(task.type, 'sentenceCorrection');
@@ -154,5 +154,5 @@ test('template two adds eight corrections after Task 2 without changing template
   const lists = node.querySelectorAll('ol');
   assert.deepEqual(lists.map(list => list.children.length), [4, 4]);
   assert.deepEqual(lists.map(list => list.start), [1, 5]);
-  assert.equal(createSyntheticLesson('Grammar').stages.find(stage => stage.id === 'grammar-focus').content[5].type, 'miniSituation');
+  assert.equal(syntheticLesson().stages.find(stage => stage.id === 'grammar-focus').content[5].type, 'miniSituation');
 });

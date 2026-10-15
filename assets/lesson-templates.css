@@ -145,13 +145,6 @@
 
 .template-card__actions .template-card__delete:hover { border-color: #dd7880; background: #fff0f1; }
 
-.template-card__note {
-  margin-top: auto;
-  padding-top: 17px;
-  color: #85839d;
-  font-size: 11px;
-}
-
 .template-form {
   display: grid;
   gap: 12px;

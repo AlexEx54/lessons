@@ -4,13 +4,13 @@ const test = require('node:test');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { createDocument } = require('./helpers/lesson-dom.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const model = require('../assets/components/exercise-state.js');
 const { renderMatchWords } = require('../assets/components/match-words.js');
 const { renderDropdownChoice } = require('../assets/components/dropdown-choice.js');
 const { renderFillInBlanks } = require('../assets/components/fill-in-blanks.js');
 const { renderDescribeAndGuess } = require('../assets/components/describe-and-guess.js');
-const content = createSyntheticLesson('Vocabulary').stages.find(stage => stage.id === 'target-vocabulary').content;
+const content = syntheticLesson().stages.find(stage => stage.id === 'target-vocabulary').content;
 const component = type => structuredClone(content.find(item => item.type === type));
 const fire = (node, name, event = {}) => { for (const listener of node.listeners[name] || []) listener({ target: node, preventDefault() {}, ...event }); };
 const byClass = (node, name) => node.querySelectorAll(`.${name}`);
@@ -273,7 +273,7 @@ test('snapshot feedback is not replayed and a disconnected pending drop releases
 test('template two vocabulary propagates student answers to teacher views and resets', () => {
   const { renderMultipleChoice } = require('../assets/components/multiple-choice.js');
   const { studentComponent, teacherComponent, applyComponentAction, clearComponentState } = require('../lib/class-component-handlers.js');
-  const content = createSyntheticLesson('Superheroes', { template: 'template-2' }).stages[2].content;
+  const content = syntheticLesson('template-2').stages[2].content;
   for (const [type, render, actionType, selector] of [
     ['multipleChoice', renderMultipleChoice, 'choose-option', '.multiple-choice__option'],
     ['dropdownChoice', renderDropdownChoice, 'choose-word', 'select'],

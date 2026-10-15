@@ -235,7 +235,7 @@ for (const role of ['teacher', 'student']) for (const type of ['gapFill', 'miniS
 
 test('guided cards flip locally and survive session confirmations and reconnect snapshots', async () => {
   const { guidedRoleCardsPresentation } = require('../assets/components/guided-role-cards.js');
-  const lesson = require('../lib/synthetic-lesson.js').createSyntheticLesson('Guided');
+  const lesson = require('./helpers/synthetic-lessons.js').syntheticLesson();
   const source = lesson.stages.find(stage => stage.id === 'guided-speaking').content.find(item => item.type === 'guidedRoleCards');
   const fixtures = [];
   for (const role of ['student', 'teacher']) {
@@ -287,7 +287,7 @@ test('stage reset is teacher-only, waits for acknowledgement and disables during
 
 for (const role of ['teacher', 'student']) test(`${role}: confirmed reset remounts local card state`, async () => {
   const { guidedRoleCardsPresentation } = require('../assets/components/guided-role-cards.js');
-  const source = require('../lib/synthetic-lesson.js').createSyntheticLesson('Reset').stages
+  const source = require('./helpers/synthetic-lessons.js').syntheticLesson().stages
     .find(stage => stage.id === 'guided-speaking').content.find(item => item.type === 'guidedRoleCards');
   const component = { type: source.type, id: source.id, presentation: guidedRoleCardsPresentation(source, role) };
   const f = await fixture(role, component), socket = f.sockets[0];

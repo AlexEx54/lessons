@@ -1,5 +1,8 @@
 'use strict';
 
+const { GENERATED_TARGET_VOCABULARY } = require('./generated-target-vocabulary.js');
+const { GENERATED_READING } = require('./generated-reading.js');
+
 // Model answers for the Template 1 stages that have no fixture file of their own.
 
 const GENERATED_WARM_UP = Object.freeze({
@@ -62,4 +65,25 @@ const GENERATED_WRAP_UP = Object.freeze({
   ]),
 });
 
-module.exports = { GENERATED_LEAD_IN, GENERATED_WARM_UP, GENERATED_WRAP_UP };
+// Target Vocabulary and Reading answers in the shape of the Template 1 controls, made from
+// the answers to the old prompts: the context task is one text with numbered gaps,
+// personalized questions have no targetTerm, and the gist question is a list of one.
+function templateOneTargetVocabulary({ contextItems, personalizedQuestions, ...answer }) {
+  return {
+    ...answer,
+    contextText: contextItems.map((item, index) => [item.before, `[[${index + 1}]]`, item.after].filter(Boolean).join(' ')).join(' '),
+    contextChoices: contextItems.map(({ options, answer: term }) => ({ options, answer: term })),
+    personalizedQuestions: personalizedQuestions.map(({ question, followUp }) => ({ question, followUp })),
+  };
+}
+
+function templateOneReading({ gistQuestion, ...answer }) {
+  return { ...answer, gistQuestions: [gistQuestion] };
+}
+
+const TEMPLATE_ONE_TARGET_VOCABULARY = templateOneTargetVocabulary(GENERATED_TARGET_VOCABULARY);
+const TEMPLATE_ONE_READING = templateOneReading(GENERATED_READING);
+
+module.exports = {
+  GENERATED_LEAD_IN, GENERATED_WARM_UP, GENERATED_WRAP_UP, TEMPLATE_ONE_READING, TEMPLATE_ONE_TARGET_VOCABULARY,
+};

@@ -13,7 +13,7 @@ const { createSession } = require('../lib/session-store.js');
 const { createClassSession } = require('../lib/class-store.js');
 const { joinClass } = require('../lib/class-live-store.js');
 const { createLessonDraft, completeLessonDraft } = require('../lib/lesson-draft-store.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { publishLesson } = require('../lib/library-store.js');
 const { notesSchema } = require('../lib/lesson-notes-editor.js');
 const { EMPTY_NOTES, validateNotes, readDraftNotes, saveDraftNotes } = require('../lib/lesson-notes-schema.js');
@@ -25,7 +25,7 @@ function setup(t) {
   const db = openDatabase(':memory:');
   t.after(() => db.close());
   const teacher = createUser({ email: `${crypto.randomUUID()}@notes.test`, displayName: 'Teacher', role: 'admin', passwordHash: 'unused' }, db);
-  const lesson = createSyntheticLesson('Notes');
+  const lesson = syntheticLesson();
   lesson.notes = content('Start');
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(lesson));
   const makeClass = () => createClassSession({ className: 'Notes', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
@@ -35,7 +35,7 @@ function setup(t) {
 test('draft notes: ownership, version conflicts, formatting validation and publication snapshot', t => {
   const { db, teacher } = setup(t);
   const draft = createLessonDraft({ ownerAdminId: teacher.id, topic: 'Notes', template: 'general' }, db);
-  completeLessonDraft(draft.id, teacher.id, createSyntheticLesson('Notes'), db);
+  completeLessonDraft(draft.id, teacher.id, syntheticLesson(), db);
   assert.deepEqual(readDraftNotes(draft.id, teacher.id, db).content, EMPTY_NOTES);
   const formatted = content('Prepared vocabulary');
   formatted.content[0].content[0].marks = [{ type: 'bold' }, { type: 'highlight', attrs: {} }];
@@ -152,7 +152,7 @@ test('notes links survive draft and collaborative persistence; unsafe URLs are r
   linked.content[0].content[0].marks = [{ type: 'link', attrs: { href: 'https://example.com/lesson?q=1', target: '_blank', rel: 'noopener noreferrer nofollow', class: null, title: null } }];
   validateNotes(linked);
   const draft = createLessonDraft({ ownerAdminId: teacher.id, topic: 'Links', template: 'general' }, db);
-  completeLessonDraft(draft.id, teacher.id, createSyntheticLesson('Links'), db);
+  completeLessonDraft(draft.id, teacher.id, syntheticLesson(), db);
   saveDraftNotes(draft.id, teacher.id, { version: 0, content: linked }, db);
   assert.deepEqual(readDraftNotes(draft.id, teacher.id, db).content, linked);
   const lesson = makeClass();

@@ -9,6 +9,9 @@ const test = require('node:test');
 const { openDatabase } = require('../lib/db.js');
 const { hashPassword } = require('../lib/password.js');
 const { createUser } = require('../lib/user-store.js');
+const { createExampleLesson } = require('../lib/lesson-generation-plan.js');
+const { imageSlots } = require('../lib/lesson-image-slots.js');
+const { findSystemTemplate } = require('../lib/lesson-templates/system-templates.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -159,182 +162,15 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.level, 'B2');
   assert.equal(created.status, 'review');
   assert.equal(created.imageGeneration.status, 'pending');
-  assert.equal(created.imageGeneration.total, 23);
-  assert.equal(created.content.schemaVersion, 'lesson-draft-v1');
-  assert.equal(created.content.meta.topic, 'Travel English');
-  assert.equal(created.content.meta.ageGroup, '15-18');
-  assert.equal(created.content.meta.level, 'B2');
-  assert.equal(created.content.meta.durationMinutes, 50);
-  assert.equal(created.content.stages.length, 9);
-  assert.deepEqual(created.content.stages.map(stage => stage.number), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  assert.deepEqual(created.content.stages[0].content.map(component => component.type), [
-    'teacherNote', 'markdownCard', 'thisOrThat', 'taskPrompt',
-  ]);
-  assert.equal(created.content.stages[0].content[0].id, 'warm-up-teacher-note');
-  assert.deepEqual(created.content.stages[0].content.filter(component => component.type === 'taskPrompt').map(component => component.variant), ['followUp']);
-  assert.deepEqual(created.content.stages[1].content.map(component => component.type), [
-    'teacherNote', 'markdownCard', 'illustratedTextPanel', 'textPanel', 'markdownCard',
-  ]);
-  assert.deepEqual(created.content.stages[2].content.map(component => component.type), [
-    'teacherNote', 'markdownCard', 'matchWords', 'markdownCard', 'dropdownChoice', 'markdownCard', 'fillInBlanks',
-    'personalizedQuestions', 'markdownCard', 'describeAndGuess',
-  ]);
-  assert.equal(created.content.stages[2].subtitle, 'Summer + Gaming Words');
-  assert.equal(created.content.stages[2].content[0].blocks.length, 3);
-  assert.deepEqual(created.content.stages[2].content[3], {
-    type: 'markdownCard',
-    id: 'target-vocabulary-extra-explanation-card',
-    title: '1. Words That Need Extra Explanation',
-    text: '- **go offline / go AFK** — explain that AFK = “away from keyboard”.\n- **level up** — usually used in games; means “reach the next level” and become stronger or better.\n- **get stuck** — explain with examples: in a game (can’t move forward) or in real life (have a problem).\n- **beat a game / a boss** — clarify: “beat a boss” = win against a very strong enemy.\n- **spend time outdoors** — “outdoors” = outside, in nature or outside the house.',
-    icon: 'book',
-    accentColor: '#6545F5',
-    studentVisibility: 'teacherOnly',
+  // Synthetic drafts are built from the controls' examples; they shuffle options, so
+  // compare the lesson structure.
+  const exampleLesson = createExampleLesson(findSystemTemplate('template-1').definition, 'Travel English', {
+    ageGroup: '15-18', level: 'B2',
   });
-  const targetVocabularyDropdown = created.content.stages[2].content[4];
-  assert.equal(targetVocabularyDropdown.id, 'target-vocabulary-context-dropdown');
-  assert.equal(targetVocabularyDropdown.segments, undefined);
-  assert.equal(targetVocabularyDropdown.choices.length, 8);
-  assert.match(targetVocabularyDropdown.text, /\[\[hang-out-context\]\]/);
-  assert.deepEqual(created.content.stages[2].content[5], {
-    type: 'markdownCard',
-    id: 'target-vocabulary-context-answer-key',
-    title: 'Answer Key',
-    text: '1. **to hang out (with friends)**\n2. **to go offline / go AFK**\n3. **to beat a game / a boss**\n4. **to level up**\n5. **to get stuck**\n6. **to spend time outdoors**\n7. **to try something new**\n8. **to stay up late**',
-    icon: 'check',
-    accentColor: '#20A85B',
-    studentVisibility: 'teacherOnly',
-  });
-  assert.deepEqual(created.content.stages[2].content[6].items.map(item => item.answer), [
-    'chill out', 'spend time outdoors', 'get stuck', 'hangs out', 'beat', 'go offline',
-  ]);
-  assert.equal(created.content.stages[2].content[7].id, 'target-vocabulary-personalized-questions');
-  assert.equal(created.content.stages[2].content[7].items.length, 4);
-  assert.deepEqual(created.content.stages[2].content[8], {
-    type: 'markdownCard',
-    id: 'target-vocabulary-sentence-starters-card',
-    title: 'Support: Sentence Starters',
-    text: 'Use these starters if you need help answering.\n\n- **I usually like to ...**\n- **One time I ...**\n- **I feel ... when ...**',
-    icon: 'chat',
-    accentColor: '#20A85B',
-    studentVisibility: 'always',
-  });
-  assert.deepEqual(created.content.stages[3].content.map(component => component.type), [
-    'teacherNote', 'textReading', 'multipleChoice', 'multipleChoice', 'markdownCard',
-  ]);
-  assert.equal(created.content.stages[3].content[2].id, 'reading-gist-quiz');
-  assert.equal(created.content.stages[3].content[3].items.length, 5);
-  assert.equal(created.content.stages[3].content[3].items[4].explanation, undefined);
-  assert.equal(created.content.stages[3].content[4].id, 'reading-answer-key');
-  assert.equal(created.content.stages[3].subtitle, 'Read the text');
-  assert.equal(created.content.stages[3].content[0].id, 'reading-teacher-note');
-  assert.equal(created.content.stages[3].content[1].title, 'My Exchange Week Surprise');
-  assert.equal(created.content.stages[3].content[1].subtitle, 'by ClaryNomad16 · Posted Aug 20');
-  assert.ok(created.content.stages[3].content[1].headerImage.imagePrompt);
-  assert.ok(created.content.stages[3].content[1].textImage.imagePrompt);
-  assert.equal(created.content.stages[3].content[1].headerImage.imageSrc, undefined);
-  assert.equal(created.content.stages[3].content[1].textImage.imageSrc, undefined);
-  assert.deepEqual(created.content.stages[4].content.map(component => component.type), [
-    'teacherNote', 'audioPlayer', 'checkboxChoice', 'audioPlayer', 'multipleChoice', 'markdownCard',
-  ]);
-  assert.equal(created.content.stages[4].content[0].id, 'listening-teacher-note');
-  assert.equal(created.content.stages[4].content[1].id, 'listening-audio');
-  assert.equal(created.content.stages[4].content[1].title, 'Listen to the audio');
-  assert.equal(created.content.stages[4].content[1].audioSrc, undefined);
-  assert.equal(created.content.stages[4].content[2].id, 'listening-gist-quiz');
-  assert.equal(created.content.stages[4].content[3].id, 'listening-audio-again');
-  assert.equal(created.content.stages[4].content[3].title, 'Listen to the audio one more time');
-  assert.equal(created.content.stages[4].content[3].script, created.content.stages[4].content[1].script);
-  assert.equal(created.content.stages[4].content[4].id, 'listening-detail-quiz');
-  assert.equal(created.content.stages[4].content[5].id, 'listening-answer-key');
-  assert.equal(created.content.stages[4].subtitle, 'Listen to the audio');
-  assert.equal(created.content.stages[5].id, 'grammar-presentation');
-  assert.equal(created.content.stages[5].subtitle, 'Complete the Rule');
-  assert.deepEqual(created.content.stages[5].content.map(component => component.id), [
-    'grammar-presentation-teacher-note',
-    'grammar-presentation-notice-rule',
-    'grammar-presentation-concept-checking',
-    'grammar-presentation-complete-the-rule',
-    'grammar-presentation-quick-rule',
-    'grammar-presentation-check-the-rule',
-    'grammar-presentation-answer-key',
-  ]);
-  assert.equal(created.content.stages[5].content[1].showBorder, false);
-  assert.equal(created.content.stages[5].content[2].accentColor, '#20A85B');
-  assert.deepEqual(created.content.stages[5].content[4], {
-    type: 'markdownCard',
-    id: 'grammar-presentation-quick-rule',
-    title: 'Quick Rule',
-    layout: 'columns',
-    sections: [{
-      id: 'used-to',
-      title: 'USED TO',
-      text: '- **past habit** / state that is different now\n- **form:** subject + used to + base verb\n- **negative:** didn’t use to + base verb\n- **question:** Did you use to ...?\n- **example:** “I used to finish school at 2:30.”',
-    }, {
-      id: 'get-used-to',
-      title: 'GET USED TO',
-      text: '- become comfortable with something new\n- **form:** get / got / am getting used to + noun / verb-ing\n- **after “to”:** use a noun or -ing, not a base verb\n- **example:** “I got used to the workload after a few weeks.”',
-    }],
-    icon: 'bulb',
-    accentColor: '#6545F5',
-    studentVisibility: 'always',
-  });
-  assert.deepEqual(created.content.stages[5].content[5].choices.map(choice => choice.answer), [
-    'used to', 'get used to', 'getting used to', 'used to', 'get used to',
-  ]);
-  assert.equal(created.content.stages[5].content[6].icon, 'check');
-  assert.equal(created.content.stages[5].content[6].headingSize, 'large');
-  assert.equal(created.content.stages[5].content[6].sections[1].headingSize, undefined);
-  assert.equal(created.content.stages[6].id, 'grammar-focus');
-  assert.deepEqual(created.content.stages[6].content.map(component => component.id), [
-    'grammar-focus-teacher-note',
-    'grammar-focus-choose-the-correct-options',
-    'grammar-focus-answer-key',
-    'grammar-focus-complete-the-gaps',
-    'grammar-focus-complete-the-gaps-answer-key',
-    'grammar-focus-mini-situation',
-    'grammar-focus-practice-support-row',
-  ]);
-  assert.deepEqual(created.content.stages[6].content[6].items.map(item => item.id), [
-    'grammar-focus-writing-support',
-    'grammar-focus-support',
-    'grammar-focus-challenge',
-  ]);
-  assert.deepEqual(created.content.stages[6].content[0].blocks.map(block => block.id), [
-    'grammar-focus-transition-phrases',
-    'grammar-focus-struggle-tips',
-    'grammar-focus-correction-timing',
-    'grammar-focus-free-practice-success',
-  ]);
-  assert.equal(created.content.stages[6].content[1].choices.length, 8);
-  assert.equal(created.content.stages[6].content[1].accentColor, '#6545F5');
-  assert.match(created.content.stages[6].content[1].title, /^\*\*Task 1/);
-  assert.deepEqual(created.content.stages[6].content[1].choices.map(choice => choice.answer), [
-    'used to', 'get used to', 'got used to', 'am getting used to',
-    'use to', 'use to', 'get used to', 'used to',
-  ]);
-  assert.equal(created.content.stages[6].content[2].title, 'Answer Key & Explanations');
-  assert.deepEqual(created.content.stages[6].content[2].sections.map(section => section.id), [
-    'answers', 'short-explanations',
-  ]);
-  assert.equal(created.content.stages[6].content[2].studentVisibility, 'teacherOnly');
-  assert.equal(created.content.stages[6].content[3].gaps.length, 9);
-  assert.equal(created.content.stages[6].content[3].accentColor, '#6545F5');
-  assert.match(created.content.stages[6].content[3].title, /^\*\*Task 2/);
-  assert.equal(created.content.stages[6].content[4].title, 'Answer key');
-  assert.deepEqual(created.content.stages[6].content[4].sections.map(section => section.id), [
-    'answers-left', 'answers-right',
-  ]);
-  assert.deepEqual(created.content.stages[7].content.map(component => component.type), [
-    'teacherNote', 'textPanel', 'howToPlay', 'guidedRoleCards', 'speakingSupport', 'markdownCard',
-  ]);
-  assert.equal(created.content.stages[7].content[2].id, 'guided-speaking-how-to-play');
-  assert.equal(created.content.stages[7].content[5].id, 'guided-speaking-example-dialogue');
-  assert.deepEqual(created.content.stages[8].content.map(component => component.type), [
-    'teacherNote', 'threeTwoOne', 'selfAssessment', 'markdownCard',
-  ]);
-  assert.equal(created.content.stages[8].content[1].id, 'wrap-up-three-two-one');
-  assert.equal(created.content.stages[8].content[2].id, 'wrap-up-self-assessment');
-  assert.equal(created.content.stages[8].subtitle, '3–2–1');
+  const structure = lesson => lesson.stages.map(stage => [stage.id, ...(stage.content || []).map(c => `${c.type} ${c.id}`)]);
+  assert.equal(created.imageGeneration.total, imageSlots(exampleLesson).length);
+  assert.deepEqual(created.content.meta, exampleLesson.meta);
+  assert.deepEqual(structure(created.content), structure(exampleLesson));
 
   const editorPage = await fetch(`${baseUrl}/lesson-drafts/${created.id}/edit`, {
     headers: { Cookie: firstAdminCookie },
@@ -1139,7 +975,9 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     body: JSON.stringify({ title: 'Next questions:', text: 'Question', support: { title: '', text: '' } }),
   })).status, 400);
 
-  const imageEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/this-or-that/warm-up-this-or-that/items/summer-choice-one/options/minecraft-house/image`;
+  const thisOrThat = created.content.stages[0].content[2];
+  const imageEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/this-or-that/${thisOrThat.id}`
+    + `/items/${thisOrThat.items[0].id}/options/${thisOrThat.items[0].options[0].id}/image`;
   const png = Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     Buffer.from('test-image'),
@@ -1174,7 +1012,8 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal((await imageDeleteResponse.json()).draft.content.stages[0].content[2].items[0].options[0].imageSrc, undefined);
   assert.equal((await fetch(`${baseUrl}${savedImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
 
-  const matchWordsImageEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/match-words/target-vocabulary-match-words/items/hang-out/image`;
+  const matchWords = created.content.stages[2].content[2];
+  const matchWordsImageEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/match-words/${matchWords.id}/items/${matchWords.items[0].id}/image`;
   assert.equal((await fetch(matchWordsImageEndpoint, {
     method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: png,
   })).status, 401);

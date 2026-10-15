@@ -4,14 +4,14 @@ const test = require('node:test');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const { createDocument } = require('./helpers/lesson-dom.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const model = require('../assets/components/exercise-state.js');
 const tree = require('../assets/components/component-tree.js');
 const { renderGapFill } = require('../assets/components/gap-fill.js');
 const { renderMiniSituation } = require('../assets/components/mini-situation.js');
 const { renderCardRow, normalizeCardRow } = require('../assets/components/card-row.js');
 const { studentComponent, applyComponentAction } = require('../lib/class-component-handlers.js');
-const content = createSyntheticLesson('Grammar').stages.find(stage => stage.id === 'grammar-focus').content;
+const content = syntheticLesson().stages.find(stage => stage.id === 'grammar-focus').content;
 const fire = (node, name) => (node.listeners[name] || []).forEach(listener => listener({ preventDefault() {} }));
 
 for (const [type, render, selector] of [

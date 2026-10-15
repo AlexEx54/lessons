@@ -1,12 +1,12 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { normalizeGuidedCommunicationCards, renderGuidedCommunicationCards } = require('../assets/components/guided-communication-cards.js');
 const { normalizeTaskPrompt } = require('../assets/components/task-prompt.js');
 const { studentComponent } = require('../lib/class-component-handlers.js');
 const { createDocument } = require('./helpers/lesson-dom.js');
-const stage = () => createSyntheticLesson('Superheroes', { template: 'template-2' }).stages[6];
+const stage = () => syntheticLesson('template-2').stages[6];
 const source = () => stage().content[2];
 
 test('template two provides three communication tasks and private teacher notes; template one keeps role cards', () => {
@@ -16,7 +16,7 @@ test('template two provides three communication tasks and private teacher notes;
   assert.doesNotThrow(() => normalizeTaskPrompt(current.content[1]));
   assert.equal(studentComponent(current.content[0], {}), null);
   assert.deepEqual(studentComponent(source(), {}), source());
-  assert.ok(createSyntheticLesson('Test').stages.find(s => s.id === 'guided-speaking').content.some(c => c.type === 'guidedRoleCards'));
+  assert.ok(syntheticLesson().stages.find(s => s.id === 'guided-speaking').content.some(c => c.type === 'guidedRoleCards'));
 });
 test('communication schema rejects incomplete help, invalid colors and duplicate ids', () => {
   assert.deepEqual(normalizeGuidedCommunicationCards(source()), source());

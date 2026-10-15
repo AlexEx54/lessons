@@ -1,0 +1,1409 @@
+{
+  "schemaVersion": "lesson-draft-v1",
+  "meta": {
+    "topic": "Travel",
+    "title": "Travel",
+    "level": "A2",
+    "lessonNumber": 1,
+    "durationMinutes": 50,
+    "generatedBy": "synthetic"
+  },
+  "stages": [
+    {
+      "id": "warm-up",
+      "title": "Warm Up",
+      "subtitle": "Find the Odd One Out!",
+      "durationMinutes": 5,
+      "icon": "sparkles",
+      "number": 1,
+      "content": [
+        {
+          "type": "teacherNote",
+          "id": "warm-up-teacher-note",
+          "text": "**Goal:** The main goal of this stage is to activate the student's background knowledge, get them speaking right away, and introduce the topic of the lesson.\n\n**Error Correction:** Focus purely on fluency. Do not interrupt the student to correct grammar or minor pronunciation mistakes. Praise their ideas and create a welcoming atmosphere!\n\n**Say:** \"Hello! How are you today? Are you ready for our lesson? Let's start our lesson with a quick game called 'Find the Odd One Out'. Look at the first row of words. Three of them are connected, but one is different. Which word doesn't belong here? Can you explain why?\"\n\n**Teacher's Tips (Handling the activity):**\n\n- **Encourage Full Sentences:** If the student just shouts out one word (e.g., \"Strong!\"), point to the Support box. Ask them: \"Can you explain it using this sentence? 'Strong is the odd one out because...'\"\n- **Accept Alternative Answers:** Students often think outside the box. If they choose a \"wrong\" word but provide a logical, creative explanation, praise them for it! (\"That's a great reason!\") After praising, gently guide them to the intended category: \"Now let's look at it from another angle. What do the other three words have in common?\"\n- **Scaffolding for weaker students:** If they struggle to name the category, help them with leading questions about the words' functions or characteristics: \"What do you do with [Word A] and [Word B]? Are they actions / places / objects / feelings?\""
+        },
+        {
+          "type": "oddOneOut",
+          "id": "warm-up-odd-one-out",
+          "title": "Find the Odd One Out!",
+          "instruction": "Look at the four words in each row. Find the odd word and explain your choice.",
+          "items": [
+            {
+              "id": "row-1",
+              "options": [
+                "fly",
+                "jump",
+                "run",
+                "strong"
+              ],
+              "answer": "strong",
+              "explanation": "It is an adjective; the other words can be verbs."
+            },
+            {
+              "id": "row-2",
+              "options": [
+                "cape",
+                "car",
+                "mask",
+                "boots"
+              ],
+              "answer": "car",
+              "explanation": "It is a vehicle; the others can be worn."
+            },
+            {
+              "id": "row-3",
+              "options": [
+                "robot",
+                "spider",
+                "bat",
+                "cat"
+              ],
+              "answer": "robot",
+              "explanation": "It is a machine; the others are animals."
+            },
+            {
+              "id": "row-4",
+              "options": [
+                "head",
+                "arm",
+                "laser",
+                "leg"
+              ],
+              "answer": "laser",
+              "explanation": "It is not a body part; the others are body parts."
+            }
+          ]
+        },
+        {
+          "type": "markdownCard",
+          "id": "warm-up-odd-one-out-answer-key",
+          "title": "Answer Keys",
+          "icon": "check",
+          "accentColor": "#20A85B",
+          "studentVisibility": "teacherOnly",
+          "text": "1. **strong** — It is an adjective; the other words can be verbs.\n2. **car** — It is a vehicle; the others can be worn.\n3. **robot** — It is a machine; the others are animals.\n4. **laser** — It is not a body part; the others are body parts."
+        }
+      ]
+    },
+    {
+      "id": "lead-in",
+      "title": "Lead In",
+      "subtitle": "Fact or Myth?",
+      "durationMinutes": 5,
+      "icon": "compass",
+      "number": 2,
+      "content": [
+        {
+          "type": "teacherNote",
+          "id": "lead-in-teacher-note",
+          "text": "**Say:** \"Now let's play a game called '**Fact or Myth?**'. I will show you some statements. You need to read them and decide: is it a true **Fact**, or a false **Myth**?\"\n\n**Teacher's Tips (Handling the activity):**\n\n- **Check Understanding:** Before you start, make sure the student understands the words **Fact** (100% true) and **Myth** (false / not true). You can use thumbs up 👍 and thumbs down 👎 gestures to make it fun.\n- **Elicit Explanations (Questions 1–3):** For the general knowledge statements, don't just accept a one-word answer. Point to the **Speaking Support** box and ask: \"Why do you think so? Can you prove it?\"\n- **The \"Guess\" Factor (Questions 4–5):** The last few statements are usually directly related to the stories they are about to explore. The student cannot know the answer yet. **Do not reveal the correct answer here!** Let them guess. Ask: \"What do you think? Let's make a guess.\"\n\n**Post-Task Discussion**\n\n**Say:** \"You have some really interesting ideas! But are your guesses for the last questions actually right? Well, there is only one way to find out. Let's move to the next part of our lesson, read the stories, and check our answers!\""
+        },
+        {
+          "type": "factOrMyth",
+          "id": "lead-in-fact-or-myth",
+          "title": "Read the sentences. Is it a FACT or MYTH?",
+          "instruction": "Choose Fact or Myth for each sentence.",
+          "items": [
+            {
+              "id": "statement-1",
+              "text": "Batman has got a black cape and a black mask.",
+              "mode": "check",
+              "answer": "fact",
+              "explanation": "He has got a black cape and mask."
+            },
+            {
+              "id": "statement-2",
+              "text": "All superheroes have got a cape.",
+              "mode": "check",
+              "answer": "myth",
+              "explanation": "Spider-Man and Iron Man have not got a cape."
+            },
+            {
+              "id": "statement-3",
+              "text": "The Hulk has got a cool superhero suit and boots.",
+              "mode": "check",
+              "answer": "myth",
+              "explanation": "He has not got a suit or boots. He has got purple shorts and green skin."
+            },
+            {
+              "id": "statement-4",
+              "text": "Somebody in our stories has got green hair.",
+              "mode": "guess",
+              "answer": null,
+              "explanation": "Students guess now and check later in the stories."
+            },
+            {
+              "id": "statement-5",
+              "text": "Somebody in our stories has got a purple jacket.",
+              "mode": "guess",
+              "answer": null,
+              "explanation": "Students guess now and check later in the stories."
+            }
+          ]
+        },
+        {
+          "type": "markdownCard",
+          "id": "lead-in-speaking-support",
+          "title": "Speaking Support",
+          "icon": "chat",
+          "accentColor": "#E5AD16",
+          "studentVisibility": "always",
+          "text": "I think it’s a fact / myth because…\n\nBatman has got…\n\nSpider-Man hasn’t got…"
+        },
+        {
+          "type": "markdownCard",
+          "id": "lead-in-fact-or-myth-answer-key",
+          "title": "Answer Keys",
+          "icon": "check",
+          "accentColor": "#20A85B",
+          "studentVisibility": "teacherOnly",
+          "text": "1. **FACT** — He has got a black cape and mask.\n2. **MYTH** — Spider-Man and Iron Man have not got a cape.\n3. **MYTH** — He has not got a suit or boots. He has got purple shorts and green skin.\n4. **GUESS 🤷** — Students guess now and check later in the stories.\n5. **GUESS 🤷** — Students guess now and check later in the stories."
+        }
+      ]
+    },
+    {
+      "id": "target-vocabulary",
+      "title": "Target Vocabulary",
+      "subtitle": "Explore & Practise New Words",
+      "durationMinutes": 8,
+      "icon": "cards",
+      "number": 3,
+      "content": [
+        {
+          "type": "teacherNote",
+          "id": "target-vocabulary-teacher-note",
+          "blocks": [
+            {
+              "type": "teacherNoteBlock",
+              "id": "target-vocabulary-pronunciation-check",
+              "title": "Pronunciation Check",
+              "titleColor": "#6545F5",
+              "icon": "audio",
+              "text": "Используйте эти онлайн-словари, чтобы проверить и включить произношение:\n\n- Cambridge Dictionary – cambridge.org/dictionary\n- Merriam-Webster – merriam-webster.com\n- Oxford Learner’s Dictionaries – oxfordlearnersdictionaries.com",
+              "tip": {
+                "text": "Включите аудио ученику и попросите его повторить.\nОбратите внимание на ударение в новых словах и фразах."
+              }
+            },
+            {
+              "type": "teacherNoteBlock",
+              "id": "target-vocabulary-exercise-lead-in",
+              "title": "What to Say & How to Lead Into Each Exercise",
+              "titleColor": "#20A85B",
+              "icon": "chat",
+              "text": "**Task 1:** Прочитайте истории. Попросите ученика обратить внимание на выделенные слова. Затем вернитесь к догадкам 4–5 из Lead-In и проверьте их вместе: ответы — в карточке «Lead-In: Check Your Guesses».\n\n**Task 2:** Попросите ученика выбрать значение каждого слова. При затруднении вернитесь к историям. После ошибки можно попробовать ещё раз.\n\n**Task 3:** Сначала прочитайте весь текст, затем выберите слова из выпадающих списков. В конце попросите ученика прочитать получившуюся историю вслух.\n\n**Task 4:** Попросите ученика перетащить слова в пропуски. Каждое слово используется один раз. Затем прочитайте предложения вслух.\n\n**Extra Task:** При необходимости нажмите «Показать», чтобы открыть дополнительное задание ученику. Попросите написать английские слова рядом с русскими подсказками.\n\n**Task 5:** Задайте ученику вопросы о нём самом. Используйте follow-up вопросы и Sentence Starters. Правильных и неправильных ответов нет."
+            },
+            {
+              "type": "teacherNoteBlock",
+              "id": "target-vocabulary-extra-phrases",
+              "title": "Extra Teacher Phrases You Can Use",
+              "titleColor": "#6545F5",
+              "icon": "chatDots",
+              "text": "При необходимости задайте ученику дополнительные вопросы:\n\n- “Can you think of another example?”\n- “What does this mean in your own words?”\n- “Let’s use this word in a sentence together.”\n- “Good! Can you say it another way?”"
+            }
+          ]
+        },
+        {
+          "type": "markdownCard",
+          "id": "target-vocabulary-card",
+          "title": "Vocabulary",
+          "icon": "book",
+          "accentColor": "#20A85B",
+          "studentVisibility": "controlled",
+          "text": "1. **curly hair** — hair with curls\n2. **big eyes** — large eyes\n3. **long straight hair** — long hair without curls\n4. **silver mask** — a silver cover for your face\n5. **superhero suit** — special clothes a superhero wears\n6. **boots** — shoes that cover your ankles or legs\n7. **gloves** — clothes that cover your hands\n8. **belt** — something you wear around your waist\n9. **green hair** — hair that is green\n10. **pointed ears** — ears with narrow tips"
+        },
+        {
+          "type": "storyCards",
+          "id": "target-vocabulary-stories",
+          "title": "Task 1. Read the stories. Pay attention to the words in bold.",
+          "items": [
+            {
+              "id": "story-1",
+              "emoji": "⚡",
+              "title": "Flash Kid",
+              "text": "Hi! I'm Flash Kid. I've got **curly hair** and **big eyes**. My superhero clothes are blue and yellow. I've got a yellow cape, too. I can run very fast!",
+              "backgroundColor": "#EAE4FC"
+            },
+            {
+              "id": "story-2",
+              "emoji": "🌙",
+              "title": "Moon Girl",
+              "text": "My name is Moon Girl. I've got **long straight hair**. I've got a **silver mask** and a purple **superhero suit**. Nobody knows who I am when I wear my mask!",
+              "backgroundColor": "#FCE3F0"
+            },
+            {
+              "id": "story-3",
+              "emoji": "🔥",
+              "title": "Fire Boy",
+              "text": "I'm Fire Boy. I've got red **boots** and orange **gloves**. I've also got a black **belt** with my superhero tools. I help people when there is danger.",
+              "backgroundColor": "#FFF0E5"
+            },
+            {
+              "id": "story-4",
+              "emoji": "🌿",
+              "title": "Forest Elf",
+              "text": "Hi! I'm Forest Elf. I've got **green hair** and two **pointed ears**. I've got brown boots, a green cape and a superhero suit. I can talk to animals and climb trees very quickly.",
+              "backgroundColor": "#E2FBFB"
+            }
+          ]
+        },
+        {
+          "type": "markdownCard",
+          "id": "target-vocabulary-guess-answers",
+          "title": "Lead-In: Check Your Guesses",
+          "icon": "check",
+          "accentColor": "#E5AD16",
+          "studentVisibility": "teacherOnly",
+          "text": "**4.** Somebody in our stories has got green hair. — **FACT** · Forest Elf: “I've got green hair and two pointed ears.”\n\n**5.** Somebody in our stories has got a purple jacket. — **MYTH** · Moon Girl: “I've got a silver mask and a purple superhero suit.”"
+        },
+        {
+          "variant": "compact",
+          "type": "multipleChoice",
+          "id": "target-vocabulary-meanings",
+          "title": "Task 2. Choose the correct meaning for the words from the text.",
+          "instruction": "Choose one answer for each question.",
+          "items": [
+            {
+              "id": "meaning-1",
+              "question": "What does “curly hair” mean?",
+              "options": [
+                "hair with curls",
+                "hair with no curls"
+              ],
+              "answer": "hair with curls"
+            },
+            {
+              "id": "meaning-2",
+              "question": "What does “big eyes” mean?",
+              "options": [
+                "very small eyes",
+                "large eyes"
+              ],
+              "answer": "large eyes"
+            },
+            {
+              "id": "meaning-3",
+              "question": "What does “long straight hair” mean?",
+              "options": [
+                "long hair without curls",
+                "short hair with lots of curls"
+              ],
+              "answer": "long hair without curls"
+            },
+            {
+              "id": "meaning-4",
+              "question": "What does “silver mask” mean?",
+              "options": [
+                "silver shoes for your feet",
+                "a silver cover for your face"
+              ],
+              "answer": "a silver cover for your face"
+            },
+            {
+              "id": "meaning-5",
+              "question": "What does “superhero suit” mean?",
+              "options": [
+                "special clothes a superhero wears",
+                "a superhero’s house"
+              ],
+              "answer": "special clothes a superhero wears"
+            },
+            {
+              "id": "meaning-6",
+              "question": "What does “boots” mean?",
+              "options": [
+                "clothes you wear on your hands",
+                "shoes that cover your ankles or legs"
+              ],
+              "answer": "shoes that cover your ankles or legs"
+            },
+            {
+              "id": "meaning-7",
+              "question": "What does “gloves” mean?",
+              "options": [
+                "clothes that cover your hands",
+                "clothes for your head"
+              ],
+              "answer": "clothes that cover your hands"
+            },
+            {
+              "id": "meaning-8",
+              "question": "What does “belt” mean?",
+              "options": [
+                "something you wear around your neck",
+                "something you wear around your waist"
+              ],
+              "answer": "something you wear around your waist"
+            },
+            {
+              "id": "meaning-9",
+              "question": "What does “green hair” mean?",
+              "options": [
+                "hair that is green",
+                "hair that is very long"
+              ],
+              "answer": "hair that is green"
+            },
+            {
+              "id": "meaning-10",
+              "question": "What does “pointed ears” mean?",
+              "options": [
+                "very round ears",
+                "ears with narrow tips"
+              ],
+              "answer": "ears with narrow tips"
+            }
+          ]
+        },
+        {
+          "type": "dropdownChoice",
+          "id": "target-vocabulary-context-dropdown",
+          "title": "Task 3. Vocabulary in Context — Dropdown",
+          "instruction": "Fill in the blanks with the correct words from the dropdown lists.",
+          "text": "Meet Star Kid, our new superhero! His hair has lots of curls, so he has got [[context-1]]. His [[context-2]] are large and bright. He wears a [[context-3]] over his face to hide who he is. His special superhero clothes are a blue [[context-4]]. A red [[context-5]] hangs from his shoulders and flies behind his back when he runs. On his feet, he wears [[context-6]] that cover his legs below the knees. His [[context-7]] keep his hands warm. Finally, he puts a [[context-8]] around his waist to carry his tools. Now he is ready to help his friends!",
+          "choices": [
+            {
+              "id": "context-1",
+              "options": [
+                "straight hair",
+                "curly hair",
+                "green hair"
+              ],
+              "answer": "curly hair"
+            },
+            {
+              "id": "context-2",
+              "options": [
+                "big eyes",
+                "pointed ears",
+                "gloves"
+              ],
+              "answer": "big eyes"
+            },
+            {
+              "id": "context-3",
+              "options": [
+                "belt",
+                "cape",
+                "mask"
+              ],
+              "answer": "mask"
+            },
+            {
+              "id": "context-4",
+              "options": [
+                "superhero suit",
+                "mask",
+                "belt"
+              ],
+              "answer": "superhero suit"
+            },
+            {
+              "id": "context-5",
+              "options": [
+                "mask",
+                "cape",
+                "belt"
+              ],
+              "answer": "cape"
+            },
+            {
+              "id": "context-6",
+              "options": [
+                "gloves",
+                "pointed ears",
+                "boots"
+              ],
+              "answer": "boots"
+            },
+            {
+              "id": "context-7",
+              "options": [
+                "gloves",
+                "boots",
+                "big eyes"
+              ],
+              "answer": "gloves"
+            },
+            {
+              "id": "context-8",
+              "options": [
+                "cape",
+                "belt",
+                "mask"
+              ],
+              "answer": "belt"
+            }
+          ],
+          "accentColor": "#17182D"
+        },
+        {
+          "type": "dragWordsInText",
+          "id": "target-vocabulary-drag-words",
+          "title": "Task 4. Drag the correct words into the gaps.",
+          "instruction": "Use each word once.",
+          "words": [
+            "belt",
+            "boots",
+            "cape",
+            "gloves",
+            "mask",
+            "pointed ears"
+          ],
+          "text": "Night Fox has got a black [[mask]] over his eyes.\nIce Girl has got warm blue [[gloves]] on her hands.\nSuper Sam has got red [[boots]] on his feet.\nBat Boy has got two funny [[pointed ears]].\nStar Girl has got a long purple [[cape]] on her back.\nGadget Boy has got a special [[belt]] around his waist."
+        },
+        {
+          "type": "gapFill",
+          "id": "target-vocabulary-type-words",
+          "title": "Extra Task. Type the English words.",
+          "instruction": "Type the English word or phrase next to each Russian hint.",
+          "text": "1. Shadow Girl has got a black **маска** [[extra-1]]\n2. Her brother has got a long red **плащ** [[extra-2]]\n3. Thunder Boy has got yellow **сапоги** [[extra-3]]\n4. Ice Girl has got blue **перчатки** [[extra-4]]\n5. Robot Kid has got a silver **пояс** [[extra-5]]\n6. Star Girl has got a purple **костюм супергероя** [[extra-6]]\n7. Luna has got **кудрявые волосы** [[extra-7]]\n8. Max has got **прямые волосы** [[extra-8]]\n9. Owl Boy has got **большие глаза** [[extra-9]]\n10. Forest Girl has got **острые уши** [[extra-10]]",
+          "gaps": [
+            {
+              "id": "extra-1",
+              "answer": "mask"
+            },
+            {
+              "id": "extra-2",
+              "answer": "cape"
+            },
+            {
+              "id": "extra-3",
+              "answer": "boots"
+            },
+            {
+              "id": "extra-4",
+              "answer": "gloves"
+            },
+            {
+              "id": "extra-5",
+              "answer": "belt"
+            },
+            {
+              "id": "extra-6",
+              "answer": "superhero suit"
+            },
+            {
+              "id": "extra-7",
+              "answer": "curly hair"
+            },
+            {
+              "id": "extra-8",
+              "answer": "straight hair"
+            },
+            {
+              "id": "extra-9",
+              "answer": "big eyes"
+            },
+            {
+              "id": "extra-10",
+              "answer": "pointed ears"
+            }
+          ],
+          "accentColor": "#17182D",
+          "studentVisibility": "controlled"
+        },
+        {
+          "type": "personalizedQuestions",
+          "id": "target-vocabulary-personalized-questions",
+          "title": "Task 5 · Personalised Questions",
+          "instruction": "Answer the questions out loud. There are no right or wrong answers!",
+          "items": [
+            {
+              "id": "question-1",
+              "question": "Would you like to wear a **cape** or a **superhero suit**?",
+              "followUp": "What colour would it be?"
+            },
+            {
+              "id": "question-2",
+              "question": "Would your superhero wear a **mask**?",
+              "followUp": "Why or why not?"
+            },
+            {
+              "id": "question-3",
+              "question": "Would your superhero have **curly hair** or **straight hair**?",
+              "followUp": "What colour would their hair be?"
+            },
+            {
+              "id": "question-4",
+              "question": "What colour **boots** and **gloves** would you like to wear?",
+              "followUp": "What special things could they do?"
+            }
+          ]
+        },
+        {
+          "type": "markdownCard",
+          "id": "target-vocabulary-sentence-starters-card",
+          "title": "Support: Sentence Starters",
+          "icon": "chat",
+          "accentColor": "#20A85B",
+          "studentVisibility": "always",
+          "text": "Use these starters if you need help answering.\n\n- **I would like to wear ...**\n- **My superhero has got ...**\n- **My ... can ...**"
+        }
+      ]
+    },
+    {
+      "id": "watch-and-interact",
+      "title": "Watch & interact",
+      "subtitle": "Predict, Watch & Discuss",
+      "durationMinutes": 10,
+      "icon": "video",
+      "number": 4,
+      "content": [
+        {
+          "type": "teacherNote",
+          "id": "watch-teacher-note",
+          "text": "- Before watching, ask the student to predict what the video is about. Accept any guess and ask why.\n\n- After watching, return to the prediction and discuss what happened. Help the student answer with a short sentence.\n\n- Use the speaking support if the student needs help giving a reason.\n\n**Say:** “What do you think this video is about? Choose your guess and tell me why.”"
+        },
+        {
+          "mode": "guess",
+          "type": "multipleChoice",
+          "id": "watch-prediction",
+          "title": "Before watching",
+          "instruction": "Prediction — choose your guess.",
+          "items": [
+            {
+              "id": "video-topic",
+              "question": "What do you think this video is about?",
+              "options": [
+                "About teenagers arguing with parents",
+                "About an unusual lizard",
+                "About a boy who wants to become famous"
+              ],
+              "answer": null
+            }
+          ]
+        },
+        {
+          "type": "videoPlayer",
+          "id": "watch-video",
+          "title": "Watch the video"
+        },
+        {
+          "type": "markdownCard",
+          "id": "watch-discussion",
+          "title": "After watching",
+          "icon": "chat",
+          "accentColor": "#8257E5",
+          "studentVisibility": "always",
+          "headingSize": "large",
+          "layout": "stacked",
+          "variant": "discussion",
+          "sections": [
+            {
+              "id": "discussion",
+              "title": "Discussion / Speaking",
+              "text": "Would you like to try this? Why / why not?"
+            },
+            {
+              "id": "support",
+              "title": "Speaking support",
+              "text": "*Yes, I would because…*\n\n*No, I wouldn’t because…*"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grammar-presentation",
+      "title": "Grammar Presentation",
+      "subtitle": "Complete the Rule",
+      "durationMinutes": 5,
+      "icon": "cap",
+      "number": 5,
+      "content": [
+        {
+          "type": "teacherNote",
+          "id": "grammar-presentation-teacher-note",
+          "text": "**Guided discovery**\n\nLet the student discover the rule before explaining it. Use the examples in this section as the starting point.\n\n**Notice and discuss**\n\nSay: “Read the examples. What do you notice about the highlighted words?” Work through the concept-checking questions. Ask the student to point to an example that supports each answer.\n\n**Build the rule**\n\nSay: “Use the examples to choose the missing words.” If the student gets stuck, focus on one example and offer a choice between two words. Then use Quick Rule to confirm meaning and form.\n\n**Check understanding**\n\nSay: “Read and tick the four grammatically correct sentences. Explain your choices.” Ask the student to correct the remaining sentences. Use the Answer Key explanations when needed.\n\n**Support and challenge**\n\nGive thinking time and let the student reread the examples. For an extra challenge, ask for one personal example using the target grammar.\n\n**Before moving on**\n\nCheck that the student can explain the main rule in simple words and produce one accurate example. If needed, revisit one example and try again."
+        },
+        {
+          "type": "textPanel",
+          "id": "grammar-presentation-notice-rule",
+          "text": "{l}**Notice the Rule**{/l}\n\n{muted}{s}Look at the examples. What grammar structure is used here?{/s}{/muted}\n\n1. I **used to** think an exchange year would feel like one long adventure.\n2. I **used to** finish school at 2:30.\n3. I couldn’t **get used to** eating lunch at 11:15.\n4. I **got used to** the workload after a few weeks.\n5. I’m finally **getting used to** asking teachers for help.",
+          "backgroundColor": "#FFFFFF",
+          "accentColor": "#6545F5",
+          "showBorder": false
+        },
+        {
+          "type": "textPanel",
+          "id": "grammar-presentation-concept-checking",
+          "text": "{l}**Concept-checking questions:**{/l}\n\n1. In sentence 2, was that routine true in the past or is it true now?\n2. In sentence 3, was eating lunch at 11:15 easy at first?\n3. In sentences 4–5, are we talking about a habit or a change over time?\n4. After “get used to”, do we use a noun / -ing form or a base verb?",
+          "backgroundColor": "#FFFFFF",
+          "accentColor": "#20A85B",
+          "showBorder": true
+        },
+        {
+          "type": "dragWordsInText",
+          "id": "grammar-presentation-complete-the-rule",
+          "title": "Complete the Rule",
+          "instruction": "Drag the correct words into the gaps.",
+          "words": [
+            "past",
+            "base verb",
+            "comfortable",
+            "-ing",
+            "future",
+            "infinitive with to"
+          ],
+          "text": "used to + [[base verb]]. We use it for habits or states that were true in the [[past]] but are different now.\n\nget used to + noun / verb + [[-ing]]. It means to become [[comfortable]] with a new situation."
+        },
+        {
+          "type": "markdownCard",
+          "id": "grammar-presentation-quick-rule",
+          "title": "Quick Rule",
+          "layout": "columns",
+          "sections": [
+            {
+              "id": "used-to",
+              "title": "USED TO",
+              "text": "- **past habit** / state that is different now\n- **form:** subject + used to + base verb\n- **negative:** didn’t use to + base verb\n- **question:** Did you use to ...?\n- **example:** “I used to finish school at 2:30.”"
+            },
+            {
+              "id": "get-used-to",
+              "title": "GET USED TO",
+              "text": "- become comfortable with something new\n- **form:** get / got / am getting used to + noun / verb-ing\n- **after “to”:** use a noun or -ing, not a base verb\n- **example:** “I got used to the workload after a few weeks.”"
+            }
+          ],
+          "icon": "bulb",
+          "accentColor": "#6545F5",
+          "studentVisibility": "always"
+        },
+        {
+          "type": "checkboxChoice",
+          "id": "grammar-presentation-check-the-rule",
+          "title": "Task 2. Tick the sentences that are correct.",
+          "instruction": "Read the sentences and tick the grammatically correct ones.",
+          "items": [
+            {
+              "id": "correct-sentences",
+              "question": "Which four sentences are grammatically correct?",
+              "options": [
+                "I used to finish school at 2:30.",
+                "She use to play basketball after school.",
+                "I am getting used to eating lunch early.",
+                "He got used to the new timetable.",
+                "We are getting used to speak English every day.",
+                "Did you use to walk to school?",
+                "She didn’t used to like maths.",
+                "They got used to wake up early."
+              ],
+              "answers": [
+                "I used to finish school at 2:30.",
+                "I am getting used to eating lunch early.",
+                "He got used to the new timetable.",
+                "Did you use to walk to school?"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "markdownCard",
+          "id": "grammar-presentation-answer-key",
+          "title": "Answer key",
+          "icon": "check",
+          "accentColor": "#20A85B",
+          "studentVisibility": "teacherOnly",
+          "headingSize": "large",
+          "layout": "columns",
+          "sections": [
+            {
+              "id": "task-one-answers",
+              "title": "Task 1 Rule",
+              "text": "1 base verb, 2 past, 3 -ing, 4 comfortable."
+            },
+            {
+              "id": "task-two-answers",
+              "title": "Task 2",
+              "text": "Correct sentences: 1, 3, 4, 6."
+            },
+            {
+              "id": "short-explanations",
+              "title": "Short explanations:",
+              "text": "- *She use to play basketball after school.* — Use “used to” for a past habit: She used to play basketball after school.\n- *We are getting used to speak English every day.* — After “get used to”, use -ing: We are getting used to speaking English every day.\n- *She didn’t used to like maths.* — After “didn’t”, use “use to”: She didn’t use to like maths.\n- *They got used to wake up early.* — After “got used to”, use -ing: They got used to waking up early."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grammar-focus",
+      "title": "Grammar Focus",
+      "subtitle": "Practice the Rule",
+      "durationMinutes": 8,
+      "icon": "cap",
+      "number": 6,
+      "content": [
+        {
+          "type": "teacherNote",
+          "id": "grammar-focus-teacher-note",
+          "blocks": [
+            {
+              "type": "teacherNoteBlock",
+              "id": "grammar-focus-transition-phrases",
+              "title": "Transition phrases",
+              "titleColor": "#6545F5",
+              "icon": "chatDots",
+              "text": "- “Let’s practise the grammar together.”\n- “Now choose the best option.”\n- “Great — tell me why.”\n- “Ready for free speaking?”"
+            },
+            {
+              "type": "teacherNoteBlock",
+              "id": "grammar-focus-struggle-tips",
+              "title": "Tips if the student struggles",
+              "titleColor": "#2F80ED",
+              "icon": "chat",
+              "text": "- Look for time clues such as “before”, “at first”, “after a few days” and “now”.\n- Ask: “Past habit or adaptation?”\n- Check the form: **used to + base verb**; **get used to + noun / verb-ing**."
+            },
+            {
+              "type": "teacherNoteBlock",
+              "id": "grammar-focus-correction-timing",
+              "title": "Correct now / later",
+              "titleColor": "#E0812D",
+              "icon": "chat",
+              "text": "- **Correct now:** target grammar mistakes, especially “use to” after did / didn’t.\n- **Correct later:** pronunciation slips and minor vocabulary errors."
+            },
+            {
+              "type": "teacherNoteBlock",
+              "id": "grammar-focus-free-practice-success",
+              "title": "Success criteria",
+              "titleColor": "#20A85B",
+              "icon": "chatDots",
+              "text": "- The student uses the target forms correctly 4–5 times.\n- Gives full sentences.\n- Can self-correct after a prompt."
+            }
+          ]
+        },
+        {
+          "type": "dropdownChoice",
+          "id": "grammar-focus-choose-the-correct-options",
+          "title": "**Task 1. Choose the correct options.**",
+          "instruction": "Read each sentence and choose the correct grammar option.",
+          "text": "**1.** Before AFK Summer, Leo [[grammar-focus-choice-1]] play co-op games every evening.\n**2.** At first, Mia couldn’t [[grammar-focus-choice-2]] waking up early at camp.\n**3.** After a few days, the team [[grammar-focus-choice-3]] sleeping in cabins.\n**4.** This week, I [[grammar-focus-choice-4]] spending less time online.\n**5.** Did you [[grammar-focus-choice-5]] stay up late during the holidays?\n**6.** We didn’t [[grammar-focus-choice-6]] go hiking every morning.\n**7.** Max is trying to [[grammar-focus-choice-7]] the new camp timetable.\n**8.** My sister [[grammar-focus-choice-8]] be shy, but now she speaks to everyone.",
+          "accentColor": "#6545F5",
+          "choices": [
+            {
+              "id": "grammar-focus-choice-1",
+              "options": [
+                "used to",
+                "got used to",
+                "is getting used to"
+              ],
+              "answer": "used to"
+            },
+            {
+              "id": "grammar-focus-choice-2",
+              "options": [
+                "use to",
+                "get used to",
+                "got used to"
+              ],
+              "answer": "get used to"
+            },
+            {
+              "id": "grammar-focus-choice-3",
+              "options": [
+                "used to",
+                "got used to",
+                "get used to"
+              ],
+              "answer": "got used to"
+            },
+            {
+              "id": "grammar-focus-choice-4",
+              "options": [
+                "used to",
+                "am getting used to",
+                "got used to"
+              ],
+              "answer": "am getting used to"
+            },
+            {
+              "id": "grammar-focus-choice-5",
+              "options": [
+                "used to",
+                "use to",
+                "get used to"
+              ],
+              "answer": "use to"
+            },
+            {
+              "id": "grammar-focus-choice-6",
+              "options": [
+                "used to",
+                "use to",
+                "get used to"
+              ],
+              "answer": "use to"
+            },
+            {
+              "id": "grammar-focus-choice-7",
+              "options": [
+                "used to",
+                "get used to",
+                "got used to"
+              ],
+              "answer": "get used to"
+            },
+            {
+              "id": "grammar-focus-choice-8",
+              "options": [
+                "used to",
+                "got used to",
+                "is getting used to"
+              ],
+              "answer": "used to"
+            }
+          ]
+        },
+        {
+          "type": "markdownCard",
+          "id": "grammar-focus-answer-key",
+          "title": "Answer Key & Explanations",
+          "layout": "columns",
+          "sections": [
+            {
+              "id": "answers",
+              "title": "Answers",
+              "text": "**1.** used to\n\n**2.** get used to\n\n**3.** got used to\n\n**4.** am getting used to\n\n**5.** use to\n\n**6.** use to\n\n**7.** get used to\n\n**8.** used to"
+            },
+            {
+              "id": "short-explanations",
+              "title": "Short explanations",
+              "text": "1. Use “used to” for a past habit that is different now.\n2. After “couldn’t”, use the base form “get”.\n3. “Got used to” shows that the change is complete.\n4. “Am getting used to” describes adaptation in progress now.\n5. After “did”, use “use to”.\n6. After “didn’t”, use “use to”.\n7. After “trying to”, use the base form “get”.\n8. Use “used to” for a past state that is different now."
+            }
+          ],
+          "icon": "check",
+          "headingSize": "large",
+          "accentColor": "#20A85B",
+          "studentVisibility": "teacherOnly"
+        },
+        {
+          "type": "gapFill",
+          "id": "grammar-focus-complete-the-gaps",
+          "title": "Task 2. Complete the gaps with the correct form of the verbs.",
+          "instruction": "Read each sentence and type the correct form of the verb.",
+          "text": "**1.** Before camp, Leo [[grammar-focus-gap-1]] co-op games every evening.\n\n**2.** At first, Mia couldn’t [[grammar-focus-gap-2]] waking up early at camp.\n\n**3.** After a few days, the team [[grammar-focus-gap-3]] sleeping in cabins and felt comfortable there.\n\n**4.** This week, I [[grammar-focus-gap-4]] spending less time online, but it still feels strange.\n\n**5.** Did you [[grammar-focus-gap-5]] up late during the holidays?\n\n**6.** Before camp, we didn’t [[grammar-focus-gap-6]] hiking every morning.\n\n**7.** Max is trying to [[grammar-focus-gap-7]] the new camp timetable.\n\n**8.** My sister [[grammar-focus-gap-8]] shy, but now she speaks to everyone.",
+          "gaps": [
+            {
+              "id": "grammar-focus-gap-1",
+              "answer": "used to play",
+              "example": "play"
+            },
+            {
+              "id": "grammar-focus-gap-2",
+              "answer": "get used to",
+              "example": "get used to"
+            },
+            {
+              "id": "grammar-focus-gap-3",
+              "answer": "got used to",
+              "example": "get used to"
+            },
+            {
+              "id": "grammar-focus-gap-4",
+              "answer": "am getting used to",
+              "example": "get used to"
+            },
+            {
+              "id": "grammar-focus-gap-5",
+              "answer": "use to stay",
+              "example": "stay"
+            },
+            {
+              "id": "grammar-focus-gap-6",
+              "answer": "use to go",
+              "example": "go"
+            },
+            {
+              "id": "grammar-focus-gap-7",
+              "answer": "get used to",
+              "example": "get used to"
+            },
+            {
+              "id": "grammar-focus-gap-8",
+              "answer": "used to be",
+              "example": "be"
+            }
+          ],
+          "accentColor": "#2F80ED"
+        },
+        {
+          "type": "markdownCard",
+          "id": "grammar-focus-complete-the-gaps-answer-key",
+          "title": "Answer key",
+          "layout": "columns",
+          "sections": [
+            {
+              "id": "answers-left",
+              "title": "",
+              "text": "**1.** used to play\n\n**2.** get used to\n\n**3.** got used to\n\n**4.** am getting used to"
+            },
+            {
+              "id": "answers-right",
+              "title": "",
+              "text": "**5.** use to stay\n\n**6.** use to go\n\n**7.** get used to\n\n**8.** used to be"
+            }
+          ],
+          "icon": "check",
+          "headingSize": "large",
+          "accentColor": "#20A85B",
+          "studentVisibility": "teacherOnly"
+        },
+        {
+          "type": "sentenceCorrection",
+          "id": "grammar-focus-correct-the-mistakes",
+          "title": "Task 3. Correct the mistakes.",
+          "instruction": "There is one mistake in each sentence. Rewrite it correctly.",
+          "accentColor": "#6545F5",
+          "items": [
+            {
+              "id": "grammar-focus-correction-1",
+              "text": "Before camp, Leo use to play games every evening.",
+              "answers": [
+                "Before camp, Leo used to play games every evening."
+              ]
+            },
+            {
+              "id": "grammar-focus-correction-2",
+              "text": "Mia is getting used to wake up early.",
+              "answers": [
+                "Mia is getting used to waking up early."
+              ]
+            },
+            {
+              "id": "grammar-focus-correction-3",
+              "text": "The team got use to sleeping in cabins.",
+              "answers": [
+                "The team got used to sleeping in cabins."
+              ]
+            },
+            {
+              "id": "grammar-focus-correction-4",
+              "text": "Did you used to stay up late during the holidays?",
+              "answers": [
+                "Did you use to stay up late during the holidays?"
+              ]
+            },
+            {
+              "id": "grammar-focus-correction-5",
+              "text": "We didn’t used to go hiking every morning.",
+              "answers": [
+                "We didn’t use to go hiking every morning.",
+                "We did not use to go hiking every morning."
+              ]
+            },
+            {
+              "id": "grammar-focus-correction-6",
+              "text": "Max is trying to gets used to the new timetable.",
+              "answers": [
+                "Max is trying to get used to the new timetable."
+              ]
+            },
+            {
+              "id": "grammar-focus-correction-7",
+              "text": "My sister used to being shy.",
+              "answers": [
+                "My sister used to be shy."
+              ]
+            },
+            {
+              "id": "grammar-focus-correction-8",
+              "text": "I am get used to spending less time online.",
+              "answers": [
+                "I am getting used to spending less time online.",
+                "I’m getting used to spending less time online."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "markdownCard",
+          "id": "grammar-focus-correct-the-mistakes-answer-key",
+          "title": "Answer key",
+          "layout": "columns",
+          "sections": [
+            {
+              "id": "answers-left",
+              "title": "",
+              "text": "**1.** Before camp, Leo used to play games every evening.\n\n**2.** Mia is getting used to waking up early.\n\n**3.** The team got used to sleeping in cabins.\n\n**4.** Did you use to stay up late during the holidays?"
+            },
+            {
+              "id": "answers-right",
+              "title": "",
+              "text": "**5.** We didn’t use to go hiking every morning. / We did not use to go hiking every morning.\n\n**6.** Max is trying to get used to the new timetable.\n\n**7.** My sister used to be shy.\n\n**8.** I am getting used to spending less time online. / I’m getting used to spending less time online."
+            }
+          ],
+          "icon": "check",
+          "headingSize": "large",
+          "accentColor": "#20A85B",
+          "studentVisibility": "teacherOnly"
+        },
+        {
+          "type": "sentenceMatching",
+          "id": "grammar-focus-match-sentence-halves",
+          "title": "Task 4. Match the sentence halves.",
+          "instruction": "Match 1–6 with A–F.",
+          "items": [
+            {
+              "id": "grammar-focus-pair-1",
+              "left": "Before camp, Leo used to",
+              "right": "play video games every evening."
+            },
+            {
+              "id": "grammar-focus-pair-2",
+              "left": "Mia is getting used to waking",
+              "right": "up early for breakfast."
+            },
+            {
+              "id": "grammar-focus-pair-3",
+              "left": "The team is used",
+              "right": "to sleeping in cabins now."
+            },
+            {
+              "id": "grammar-focus-pair-4",
+              "left": "Did you use",
+              "right": "to stay up late during the holidays?"
+            },
+            {
+              "id": "grammar-focus-pair-5",
+              "left": "We didn’t use to go",
+              "right": "hiking before we came to camp."
+            },
+            {
+              "id": "grammar-focus-pair-6",
+              "left": "It took Max a week to get",
+              "right": "used to the new camp timetable."
+            }
+          ]
+        },
+        {
+          "type": "gapFill",
+          "id": "grammar-focus-translate-sentences",
+          "title": "**Extra Task. Translate the sentences.**",
+          "instruction": "Translate the sentences from Russian to English.",
+          "text": "**1.** У моего супергероя есть красный плащ. [[grammar-focus-translation-1]]\n**2.** У неё большие зелёные глаза. [[grammar-focus-translation-2]]\n**3.** У меня красные волосы. [[grammar-focus-translation-3]]\n**4.** У Лесного Эльфа есть маска. [[grammar-focus-translation-4]]\n**5.** У них есть супергеройские костюмы. [[grammar-focus-translation-5]]\n**6.** У него нет перчаток. [[grammar-focus-translation-6]]\n**7.** У твоего супергероя есть пояс? [[grammar-focus-translation-7]]\n**8.** У неё острые уши? [[grammar-focus-translation-8]]\n**9.** У тебя есть супергеройский костюм? [[grammar-focus-translation-9]]\n**10.** У нас нет сапог. [[grammar-focus-translation-10]]",
+          "gaps": [
+            {
+              "id": "grammar-focus-translation-1",
+              "answer": "My superhero has got a red cape"
+            },
+            {
+              "id": "grammar-focus-translation-2",
+              "answer": "She has got big green eyes"
+            },
+            {
+              "id": "grammar-focus-translation-3",
+              "answer": "I have got red hair"
+            },
+            {
+              "id": "grammar-focus-translation-4",
+              "answer": "Forest Elf has got a mask"
+            },
+            {
+              "id": "grammar-focus-translation-5",
+              "answer": "They have got superhero suits"
+            },
+            {
+              "id": "grammar-focus-translation-6",
+              "answer": "He hasn’t got gloves"
+            },
+            {
+              "id": "grammar-focus-translation-7",
+              "answer": "Has your superhero got a belt"
+            },
+            {
+              "id": "grammar-focus-translation-8",
+              "answer": "Has she got pointed ears"
+            },
+            {
+              "id": "grammar-focus-translation-9",
+              "answer": "Have you got a superhero suit"
+            },
+            {
+              "id": "grammar-focus-translation-10",
+              "answer": "We haven’t got boots"
+            }
+          ],
+          "accentColor": "#6545F5",
+          "studentVisibility": "controlled",
+          "fieldSize": "wide"
+        },
+        {
+          "type": "markdownCard",
+          "id": "grammar-focus-translate-sentences-answer-key",
+          "title": "Answer key",
+          "layout": "columns",
+          "sections": [
+            {
+              "id": "answers-left",
+              "title": "",
+              "text": "**1.** My superhero has got a red cape\n\n**2.** She has got big green eyes\n\n**3.** I have got red hair\n\n**4.** Forest Elf has got a mask\n\n**5.** They have got superhero suits"
+            },
+            {
+              "id": "answers-right",
+              "title": "",
+              "text": "**6.** He hasn’t got gloves\n\n**7.** Has your superhero got a belt\n\n**8.** Has she got pointed ears\n\n**9.** Have you got a superhero suit\n\n**10.** We haven’t got boots"
+            }
+          ],
+          "icon": "check",
+          "headingSize": "large",
+          "accentColor": "#20A85B",
+          "studentVisibility": "teacherOnly"
+        },
+        {
+          "type": "cardRow",
+          "id": "grammar-focus-practice-support-row",
+          "items": [
+            {
+              "type": "markdownCard",
+              "id": "grammar-focus-writing-support",
+              "title": "Writing Support",
+              "icon": "pencil",
+              "accentColor": "#20A85B",
+              "studentVisibility": "always",
+              "text": "1. Right now, ...\n2. Usually, ...\n3. Today, ... but usually ...\n4. We still need ...\n5. ... because ..."
+            },
+            {
+              "type": "markdownCard",
+              "id": "grammar-focus-support",
+              "title": "Support",
+              "icon": "lifeRing",
+              "accentColor": "#20A85B",
+              "studentVisibility": "always",
+              "text": "- **Word bank:** stream, camp area, map, mini-games, bridge, video, supplies, lunch\n- **Model sentence:** “Right now, Leo is building a new bridge for the stream.”\n- **Minimum task:** Write 3 sentences if you need extra support."
+            },
+            {
+              "type": "markdownCard",
+              "id": "grammar-focus-challenge",
+              "title": "Challenge",
+              "icon": "trophy",
+              "accentColor": "#6545F5",
+              "studentVisibility": "always",
+              "text": "- Use a negative sentence.\n- Ask one question.\n- Add a reason with *because*.\n- Use at least 3 target vocabulary items.\n- Link ideas with *because*, *but* or *so*."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "guided-speaking",
+      "title": "Guided Communication",
+      "subtitle": "Choose a Card",
+      "durationMinutes": 8,
+      "icon": "chat",
+      "number": 7,
+      "content": [
+        {
+          "type": "teacherNote",
+          "id": "guided-communication-teacher-note",
+          "text": "**Start:** You start. Ask: “What would you like to do?”\n\n**For weaker students:** Give 2 options and ask short questions.\n\n**For stronger students:** Ask for reasons, alternatives and compromise.\n\n**Watch for:** questions, reactions, suggestions, agreeing/disagreeing.\n\n**If stuck:** Give a choice or a sentence starter: “I think ___ because...”\n\n**Target language:** Aim for 2 target words + 2 grammar examples. Adjust to the student.\n\n**Correct:** Help only if communication stops. Save other corrections for the end.\n\n**Success:** The student describes a superhero and asks a follow-up question."
+        },
+        {
+          "type": "taskPrompt",
+          "id": "guided-communication-instruction",
+          "variant": "followUp",
+          "title": "Choose a card",
+          "text": "Choose a card, turn it over, and do the task."
+        },
+        {
+          "type": "guidedCommunicationCards",
+          "id": "guided-communication-cards",
+          "items": [
+            {
+              "id": "card-1",
+              "cover": {
+                "emoji": "😎",
+                "title": "Card 1",
+                "backgroundColor": "#C7DDFB"
+              },
+              "task": {
+                "title": "Card 1. My Superhero",
+                "questions": [
+                  "What is your superhero’s name?",
+                  "Has your superhero got a cape or a mask?",
+                  "What colour is your superhero suit?",
+                  "Has your superhero got curly hair, straight hair, big eyes or pointed ears?"
+                ],
+                "miniTask": {
+                  "text": "Describe your superhero in 3–4 sentences.",
+                  "example": ""
+                },
+                "help": {
+                  "vocabulary": [
+                    "cape",
+                    "mask",
+                    "superhero suit",
+                    "boots",
+                    "gloves",
+                    "belt",
+                    "curly hair",
+                    "straight hair",
+                    "big eyes",
+                    "pointed ears"
+                  ],
+                  "phrases": [
+                    "My superhero’s name is ...",
+                    "He has got ... / She has got ...",
+                    "He hasn’t got ... / She hasn’t got ...",
+                    "His / Her suit is ...",
+                    "He / She looks ..."
+                  ],
+                  "sentenceStarters": [
+                    "My superhero is called ...",
+                    "He has got ...",
+                    "She has got ...",
+                    "He hasn’t got ...",
+                    "Her favourite colour is ..."
+                  ]
+                }
+              }
+            },
+            {
+              "id": "card-2",
+              "cover": {
+                "emoji": "🤩",
+                "title": "Card 2",
+                "backgroundColor": "#ECEBFF"
+              },
+              "task": {
+                "title": "Card 2. My Superhero Friend",
+                "questions": [
+                  "Have you got a favourite superhero? Who is it?",
+                  "What has your perfect superhero friend got?",
+                  "Has your superhero friend got boots, gloves or a belt?",
+                  "What special appearance has your superhero friend got?"
+                ],
+                "miniTask": {
+                  "text": "Ask your teacher: What has your perfect superhero friend got?",
+                  "example": ""
+                },
+                "help": {
+                  "vocabulary": [
+                    "friend",
+                    "superhero",
+                    "cape",
+                    "mask",
+                    "superhero suit",
+                    "boots",
+                    "gloves",
+                    "belt",
+                    "curly hair",
+                    "straight hair",
+                    "big eyes",
+                    "pointed ears"
+                  ],
+                  "phrases": [
+                    "My perfect superhero friend has got ...",
+                    "He / She has got ...",
+                    "He / She hasn’t got ...",
+                    "I like ... because ...",
+                    "My favourite superhero is ..."
+                  ],
+                  "sentenceStarters": [
+                    "My favourite superhero is ...",
+                    "My perfect superhero friend has got ...",
+                    "He / She has got ... and ...",
+                    "He / She hasn’t got ...",
+                    "I like this superhero because ..."
+                  ]
+                }
+              }
+            },
+            {
+              "id": "card-3",
+              "cover": {
+                "emoji": "🤓",
+                "title": "Card 3",
+                "backgroundColor": "#DFCEF3"
+              },
+              "task": {
+                "title": "Card 3. Ask and Answer",
+                "questions": [
+                  "Have you got a superhero costume at home?",
+                  "If you are a superhero, have you got a mask?",
+                  "What colour boots have you got in your superhero costume?",
+                  "Has your superhero got a belt with gadgets?"
+                ],
+                "miniTask": {
+                  "text": "Ask your teacher one question about their superhero.",
+                  "example": "Example: Has your superhero got a cape?"
+                },
+                "help": {
+                  "vocabulary": [
+                    "costume",
+                    "mask",
+                    "cape",
+                    "boots",
+                    "belt",
+                    "gadgets",
+                    "superhero suit",
+                    "pointed ears",
+                    "big eyes"
+                  ],
+                  "phrases": [
+                    "Have you got ...?",
+                    "Has your superhero got ...?",
+                    "Yes, I have. / No, I haven’t.",
+                    "Yes, he has. / No, she hasn’t.",
+                    "It is ... / They are ..."
+                  ],
+                  "sentenceStarters": [
+                    "Have you got ...?",
+                    "Has your superhero got ...?",
+                    "Yes, he has got ...",
+                    "No, she hasn’t got ...",
+                    "My superhero has got ..."
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wrap-up",
+      "title": "Wrap-Up",
+      "subtitle": "3–2–1",
+      "durationMinutes": 3,
+      "icon": "check",
+      "number": 8,
+      "content": [
+        {
+          "type": "teacherNote",
+          "id": "wrap-up-teacher-note",
+          "text": "- **Signs of success:** Strong answers mention exchange expectations vs. reality and correctly use *used to* / *get used to* to give a personal recommendation.\n- **If the student struggles:** Briefly review the difference between *used to* and *get used to* and remind 2–3 key phrases from the lesson.\n- **Positive ending:** Praise students like: “You can already talk about exchange experiences and give advice clearly.”"
+        },
+        {
+          "type": "threeTwoOne",
+          "id": "wrap-up-three-two-one",
+          "steps": {
+            "three": {
+              "prompt": "Name three words or phrases you remember from the lesson."
+            },
+            "two": {
+              "prompt": "Create two sentences with the target grammar.",
+              "text": "1. Say something you *used to* think about high-school exchange programs.\n2. Say something a student may need to *get used to* during an exchange."
+            },
+            "one": {
+              "label": "Can-do question",
+              "prompt": "Would you recommend doing a high-school exchange? Give one expectation, one real difficulty, and one thing students can get used to."
+            }
+          }
+        },
+        {
+          "type": "selfAssessment",
+          "id": "wrap-up-self-assessment",
+          "title": "Self-assessment: How do you feel about today’s lesson?"
+        },
+        {
+          "type": "markdownCard",
+          "id": "wrap-up-possible-language",
+          "title": "Possible language:",
+          "text": "I used to think... / You may need to get used to... / I’d recommend it because...",
+          "icon": "chat",
+          "accentColor": "#6545F5",
+          "studentVisibility": "always"
+        }
+      ]
+    }
+  ]
+}

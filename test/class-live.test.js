@@ -12,7 +12,7 @@ const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
 const { createClassSession } = require('../lib/class-store.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { applyAction, authorizeSession, joinClass, sessionPayload } = require('../lib/class-live-store.js');
 
 test('live class: guest authorization, actions, isolation, tab replacement and restart recovery', { timeout: 20000 }, async t => {
@@ -30,7 +30,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   t.after(async () => { sockets.forEach(socket => socket.terminate()); await stop(); db.close(); fs.rmSync(directory, { recursive: true, force: true }); });
   const teacher = createUser({ email: 'live@test.local', displayName: 'Teacher', role: 'teacher', passwordHash: 'unused' }, db);
   const teacherCookie = `teach_session=${createSession(teacher.id, db).token}`;
-  const content = createSyntheticLesson('Live lesson');
+  const content = syntheticLesson();
   const publicAsset = `${'c'.repeat(64)}.png`, privateAsset = `${'d'.repeat(64)}.png`, leadAsset = `${'e'.repeat(64)}.png`;
   const audioAsset = `${'f'.repeat(64)}.mp3`;
   const supportRow = content.stages.find(stage => stage.id === 'grammar-focus').content.find(item => item.type === 'cardRow');

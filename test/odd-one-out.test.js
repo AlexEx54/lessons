@@ -2,9 +2,9 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { normalizeOddOneOut, createOddOneOutAnswerKey, renderOddOneOut } = require('../assets/components/odd-one-out.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { studentComponent, applyComponentAction, clearComponentState } = require('../lib/class-component-handlers.js');
-const component = () => createSyntheticLesson('Test', { template: 'template-2' }).stages[0].content[1];
+const component = () => syntheticLesson('template-2').stages[0].content[1];
 function createFakeDocument() {
   function textNode(value) {
     return { nodeType: 3, textContent: String(value), childNodes: [] };
@@ -89,8 +89,8 @@ function byClass(root, name) {
 
 
 test('template two has Warm Up and Lead In with its own Warm Up teacher note', () => {
-  const one = createSyntheticLesson('Test');
-  const two = createSyntheticLesson('Test', { template: 'template-2' });
+  const one = syntheticLesson();
+  const two = syntheticLesson('template-2');
   assert.notDeepEqual(two.stages[0].content[0], one.stages[0].content[0]);
   assert.match(two.stages[0].content[0].text, /^\*\*Goal:\*\*/);
   assert.deepEqual(two.stages[0].content.map(c => c.type), ['teacherNote', 'oddOneOut', 'markdownCard']);
@@ -103,7 +103,6 @@ test('template two has Warm Up and Lead In with its own Warm Up teacher note', (
   assert.equal(two.stages[0].content[1].items.length, 4);
   assert.deepEqual(two.stages[0].content[2], createOddOneOutAnswerKey(component()));
   assert.equal(studentComponent(two.stages[0].content[2], {}), null);
-  assert.throws(() => createSyntheticLesson('Test', { template: 'unknown' }));
 });
 
 test('odd one out validates four unique words, answers, ids and explanations', () => {

@@ -8,7 +8,7 @@ const path = require('node:path');
 const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createClassSession } = require('../lib/class-store.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { applyAction, readState, sessionPayload } = require('../lib/class-live-store.js');
 
 test('matching selection, order and pairs persist across reopen and stage changes; reset keeps initial layout', t => {
@@ -17,7 +17,7 @@ test('matching selection, order and pairs persist across reopen and stage change
   let db = openDatabase(databasePath);
   t.after(() => { db.close(); fs.rmSync(directory, { recursive: true, force: true }); });
   const teacher = createUser({ email: 'matching@test.local', displayName: 'Teacher', passwordHash: 'unused' }, db);
-  const content = createSyntheticLesson('Grammar', { template: 'template-2' });
+  const content = syntheticLesson('template-2');
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
   const lesson = createClassSession({ className: 'Grammar', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const access = { role: 'teacher', sessionId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };

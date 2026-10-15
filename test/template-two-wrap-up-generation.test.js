@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTemplateTwoLesson } = require('../lib/synthetic-template-two.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { GENERATED_TEMPLATE_TWO_WRAP_UP } = require('./fixtures/generated-template-two-wrap-up.js');
 const { GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION } = require('./fixtures/generated-template-two-guided-communication.js');
@@ -23,7 +23,7 @@ test('Template 2 Wrap-Up is the last generated step and receives grammar and voc
 
 test('Template 2 Wrap-Up fills the synthetic structure and keeps other stages', () => {
   const skeleton = templateTwoSkeleton('Travel');
-  const synthetic = createTemplateTwoLesson('Travel');
+  const synthetic = syntheticLesson('template-2');
   const { lesson } = applyStage('wrap-up', GENERATED_TEMPLATE_TWO_WRAP_UP, { variables });
   assert.deepEqual(lesson.stages.filter(stage => stage.id !== 'wrap-up'), skeleton.stages.filter(stage => stage.id !== 'wrap-up'));
   const content = byId(lesson.stages, 'wrap-up').content;

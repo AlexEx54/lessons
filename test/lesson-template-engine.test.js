@@ -229,7 +229,7 @@ test('stage request assembles the prompt, the flat schema and the context', () =
   // Answer fields follow display order: the note with the slot comes before the game.
   assert.deepEqual(guess.schema.required, ['success', 'checks', 'guesses']);
   assert.equal(guess.schema.additionalProperties, false);
-  assert.equal(guess.schemaName, 'easyclass_test_template_guess');
+  assert.equal(guess.schemaName, 'easyclass_guess');
 
   const vocabulary = plan.request('vocabulary', {
     inputs: plan.resolveInputs({ topic: 'Clothes' }),

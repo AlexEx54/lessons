@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { OPENROUTER_MODEL } = require('../lib/ai-lesson-generator.js');
-const { createTemplateTwoLesson } = require('../lib/synthetic-template-two.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION: generated } = require('./fixtures/generated-template-two-grammar-presentation.js');
 const { TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR } = require('./fixtures/generated-template-two.js');
@@ -13,7 +13,7 @@ const variables = { targetVocabulary: vocabularyItems };
 const build = (answer, random) => stageContent('grammar-presentation', answer, { variables, random });
 
 test('Template 2 generates discovery and checkbox grammar while preserving static Watch', () => {
-  const synthetic = createTemplateTwoLesson('Travel');
+  const synthetic = syntheticLesson('template-2');
   const { lesson } = applyStage('grammar-presentation', generated, { variables, random: () => 0 });
   assert.deepEqual(byId(lesson.stages, 'watch-and-interact'), byId(synthetic.stages, 'watch-and-interact'));
   const content = byId(lesson.stages, 'grammar-presentation').content;
@@ -76,7 +76,7 @@ test('Template 2 plan sends the stage prompt with structured output and validate
     apiKey: 'test', model: OPENROUTER_MODEL,
     fetchImpl: async (_url, options) => {
       const body = JSON.parse(options.body);
-      assert.equal(body.response_format.json_schema.name, 'easyclass_template_2_grammar_presentation');
+      assert.equal(body.response_format.json_schema.name, 'easyclass_grammar_presentation');
       assert.deepEqual(body.response_format.json_schema.schema, request.schema);
       assert.deepEqual(body.messages, request.messages);
       return reply(answer);

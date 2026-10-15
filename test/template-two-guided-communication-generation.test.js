@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTemplateTwoLesson } = require('../lib/synthetic-template-two.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION } = require('./fixtures/generated-template-two-guided-communication.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS, TRAVEL_TERMS } = require('./fixtures/generated-template-two-grammar-focus.js');
@@ -17,7 +17,7 @@ const build = answer => stageContent('guided-speaking', answer, { variables });
 test('Template 2 Guided Communication fills the synthetic structure and keeps other stages', t => {
   const warn = t.mock.method(console, 'warn', () => {});
   const skeleton = templateTwoSkeleton('Travel');
-  const synthetic = createTemplateTwoLesson('Travel');
+  const synthetic = syntheticLesson('template-2');
   const { lesson } = applyStage('guided-speaking', GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION, { variables });
   assert.deepEqual(byId(lesson.stages, 'watch-and-interact'), byId(skeleton.stages, 'watch-and-interact'));
   const [note, prompt, cards] = byId(lesson.stages, 'guided-speaking').content;

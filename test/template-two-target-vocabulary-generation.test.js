@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const {
   GENERATED_TEMPLATE_TWO_LEAD_IN,
   GENERATED_TEMPLATE_TWO_TARGET_VOCABULARY: GENERATED,
@@ -51,7 +51,7 @@ test('Template 2 Target Vocabulary hands the words to later stages', () => {
 });
 
 test('synthetic Template 2 Target Vocabulary answers its own Lead-In guesses', () => {
-  const lesson = createSyntheticLesson('Heroes', { template: 'template-2' });
+  const lesson = syntheticLesson('template-2');
   const [, guessOne, guessTwo] = lesson.stages[1].content[1].items.slice(2);
   const guesses = lesson.stages[2].content[3];
   assert.equal(guesses.id, 'target-vocabulary-guess-answers');

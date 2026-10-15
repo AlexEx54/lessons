@@ -156,10 +156,6 @@
       card.append(meta);
     }
 
-    if (!template.copyable) {
-      addText(card, 'p', 'template-card__note', 'Этот шаблон пока нельзя копировать.');
-      return card;
-    }
     const actions = document.createElement('div');
     actions.className = 'template-card__actions';
     addButton(actions, template.system ? 'template-card__primary' : '', 'Копировать', button => copyTemplate(template, button));

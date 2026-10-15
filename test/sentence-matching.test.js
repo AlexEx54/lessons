@@ -7,8 +7,8 @@ const { createDocument } = require('./helpers/lesson-dom.js');
 const { normalizeSentenceMatching, renderSentenceMatching } = require('../assets/components/sentence-matching.js');
 const model = require('../assets/components/exercise-state.js');
 const { applyComponentAction, teacherComponent, studentComponent, clearComponentState } = require('../lib/class-component-handlers.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
-const source = createSyntheticLesson('Camp', { template: 'template-2' }).stages[5].content.find(item => item.type === 'sentenceMatching');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
+const source = syntheticLesson('template-2').stages[5].content.find(item => item.type === 'sentenceMatching');
 const layout = { order: [5, 3, 1, 0, 4, 2], wordIds: source.items.map((_, i) => `left-${i}`), pictureIds: source.items.map((_, i) => `right-${i}`) };
 const projected = model.presentation(source, layout);
 const action = (i, j = i) => ({ type: 'match-word', componentId: source.id, itemId: `left-${i}`, targetId: `right-${j}`, attemptId: `attempt-${i}-${j}` });
@@ -16,7 +16,7 @@ const fire = async (node, event = 'click') => { for (const fn of node.listeners[
 
 test('template has six valid pairs without an answer card; validation rejects ambiguous duplicates', () => {
   assert.equal(normalizeSentenceMatching(source).items.length, 6);
-  const content = createSyntheticLesson('Camp', { template: 'template-2' }).stages[5].content;
+  const content = syntheticLesson('template-2').stages[5].content;
   assert.equal(content.some(item => item.id === `${source.id}-answer-key`), false);
   for (const patch of [{ items: [] }, { id: null }, { extra: true }, { items: [source.items[0], source.items[0]] },
     { items: source.items.map((item, i) => i ? item : { ...item, right: '<b>Bad</b>' }) }]) {

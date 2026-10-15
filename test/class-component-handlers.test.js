@@ -27,8 +27,8 @@ test('visibility actions cannot reveal teacher-only cards or change static compo
 });
 
 test('wrap-up content is shared safely and both participants can change self-assessment', () => {
-  const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
-  const content = createSyntheticLesson('Wrap-up').stages.find(stage => stage.id === 'wrap-up').content;
+  const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
+  const content = syntheticLesson().stages.find(stage => stage.id === 'wrap-up').content;
   const note = content.find(component => component.type === 'teacherNote');
   const reflection = content.find(component => component.type === 'threeTwoOne');
   const assessment = content.find(component => component.type === 'selfAssessment');
@@ -58,9 +58,9 @@ test('wrap-up content is shared safely and both participants can change self-ass
 });
 
 test('vocabulary handlers reject observer edits, invalid targets, oversized input and hidden game actions', () => {
-  const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+  const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
   const model = require('../assets/components/exercise-state.js');
-  const content = createSyntheticLesson('Vocabulary').stages.find(stage => stage.id === 'target-vocabulary').content;
+  const content = syntheticLesson().stages.find(stage => stage.id === 'target-vocabulary').content;
   const match = content.find(c => c.type === 'matchWords');
   const dropdown = content.find(c => c.type === 'dropdownChoice');
   const fill = content.find(c => c.type === 'fillInBlanks');
@@ -88,8 +88,8 @@ test('reading validates choices on server and local preview uses the same rules'
   const fs = require('node:fs');
   const vm = require('node:vm');
   const model = require('../assets/components/exercise-state.js');
-  const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
-  const component = createSyntheticLesson('Reading').stages.find(s => s.id === 'reading').content.find(c => c.type === 'multipleChoice');
+  const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
+  const component = syntheticLesson().stages.find(s => s.id === 'reading').content.find(c => c.type === 'multipleChoice');
   const item = component.items[0];
   const state = {};
   const action = { type: 'choose-option', componentId: component.id, itemId: item.id, value: item.answer };
@@ -111,8 +111,8 @@ test('listening projects hidden transcripts and validates checkbox choices with 
   const fs = require('node:fs');
   const vm = require('node:vm');
   const model = require('../assets/components/exercise-state.js');
-  const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
-  const content = createSyntheticLesson('Listening').stages.find(stage => stage.id === 'listening').content;
+  const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
+  const content = syntheticLesson().stages.find(stage => stage.id === 'listening').content;
   const audio = content.find(component => component.type === 'audioPlayer');
   const checkbox = content.find(component => component.type === 'checkboxChoice');
   const hidden = studentComponent(audio, {});
@@ -144,9 +144,9 @@ test('listening projects hidden transcripts and validates checkbox choices with 
 
 
 test('controlled gap fill visibility is teacher-only and hiding preserves answers until reset', () => {
-  const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+  const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
   const { clearComponentState } = require('../lib/class-component-handlers.js');
-  const component = createSyntheticLesson('Superheroes', { template: 'template-2' }).stages[2].content.find(c => c.type === 'gapFill');
+  const component = syntheticLesson('template-2').stages[2].content.find(c => c.type === 'gapFill');
   const state = {};
   const act = (action, role = 'teacher') => applyComponentAction({ component, state, action, role });
   const answer = { type: 'type-answer', itemId: 'extra-6', value: '  SUPERHERO   suit ' };

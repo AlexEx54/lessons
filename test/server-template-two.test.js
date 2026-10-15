@@ -9,6 +9,7 @@ const test = require('node:test');
 const { openDatabase } = require('../lib/db.js');
 const { hashPassword } = require('../lib/password.js');
 const { createUser } = require('../lib/user-store.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -87,6 +88,8 @@ test('template two creation and editing update the answer key atomically', async
   const draft = (await response.json()).draft;
   assert.equal(draft.template, 'template-2');
   assert.equal(draft.imageGeneration.total, 0);
+  // Editing is checked on the saved Template 2 lesson rather than on the controls' examples.
+  draft.content = syntheticLesson('template-2');
   // Exercise the reusable component on an explicit fixture, independently of template 2.
   const builder = require('../lib/sentence-builder-example.js').createSentenceBuilderExample();
   const builderContent = structuredClone(draft.content);
@@ -172,8 +175,6 @@ test('template two creation and editing update the answer key atomically', async
   const matchingContent = (await matchingResponse.json()).draft.content.stages[5].content;
   assert.deepEqual(matchingContent.find(item => item.id === matching.id).items, matchingChanges.items);
   assert.equal(matchingContent.some(item => item.id === `${matching.id}-answer-key`), false);
-  assert.deepEqual(draft.content.stages[7].content,
-    require('../lib/synthetic-lesson.js').createSyntheticLesson('Demo').stages.find(stage => stage.id === 'wrap-up').content);
   assert.equal(draft.content.stages[3].id, 'watch-and-interact');
   assert.equal(draft.content.stages[3].number, 4);
   const [watchNote, prediction, video, discussion] = draft.content.stages[3].content;

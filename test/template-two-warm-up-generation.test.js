@@ -4,8 +4,9 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { applyLessonMetadataToSkeleton } = require('../lib/ai-lesson-generator.js');
 const { createGenerationPlan } = require('../lib/lesson-generation-plan.js');
+const { findSystemTemplate } = require('../lib/lesson-templates/system-templates.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { stageContent, stageRequest, templateTwoPlan, templateTwoSkeleton } = require('./helpers/template-two.js');
 
 const GENERATED = {
@@ -24,7 +25,7 @@ const buildWarmUp = generated => stageContent('warm-up', generated);
 
 test('Template 2 AI skeleton keeps synthetic stages and leaves generated stages empty for the model', () => {
   const skeleton = templateTwoSkeleton('  Travel  ', { ageGroup: '9-11', level: 'B1', model: 'test/model' });
-  const synthetic = createSyntheticLesson('Travel', { template: 'template-2' });
+  const synthetic = syntheticLesson('template-2');
   assert.equal(skeleton.meta.topic, 'Travel');
   assert.equal(skeleton.meta.level, 'B1');
   assert.equal(skeleton.meta.ageGroup, '9-11');
@@ -54,7 +55,7 @@ test('generated Template 2 Warm-Up builds the note, Odd One Out, and a linked an
 });
 
 test('synthetic Template 2 Warm-Up uses the same teacher note', () => {
-  const [note] = createSyntheticLesson('Heroes', { template: 'template-2' }).stages[0].content;
+  const [note] = syntheticLesson('template-2').stages[0].content;
   assert.equal(note.text.replaceAll('Strong', 'Ticket'), buildWarmUp(GENERATED)[0].text);
 });
 
@@ -103,6 +104,6 @@ test('Template 2 recovery knows only its own steps', () => {
   assert.deepEqual(Object.keys(partial.recoveredSections), ['lessonMetadata']);
   assert.equal(partial.validOutput, `=== Lesson Metadata ===\n${JSON.stringify(metadata)}`);
 
-  const templateOne = createGenerationPlan(null, { topic: 'Travel', grammarTopic: 'Past Simple' });
+  const templateOne = createGenerationPlan(findSystemTemplate('template-1').definition, { topic: 'Travel', grammarTopic: 'Past Simple' });
   assert.equal(recoverLessonGeneration(output, skeleton, templateOne).complete, false);
 });

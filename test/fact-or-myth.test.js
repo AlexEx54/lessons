@@ -2,9 +2,9 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { normalizeFactOrMyth, createFactOrMythAnswerKey, renderFactOrMyth } = require('../assets/components/fact-or-myth.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { studentComponent, applyComponentAction, clearComponentState } = require('../lib/class-component-handlers.js');
-const component = () => createSyntheticLesson('Test', { template: 'template-2' }).stages[1].content[1];
+const component = () => syntheticLesson('template-2').stages[1].content[1];
 function createFakeDocument() {
   function textNode(value) {
     return { nodeType: 3, textContent: String(value), childNodes: [] };
@@ -90,7 +90,7 @@ function byClass(root, name) {
 
 
 test('lead in has reusable support and teacher-only notes and derived key', () => {
-  const content = createSyntheticLesson('Test', { template: 'template-2' }).stages[1].content;
+  const content = syntheticLesson('template-2').stages[1].content;
   assert.deepEqual(content.map(c => c.type), ['teacherNote', 'factOrMyth', 'markdownCard', 'markdownCard']);
   assert.equal(content[1].items.length, 5);
   assert.equal(studentComponent(content[0], {}), null);

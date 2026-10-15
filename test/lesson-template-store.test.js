@@ -27,9 +27,9 @@ const statusOf = statusCode => error => error.statusCode === statusCode;
 
 test('templates list the system ones first, then copies from the newest', t => {
   const { database, admin } = setup(t);
-  assert.deepEqual(listLessonTemplates(database).map(({ id, system, copyable }) => ({ id, system, copyable })), [
-    { id: 'template-1', system: true, copyable: false },
-    { id: 'template-2', system: true, copyable: true },
+  assert.deepEqual(listLessonTemplates(database).map(({ id, system }) => ({ id, system })), [
+    { id: 'template-1', system: true },
+    { id: 'template-2', system: true },
   ]);
 
   const first = copyLessonTemplate({ id: 'template-2', createdBy: admin.id }, database);
@@ -41,7 +41,6 @@ test('templates list the system ones first, then copies from the newest', t => {
     title: 'Для младших',
     description: TEMPLATE_TWO_DEFINITION.description,
     system: false,
-    copyable: true,
     sourceTemplateId: first.id,
     createdBy: { id: admin.id, name: 'Admin' },
     revision: 0,
@@ -55,10 +54,9 @@ test('a copy carries the source definition under its own id and title', t => {
   const copy = copyLessonTemplate({ id: 'template-2', createdBy: admin.id }, database);
   const { definition } = findLessonTemplate(copy.id, database);
   assert.deepEqual(definition, { ...TEMPLATE_TWO_DEFINITION, id: copy.id, title: 'Шаблон 2 (копия)' });
-  assert.equal(findLessonTemplate('template-1', database).definition, null);
+  assert.equal(findLessonTemplate('template-1', database).definition, findSystemTemplate('template-1').definition);
   assert.equal(findLessonTemplate('missing', database), null);
 
-  assert.throws(() => copyLessonTemplate({ id: 'template-1', createdBy: admin.id }, database), statusOf(409));
   assert.throws(() => copyLessonTemplate({ id: 'missing', createdBy: admin.id }, database), statusOf(404));
   assert.throws(() => copyLessonTemplate({ id: 'template-2', title: ' ', createdBy: admin.id }, database), statusOf(400));
   assert.throws(() => copyLessonTemplate({ id: 'template-2', title: 'x'.repeat(81), createdBy: admin.id }, database), statusOf(400));
@@ -106,7 +104,7 @@ test('drafts without a snapshot fall back to the system template', t => {
   const templateTwo = createLessonDraft({ ownerAdminId: admin.id, topic: 'Travel', template: 'template-2' }, database);
   const templateOne = createLessonDraft({ ownerAdminId: admin.id, topic: 'Travel', template: 'template-1' }, database);
   assert.equal(findLessonDraftTemplate(templateTwo.id, admin.id, database), TEMPLATE_TWO_DEFINITION);
-  assert.equal(findLessonDraftTemplate(templateOne.id, admin.id, database), null);
+  assert.equal(findLessonDraftTemplate(templateOne.id, admin.id, database), findSystemTemplate('template-1').definition);
   assert.equal(templateTwo.templateTitle, 'Шаблон 2');
   assert.equal(templateOne.templateTitle, 'Шаблон 1');
 });

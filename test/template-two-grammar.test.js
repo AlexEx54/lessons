@@ -1,10 +1,10 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { normalizeMarkdownCard } = require('../assets/components/markdown-card.js');
 const { apply } = require('../assets/components/exercise-state.js');
-const makeLesson = () => createSyntheticLesson('Exchange year', { template: 'template-2' });
+const makeLesson = () => syntheticLesson('template-2');
 
 test('template two owns eight ordered stages and a fixed 50-minute duration', () => {
   const lesson = makeLesson();
@@ -18,7 +18,7 @@ test('template two owns eight ordered stages and a fixed 50-minute duration', ()
 
 test('grammar discovery copies template one while task two has eight sentences and four answers', () => {
   const content = makeLesson().stages[4].content;
-  const original = createSyntheticLesson('Test').stages.find(s => s.id === 'grammar-presentation').content;
+  const original = syntheticLesson().stages.find(s => s.id === 'grammar-presentation').content;
   assert.deepEqual(content.slice(1, 5), original.slice(1, 5));
   assert.match(content[0].text, /tick the four grammatically correct sentences/);
   assert.doesNotMatch(content[0].text, /drop-down/);

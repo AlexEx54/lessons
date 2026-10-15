@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTemplateTwoLesson } = require('../lib/synthetic-template-two.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS, TRAVEL_TERMS } = require('./fixtures/generated-template-two-grammar-focus.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION } = require('./fixtures/generated-template-two-grammar-presentation.js');
@@ -16,7 +16,7 @@ const build = (answer, random) => stageContent('grammar-focus', answer, { variab
 test('Template 2 Grammar Focus fills the synthetic structure and keeps other stages', t => {
   const warn = t.mock.method(console, 'warn', () => {});
   const skeleton = templateTwoSkeleton('Travel');
-  const synthetic = createTemplateTwoLesson('Travel');
+  const synthetic = syntheticLesson('template-2');
   const { lesson } = applyStage('grammar-focus', GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS, { variables, random: () => 0 });
   for (const id of ['watch-and-interact', 'guided-speaking', 'wrap-up']) {
     assert.deepEqual(byId(lesson.stages, id), byId(skeleton.stages, id));

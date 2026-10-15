@@ -85,9 +85,8 @@ test('admins copy, rename and delete templates and create drafts from copies', a
   assert.equal((await call('GET', '/api/lesson-templates', { auth: teacherCookie })).status, 403);
   assert.equal((await call('POST', '/api/lesson-templates/template-2/copy', { auth: teacherCookie })).status, 403);
   const initial = await (await call('GET', '/api/lesson-templates')).json();
-  assert.deepEqual(initial.templates.map(template => [template.id, template.copyable]), [['template-1', false], ['template-2', true]]);
+  assert.deepEqual(initial.templates.map(template => template.id), ['template-1', 'template-2']);
 
-  assert.equal((await call('POST', '/api/lesson-templates/template-1/copy')).status, 409);
   assert.equal((await call('POST', '/api/lesson-templates/missing/copy')).status, 404);
   assert.equal((await call('POST', '/api/lesson-templates/template-2/copy', { body: '{' })).status, 400);
   const copied = await call('POST', '/api/lesson-templates/template-2/copy', { body: {} });

@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { GENERATED_TEMPLATE_TWO_WARM_UP } = require('./fixtures/generated-template-two.js');
 const { applyStage, stageContent, stageRequest, templateTwoPlan, templateTwoSkeleton } = require('./helpers/template-two.js');
 
@@ -53,7 +53,7 @@ test('Template 2 Lead-In hands its guesses to the stories with their task number
 });
 
 test('synthetic Template 2 Lead-In uses the same teacher note', () => {
-  const [note, exercise, support] = createSyntheticLesson('Heroes', { template: 'template-2' }).stages[1].content;
+  const [note, exercise, support] = syntheticLesson('template-2').stages[1].content;
   assert.equal(note.text, buildLeadIn(GENERATED)[0].text);
   assert.equal(exercise.items[0].text, 'Batman has got a black cape and a black mask.');
   assert.match(support.text, /Batman has got…/);

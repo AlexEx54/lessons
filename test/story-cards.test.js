@@ -2,14 +2,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { normalizeStoryCards, renderStoryCards } = require('../assets/components/story-cards.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { studentComponent } = require('../lib/class-component-handlers.js');
 const { createDocument } = require('./helpers/lesson-dom.js');
-const stage = () => createSyntheticLesson('Superheroes', { template: 'template-2' }).stages[2];
+const stage = () => syntheticLesson('template-2').stages[2];
 
 test('template 2 keeps shared pronunciation guidance, uses its own task notes and explains every highlighted phrase', () => {
   const [notes, vocabulary, stories] = stage().content;
-  const originalNotes = createSyntheticLesson('Test').stages[2].content[0];
+  const originalNotes = syntheticLesson().stages[2].content[0];
   assert.deepEqual(notes.blocks[0], originalNotes.blocks[0]);
   assert.deepEqual(notes.blocks[2], originalNotes.blocks[2]);
   assert.match(notes.blocks[1].text, /Task 1.*истории/);

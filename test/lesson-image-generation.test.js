@@ -22,7 +22,7 @@ const {
 const { LessonImageGenerator } = require('../lib/lesson-image-generator.js');
 const { imageSlots, pendingImageSlots } = require('../lib/lesson-image-slots.js');
 const { configuredGenerationConfig } = require('../lib/drawthings-image-client.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { createUser } = require('../lib/user-store.js');
 
 function setup(suffix = 'images') {
@@ -59,7 +59,7 @@ async function waitFor(predicate, message) {
 }
 
 test('image slot traversal finds all nested prompts and only returns empty slots', () => {
-  const synthetic = createSyntheticLesson('Summer');
+  const synthetic = syntheticLesson();
   assert.equal(imageSlots(synthetic).length, 23);
   assert.equal(pendingImageSlots(synthetic).length, 23);
   synthetic.stages[0].content[2].items[0].options[0].imageSrc = '/manual.png';

@@ -10,7 +10,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const old = require('../lib/ai-lesson-generator.js');
 const PROMPT_CHANGES = require('./fixtures/template-one-prompt-changes.js');
-const { GENERATED_LEAD_IN, GENERATED_WARM_UP, GENERATED_WRAP_UP } = require('./fixtures/generated-template-one.js');
+const {
+  GENERATED_LEAD_IN, GENERATED_WARM_UP, GENERATED_WRAP_UP, TEMPLATE_ONE_READING, TEMPLATE_ONE_TARGET_VOCABULARY,
+} = require('./fixtures/generated-template-one.js');
 const { GENERATED_TARGET_VOCABULARY } = require('./fixtures/generated-target-vocabulary.js');
 const { GENERATED_READING } = require('./fixtures/generated-reading.js');
 const { GENERATED_LISTENING } = require('./fixtures/generated-listening.js');
@@ -59,15 +61,6 @@ function targetVocabularySchema(schema) {
   return { ...schema, properties, required: Object.keys(properties) };
 }
 
-function targetVocabularyAnswer({ contextItems, personalizedQuestions, ...answer }) {
-  return {
-    ...answer,
-    contextText: contextItems.map((item, index) => [item.before, `[[${index + 1}]]`, item.after].filter(Boolean).join(' ')).join(' '),
-    contextChoices: contextItems.map(({ options, answer: term }) => ({ options, answer: term })),
-    personalizedQuestions: personalizedQuestions.map(({ question, followUp }) => ({ question, followUp })),
-  };
-}
-
 const STAGES = [
   {
     key: 'warm-up',
@@ -89,7 +82,7 @@ const STAGES = [
     schema: old.TARGET_VOCABULARY_RESPONSE_SCHEMA,
     newSchema: targetVocabularySchema,
     answer: GENERATED_TARGET_VOCABULARY,
-    newAnswer: targetVocabularyAnswer,
+    newAnswer: TEMPLATE_ONE_TARGET_VOCABULARY,
     build: (lesson, answer) => old.applyTargetVocabularyToSkeleton(lesson, answer),
     // The Template 2 dropdown stores the default accent colour of the component.
     expectedChanges: content => content.map(component => (component.type === 'dropdownChoice'
@@ -111,7 +104,7 @@ const STAGES = [
       return { ...schema, properties: reading, required: Object.keys(reading) };
     },
     answer: GENERATED_READING,
-    newAnswer: ({ gistQuestion, ...answer }) => ({ ...answer, gistQuestions: [gistQuestion] }),
+    newAnswer: TEMPLATE_ONE_READING,
     build: (lesson, answer, random) => old.applyReadingToSkeleton(lesson, answer, travelWords, random),
     variables: { targetVocabulary: travelWords },
   },
@@ -235,7 +228,7 @@ for (const stage of STAGES) {
   test(`${stage.key}: the same answer builds the same content`, t => {
     t.mock.method(console, 'warn', () => {});
     const expected = withSeededRandom(t, random => stage.build(old.createLessonSkeleton(topic), structuredClone(stage.answer), random));
-    const answer = stage.newAnswer?.(structuredClone(stage.answer)) ?? structuredClone(stage.answer);
+    const answer = structuredClone(stage.newAnswer ?? stage.answer);
     const actual = withSeededRandom(t, random => TEMPLATE_ONE.apply(stage.key, {
       lesson: createGenerationSkeleton(TEMPLATE_ONE_DEFINITION, topic), variables: stage.variables || {},
     }, answer, { random }));

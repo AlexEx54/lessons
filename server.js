@@ -97,7 +97,6 @@ const {
   updateTextPanel,
   updateThisOrThatImage,
 } = require('./lib/lesson-draft-store.js');
-const { createSyntheticLesson } = require('./lib/synthetic-lesson.js');
 const {
   completeLessonGeneration,
   createLessonGeneration,
@@ -1925,10 +1924,9 @@ async function handleRequest(req, res) {
       let lesson;
       database.exec('BEGIN IMMEDIATE');
       try {
-        // System templates keep their hand-written synthetic lessons until step 0c.
-        if (!synthetic) lesson = createGenerationSkeleton(templateEntry.definition, topic, { ageGroup, level, model });
-        else if (templateEntry.system) lesson = createSyntheticLesson(topic, { template });
-        else lesson = createExampleLesson(templateEntry.definition, topic, { ageGroup, level });
+        lesson = synthetic
+          ? createExampleLesson(templateEntry.definition, topic, { ageGroup, level })
+          : createGenerationSkeleton(templateEntry.definition, topic, { ageGroup, level, model });
         lesson.meta.ageGroup = ageGroup;
         lesson.meta.level = level;
         pendingDraft = createLessonDraft({

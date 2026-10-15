@@ -30,6 +30,7 @@ const {
 } = require('./fixtures/generated-template-two-guided-communication.js');
 const { GENERATED_TEMPLATE_TWO_WRAP_UP } = require('./fixtures/generated-template-two-wrap-up.js');
 const { GENERATED_GUIDED_SPEAKING } = require('./fixtures/generated-guided-speaking.js');
+const { TEMPLATE_ONE_READING, TEMPLATE_ONE_TARGET_VOCABULARY } = require('./fixtures/generated-template-one.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -143,7 +144,7 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
       assert.match(payload.messages[0].content, /CEFR level: B1/);
       assert.match(payload.messages[0].content, /Age: 9-11/);
       const generated = [
-        LESSON_METADATA, WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY, GENERATED_READING, GENERATED_LISTENING,
+        LESSON_METADATA, WARM_UP, LEAD_IN, TEMPLATE_ONE_TARGET_VOCABULARY, TEMPLATE_ONE_READING, GENERATED_LISTENING,
         GENERATED_GRAMMAR_PRESENTATION, GENERATED_GRAMMAR_FOCUS, GENERATED_GUIDED_SPEAKING,
         WRAP_UP,
       ][requestIndex];
@@ -374,8 +375,8 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
   const trace = await traceResponse.text();
   assert.match(trace, /event: snapshot/);
   assert.match(trace, /=== Lesson Metadata ===/);
-  assert.match(trace, /=== Warm-Up ===/);
-  assert.match(trace, /=== Lead-In ===/);
+  assert.match(trace, /=== Warm Up ===/);
+  assert.match(trace, /=== Lead In ===/);
   assert.match(trace, /=== Target Vocabulary ===/);
   assert.match(trace, /=== Reading ===/);
   assert.match(trace, /=== Listening ===/);
@@ -437,7 +438,7 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
           'easyclass_guided_speaking',
         ][requestIndex]);
         const generated = [
-          LESSON_METADATA, WARM_UP, LEAD_IN, GENERATED_TARGET_VOCABULARY, GENERATED_READING, GENERATED_LISTENING,
+          LESSON_METADATA, WARM_UP, LEAD_IN, TEMPLATE_ONE_TARGET_VOCABULARY, TEMPLATE_ONE_READING, GENERATED_LISTENING,
           GENERATED_GRAMMAR_PRESENTATION, GENERATED_GRAMMAR_FOCUS, GENERATED_GUIDED_SPEAKING,
         ][requestIndex];
         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
@@ -533,8 +534,8 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
   assert.equal(traceResponse.status, 200);
   const trace = await traceResponse.text();
   assert.match(trace, /=== Lesson Metadata ===/);
-  assert.match(trace, /=== Warm-Up ===/);
-  assert.match(trace, /=== Lead-In ===/);
+  assert.match(trace, /=== Warm Up ===/);
+  assert.match(trace, /=== Lead In ===/);
   assert.match(trace, /=== Target Vocabulary ===/);
   assert.match(trace, /=== Reading ===/);
   assert.match(trace, /=== Listening ===/);
@@ -607,21 +608,21 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
   };
   const responses = [
     { schema: 'easyclass_lesson_metadata', user: 'Lesson topic: Travel choices', generated: LESSON_METADATA },
-    { schema: 'easyclass_template_2_warm_up', user: 'Lesson topic: City transport',
+    { schema: 'easyclass_warm_up', user: 'Lesson topic: City transport',
       generated: { rows: [{ ...rows[0], answer: 'plane' }, ...rows.slice(1)] } },
-    { schema: 'easyclass_template_2_warm_up', user: 'Lesson topic: City transport', generated: { rows } },
-    { schema: 'easyclass_template_2_lead_in', user: 'Lesson topic: Travel choices\nGrammar topic: Past Simple', generated: leadIn },
-    { schema: 'easyclass_template_2_target_vocabulary', generated: targetVocabulary, user: [
+    { schema: 'easyclass_warm_up', user: 'Lesson topic: City transport', generated: { rows } },
+    { schema: 'easyclass_lead_in', user: 'Lesson topic: Travel choices\nGrammar topic: Past Simple', generated: leadIn },
+    { schema: 'easyclass_target_vocabulary', generated: targetVocabulary, user: [
       'Lesson topic: Travel choices', 'Grammar topic: Past Simple', 'Guess statements from the Lead-In:',
       '1. Somebody in our stories missed a train.', '2. Somebody in our stories travelled by boat.',
     ].join('\n') },
-    { schema: 'easyclass_template_2_grammar_presentation', generated: GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION,
+    { schema: 'easyclass_grammar_presentation', generated: GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION,
       user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
-    { schema: 'easyclass_template_2_grammar_focus', generated: GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS,
+    { schema: 'easyclass_grammar_focus', generated: GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS,
       user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
-    { schema: 'easyclass_template_2_guided_speaking', generated: GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION,
+    { schema: 'easyclass_guided_speaking', generated: GENERATED_TEMPLATE_TWO_GUIDED_COMMUNICATION,
       user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
-    { schema: 'easyclass_template_2_wrap_up', generated: GENERATED_TEMPLATE_TWO_WRAP_UP,
+    { schema: 'easyclass_wrap_up', generated: GENERATED_TEMPLATE_TWO_WRAP_UP,
       user: `Lesson topic: Travel choices\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(terms)}` },
   ];
   let openRouterRequestCount = 0;

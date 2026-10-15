@@ -7,7 +7,7 @@ const model = require('../assets/components/sentence-builder-model.js');
 const exercises = require('../assets/components/exercise-state.js');
 const { renderSentenceBuilder } = require('../assets/components/sentence-builder.js');
 const { createDocument } = require('./helpers/lesson-dom.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { studentComponent, applyComponentAction } = require('../lib/class-component-handlers.js');
 const { createSentenceBuilderExample } = require('../lib/sentence-builder-example.js');
 const source = createSentenceBuilderExample();
@@ -21,7 +21,7 @@ function place(component, ids, previous = {}) {
 const command = (component, type, extra = {}) => ({ type, itemId: component.items[0].id, ...extra });
 
 test('template two omits the reusable game; chunks and alternative orders round-trip', () => {
-  const content = createSyntheticLesson('Heroes', { template: 'template-2' }).stages[7].content;
+  const content = syntheticLesson('template-2').stages[7].content;
   assert.deepEqual(content.map(item => item.type), ['teacherNote', 'threeTwoOne', 'selfAssessment', 'markdownCard']);
   assert.equal(model.normalizeSentenceBuilder(source).items.length, 4);
   const text = 'Today we can [help people].\nwe can [help people]. Today';

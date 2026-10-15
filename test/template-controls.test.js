@@ -64,17 +64,25 @@ test('every generated control builds its example with default, smallest and larg
   }
 });
 
-test('Template 2 builds a whole lesson from control examples', () => {
+// Synthetic lessons are made of these examples, so they must pass the controls' own checks.
+const silentWarnings = t => t.mock.method(console, 'warn', () => {});
+const warnings = mock => mock.mock.calls.map(call => call.arguments[0]);
+
+test('Template 2 builds a whole lesson from control examples without warnings', t => {
+  const warn = silentWarnings(t);
   const state = exampleRun(TEMPLATE_TWO);
+  assert.deepEqual(warnings(warn), []);
   const skeleton = templateTwoSkeleton('Topic');
   assert.deepEqual(state.lesson.stages.map(stage => stage.id), skeleton.stages.map(stage => stage.id));
   assert.ok(state.lesson.stages.every(stage => stage.content.length > 0));
   assert.deepEqual(Object.keys(state.variables).sort(), ['leadInGuesses', 'targetVocabulary']);
 });
 
-test('Template 1 builds a whole lesson from control examples', () => {
+test('Template 1 builds a whole lesson from control examples without warnings', t => {
+  const warn = silentWarnings(t);
   const definition = require('../lib/templates/template-1.json');
   const state = exampleRun(compileTemplate(definition, CONTROL_CATALOG));
+  assert.deepEqual(warnings(warn), []);
   assert.deepEqual(state.lesson.stages.map(stage => stage.id), definition.stages.map(stage => stage.id));
   assert.ok(state.lesson.stages.every(stage => stage.content.length > 0));
   assert.deepEqual(Object.keys(state.variables), ['targetVocabulary']);

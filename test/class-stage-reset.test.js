@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createClassSession } = require('../lib/class-store.js');
-const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { applyAction, readState } = require('../lib/class-live-store.js');
 const { collectComponents } = require('../assets/components/component-tree.js');
 
@@ -13,7 +13,7 @@ test('reset each stage persists cleared component state, preserves other stages/
   const db = openDatabase(':memory:');
   t.after(() => db.close());
   const teacher = createUser({ email: 'reset@test.local', displayName: 'Reset test', passwordHash: 'unused' }, db);
-  const content = createSyntheticLesson('Reset test');
+  const content = syntheticLesson();
   const row = content.stages.find(stage => stage.id === 'grammar-focus').content.find(item => item.type === 'cardRow');
   row.items[0].studentVisibility = 'controlled';
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
