@@ -72,6 +72,14 @@ test('Template 2 builds a whole lesson from control examples', () => {
   assert.deepEqual(Object.keys(state.variables).sort(), ['leadInGuesses', 'targetVocabulary']);
 });
 
+test('Template 1 builds a whole lesson from control examples', () => {
+  const definition = require('../lib/templates/template-1.json');
+  const state = exampleRun(compileTemplate(definition, CONTROL_CATALOG));
+  assert.deepEqual(state.lesson.stages.map(stage => stage.id), definition.stages.map(stage => stage.id));
+  assert.ok(state.lesson.stages.every(stage => stage.content.length > 0));
+  assert.deepEqual(Object.keys(state.variables), ['targetVocabulary']);
+});
+
 test('the answer key takes only tasks that have one, and only their parts', () => {
   const answerKey = CONTROL_CATALOG.get('answerKey');
   assert.equal(answerKey.acceptsSource(CONTROL_CATALOG.get('oddOneOut'), {}), null);

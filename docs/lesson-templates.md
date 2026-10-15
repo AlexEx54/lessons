@@ -289,7 +289,7 @@ lead-in ──leadInGuesses──▶ target-vocabulary ──targetVocabulary─
 warm-up, watch-and-interact — без связей
 ```
 
-## 7. Коллекция контролов для шаблона 2
+## 7. Коллекция контролов
 
 | Контрол | Компонент | Входы → выходы |
 |---|---|---|
@@ -317,12 +317,36 @@ warm-up, watch-and-interact — без связей
 | `wordBankSupport` | markdownCard | vocabulary (выбор N слов) |
 | `communicationCards` | guidedCommunicationCards | vocabulary (выбор N слов) |
 | `threeTwoOne` | threeTwoOne | |
-| `answerKey` *derived* | markdownCard | блоки с `answerKey()` |
+| `answerKey` *derived* | markdownCard (разделы или `format: paragraphs`) | блоки с `answerKey()` |
 
-Это 25 контролов в `lib/template-controls/`. Шаблон 1 добавит ещё около 8:
-thisOrThat с картинками, сообщение Lead-In, чтение с вопросами, аудирование,
-роли Guided Speaking, mini-situation и т.п. Многие пересекаются: `numberedPanel`,
-`ruleGaps` и `quickRule` уже общие для обоих шаблонов.
+Шаблону 1 нужны ещё 18:
+
+| Контрол | Компонент | Входы → выходы |
+|---|---|---|
+| `teacherNoteText` | teacherNote (один текст модели) | |
+| `textCard` | markdownCard | |
+| `thisOrThat` | thisOrThat | |
+| `followUpQuestions` | taskPrompt | |
+| `illustratedMessage` | illustratedTextPanel | |
+| `matchPictures` *derived* | matchWords | vocabulary (с картинками) |
+| `termExplanations` | markdownCard | vocabulary |
+| `fillInBlanks` | fillInBlanks | vocabulary |
+| `describeAndGuess` | describeAndGuess | vocabulary |
+| `readingText` | textReading | vocabulary |
+| `choiceQuestions` | multipleChoice или checkboxChoice | |
+| `audioScript` | audioPlayer | |
+| `repeatAudio` *derived* | audioPlayer | блок audioScript |
+| `dialogueGaps` | gapFill | |
+| `miniSituation` | miniSituation | |
+| `roleCards` | guidedRoleCards | vocabulary |
+| `roleDialogue` *derived* | markdownCard | блок roleCards |
+| `speakingSupport` | speakingSupport | |
+
+Общие для обоих шаблонов: `vocabularyList` (у шаблона 1 с параметром
+`imagePrompts`, словарь тогда несёт картинки), `contextDropdown`,
+`personalizedQuestions`, `listCard`, `numberedPanel`, `ruleGaps`, `quickRule`,
+`choiceSentences`, `teacherNoteSections`, `wordBankSupport`, `threeTwoOne`,
+`answerKey`. Всего 43 контрола.
 
 **Ключ ответов.** Контрол задания отдаёт `answerKey()` → `{ lines, list }`:
 строки ключа и признак, что это пункты Markdown-списка. Если частей ключа
@@ -394,6 +418,30 @@ ALTER TABLE lesson_drafts ADD COLUMN template_snapshot_json TEXT;
    `example()` контролов, а не из рукописных `SYNTHETIC_*`, и станет менее
    «сюжетным». Сейчас на синтетический урок шаблона 2 опираются тесты
    компонентов, им нужен будет отдельный фикстурный урок.
+
+Для шаблона 1 после шага 0c (проверки старых сборщиков перенесены как есть):
+
+1. **Строки промптов** — так же, как у шаблона 2; список в
+   `test/fixtures/template-one-prompt-changes.js`. Guided Speaking получил
+   общее правило заметки учителю «Write every part of teacherNotes in English…».
+2. **Target Vocabulary** берёт контролы шаблона 2: задание в контексте — один
+   текст 70–110 слов с пропусками `[[1]]`…`[[8]]`, варианты могут быть в
+   нужной форме слова; у личных вопросов нет `targetTerm`, жирным выделяется
+   любое слово из словаря; Sentence Starters ровно три (было «хотя бы один»).
+   Dropdown хранит цвет компонента по умолчанию.
+3. **Reading:** `gistQuestion` стал списком из одного вопроса `gistQuestions`;
+   слов из словаря 5–6, как и просил промпт (схема пропускала 4).
+4. **Listening:** вопросы проверяются так же, как в Reading: различные
+   варианты, ответ из вариантов.
+5. **Grammar Presentation:** Check the Rule — контрол `choiceSentences`:
+   номера жирные, варианты перемешиваются, пустой текст вокруг пропуска и
+   Markdown дают предупреждение вместо ошибки. Ключ ответов в разделах шаблона 2:
+   Task 1 Rule, Task 2, Short explanations.
+6. **Guided Speaking:** в схеме ответа пример диалога идёт сразу после ролей,
+   перед Speaking Support: роли и диалог — один блок, карточка диалога —
+   производный блок.
+7. **id пунктов внутри заданий** короткие: `choice-1`, `item-1`, `question-1`,
+   `gap-1`, `quick-rule-1`.
 
 ## 10. Редактор
 

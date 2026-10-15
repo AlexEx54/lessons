@@ -1,0 +1,1072 @@
+{
+  "schemaVersion": "lesson-template-v1",
+  "id": "template-1",
+  "title": "Шаблон 1",
+  "description": "This or That, Lead-In, чтение, аудирование, грамматика, Guided Speaking и Wrap-Up.",
+  "inputs": {
+    "topic": {
+      "label": "Тема урока"
+    },
+    "warmUpTopic": {
+      "label": "Тема Warm-Up",
+      "optional": true,
+      "fallback": "topic"
+    },
+    "grammarTopic": {
+      "label": "Грамматика"
+    }
+  },
+  "lesson": {
+    "durationMinutes": 50
+  },
+  "stages": [
+    {
+      "id": "warm-up",
+      "title": "Warm Up",
+      "subtitle": "This or That?",
+      "durationMinutes": 5,
+      "icon": "sparkles",
+      "context": {
+        "Lesson topic": "$input.warmUpTopic"
+      },
+      "instructions": "Generate only the variable content for a five-minute Warm-Up in the existing This or That template.\nAll student-facing copy, captions, questions, and possible language must be in natural English at the target CEFR level. Image prompts must be in English.\nKeep every activity directly connected to the provided topic.",
+      "blocks": [
+        {
+          "id": "warm-up-teacher-note",
+          "kind": "generated",
+          "control": "teacherNoteText",
+          "fields": {
+            "text": "teacherNotes"
+          },
+          "instructions": "Write teacherNotes as exactly three Markdown bullet points followed by a separate Say paragraph, in this order:\n1. In English, briefly explain the purpose of the lead-in question, then provide the exact question for the learner in natural English at the target CEFR level; it must summarize the main Warm-Up topic and guide the learner toward the task.\n2. In English, explain whether the learner should answer with one word or short phrases.\n3. In English, state what kind of answer the teacher should accept.\nAfter the three bullet points, add a blank line and then give the teacher a ready-to-say opening phrase in natural English at the target CEFR level using exactly this Markdown format: **Say:** *English opening phrase*.\nThe Say paragraph must not be a bullet point; only the English opening phrase after **Say:** must be italic.\nThe opening phrase must start the Warm-Up without presenting its topic as the topic of the whole lesson. Do not use phrases such as “Today we will talk about...”."
+        },
+        {
+          "id": "warm-up-your-turn-card",
+          "kind": "generated",
+          "control": "textCard",
+          "fields": {
+            "text": "yourTurnInstruction"
+          },
+          "chrome": {
+            "title": "Your turn!",
+            "icon": "chat",
+            "accentColor": "#1EAD58",
+            "studentVisibility": "always"
+          }
+        },
+        {
+          "id": "warm-up-this-or-that",
+          "kind": "generated",
+          "control": "thisOrThat",
+          "params": {
+            "pairs": 4
+          }
+        },
+        {
+          "id": "warm-up-follow-up-prompt",
+          "kind": "generated",
+          "control": "followUpQuestions",
+          "fields": {
+            "questions": "followUpQuestions",
+            "language": "possibleLanguage"
+          },
+          "chrome": {
+            "title": "Follow-up questions:",
+            "supportTitle": "Possible language:"
+          }
+        }
+      ]
+    },
+    {
+      "id": "lead-in",
+      "title": "Lead In",
+      "subtitle": "Explore the Topic",
+      "durationMinutes": 5,
+      "icon": "compass",
+      "context": {
+        "Lesson topic": "$input.topic"
+      },
+      "instructions": "Generate only the variable content for a five-minute Lead-In in the existing template.\nAll generated copy, including teacherNotes, student-facing copy, and image prompts, must be in English.",
+      "blocks": [
+        {
+          "id": "lead-in-teacher-note",
+          "kind": "generated",
+          "control": "teacherNoteText",
+          "fields": {
+            "text": "teacherNotes"
+          },
+          "instructions": "Write teacherNotes as one Markdown string, following this exact content order:\n1. Start with this exact instruction: Read the text together with the learner and invite them to answer the questions.\n2. List the one or two modern English phrases, idioms, or slang expressions from the message that the teacher should explain, and briefly explain their meaning in English.\n3. Tell the teacher in English that if the learner gives a one-word or very short answer to question 3, they must encourage the learner to develop their point of view; include a ready-to-say natural English follow-up question such as “Why do you think so?”.\n4. Tell the teacher in English to ask after all three answers whether the learner can guess the lesson topic; include a ready-to-say natural English question at the target CEFR level.\n5. Finish with a ready-to-say natural English lesson preview at the target CEFR level in the exact Markdown format **Say:** *English lesson preview*.\nThe lesson preview must start with “We are going to...” and may mention only topic, vocabulary, or grammar goals explicitly present in the supplied Lesson topic. Never invent a grammar or vocabulary goal."
+        },
+        {
+          "id": "lead-in-your-turn-card",
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
+            "title": "Your turn!",
+            "text": "Read the message and discuss it together.",
+            "icon": "chat",
+            "accentColor": "#1EAD58",
+            "studentVisibility": "always"
+          }
+        },
+        {
+          "id": "lead-in-gamer-message",
+          "kind": "generated",
+          "control": "illustratedMessage",
+          "fields": {
+            "text": "message"
+          },
+          "chrome": {
+            "backgroundColor": "#252A38"
+          },
+          "instructions": "The main message must be short, engaging, directly connected to the lesson topic, and lead naturally into it.\nUse natural English at the target CEFR level in the message, but include exactly one or two contemporary English phrases, idioms, or slang expressions. Those expressions must be the ones explained in teacherNotes.\nThe message may start with a short sender name or social-media handle and may use light Markdown, but it must remain easy to read."
+        },
+        {
+          "id": "lead-in-discussion-questions",
+          "kind": "generated",
+          "control": "numberedPanel",
+          "params": {
+            "items": 3
+          },
+          "fields": {
+            "items": "questions"
+          },
+          "instructions": "questions are student-facing, in natural English at the target CEFR level.\nQuestions 1 and 2 must check comprehension of facts or meaning in the message and be answerable from the message itself.\nQuestion 3 must be personalized: connect the message to the learner’s own experience or opinion."
+        },
+        {
+          "id": "lead-in-suggested-answers-card",
+          "kind": "generated",
+          "control": "listCard",
+          "params": {
+            "items": 3,
+            "format": "numbered"
+          },
+          "fields": {
+            "items": "suggestedAnswers"
+          },
+          "chrome": {
+            "title": "Suggested answers",
+            "icon": "check",
+            "accentColor": "#1EAD58",
+            "studentVisibility": "controlled"
+          },
+          "instructions": "suggestedAnswers answer the questions in the same order. Answers 1 and 2 must answer from the message; answer 3 must be a plausible example personal answer, not “Personal answer”."
+        }
+      ]
+    },
+    {
+      "id": "target-vocabulary",
+      "title": "Target Vocabulary",
+      "subtitle": "Learn New Words",
+      "durationMinutes": 8,
+      "icon": "cards",
+      "context": {
+        "Lesson topic": "$input.topic"
+      },
+      "instructions": "Generate only the variable student-facing content for an eight-minute Target Vocabulary section in the existing template.\nAll content must be in natural English at the target CEFR level and directly connected to the supplied lesson topic.\nDo not generate Teacher’s Notes, component titles, instructions, answer keys, IDs, or How to Play rules; the application adds them statically.\nWhenever a field refers to a vocabulary term, copy it exactly, including spelling, capitalization, articles, and “to”.",
+      "blocks": [
+        {
+          "id": "target-vocabulary-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "blocks": [
+              {
+                "type": "teacherNoteBlock",
+                "id": "target-vocabulary-pronunciation-check",
+                "title": "Pronunciation Check",
+                "titleColor": "#6545F5",
+                "icon": "audio",
+                "text": "Используйте эти онлайн-словари, чтобы проверить и включить произношение:\n\n- Cambridge Dictionary – cambridge.org/dictionary\n- Merriam-Webster – merriam-webster.com\n- Oxford Learner’s Dictionaries – oxfordlearnersdictionaries.com",
+                "tip": {
+                  "text": "Включите аудио ученику и попросите его повторить.\nОбратите внимание на ударение в новых словах и фразах."
+                }
+              },
+              {
+                "type": "teacherNoteBlock",
+                "id": "target-vocabulary-exercise-lead-in",
+                "title": "What to Say & How to Lead Into Each Exercise",
+                "titleColor": "#20A85B",
+                "icon": "chat",
+                "text": "**Task 1:** say \"We are going to do some matching and work with new words. Please, look through the words and match them with the pictures. Start with the words you already know. Let's guess the rest together.\"\n\n*Note for teacher: After matching, use the \"Words That Need Extra Explanation\" box to clarify tricky terms.*\n\n**Task 2:** say \"Now let's see how these words are used in real life. Please read the short story and choose the correct word from the dropdown menu to fill in the blanks. Tip: read the whole sentence first to understand the context.\"\n\n**Task 3:** \"Let's practice a bit more. Read the sentences and type the correct word or phrase into each gap. Pay attention to the meaning of the whole sentence.\"\n\n**Task 4:** \"Great job! Now it's time to speak. I am going to ask you some questions about you and your preferences. There are no right or wrong answers. If you don't know how to start, you can use the sentence starters in the green box below.\"\n\n*Note for teacher: Don't forget to ask the grey follow-up questions to encourage longer answers.*\n\n**Extra Task:** \"To finish our lesson, let's play a guessing game! We will take turns. You choose a word and describe it using examples or situations, but you cannot say the word itself. I will try to guess it, and then it will be my turn to describe. I can go first to show you how!\""
+              },
+              {
+                "type": "teacherNoteBlock",
+                "id": "target-vocabulary-extra-phrases",
+                "title": "Extra Teacher Phrases You Can Use",
+                "titleColor": "#6545F5",
+                "icon": "chatDots",
+                "text": "При необходимости задайте ученику дополнительные вопросы:\n\n- “Can you think of another example?”\n- “What does this mean in your own words?”\n- “Let’s use this word in a sentence together.”\n- “Good! Can you say it another way?”"
+              }
+            ]
+          }
+        },
+        {
+          "id": "target-vocabulary-card",
+          "kind": "generated",
+          "control": "vocabularyList",
+          "params": {
+            "items": 10,
+            "distractors": false,
+            "imagePrompts": true
+          },
+          "fields": {
+            "items": "vocabularyItems"
+          },
+          "chrome": {
+            "title": "Vocabulary",
+            "icon": "book",
+            "accentColor": "#20A85B",
+            "studentVisibility": "controlled"
+          },
+          "exports": {
+            "vocabulary": "targetVocabulary"
+          },
+          "instructions": "vocabularyItems: distinct, useful target words or short phrases. Prefer lexical chunks that a learner at the target CEFR level can use when speaking about the topic.\nThe images will appear together in a word-to-picture matching exercise. Their main purpose is to make the correct term recognizable and clearly distinguishable from every other term in this vocabulary set.\nPlan all 10 image concepts together before writing the final prompts. Give each term a distinct visual scene with a clear identifying cue. Compare each scene against all other terms: if another term would be an equally reasonable answer, redesign the scene.\nAvoid similar scenes for different terms, such as multiple students sitting at desks or multiple calendars. Prefer concrete actions, objects, and observable contrasts over facial expressions, mood, or generic topic-related settings.\nDo not rely on invisible properties or intentions, such as a phone being silent, a goal being realistic, or a student feeling motivated. Show the action or contrast that makes the meaning visible.\nFor abstract terms, use a simple two-panel scene if needed to show repetition, a change, or a contrast. Specify what appears in each panel.\nWrite each imagePrompt as a self-contained drawing instruction. Describe the main subject, exact action, and identifying visual cue first, then style and background. Do not merely ask the generator to illustrate the term: describe exactly what the viewer should see.\nMake the identifying cue large and prominent enough to recognize in a small thumbnail. Use a simple composition with only necessary details. Avoid decorative clutter and do not rely on readable words, labels, numbers, or sentences.\nUse a consistent modern educational illustration style across the set. Before returning the result, mentally match each proposed image against the full vocabulary list without its intended label. Revise any scene that lacks a visible identifying cue or fits multiple terms."
+        },
+        {
+          "id": "target-vocabulary-match-words",
+          "kind": "derived",
+          "control": "matchPictures",
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "Task 1 · Match the Words",
+            "instruction": "Match the words with the pictures."
+          }
+        },
+        {
+          "id": "target-vocabulary-extra-explanation-card",
+          "kind": "generated",
+          "control": "termExplanations",
+          "params": {
+            "items": 5
+          },
+          "fields": {
+            "items": "extraExplanations"
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "1. Words That Need Extra Explanation",
+            "icon": "book",
+            "accentColor": "#6545F5",
+            "studentVisibility": "teacherOnly"
+          }
+        },
+        {
+          "id": "target-vocabulary-context-dropdown",
+          "kind": "generated",
+          "control": "contextDropdown",
+          "params": {
+            "gaps": 8,
+            "options": 3,
+            "minWords": 70,
+            "maxWords": 110
+          },
+          "fields": {
+            "text": "contextText",
+            "choices": "contextChoices"
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "Task 2 · Vocabulary in Context — Dropdown",
+            "instruction": "Fill in the blanks with the correct words from the dropdown lists."
+          },
+          "instructions": "contextText is a topic-related story."
+        },
+        {
+          "id": "target-vocabulary-context-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "from": [
+            "target-vocabulary-context-dropdown"
+          ],
+          "chrome": {
+            "title": "Answer Key"
+          }
+        },
+        {
+          "id": "target-vocabulary-fill-in-blanks",
+          "kind": "generated",
+          "control": "fillInBlanks",
+          "params": {
+            "items": 6
+          },
+          "fields": {
+            "items": "fillInBlanks"
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "Task 3 · Fill in the Blanks",
+            "instruction": "Use the words and phrases in the box to complete the sentences."
+          }
+        },
+        {
+          "id": "target-vocabulary-personalized-questions",
+          "kind": "generated",
+          "control": "personalizedQuestions",
+          "params": {
+            "items": 4
+          },
+          "fields": {
+            "questions": "personalizedQuestions"
+          },
+          "inputs": {
+            "highlight": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "Task 4 · Personalised Questions",
+            "instruction": "Answer the questions out loud. There are no right or wrong answers!"
+          },
+          "instructions": "personalizedQuestions are about the student’s own life and experience. Use a different vocabulary item in each question."
+        },
+        {
+          "id": "target-vocabulary-sentence-starters-card",
+          "kind": "generated",
+          "control": "listCard",
+          "params": {
+            "items": 3,
+            "format": "boldBullets",
+            "intro": "Use these starters if you need help answering.",
+            "plainText": true
+          },
+          "fields": {
+            "items": "sentenceStarters"
+          },
+          "chrome": {
+            "title": "Support: Sentence Starters",
+            "icon": "chat",
+            "accentColor": "#20A85B",
+            "studentVisibility": "always"
+          },
+          "instructions": "sentenceStarters: short, topic-relevant sentence starters. Each starter must include a vocabulary item from the personalizedQuestions, copied exactly, so the learner can reuse those words when answering."
+        },
+        {
+          "id": "target-vocabulary-describe-and-guess",
+          "kind": "generated",
+          "control": "describeAndGuess",
+          "params": {
+            "items": 6
+          },
+          "fields": {
+            "terms": "describeAndGuessTerms"
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "Extra Task · Describe and Guess",
+            "instruction": "Take turns with your teacher. Describe the word without saying it. Can your partner guess it?"
+          }
+        }
+      ]
+    },
+    {
+      "id": "reading",
+      "title": "Reading",
+      "durationMinutes": 5,
+      "icon": "book",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "Generate only the variable content for a five-minute Reading section in the existing template.\nAll student-facing content must be natural English at the target CEFR level and directly connected to the supplied lesson topic.\nMake distractors plausible but unambiguously incorrect. Vary the position of correct answers.\nDo not generate Teacher’s Notes, component titles, instructions, IDs, option letters, or an Answer Key; the application adds them.",
+      "blocks": [
+        {
+          "id": "reading-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "In this part of the lesson, your student will practice two key skills: **reading for gist** (skimming) and **reading for detail** (scanning). Explain these techniques to the student if needed before starting the tasks.\n\n**Differentiation based on the student's level:**\n\n- **For weaker students:** Ask them to read the text out loud right from the start. This helps you monitor their pronunciation and keeps them focused.\n- **For stronger students:** Allow them to read the text silently to themselves for the first time (Task 1).\n\nWhen moving to **Task 2**, ask the student to read the text (or the specific paragraphs where the answers are hidden) out loud for the second time to complete the quiz and justify their answers.\n\n**Task 1:** say \"Now we are going to read a text. First, let's use a reading technique called **skimming**. It means reading the text very quickly just to understand the general idea, without translating or worrying about every single word. Take a minute to skim the text, and then choose the correct option in Task 1 to define the main idea.\" *Note for teacher: Give the student a strict time limit (e.g., 1-2 minutes) to ensure they actually skim the text rather than reading it in detail.*\n\n**Task 2:** say \"Great job! Now we understand what the text is generally about. Let's move to Task 2. This time, I want you to read the text out loud more carefully to find specific information. Then pay attention to the quiz. There are 6 questions in total. A good strategy is to read the question first, and then look for the exact answer in the text. Let's start with the first one.\"\n\n- **Post-Reading Discussion:** say \"Well done with the questions! Now that we've read the whole story, tell me: what was the most interesting or surprising fact in this text for you? Have you ever experienced a similar situation or felt the same way as the author?\" *Note for teacher: Use these questions to transition smoothly from reading to speaking. Encourage the student to express their personal opinion about the topic.*"
+          }
+        },
+        {
+          "id": "reading-text",
+          "kind": "generated",
+          "control": "readingText",
+          "params": {
+            "minWords": 180,
+            "maxWords": 230,
+            "minTerms": 5,
+            "maxTerms": 6
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "instructions": "Choose exactly one of these text formats, whichever best suits the lesson topic: review, social media post, short article, influencer story, or advice-column message.\nDo not use any other genre or text format.\nThe supplied Grammar topic is authoritative. Naturally include 4 to 7 clear and accurate examples of that target grammar in the reading text, without explaining the grammar.\nProvide a concise title and a useful subtitle appropriate to the chosen genre."
+        },
+        {
+          "id": "reading-gist-quiz",
+          "kind": "generated",
+          "control": "choiceQuestions",
+          "params": {
+            "questions": 1,
+            "options": 3
+          },
+          "fields": {
+            "questions": "gistQuestions"
+          },
+          "chrome": {
+            "title": "Task 1. Reading for Gist",
+            "instruction": "Choose the best answer."
+          },
+          "instructions": "gistQuestions ask about the main idea of the text."
+        },
+        {
+          "id": "reading-detail-quiz",
+          "kind": "generated",
+          "control": "choiceQuestions",
+          "params": {
+            "questions": 5,
+            "options": 3
+          },
+          "fields": {
+            "questions": "detailQuestions"
+          },
+          "chrome": {
+            "title": "Task 2. Reading for Detail",
+            "instruction": "Read the questions and choose A, B or C."
+          },
+          "instructions": "The answers to detailQuestions are stated or clearly supported by the text."
+        },
+        {
+          "id": "reading-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "params": {
+            "format": "paragraphs"
+          },
+          "from": [
+            {
+              "block": "reading-gist-quiz",
+              "title": "Task 1:"
+            },
+            {
+              "block": "reading-detail-quiz",
+              "title": "Task 2:"
+            }
+          ],
+          "chrome": {
+            "title": "Answer Key"
+          }
+        }
+      ]
+    },
+    {
+      "id": "listening",
+      "title": "Listening",
+      "durationMinutes": 3,
+      "icon": "audio",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "Generate only the variable content for a three-minute Listening section in the existing template.\nAll student-facing content must be natural English at the target CEFR level and directly connected to the supplied lesson topic.\nQuestions and answers must be fully supported by the script. Make distractors plausible but unambiguously incorrect.\nDo not generate Teacher’s Notes, component titles, instructions, IDs, option letters, or an Answer Key; the application adds them.\nDo not use HTML or Markdown in the script, questions, options, answers, or explanations.",
+      "blocks": [
+        {
+          "id": "listening-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "In this part of the lesson, your student will practice two key skills: **listening for gist** (understanding the main idea) and **listening for detail** (finding specific information). Explain these techniques to the student if needed before starting the tasks.\n\n**Differentiation based on the student's level:**\n\n- **For weaker students:** Give them extra time to read all the questions and options carefully *before* you play the audio. During the second listening (Task 2), you can pause the audio after key information is mentioned to give them time to think.\n- **For stronger students:** Encourage them to take brief notes while listening. They can try to answer some questions from Task 2 from memory after the first listening, and use the second listening just to check themselves.\n\n**Task 1:** say \"Now we are going to listen to an audio. First, we will practice **listening for gist**. Just like with reading, it means focusing on the general idea. Don't worry if you don't understand every single word. Let's listen to the recording for the first time and choose the correct options in Task 1.\" *Note for teacher: Play the audio without pauses. Make sure the student focuses only on the main context and doesn't get distracted by the details yet.*\n\n**Task 2:** say \"Great job! Now we understand the main situation. Let's move to Task 2. This time, we will practice **listening for detail**. Please, read the questions and options first. I will give you a minute. Then, play the audio one more time, and you need to catch the specific details to choose the right answers. Are you ready?\" *Note for teacher: Always let the student read the questions before playing the audio for the second time. It helps them know what specific information they are listening for.*\n\n**Post-Listening Discussion:** say \"Excellent work with the quiz! Now, let's discuss what we've just heard. What are your thoughts on the situation from the audio? Have you ever been in a similar situation, or what would you do if you were in the speakers' shoes?\" *Note for teacher: Use these questions to transition smoothly from listening to speaking. Encourage the student to personalize the topic and share their own experience.*"
+          }
+        },
+        {
+          "id": "listening-audio",
+          "kind": "generated",
+          "control": "audioScript",
+          "chrome": {
+            "title": "Listen to the audio"
+          },
+          "instructions": "Write an audio script designed to last approximately 60 to 90 seconds.\nChoose the format that best suits the topic: voice-message exchange, conversation between friends, podcast fragment, school announcement, video commentary, or short interview.\nUse two or three speakers. Write every spoken turn on a separate line in the plain-text format Speaker: words.\nThe supplied Grammar topic is authoritative. Naturally include 4 to 7 clear and accurate examples of that target grammar in the audio script, without explaining the grammar.\nNaturally include 5 to 6 distinct entries from the supplied Target Vocabulary, copying their wording exactly."
+        },
+        {
+          "id": "listening-gist-quiz",
+          "kind": "generated",
+          "control": "choiceQuestions",
+          "params": {
+            "questions": 2,
+            "options": 3,
+            "maxAnswers": 2
+          },
+          "fields": {
+            "questions": "gistQuestions"
+          },
+          "chrome": {
+            "title": "Task 1. Listening for Gist",
+            "instruction": "Choose the correct options."
+          },
+          "instructions": "The first gist question must have exactly one correct answer. The second gist question must have exactly two correct answers."
+        },
+        {
+          "id": "listening-audio-again",
+          "kind": "derived",
+          "control": "repeatAudio",
+          "from": "listening-audio",
+          "chrome": {
+            "title": "Listen to the audio one more time"
+          }
+        },
+        {
+          "id": "listening-detail-quiz",
+          "kind": "generated",
+          "control": "choiceQuestions",
+          "params": {
+            "questions": 5,
+            "options": 3
+          },
+          "fields": {
+            "questions": "detailQuestions"
+          },
+          "chrome": {
+            "title": "Task 2. Listening for Detail",
+            "instruction": "Choose the correct options."
+          }
+        },
+        {
+          "id": "listening-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "params": {
+            "format": "paragraphs"
+          },
+          "from": [
+            {
+              "block": "listening-gist-quiz",
+              "title": "Task 1:"
+            },
+            {
+              "block": "listening-detail-quiz",
+              "title": "Task 2:"
+            }
+          ],
+          "chrome": {
+            "title": "Answer Key"
+          }
+        }
+      ]
+    },
+    {
+      "id": "grammar-presentation",
+      "title": "Grammar Presentation",
+      "durationMinutes": 5,
+      "icon": "cap",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic"
+      },
+      "instructions": "Generate only the variable student-facing content for a five-minute Grammar Presentation in the existing Guided Discovery template.\nThe supplied Grammar topic is authoritative: explain and practise exactly that grammar without replacing it with a different structure.\nUse the Lesson topic as the natural context for examples and check sentences while keeping every grammar example accurate.\nAll generated copy must be in natural English at the target CEFR level.\nDo not generate Teacher’s Notes, component titles, instructions, IDs, colors, visibility settings, or Answer Key formatting; the application adds them statically.",
+      "blocks": [
+        {
+          "id": "grammar-presentation-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "In this section, we use a **Guided Discovery** approach. Please, do not explain the grammar rules right away. Let the student analyze the examples, answer the Concept-Checking Questions (CCQs), and figure out the patterns themselves. Task 2 is just a quick check to see if they grasp the basic concept before moving to deeper practice.\n\n**Task 1:** say \"Now we are going to look at some new grammar structures. Please, read the example sentences carefully. Pay attention to the highlighted words and think about what they might mean.\" *Note for teacher: After reading the examples, go through the Concept-Checking Questions (CCQs) together. Help the student understand the logic without giving direct answers.*\n\n**Before looking at the grammar rule:** \"Great! Now let's try to build the rule ourselves. Based on the examples and our discussion, drag the correct words into the gaps to complete the rule.\" *Note for teacher: Once the rule is completed, draw the student's attention to the 'Quick Rule' box to summarize and consolidate the information.*\n\n**Task 2:** say \"Let's check how well you've understood the new rule. Please, read the sentences and choose the correct option from the drop-down list for each gap.\" *Note for teacher: Ask the student to explain **why** they chose a specific option (e.g., \"Why did you choose this form here?\"). Use the 'Short explanations' in the Answer Key if the student gets stuck or makes a mistake.*"
+          }
+        },
+        {
+          "id": "grammar-presentation-notice-rule",
+          "kind": "generated",
+          "control": "numberedPanel",
+          "params": {
+            "items": 5,
+            "boldTargetGrammar": true
+          },
+          "fields": {
+            "items": "examples"
+          },
+          "chrome": {
+            "heading": "Notice the Rule",
+            "subheading": "Look at the examples. What grammar structure is used here?",
+            "accentColor": "#6545F5",
+            "showBorder": false
+          },
+          "instructions": "examples: short example sentences."
+        },
+        {
+          "id": "grammar-presentation-concept-checking",
+          "kind": "generated",
+          "control": "numberedPanel",
+          "params": {
+            "items": 4
+          },
+          "fields": {
+            "items": "conceptCheckingQuestions"
+          },
+          "chrome": {
+            "heading": "Concept-checking questions:",
+            "accentColor": "#20A85B",
+            "showBorder": true
+          },
+          "instructions": "conceptCheckingQuestions: keep them concise and guide the learner to discover meaning, use, and form from the examples."
+        },
+        {
+          "id": "grammar-presentation-complete-the-rule",
+          "kind": "generated",
+          "control": "ruleGaps",
+          "params": {
+            "gaps": 4,
+            "distractors": 2
+          },
+          "fields": {
+            "items": "ruleItems",
+            "distractors": "ruleDistractors"
+          },
+          "chrome": {
+            "title": "Complete the Rule",
+            "instruction": "Drag the correct words into the gaps."
+          }
+        },
+        {
+          "id": "grammar-presentation-quick-rule",
+          "kind": "generated",
+          "control": "quickRule",
+          "params": {
+            "minSections": 1,
+            "maxSections": 3
+          },
+          "fields": {
+            "sections": "quickRuleSections"
+          },
+          "chrome": {
+            "title": "Quick Rule",
+            "layout": "columns",
+            "icon": "bulb",
+            "accentColor": "#6545F5",
+            "studentVisibility": "always"
+          },
+          "instructions": "Use concise Markdown bullet points to cover meaning, affirmative form, and relevant negative/question forms, with an example at the target CEFR level where useful."
+        },
+        {
+          "id": "grammar-presentation-check-the-rule",
+          "kind": "generated",
+          "control": "choiceSentences",
+          "params": {
+            "items": 5,
+            "options": 3
+          },
+          "fields": {
+            "items": "checkItems"
+          },
+          "chrome": {
+            "title": "Task 2. Check the Rule",
+            "instruction": "Choose the correct option from each drop-down list."
+          },
+          "instructions": "Use varied, plausible distractors and vary the correct-answer position across the five option lists."
+        },
+        {
+          "id": "grammar-presentation-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "chrome": {
+            "title": "Answer key",
+            "layout": "columns"
+          },
+          "from": [
+            {
+              "block": "grammar-presentation-complete-the-rule",
+              "title": "Task 1 Rule",
+              "id": "task-one-answers"
+            },
+            {
+              "block": "grammar-presentation-check-the-rule",
+              "part": "answers",
+              "title": "Task 2",
+              "id": "task-two-answers"
+            },
+            {
+              "block": "grammar-presentation-check-the-rule",
+              "part": "explanations",
+              "title": "Short explanations:",
+              "id": "short-explanations"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grammar-focus",
+      "title": "Grammar Focus",
+      "durationMinutes": 8,
+      "icon": "cap",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "Generate all variable content for an eight-minute Grammar Focus section in the existing template.\nThe supplied Grammar topic is authoritative. Every controlled and free-practice task must accurately practise exactly that grammar.\nUse the Lesson topic as one coherent natural context and reuse some supplied Target Vocabulary where it fits.\nAll generated lesson copy, including Teacher’s Notes, must be in English at the target CEFR level. The image prompt must be in English.\nDo not generate component titles, instructions, IDs, colors, icons, visibility settings, answer-key formatting, or sentence counts; the application adds them.\nExcept for bold speaker labels, do not use Markdown or HTML in Task 1 or Task 2 content. Never generate [[gap IDs]].",
+      "blocks": [
+        {
+          "id": "grammar-focus-teacher-note",
+          "kind": "generated",
+          "control": "teacherNoteSections",
+          "params": {
+            "format": "blocks",
+            "sections": [
+              {
+                "key": "transitionPhrases",
+                "id": "grammar-focus-transition-phrases",
+                "title": "Transition phrases",
+                "titleColor": "#6545F5",
+                "icon": "chatDots"
+              },
+              {
+                "key": "struggleTips",
+                "id": "grammar-focus-struggle-tips",
+                "title": "Tips if the student struggles",
+                "titleColor": "#2F80ED",
+                "icon": "chat"
+              },
+              {
+                "key": "correctionTiming",
+                "id": "grammar-focus-correction-timing",
+                "title": "Correct now / later",
+                "titleColor": "#E0812D",
+                "icon": "chat"
+              },
+              {
+                "key": "successCriteria",
+                "id": "grammar-focus-free-practice-success",
+                "title": "Free Practice success",
+                "titleColor": "#20A85B",
+                "icon": "chatDots"
+              }
+            ]
+          },
+          "fields": {
+            "notes": "teacherNotes"
+          },
+          "instructions": "Teacher’s Notes must provide four concise Markdown texts: transition phrases, grammar-specific struggle tips, correction timing, and measurable free-practice success criteria."
+        },
+        {
+          "id": "grammar-focus-choose-the-correct-options",
+          "kind": "generated",
+          "control": "choiceSentences",
+          "params": {
+            "items": 8,
+            "options": 3
+          },
+          "fields": {
+            "items": "task1Items"
+          },
+          "chrome": {
+            "title": "**Task 1. Choose the correct options.**",
+            "instruction": "Read each sentence and choose the correct grammar option.",
+            "accentColor": "#6545F5"
+          },
+          "instructions": "Vary the position of correct options and include affirmative, negative, and question forms whenever the grammar topic supports them."
+        },
+        {
+          "id": "grammar-focus-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "chrome": {
+            "title": "Answer Key & Explanations",
+            "layout": "columns"
+          },
+          "from": [
+            {
+              "block": "grammar-focus-choose-the-correct-options",
+              "part": "answers",
+              "title": "Answers",
+              "id": "answers"
+            },
+            {
+              "block": "grammar-focus-choose-the-correct-options",
+              "part": "explanations",
+              "title": "Short explanations",
+              "id": "short-explanations"
+            }
+          ]
+        },
+        {
+          "id": "grammar-focus-complete-the-gaps",
+          "kind": "generated",
+          "control": "dialogueGaps",
+          "params": {
+            "gaps": 9,
+            "minTurns": 6,
+            "maxTurns": 8
+          },
+          "fields": {
+            "dialogue": "task2Dialogue",
+            "gaps": "task2Gaps"
+          },
+          "chrome": {
+            "title": "**Task 2. Complete the gaps with the correct form of the verbs.**",
+            "instruction": "Read the dialogue and type the correct form of the verbs.",
+            "accentColor": "#6545F5"
+          }
+        },
+        {
+          "id": "grammar-focus-complete-the-gaps-answer-key",
+          "kind": "derived",
+          "control": "answerKey",
+          "from": [
+            "grammar-focus-complete-the-gaps"
+          ]
+        },
+        {
+          "id": "grammar-focus-mini-situation",
+          "kind": "generated",
+          "control": "miniSituation",
+          "params": {
+            "minSentences": 3,
+            "maxSentences": 5
+          },
+          "fields": {
+            "situation": "miniSituation"
+          },
+          "chrome": {
+            "title": "Task 3. Free Practice — Mini Situation",
+            "instruction": "Read the situation and write 3–5 sentences. Your answer will be checked by the teacher.",
+            "backgroundColor": "#F4F0FF"
+          }
+        },
+        {
+          "id": "grammar-focus-practice-support-row",
+          "kind": "row",
+          "blocks": [
+            {
+              "id": "grammar-focus-writing-support",
+              "kind": "generated",
+              "control": "listCard",
+              "params": {
+                "items": 5,
+                "format": "numbered"
+              },
+              "fields": {
+                "items": "writingSupport"
+              },
+              "chrome": {
+                "title": "Writing Support",
+                "icon": "pencil",
+                "accentColor": "#20A85B",
+                "studentVisibility": "always"
+              },
+              "instructions": "writingSupport: short sentence starters that help the learner use the target grammar."
+            },
+            {
+              "id": "grammar-focus-support",
+              "kind": "generated",
+              "control": "wordBankSupport",
+              "params": {
+                "words": 8,
+                "minimumTask": "Write 3 sentences if you need extra support."
+              },
+              "fields": {
+                "words": "supportWordBank"
+              },
+              "inputs": {
+                "vocabulary": "targetVocabulary"
+              },
+              "chrome": {
+                "title": "Support",
+                "icon": "lifeRing",
+                "accentColor": "#20A85B",
+                "studentVisibility": "always"
+              },
+              "instructions": "Create one natural modelSentence using the target grammar and lesson context."
+            },
+            {
+              "id": "grammar-focus-challenge",
+              "kind": "generated",
+              "control": "listCard",
+              "params": {
+                "items": 5,
+                "format": "bullets"
+              },
+              "fields": {
+                "items": "challengeItems"
+              },
+              "chrome": {
+                "title": "Challenge",
+                "icon": "trophy",
+                "accentColor": "#6545F5",
+                "studentVisibility": "always"
+              },
+              "instructions": "challengeItems: concise conditions, including a negative, a question, a reason, target vocabulary, and linked ideas when compatible with the grammar."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "guided-speaking",
+      "title": "Guided Speaking",
+      "durationMinutes": 8,
+      "icon": "chat",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "Generate all variable content for an eight-minute Guided Speaking role-play in the existing template.\nUse the Lesson topic as one coherent practical situation in which the learner and teacher must negotiate and reach one shared decision.\nAll generated content must be natural English at the target CEFR level. Do not use Russian or any other language.\nDo not generate component titles, IDs, role titles, section titles, colors, icons, visibility settings, Read the instructions, or How to Play; the application adds them statically.\nDo not turn the activity into a grammar exercise and do not assume a grammar target.",
+      "blocks": [
+        {
+          "id": "guided-speaking-teacher-note",
+          "kind": "generated",
+          "control": "teacherNoteText",
+          "fields": {
+            "text": "teacherNotes"
+          },
+          "instructions": "Teacher Notes must be concise Markdown guidance covering how to start, support weaker learners, challenge stronger learners, what to watch for, what to do if the learner gets stuck, target vocabulary, correction timing, and measurable success.\nIn teacherNotes, the only allowed Markdown formatting is unordered lists (- item), ordered lists (1. item), bold (**text**), and italic (*text*). Put every list item on its own line.\nDo not use Markdown headings (#, ##, ###), HTML, blockquotes, code, links, tables, or any other formatting. If a list item needs a label, make the label bold instead of using a heading."
+        },
+        {
+          "id": "guided-speaking-read-instructions",
+          "kind": "static",
+          "component": {
+            "type": "textPanel",
+            "text": "{l}**Read the instructions.**{/l}",
+            "backgroundColor": "#FFFFFF",
+            "accentColor": "#20243B",
+            "showBorder": false
+          }
+        },
+        {
+          "id": "guided-speaking-how-to-play",
+          "kind": "static",
+          "component": {
+            "type": "howToPlay",
+            "title": "How to Play",
+            "steps": [
+              "Read your role. Keep your card secret.",
+              "Talk to your partner. Listen, answer and complete your secret mission.",
+              "Decide together. Complete the Shared Outcome."
+            ]
+          }
+        },
+        {
+          "id": "guided-speaking-role-cards",
+          "kind": "generated",
+          "control": "roleCards",
+          "params": {
+            "minTurns": 6,
+            "maxTurns": 10,
+            "minTerms": 2,
+            "maxTerms": 4
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "instructions": "The student and teacher goal strings must be exactly the same. The wants, things to avoid, and private facts should create a solvable need to discuss, suggest, react, clarify, agree or disagree, and compromise.\nThe Example Dialogue must be coherent, reflect the role-card information without exposing private facts unnaturally, demonstrate useful support phrases and selected vocabulary, and finish with the shared decision."
+        },
+        {
+          "id": "guided-speaking-support",
+          "kind": "generated",
+          "control": "speakingSupport",
+          "params": {
+            "phrases": 3
+          },
+          "fields": {
+            "phrases": "speakingSupport"
+          },
+          "chrome": {
+            "title": "Speaking Support"
+          },
+          "instructions": "Make the phrases suitable for the generated situation. Keep clarification phrases generally reusable and make other examples topic-relevant where natural."
+        },
+        {
+          "id": "guided-speaking-example-dialogue",
+          "kind": "derived",
+          "control": "roleDialogue",
+          "from": "guided-speaking-role-cards",
+          "chrome": {
+            "title": "Example Dialogue",
+            "icon": "chat",
+            "accentColor": "#3563D4",
+            "studentVisibility": "always"
+          }
+        }
+      ]
+    },
+    {
+      "id": "wrap-up",
+      "title": "Wrap-Up",
+      "durationMinutes": 3,
+      "icon": "check",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "Generate only the variable content for a three-minute Wrap-Up in the existing 3–2–1 template.\nUse the Lesson topic, Grammar topic, and exact Target Vocabulary to review the lesson coherently.\nAll generated copy, including Teacher’s Notes, must be natural English at the target CEFR level. Do not use Russian or any other language.\nDo not generate component titles, IDs, labels, colors, icons, visibility settings, numbering, or Self-assessment; the application adds them statically.",
+      "blocks": [
+        {
+          "id": "wrap-up-teacher-note",
+          "kind": "generated",
+          "control": "teacherNoteSections",
+          "params": {
+            "format": "list",
+            "sections": [
+              {
+                "key": "signsOfSuccess",
+                "title": "Signs of success"
+              },
+              {
+                "key": "struggleSupport",
+                "title": "If the student struggles"
+              },
+              {
+                "key": "positiveEnding",
+                "title": "Positive ending"
+              }
+            ]
+          },
+          "fields": {
+            "notes": "teacherNotes"
+          },
+          "instructions": "Teacher’s Notes must contain three concise parts: measurable signs of success, specific support if the learner struggles, and a ready-to-say positive ending."
+        },
+        {
+          "id": "wrap-up-three-two-one",
+          "kind": "generated",
+          "control": "threeTwoOne",
+          "params": {
+            "twoCues": 2
+          },
+          "chrome": {
+            "oneLabel": "Can-do question"
+          },
+          "instructions": "The threePrompt must ask the learner to recall three words or phrases from the supplied Target Vocabulary in connection with the lesson topic.\nThe twoPrompt must ask for two topic-related sentences that accurately use the supplied Grammar topic.\nEach of the twoCues must be concrete, give a different topic-related idea for one sentence and make the intended grammar use clear without supplying the complete answer.\nThe onePrompt must be one practical can-do question about the lesson topic that invites a short personal answer and use of the target grammar or vocabulary."
+        },
+        {
+          "id": "wrap-up-self-assessment",
+          "kind": "static",
+          "component": {
+            "type": "selfAssessment",
+            "title": "Self-assessment: How do you feel about today’s lesson?"
+          }
+        },
+        {
+          "id": "wrap-up-possible-language",
+          "kind": "generated",
+          "control": "listCard",
+          "params": {
+            "items": 3,
+            "format": "slashSeparated"
+          },
+          "fields": {
+            "items": "possibleLanguage"
+          },
+          "chrome": {
+            "title": "Possible language:",
+            "icon": "chat",
+            "accentColor": "#6545F5",
+            "studentVisibility": "always"
+          },
+          "instructions": "possibleLanguage: short Possible language supports. Make them useful for answering the two and one steps, and naturally include the target grammar and relevant supplied vocabulary where possible."
+        }
+      ]
+    }
+  ]
+}
