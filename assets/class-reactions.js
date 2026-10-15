@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const labels = { heart: 'Сердце', like: 'Нравится', clap: 'Аплодисменты', laugh: 'Смешно', fire: 'Огонь', confused: 'Непонятно' };
+  const labels = { heart: 'Сердце', like: 'Нравится', clap: 'Аплодисменты', laugh: 'Смешно', fire: 'Огонь', confused: 'Непонятно', mindblown: 'Взрыв мозга' };
   const kinds = Object.keys(labels);
   if (typeof module !== 'undefined' && module.exports) { module.exports = { kinds }; return; }
   const SEND_INTERVAL_MS = 120, MAX_FLYING = 30;
@@ -9,7 +9,7 @@
     const toggle = document.getElementById('lesson-reactions-toggle');
     const picker = document.getElementById('lesson-reaction-picker');
     const layer = document.getElementById('lesson-reaction-layer');
-    const src = kind => `/assets/images/reactions/${kind}.svg`;
+    const src = kind => `/assets/images/reactions/${kind}.webp`;
     let sentAt = 0;
     root.hidden = false;
     function open(value) {

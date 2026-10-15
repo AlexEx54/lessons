@@ -261,6 +261,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 @media (max-width: 700px) {
   /* Anchor to the header itself: the picker is wider than the space left of the toggle. */
   .lesson-reactions { position: static; }
-  .lesson-reaction-picker { right: 16px; left: 16px; justify-content: space-between; }
+  .lesson-reaction-picker { right: 16px; left: 16px; }
+  .lesson-reaction-picker button { flex: 1; width: auto; min-width: 0; }
   .lesson-reaction-layer { right: 8px; bottom: 88px; }
 }

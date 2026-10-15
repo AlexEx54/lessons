@@ -28,18 +28,21 @@ function fixture({ send, reducedMotion = false } = {}) {
   vm.runInNewContext(fs.readFileSync('assets/class-reactions.js', 'utf8'), context);
   const reactions = window.ClassReactions.create({ send });
   const picker = document.getElementById('lesson-reaction-picker');
-  const button = kind => picker.children.find(node => node.attributes['aria-label'] && node.children[0].src.endsWith(`/${kind}.svg`));
+  const button = kind => picker.children.find(node => node.attributes['aria-label'] && node.children[0].src.endsWith(`/${kind}.webp`));
   return { document, reactions, layer, picker, animations, button, tick: ms => { now += ms; } };
 }
 test('reaction kinds are shared with the server', () => {
-  assert.deepEqual(require('../assets/class-reactions.js').kinds, ['heart', 'like', 'clap', 'laugh', 'fire', 'confused']);
+  assert.deepEqual(require('../assets/class-reactions.js').kinds, ['heart', 'like', 'clap', 'laugh', 'fire', 'confused', 'mindblown']);
+});
+test('every reaction kind has an image', () => {
+  for (const kind of require('../assets/class-reactions.js').kinds) assert.ok(fs.existsSync(`assets/images/reactions/${kind}.webp`), kind);
 });
 test('picker stays open while tapping and every tap flies locally, but sending is throttled', async () => {
   const sent = [], f = fixture({ send: message => sent.push({ ...message }) });
   const toggle = f.document.getElementById('lesson-reactions-toggle');
   toggle.focus = () => {};
   assert.equal(f.document.getElementById('lesson-reactions').hidden, false);
-  assert.equal(f.picker.children.length, 6);
+  assert.equal(f.picker.children.length, 7);
   toggle.click();
   assert.equal(f.picker.hidden, false);
   assert.equal(toggle.getAttribute('aria-expanded'), 'true');
