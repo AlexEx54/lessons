@@ -1,9 +1,10 @@
 (() => {
   'use strict';
 
-  // Template editor, read-only for now: the template shown as its lesson built from sample
-  // data, every block in a frame with its kind and links, and a panel with the selected
-  // block's settings. The server builds the preview: controls run only there.
+  // Template editor: the template shown as its lesson built from sample data, every block
+  // in a frame with its kind and links, and a panel with the selected block's settings.
+  // The server builds the preview: controls run only there. A copy is edited in place
+  // and saved explicitly; a system template is read-only.
 
   const KIND_LABELS = { static: 'Статичный', generated: 'Генерирует ИИ', derived: 'Собирается сам', row: 'Ряд' };
   const STATIC_LABELS = {
@@ -17,20 +18,32 @@
     selfAssessment: 'Самооценка',
   };
   const NARROW_LAYOUT = window.matchMedia('(max-width: 1180px)');
+  const TITLE_MAX_LENGTH = 80;
+  const DESCRIPTION_MAX_LENGTH = 500;
+  const PREVIEW_DELAY = 300;
 
+  // `template` is the working copy: edits change it in place. `savedSnapshot` is what the
+  // server holds, to tell unsaved changes. `selection` is the block or the template whose
+  // settings the panel shows.
   const state = {
     template: null,
+    savedSnapshot: '',
     controls: new Map(),
     variableTypes: {},
     preview: null,
     blocks: new Map(),
     stageIndex: 0,
-    selectedId: null,
+    selection: null,
+    saving: false,
+    conflict: false,
+    leaving: false,
   };
   const byId = id => document.getElementById(id);
   const panel = byId('block-panel');
   const layout = byId('template-content');
   let toastTimer;
+  let previewTimer;
+  let previewNumber = 0;
 
   function el(tag, className, text) {
     const element = document.createElement(tag);
@@ -72,9 +85,18 @@
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || 'Не удалось выполнить действие.');
+    if (!response.ok) {
+      throw Object.assign(new Error(payload.error || 'Не удалось выполнить действие.'), {
+        status: response.status,
+        errors: payload.errors,
+      });
+    }
     return payload;
   }
+
+  const editable = () => !state.template.system;
+  const snapshot = ({ title, description, definition }) => JSON.stringify([title, description, definition]);
+  const isDirty = () => editable() && snapshot(state.template) !== state.savedSnapshot;
 
   // Every block by id, row parts included, with its stage and the row it sits in.
   function indexBlocks(definition) {
@@ -202,13 +224,30 @@
     kicker.textContent = stage.subtitle || '';
     kicker.hidden = !stage.subtitle;
     byId('template-blocks').replaceChildren(...stage.blocks.map(block => blockFrame(block, components.get(block.id))));
+    markSelectedFrame();
+    placePanel();
     window.history.replaceState(null, '', `#${encodeURIComponent(stage.id)}`);
+  }
+
+  const selectedBlockId = () => (state.selection?.kind === 'block' ? state.selection.id : null);
+
+  // Highlights the frame of the selected block (a row part highlights its row) and returns it.
+  function markSelectedFrame() {
+    const entry = state.blocks.get(selectedBlockId());
+    const frameId = entry ? (entry.row || entry.block).id : null;
+    let selectedFrame = null;
+    for (const frame of byId('template-blocks').querySelectorAll(':scope > .template-block')) {
+      const selected = frame.dataset.blockId === frameId;
+      frame.classList.toggle('template-block--selected', selected);
+      if (selected) selectedFrame = frame;
+    }
+    return selectedFrame;
   }
 
   function selectStage(index) {
     if (index === state.stageIndex) return;
     state.stageIndex = index;
-    state.selectedId = null;
+    if (state.selection?.kind === 'block') state.selection = null;
     renderStage();
     renderPanel();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -217,21 +256,22 @@
   function selectBlock(id, { scroll = false } = {}) {
     const entry = state.blocks.get(id);
     if (!entry) return;
+    state.selection = { kind: 'block', id };
     if (entry.stageIndex !== state.stageIndex) {
       state.stageIndex = entry.stageIndex;
       renderStage();
       scroll = true;
     }
-    state.selectedId = id;
-    const frameId = entry.row ? entry.row.id : id;
-    let selectedFrame = null;
-    for (const frame of byId('template-blocks').querySelectorAll(':scope > .template-block')) {
-      const selected = frame.dataset.blockId === frameId;
-      frame.classList.toggle('template-block--selected', selected);
-      if (selected) selectedFrame = frame;
-    }
+    const selectedFrame = markSelectedFrame();
     renderPanel();
     if (scroll) selectedFrame?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function selectTemplate() {
+    state.selection = { kind: 'template' };
+    markSelectedFrame();
+    renderPanel();
+    if (NARROW_LAYOUT.matches) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function panelSection(title, ...children) {
@@ -354,14 +394,57 @@
     return sections.filter(Boolean);
   }
 
-  function renderPanel() {
-    const entry = state.blocks.get(state.selectedId);
-    if (!entry) {
-      panel.replaceChildren(el('p', 'template-panel__empty', 'Выберите блок, чтобы увидеть его настройки и связи.'));
-      placePanel();
-      return;
+  // A text field that writes to the working copy as the admin types.
+  function textField({ label, value, maxLength, multiline = false, onInput }) {
+    const field = el('label', 'template-field');
+    field.append(el('span', 'template-field__label', label));
+    const input = el(multiline ? 'textarea' : 'input', 'template-field__input');
+    input.value = value;
+    input.maxLength = maxLength;
+    if (multiline) input.rows = 4;
+    input.addEventListener('input', () => onInput(input.value));
+    field.append(input);
+    return field;
+  }
+
+  function templatePanel() {
+    const { template } = state;
+    const header = el('header', 'template-panel__header');
+    header.append(el('h2', '', 'Шаблон'));
+    if (!editable()) {
+      return [
+        header,
+        panelSection('Название', el('p', 'template-instructions', template.title)),
+        panelSection('Описание', el('p', 'template-instructions', template.description || '—')),
+      ];
     }
-    const { block, row } = entry;
+    const titleHint = el('small', 'template-field__error', 'Без названия шаблон не сохранить.');
+    titleHint.hidden = Boolean(template.title);
+    const title = textField({
+      label: 'Название',
+      value: template.title,
+      maxLength: TITLE_MAX_LENGTH,
+      onInput: value => {
+        template.title = value.trim();
+        titleHint.hidden = Boolean(template.title);
+        renderHeader();
+      },
+    });
+    title.append(titleHint);
+    const description = textField({
+      label: 'Описание',
+      value: template.description,
+      maxLength: DESCRIPTION_MAX_LENGTH,
+      multiline: true,
+      onInput: value => {
+        template.description = value.trim();
+        renderSaveState();
+      },
+    });
+    return [header, el('p', 'template-panel__hint', 'Видны в списке шаблонов и в «Новом уроке».'), title, description];
+  }
+
+  function blockPanel({ block, row }) {
     const header = el('header', 'template-panel__header');
     header.append(kindBadge(block.kind));
     header.append(el('h2', '', blockName(block)));
@@ -380,21 +463,37 @@
     } else {
       sections.push(...controlledBlockSections(block));
     }
-    panel.replaceChildren(header, ...sections);
+    return [header, ...sections];
+  }
+
+  function renderPanel() {
+    const entry = state.blocks.get(selectedBlockId());
+    if (state.selection?.kind === 'template') {
+      panel.replaceChildren(...templatePanel());
+    } else if (entry) {
+      panel.replaceChildren(...blockPanel(entry));
+    } else {
+      panel.replaceChildren(el('p', 'template-panel__empty', 'Выберите блок, чтобы увидеть его настройки и связи.'));
+    }
     placePanel();
   }
 
-  // On narrow screens the panel opens right under the selected block.
+  // On narrow screens the panel opens right under the selected block, or above the stage
+  // for the template's own settings.
   function placePanel() {
-    const frame = state.selectedId
-      && byId('template-blocks').querySelector('.template-block--selected');
-    if (NARROW_LAYOUT.matches) {
-      panel.hidden = !frame;
-      if (frame) frame.after(panel);
-    } else {
+    if (!NARROW_LAYOUT.matches) {
       panel.hidden = false;
       if (panel.parentElement !== layout) layout.append(panel);
+      return;
     }
+    if (state.selection?.kind === 'template') {
+      panel.hidden = false;
+      byId('template-canvas').prepend(panel);
+      return;
+    }
+    const frame = selectedBlockId() && byId('template-blocks').querySelector('.template-block--selected');
+    panel.hidden = !frame;
+    if (frame) frame.after(panel);
   }
 
   function renderOutline() {
@@ -447,12 +546,124 @@
 
   function renderHeader() {
     const { template } = state;
-    document.title = `${template.title} — шаблон урока — EasyClass`;
-    byId('template-title').textContent = template.title;
-    byId('template-subtitle').textContent = template.system
-      ? 'Системный шаблон · только чтение'
-      : 'Копия · пока только просмотр';
+    const title = template.title || 'Без названия';
+    document.title = `${title} — шаблон урока — EasyClass`;
+    byId('template-title').textContent = title;
     byId('template-copy').hidden = !template.system;
+    byId('template-save').hidden = template.system;
+    renderSaveState();
+  }
+
+  const canSave = () => isDirty() && !state.saving && !state.conflict
+    && state.preview.errors.length === 0 && Boolean(state.template.title);
+
+  function renderSaveState() {
+    if (!editable()) {
+      byId('template-subtitle').textContent = 'Системный шаблон · только чтение';
+      return;
+    }
+    const dirty = isDirty();
+    let subtitle = 'Копия · все изменения сохранены';
+    if (state.saving) subtitle = 'Копия · сохраняем…';
+    else if (dirty) subtitle = 'Копия · есть несохранённые изменения';
+    byId('template-subtitle').textContent = subtitle;
+    byId('template-discard').hidden = !dirty;
+    const save = byId('template-save');
+    save.disabled = !canSave();
+    save.textContent = state.saving ? 'Сохраняем…' : 'Сохранить';
+    if (dirty && state.preview.errors.length > 0) save.title = 'Сначала исправьте проблемы';
+    else if (dirty && !state.template.title) save.title = 'Укажите название шаблона';
+    else save.title = '';
+  }
+
+  // Everything that depends on the definition, drawn again after it changed.
+  function redraw() {
+    const { definition } = state.template;
+    state.blocks = indexBlocks(definition);
+    if (state.selection?.kind === 'block' && !state.blocks.has(state.selection.id)) state.selection = null;
+    state.stageIndex = Math.min(state.stageIndex, definition.stages.length - 1);
+    renderHeader();
+    renderOutline();
+    renderStage();
+    renderPanel();
+  }
+
+  // Every edit of the template goes through here: the page redraws from the working copy
+  // at once, and the preview with its problems catches up a moment later.
+  function change(mutate) {
+    mutate(state.template);
+    redraw();
+    schedulePreview();
+  }
+
+  // Only the latest preview counts: an answer to an older definition is dropped.
+  function schedulePreview() {
+    const number = ++previewNumber;
+    window.clearTimeout(previewTimer);
+    previewTimer = window.setTimeout(() => refreshPreview(number), PREVIEW_DELAY);
+  }
+
+  async function refreshPreview(number) {
+    const { definition, systemTemplateId } = state.template;
+    try {
+      const preview = await request('POST', '/api/lesson-templates/preview', { definition, systemTemplateId });
+      if (number !== previewNumber) return;
+      state.preview = preview;
+      renderProblems();
+      renderStage();
+      // The template's fields stay as they are: redrawing them would take the focus away.
+      if (state.selection?.kind !== 'template') renderPanel();
+      renderSaveState();
+    } catch (error) {
+      if (number === previewNumber) showToast(error.message);
+    }
+  }
+
+  async function save() {
+    if (!canSave()) return;
+    const { template } = state;
+    const sent = snapshot(template);
+    state.saving = true;
+    renderSaveState();
+    try {
+      const { template: saved } = await request('PATCH', `/api/lesson-templates/${encodeURIComponent(template.id)}`, {
+        revision: template.revision,
+        title: template.title,
+        description: template.description,
+        definition: template.definition,
+      });
+      template.revision = saved.revision;
+      state.savedSnapshot = sent;
+      showToast('Шаблон сохранён');
+    } catch (error) {
+      if (error.status === 409) {
+        state.conflict = true;
+        byId('template-conflict').hidden = false;
+        byId('template-conflict').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (error.errors) {
+        state.preview = { errors: error.errors, lesson: null, blocks: null };
+        renderProblems();
+        renderStage();
+      } else {
+        showToast(error.message);
+      }
+    } finally {
+      state.saving = false;
+      renderSaveState();
+    }
+  }
+
+  function discardChanges() {
+    if (!window.confirm('Отменить все несохранённые изменения?')) return;
+    const [title, description, definition] = JSON.parse(state.savedSnapshot);
+    change(template => Object.assign(template, { title, description, definition }));
+  }
+
+  // Someone saved the copy first: their version is loaded, ours is dropped.
+  function loadFreshVersion() {
+    if (isDirty() && !window.confirm('Ваши несохранённые изменения пропадут. Загрузить свежую версию?')) return;
+    state.leaving = true;
+    window.location.reload();
   }
 
   async function copyTemplate() {
@@ -477,6 +688,7 @@
         request('GET', '/api/template-controls'),
       ]);
       state.template = template;
+      state.savedSnapshot = snapshot(template);
       state.controls = new Map(controls.controls.map(control => [control.type, control]));
       state.variableTypes = controls.variableTypes;
       state.blocks = indexBlocks(template.definition);
@@ -491,9 +703,9 @@
       return;
     }
 
-    renderHeader();
     renderOutline();
     renderProblems();
+    renderHeader();
     const hashStage = decodeURIComponent(window.location.hash.slice(1));
     state.stageIndex = Math.max(0, state.template.definition.stages.findIndex(stage => stage.id === hashStage));
     byId('template-loading').hidden = true;
@@ -503,6 +715,28 @@
   }
 
   byId('template-copy').addEventListener('click', copyTemplate);
+  byId('template-title').addEventListener('click', selectTemplate);
+  byId('template-save').addEventListener('click', save);
+  byId('template-discard').addEventListener('click', discardChanges);
+  byId('template-reload').addEventListener('click', loadFreshVersion);
+  document.addEventListener('keydown', event => {
+    if (!(event.metaKey || event.ctrlKey) || event.code !== 'KeyS' || !state.template || !editable()) return;
+    event.preventDefault();
+    save();
+  });
+  window.addEventListener('beforeunload', event => {
+    if (!state.template || !isDirty() || state.leaving) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+  // Links away from the editor ask in the page's own words instead of the browser's.
+  for (const link of document.querySelectorAll('.lesson-header a')) {
+    link.addEventListener('click', event => {
+      if (!state.template || !isDirty()) return;
+      if (window.confirm('Есть несохранённые изменения. Уйти без сохранения?')) state.leaving = true;
+      else event.preventDefault();
+    });
+  }
   byId('template-status').addEventListener('click', () => byId('template-problems').scrollIntoView({ behavior: 'smooth' }));
   NARROW_LAYOUT.addEventListener('change', placePanel);
   load();

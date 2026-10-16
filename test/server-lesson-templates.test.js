@@ -138,9 +138,16 @@ test('admins copy, rename and delete templates and create drafts from copies', a
   assert.equal(broken.status, 400);
   assert.deepEqual((await broken.json()).errors.map(error => error.param), ['maxWords']);
   stories.params.maxWords = 60;
+  // Stage order is the editor's to choose: generation follows the links, not the list.
+  const [warmUp, leadIn] = opened.definition.stages;
+  opened.definition.stages.splice(0, 2, leadIn, warmUp);
   const saved = await call('PATCH', `/api/lesson-templates/${copy.id}`, { body: { revision: 1, definition: opened.definition } });
   assert.equal(saved.status, 200);
   assert.equal((await saved.json()).template.revision, 2);
+  const { template: reopened } = await (await call('GET', `/api/lesson-templates/${copy.id}`)).json();
+  assert.deepEqual(reopened.definition.stages, opened.definition.stages);
+  opened.definition.stages.splice(0, 2, warmUp, leadIn);
+  assert.equal((await call('PATCH', `/api/lesson-templates/${copy.id}`, { body: { revision: 2, definition: opened.definition } })).status, 200);
 
   const createDraft = template => call('POST', '/api/lesson-drafts', {
     body: { topic: 'Travel', grammarTopic: 'Past Simple', template, ageGroup: '9-11', level: 'A1',

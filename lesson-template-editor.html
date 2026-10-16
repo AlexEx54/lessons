@@ -52,11 +52,13 @@
         <span>Easy<span>Class</span></span>
       </a>
       <div class="lesson-identity">
-        <strong id="template-title">Загрузка шаблона…</strong>
+        <button class="template-title" id="template-title" type="button">Загрузка шаблона…</button>
         <small id="template-subtitle">Шаблон урока</small>
       </div>
       <div class="lesson-header__actions">
         <button class="template-status" id="template-status" type="button" hidden></button>
+        <button class="template-discard" id="template-discard" type="button" hidden>Отменить изменения</button>
+        <button class="template-save" id="template-save" type="button" hidden disabled>Сохранить</button>
         <button class="template-copy" id="template-copy" type="button" hidden>Сделать копию</button>
         <a class="end-lesson template-back" href="/lesson-templates">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
@@ -78,7 +80,11 @@
       </aside>
 
       <main class="lesson-content template-canvas">
-        <div class="lesson-content__inner">
+        <div class="lesson-content__inner" id="template-canvas">
+          <section class="template-conflict" id="template-conflict" hidden role="alert">
+            <p><strong>Шаблон уже изменили</strong> в другой вкладке или другой администратор. Ваши изменения не сохранены.</p>
+            <button class="template-link" id="template-reload" type="button">Загрузить свежую версию</button>
+          </section>
           <section class="template-problems" id="template-problems" hidden aria-labelledby="template-problems-title">
             <h2 id="template-problems-title">Что нужно исправить</h2>
             <ul id="template-problems-list"></ul>

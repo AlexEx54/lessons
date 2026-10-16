@@ -8,6 +8,8 @@
 }
 
 .template-status,
+.template-discard,
+.template-save,
 .template-copy {
   display: flex;
   align-items: center;
@@ -25,9 +27,29 @@
 .template-status::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
 .template-status--problems { color: #b91c1c; background: #fef2f2; border-color: #f3b4b4; }
 .template-status--problems::before { background: #ef4444; }
+.template-discard { color: #555b72; background: #fff; }
+.template-discard:hover { border-color: #c9c9d8; }
+.template-save,
 .template-copy { color: #fff; background: var(--purple); border-color: var(--purple); }
+.template-save:hover:not(:disabled),
 .template-copy:hover { background: #5232e0; }
+.template-save:disabled { opacity: .45; cursor: default; }
 .template-copy:disabled { opacity: .6; cursor: wait; }
+
+.template-title {
+  display: block;
+  max-width: 100%;
+  margin-bottom: 7px;
+  padding: 0;
+  overflow: hidden;
+  background: none;
+  font-size: 17px;
+  font-weight: 700;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.template-title:hover { color: var(--purple); }
 .template-back { color: var(--purple); }
 
 .template-editor__layout {
@@ -74,6 +96,24 @@
 .template-stages { display: grid; gap: 5px; }
 
 .template-canvas { padding: 32px clamp(20px, 3vw, 44px) 80px; }
+
+.template-conflict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 26px;
+  padding: 14px 18px;
+  gap: 8px 16px;
+  border: 1px solid #fbd38d;
+  border-radius: 12px;
+  color: #92400e;
+  background: #fffbeb;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.template-conflict p { margin: 0; }
+.template-conflict .template-link { font-size: 13px; }
 
 .template-problems {
   margin-bottom: 26px;
@@ -176,6 +216,23 @@
   white-space: pre-wrap;
 }
 
+.template-field { display: grid; margin-top: 18px; gap: 6px; font-size: 12px; }
+.template-field__label { color: #5d6278; font-weight: 650; }
+.template-field__input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.template-field__input:focus { border-color: #b9a9ff; outline: 3px solid rgba(101, 69, 245, .14); }
+textarea.template-field__input { resize: vertical; }
+.template-field__error { color: #b91c1c; }
+
 .template-rules { margin-top: 16px; font-size: 12px; }
 .template-rules summary { color: #5d6278; font-weight: 650; cursor: pointer; }
 .template-rules ul { margin: 10px 0 0; padding-left: 18px; color: #5d6278; line-height: 1.5; }
@@ -199,7 +256,8 @@
 }
 
 @media (max-width: 700px) {
-  .template-status, .template-copy { flex: 1; justify-content: center; min-height: 48px; padding: 8px 10px; white-space: nowrap; }
+  .template-editor .lesson-header__actions { flex-wrap: wrap; }
+  .template-status, .template-discard, .template-save, .template-copy { flex: 1; justify-content: center; min-height: 48px; padding: 8px 10px; white-space: nowrap; }
   .template-editor__layout { grid-template-columns: minmax(0, 1fr); }
   .template-outline { position: static; height: auto; padding: 16px; border-right: 0; border-bottom: 1px solid var(--line); }
   .template-outline__section + .template-outline__section { margin-top: 16px; }
