@@ -145,7 +145,10 @@
     socket = new WebSocket(window.ClassConnectionDiagnostics?.url(socketPath)
       || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}${socketPath}`);
     window.ClassConnectionDiagnostics?.attach(socket, 'sessions');
+    const current = socket;
+    window.ClassSocketLiveness?.watch(current, () => { if (socket === current) disconnected({ code: 4000 }); });
     socket.addEventListener('message', event => {
+      if (socket !== current) return;
       const message = JSON.parse(event.data);
       if (['media-command', 'media-align', 'media-status'].includes(message.type)) {
         if (message.stageId === confirmed?.activeStageId) view.mounted.get(message.componentId)?.receiveMedia?.(message);
@@ -175,36 +178,50 @@
       if (message.type === 'action' && message.resetStageId && role === 'teacher') notify('Прогресс на этой странице сброшен.');
       flush();
     });
-    socket.addEventListener('close', event => {
-      connected = false;
-      peerPresent = false;
-      pointer?.disconnect();
-      if (pending.length) notify('Связь прервалась. Неподтверждённый выбор нужно повторить после подключения.');
-      pending = [];
-      inFlight = false;
-      paint();
-      if (stopped) return;
-      // The student slot is held by another device; it may free up, so keep polling instead of giving up.
-      if (event.code === 4003) {
-        slotTaken = true;
-        setStatus('Место ученика занято', 'lost');
-        showNotice(slotTakenNotice, 'waiting');
-        reconnectTimer = window.setTimeout(connect, 5000);
-        return;
-      }
-      if ([4001, 4004, 4008].includes(event.code)) {
-        stopped = true;
-        setStatus(event.reason || 'Подключение закрыто', 'closed');
-        showNotice(event.reason || 'Подключение закрыто. Откройте ссылку заново.', 'closed');
-        return;
-      }
-      slotTaken = false;
-      setStatus('Связь потеряна. Подключаемся…', 'lost');
-      showNotice('Связь потеряна. Подключаемся…', 'lost');
-      reconnectTimer = window.setTimeout(connect, reconnectDelay);
-      reconnectDelay = Math.min(reconnectDelay * 2, 10000);
-    });
+    // A replaced or abandoned socket may close long after its successor opened.
+    socket.addEventListener('close', event => { if (socket === current) disconnected(event); });
   }
+  function scheduleReconnect(delay) {
+    reconnectTimer = window.setTimeout(() => { reconnectTimer = null; connect(); }, delay);
+  }
+  function disconnected(event) {
+    socket = null;
+    connected = false;
+    peerPresent = false;
+    pointer?.disconnect();
+    if (pending.length) notify('Связь прервалась. Неподтверждённый выбор нужно повторить после подключения.');
+    pending = [];
+    inFlight = false;
+    paint();
+    if (stopped) return;
+    // The student slot is held by another device; it may free up, so keep polling instead of giving up.
+    if (event.code === 4003) {
+      slotTaken = true;
+      setStatus('Место ученика занято', 'lost');
+      showNotice(slotTakenNotice, 'waiting');
+      scheduleReconnect(5000);
+      return;
+    }
+    if ([4001, 4004, 4008].includes(event.code)) {
+      stopped = true;
+      setStatus(event.reason || 'Подключение закрыто', 'closed');
+      showNotice(event.reason || 'Подключение закрыто. Откройте ссылку заново.', 'closed');
+      return;
+    }
+    slotTaken = false;
+    setStatus('Связь потеряна. Подключаемся…', 'lost');
+    showNotice('Связь потеряна. Подключаемся…', 'lost');
+    scheduleReconnect(reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+  }
+  // The network or the tab is back: skip the remaining backoff instead of waiting up to 10 s.
+  window.ClassSocketLiveness?.onWake(() => {
+    if (!reconnectTimer || slotTaken || stopped) return;
+    window.clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    reconnectDelay = 500;
+    connect();
+  });
   async function load() {
     try {
       const response = await fetch(`/api/sessions/${sessionId}/live?role=${role}`, { cache: 'no-store' });

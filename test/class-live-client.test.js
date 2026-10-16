@@ -6,7 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { createDocument } = require('./helpers/lesson-dom.js');
 const source = fs.readFileSync(path.join(__dirname, '../assets/class-live.js'), 'utf8');
-async function fixture(role = 'student', quiz = null) {
+async function fixture(role = 'student', quiz = null, globals = {}) {
   const document = createDocument(), sockets = [], timers = new Map(), intervals = new Map(), frames = [];
   const id = '11111111-1111-4111-8111-111111111111';
   let settings, interactive;
@@ -47,6 +47,7 @@ async function fixture(role = 'student', quiz = null) {
     MultipleChoiceComponent: { renderMultipleChoice() { return mounted.get('choice'); } },
     ThisOrThatComponent: { renderThisOrThat() { return mounted.get('choice'); } },
     MarkdownCardComponent: { renderMarkdownCard() { return { updateStudentVisibility() {}, setVisibilityInteractive() {} }; } },
+    ...globals,
   };
   const initial = { activeStageId: quiz ? 'reading' : 'warm-up', version: 0, selections: {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/lesson-view.js'), 'utf8'), { window, document });
@@ -112,6 +113,34 @@ test('disconnect drops unconfirmed clicks, restores server state and replacement
   for (const timer of [...f.timers.values()]) timer();
   assert.equal(f.sockets.length, 2);
   assert.equal(f.isInteractive(), false);
+});
+test('a silent socket is replaced at once and its late close does not disturb the successor', async () => {
+  const watched = new Map(), wake = [];
+  const liveness = { watch(socket, onStale) { watched.set(socket, onStale); }, onWake(listener) { wake.push(listener); } };
+  const f = await fixture('student', null, { ClassSocketLiveness: liveness });
+  const notice = f.document.getElementById('lesson-connection');
+  const stale = f.sockets[0];
+  stale.receive({ type: 'snapshot', state: f.initial });
+  assert.equal(f.isInteractive(), true);
+  watched.get(stale)();
+  assert.equal(f.isInteractive(), false);
+  assert.match(notice.textContent, /Связь потеряна/);
+  for (const timer of [...f.timers.values()]) timer();
+  assert.equal(f.sockets.length, 2);
+  const successor = f.sockets[1];
+  successor.receive({ type: 'snapshot', state: { ...f.initial, version: 2 } });
+  successor.receive({ type: 'presence', peerPresent: true });
+  f.timers.clear();
+  stale.listeners.message({ data: JSON.stringify({ type: 'presence', peerPresent: false }) });
+  stale.close(1006);
+  assert.equal(f.isInteractive(), true, 'the abandoned socket must not close the live one');
+  assert.equal(f.timers.size, 0);
+  assert.equal(f.status.dataset.state, 'connected');
+  successor.close(1006);
+  assert.equal(f.timers.size, 1);
+  wake.forEach(listener => listener());
+  assert.equal(f.sockets.length, 3, 'returning network skips the remaining backoff');
+  assert.equal(f.timers.size, 0);
 });
 test('student whose slot is taken keeps retrying and explains why the board is inactive', async () => {
   const f = await fixture(), notice = f.document.getElementById('lesson-connection');
