@@ -202,7 +202,10 @@ function mount(options) {
     function connect() {
       if (stopped) return;
       if (!slotTaken) status('Подключаемся…', 'saving');
-      socket = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws/notes/${options.id}?role=${options.role}`);
+      const socketPath = `/ws/notes/${options.id}?role=${options.role}`;
+      socket = new WebSocket(window.ClassConnectionDiagnostics?.url(socketPath)
+        || `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}${socketPath}`);
+      window.ClassConnectionDiagnostics?.attach(socket, 'notes');
       const current = socket;
       let messages = Promise.resolve();
       socket.addEventListener('message', event => {

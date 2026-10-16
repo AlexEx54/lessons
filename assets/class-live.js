@@ -141,7 +141,10 @@
   function connect() {
     if (stopped) return;
     if (!slotTaken) setStatus('Подключаемся…', 'connecting');
-    socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/sessions/${sessionId}?role=${role}`);
+    const socketPath = `/ws/sessions/${sessionId}?role=${role}`;
+    socket = new WebSocket(window.ClassConnectionDiagnostics?.url(socketPath)
+      || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}${socketPath}`);
+    window.ClassConnectionDiagnostics?.attach(socket, 'sessions');
     socket.addEventListener('message', event => {
       const message = JSON.parse(event.data);
       if (['media-command', 'media-align', 'media-status'].includes(message.type)) {
