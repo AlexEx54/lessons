@@ -100,5 +100,5 @@ test('teacher note sections are checked as a parameter', () => {
   const definition = singleBlockTemplate(CONTROL_CATALOG.get('teacherNoteSections'), {
     sections: [{ key: 'tips', title: 'Tips' }, { key: 'tips', title: 'Again' }],
   });
-  assert.throws(() => compileTemplate(definition, CONTROL_CATALOG), /sections: раздел tips повторяется/);
+  assert.throws(() => compileTemplate(definition, CONTROL_CATALOG), /«Разделы»: раздел tips повторяется/);
 });

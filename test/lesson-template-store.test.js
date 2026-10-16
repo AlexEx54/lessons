@@ -42,6 +42,7 @@ test('templates list the system ones first, then copies from the newest', t => {
     description: TEMPLATE_TWO_DEFINITION.description,
     system: false,
     sourceTemplateId: first.id,
+    systemTemplateId: 'template-2',
     createdBy: { id: admin.id, name: 'Admin' },
     revision: 0,
     createdAt: second.createdAt,
@@ -79,6 +80,35 @@ test('renaming a copy checks the revision and updates the definition too', t => 
   assert.throws(() => updateLessonTemplate({ id: 'template-2', revision: 0, title: 'Мой' }, database), statusOf(403));
   assert.throws(() => updateLessonTemplate({ id: 'missing', revision: 0, title: 'Мой' }, database), statusOf(404));
   assert.equal(findLessonTemplate(copy.id, database).title, 'Путешествия');
+});
+
+test('saving a definition validates it and keeps the id and title of the copy', t => {
+  const { database, admin } = setup(t);
+  const copy = copyLessonTemplate({ id: 'template-2', title: 'Путешествия', createdBy: admin.id }, database);
+  const { definition } = findLessonTemplate(copy.id, database);
+  const stories = definition.stages.flatMap(stage => stage.blocks).find(block => block.control === 'storyCards');
+
+  stories.params = { ...stories.params, stories: 3 };
+  const saved = updateLessonTemplate({ id: copy.id, revision: 0, definition: { ...definition, id: 'other', title: 'Чужой' } }, database);
+  assert.equal(saved.revision, 1);
+  assert.equal(saved.title, 'Путешествия');
+  const stored = findLessonTemplate(copy.id, database).definition;
+  assert.equal(stored.id, copy.id);
+  assert.equal(stored.title, 'Путешествия');
+  assert.equal(stored.stages.flatMap(stage => stage.blocks).find(block => block.id === stories.id).params.stories, 3);
+
+  stories.params = { ...stories.params, minWords: 90, maxWords: 50 };
+  assert.throws(() => updateLessonTemplate({ id: copy.id, revision: 1, definition }, database), error => {
+    assert.equal(error.statusCode, 400);
+    assert.deepEqual(error.errors, [{
+      stage: 'target-vocabulary',
+      block: stories.id,
+      param: 'minWords',
+      message: `Блок ${stories.id}: «Слов в истории: от» больше, чем «Слов в истории: до».`,
+    }]);
+    return true;
+  });
+  assert.equal(findLessonTemplate(copy.id, database).revision, 1);
 });
 
 test('a deleted copy leaves its drafts working from their snapshots', t => {

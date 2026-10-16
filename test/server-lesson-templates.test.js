@@ -104,6 +104,31 @@ test('admins copy, rename and delete templates and create drafts from copies', a
   assert.equal((await call('PATCH', `/api/lesson-templates/${copy.id}`, { body: { revision: 0, title: 'Мой' } })).status, 409);
   assert.equal((await call('PATCH', '/api/lesson-templates/template-2', { body: { revision: 0, title: 'Мой' } })).status, 403);
 
+  // The editor reads the copy, previews an unsaved change and saves it.
+  assert.equal((await call('GET', '/api/template-controls', { auth: teacherCookie })).status, 403);
+  const { controls } = await (await call('GET', '/api/template-controls')).json();
+  assert.ok(controls.some(control => control.type === 'storyCards'));
+  assert.equal((await call('GET', '/api/lesson-templates/missing')).status, 404);
+  const { template: opened } = await (await call('GET', `/api/lesson-templates/${copy.id}`)).json();
+  assert.equal(opened.systemTemplateId, 'template-2');
+  const stories = opened.definition.stages.flatMap(stage => stage.blocks).find(block => block.control === 'storyCards');
+  stories.params = { ...stories.params, stories: 3 };
+  assert.equal((await call('POST', '/api/lesson-templates/preview', { auth: teacherCookie, body: {} })).status, 403);
+  const preview = await (await call('POST', '/api/lesson-templates/preview', {
+    body: { definition: opened.definition, systemTemplateId: opened.systemTemplateId },
+  })).json();
+  assert.deepEqual(preview.errors, []);
+  assert.match(preview.blocks[stories.id].rules[0], /exactly three short first-person stories/);
+
+  stories.params.maxWords = 10;
+  const broken = await call('PATCH', `/api/lesson-templates/${copy.id}`, { body: { revision: 1, definition: opened.definition } });
+  assert.equal(broken.status, 400);
+  assert.deepEqual((await broken.json()).errors.map(error => error.param), ['maxWords']);
+  stories.params.maxWords = 60;
+  const saved = await call('PATCH', `/api/lesson-templates/${copy.id}`, { body: { revision: 1, definition: opened.definition } });
+  assert.equal(saved.status, 200);
+  assert.equal((await saved.json()).template.revision, 2);
+
   const createDraft = template => call('POST', '/api/lesson-drafts', {
     body: { topic: 'Travel', grammarTopic: 'Past Simple', template, ageGroup: '9-11', level: 'A1',
       model: 'google/gemini-3.7-flash', synthetic: true },

@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createControlCatalog } = require('../lib/lesson-templates/control-catalog.js');
+const { flag, integer } = require('../lib/template-controls/helpers.js');
 const { compileTemplate } = require('../lib/lesson-templates/template-engine.js');
 const { TemplateValidationError, validateTemplate } = require('../lib/lesson-templates/validate-template.js');
 
@@ -13,7 +14,7 @@ const CONTROLS = [
   {
     type: 'guessGame',
     fields: ['checks', 'guesses'],
-    params: { checks: { min: 1, max: 4, default: 2 }, guesses: { min: 1, max: 3, default: 1 } },
+    params: { checks: integer('Проверок', 1, 4, 2), guesses: integer('Догадок', 1, 3, 1) },
     chrome: ['title'],
     outputs: { guesses: { type: 'statements', field: 'guesses' } },
     schema: ({ params }) => ({ checks: stringArray(params.checks), guesses: stringArray(params.guesses) }),
@@ -32,7 +33,7 @@ const CONTROLS = [
   {
     type: 'wordList',
     fields: ['words'],
-    params: { count: { min: 2, max: 10, default: 3 }, distractors: { default: false } },
+    params: { count: integer('Слов', 2, 10, 3), distractors: flag('Отвлекающие варианты', false) },
     outputs: { vocabulary: { type: 'vocabulary', field: 'words', features: params => (params.distractors ? ['distractor'] : []) } },
     schema: ({ params }) => ({ words: { type: 'array', minItems: params.count, maxItems: params.count, items: { type: 'object' } } }),
     rules: ({ params, f }) => [`${f.words}: exactly ${params.count} items.`],
@@ -48,7 +49,7 @@ const CONTROLS = [
   {
     type: 'stories',
     fields: ['stories'],
-    params: { count: { min: 1, max: 6, default: 2 } },
+    params: { count: integer('Историй', 1, 6, 2) },
     inputs: {
       highlight: {
         type: 'vocabulary',
@@ -104,7 +105,7 @@ const CONTROLS = [
   {
     type: 'bullets',
     fields: ['items'],
-    params: { count: { min: 1, max: 5, default: 2 } },
+    params: { count: integer('Строк', 1, 5, 2) },
     schema: ({ params }) => ({ items: stringArray(params.count) }),
     rules: ({ params, f }) => [`${f.items}: exactly ${params.count} items.`, 'Write list items without Markdown.'],
     build: (data, { id }) => ({ type: 'markdownCard', id, text: data.items.join('\n') }),
@@ -384,7 +385,7 @@ test('validation reports block-level mistakes', () => {
     guess.blocks.push({ id: 'guess-mystery', kind: 'generated', control: 'mystery' });
     guess.blocks.push({ id: 'guess-game', kind: 'static', component: { type: 'teacherNote' } });
   }).join('\n');
-  assert.match(messages, /checks не может быть больше 4/);
+  assert.match(messages, /Блок guess-game, «Проверок»: не больше 4/);
   assert.match(messages, /нет параметра colour/);
   assert.match(messages, /не поддерживает оформление accentColor/);
   assert.match(messages, /слот \{\{unknown\}\} не описан/);
@@ -413,4 +414,38 @@ test('the catalog rejects incomplete controls', () => {
     () => createControlCatalog([{ ...CONTROLS[1], exports: undefined }]),
     /контрол с выходами должен реализовать exports/,
   );
+  const withParams = params => () => createControlCatalog([{ ...CONTROLS[1], params }]);
+  assert.throws(withParams({ count: { min: 2, max: 10, default: 3 } }), /у параметра count неизвестный тип/);
+  assert.throws(withParams({ count: integer('', 2, 10, 3) }), /у параметра count нет подписи/);
+  assert.throws(withParams({ count: integer('Слов', 2, 10, 12) }), /должен лежать между min и max/);
+  assert.throws(
+    withParams({ count: integer('Слов', 2, 10, 3, { atMost: 'distractors' }), distractors: flag('Ещё', false) }),
+    /должен связывать два целых/,
+  );
+  assert.throws(() => createControlCatalog([{ ...CONTROLS[0], chrome: ['sparkle'] }]), /неизвестный ключ оформления sparkle/);
+});
+
+test('a parameter may not exceed the one its atMost names', () => {
+  const params = {
+    ...CONTROLS[1].params,
+    minWords: integer('Слов: от', 1, 10, 2, { atMost: 'maxWords' }),
+    maxWords: integer('Слов: до', 1, 10, 4),
+  };
+  const catalog = createControlCatalog([{ ...CONTROLS[1], params }]);
+  const template = {
+    schemaVersion: 'lesson-template-v1',
+    id: 'order',
+    title: 'Order',
+    inputs: { topic: { label: 'Тема' } },
+    stages: [{
+      id: 'words',
+      title: 'Words',
+      blocks: [{ id: 'word-list', kind: 'generated', control: 'wordList', params: { minWords: 5, maxWords: 3 } }],
+    }],
+  };
+  assert.deepEqual(validateTemplate(template, catalog).errors, [{
+    stage: 'words', block: 'word-list', param: 'minWords', message: 'Блок word-list: «Слов: от» больше, чем «Слов: до».',
+  }]);
+  template.stages[0].blocks[0].params.maxWords = 30;
+  assert.deepEqual(validateTemplate(template, catalog).errors.map(error => error.message), ['Блок word-list, «Слов: до»: не больше 10.']);
 });

@@ -114,6 +114,7 @@ const {
   listLessonTemplates,
   updateLessonTemplate,
 } = require('./lib/lesson-template-store.js');
+const { describeControls, previewLessonTemplate } = require('./lib/lesson-template-editor.js');
 const { recoverLessonGeneration } = require('./lib/lesson-generation-recovery.js');
 const { stopInterruptedLessonImageGenerations } = require('./lib/lesson-image-generation-store.js');
 const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
@@ -1828,14 +1829,42 @@ async function handleRequest(req, res) {
     return;
   }
 
+  if (req.method === 'GET' && pathname === '/api/template-controls') {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    json(res, 200, describeControls());
+    return;
+  }
+
+  // The template editor's unsaved definition, built from sample data.
+  if (req.method === 'POST' && pathname === '/api/lesson-templates/preview') {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    try {
+      const { definition, systemTemplateId } = await readJsonBody(req)
+        .catch(error => { throw Object.assign(error, { statusCode: 400 }); });
+      json(res, 200, previewLessonTemplate({ definition, systemTemplateId }));
+    } catch (error) {
+      if (!error.statusCode) console.error('Cannot preview lesson template:', error);
+      json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось собрать пример урока.' });
+    }
+    return;
+  }
+
   const lessonTemplateCopy = pathname.match(/^\/api\/lesson-templates\/([^/]+)\/copy$/);
   const lessonTemplateDetail = pathname.match(/^\/api\/lesson-templates\/([^/]+)$/);
   if ((req.method === 'POST' && lessonTemplateCopy)
-    || (['PATCH', 'DELETE'].includes(req.method) && lessonTemplateDetail)) {
+    || (['GET', 'PATCH', 'DELETE'].includes(req.method) && lessonTemplateDetail)) {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     try {
       const id = decodeURIComponent((lessonTemplateCopy || lessonTemplateDetail)[1]);
+      if (req.method === 'GET') {
+        const template = findLessonTemplate(id, database);
+        if (!template) throw Object.assign(new Error('Шаблон не найден.'), { statusCode: 404 });
+        json(res, 200, { template });
+        return;
+      }
       if (req.method === 'DELETE') {
         deleteLessonTemplate(id, database);
         json(res, 200, { ok: true });
@@ -1845,12 +1874,14 @@ async function handleRequest(req, res) {
       if (req.method === 'POST') {
         json(res, 201, { template: copyLessonTemplate({ id, title: body.title, createdBy: user.id }, database) });
       } else {
-        const { revision, title, description } = body;
-        json(res, 200, { template: updateLessonTemplate({ id, revision, title, description }, database) });
+        const { revision, title, description, definition } = body;
+        json(res, 200, { template: updateLessonTemplate({ id, revision, title, description, definition }, database) });
       }
     } catch (error) {
       if (!error.statusCode) console.error('Cannot change lesson template:', error);
-      json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось изменить шаблон.' });
+      json(res, error.statusCode || 500, error.statusCode
+        ? { error: error.message, ...(error.errors ? { errors: error.errors } : {}) }
+        : { error: 'Не удалось изменить шаблон.' });
     }
     return;
   }
