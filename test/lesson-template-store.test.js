@@ -104,6 +104,7 @@ test('saving a definition validates it and keeps the id and title of the copy', 
       stage: 'target-vocabulary',
       block: stories.id,
       param: 'minWords',
+      detail: 'больше, чем «Слов в истории: до»',
       message: `Блок ${stories.id}: «Слов в истории: от» больше, чем «Слов в истории: до».`,
     }]);
     return true;

@@ -234,6 +234,11 @@
 .template-field__input:focus { border-color: #b9a9ff; outline: 3px solid rgba(101, 69, 245, .14); }
 textarea.template-field__input { resize: vertical; }
 .template-field__error { color: #b91c1c; }
+.template-field__input[aria-invalid="true"] { border-color: #f0a3a3; }
+.template-field--flag { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; }
+.template-field--flag input { width: 16px; height: 16px; margin: 0; accent-color: var(--purple); }
+.template-field--flag .template-field__error { grid-column: 1 / -1; }
+.template-panel__section > .template-field:first-of-type { margin-top: 10px; }
 .template-field__input--short { width: 120px; }
 .template-panel__row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
 .template-panel__row .template-panel__hint { margin: 0 0 8px; }

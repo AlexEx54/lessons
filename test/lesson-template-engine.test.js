@@ -444,8 +444,14 @@ test('a parameter may not exceed the one its atMost names', () => {
     }],
   };
   assert.deepEqual(validateTemplate(template, catalog).errors, [{
-    stage: 'words', block: 'word-list', param: 'minWords', message: 'Блок word-list: «Слов: от» больше, чем «Слов: до».',
+    stage: 'words',
+    block: 'word-list',
+    param: 'minWords',
+    detail: 'больше, чем «Слов: до»',
+    message: 'Блок word-list: «Слов: от» больше, чем «Слов: до».',
   }]);
   template.stages[0].blocks[0].params.maxWords = 30;
-  assert.deepEqual(validateTemplate(template, catalog).errors.map(error => error.message), ['Блок word-list, «Слов: до»: не больше 10.']);
+  assert.deepEqual(validateTemplate(template, catalog).errors.map(({ message, detail }) => [message, detail]), [
+    ['Блок word-list, «Слов: до»: не больше 10.', 'не больше 10'],
+  ]);
 });

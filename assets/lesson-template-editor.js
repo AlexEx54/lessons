@@ -31,7 +31,8 @@
   // `template` is the working copy: edits change it in place. `savedSnapshot` is what the
   // server holds, to tell unsaved changes. `selection` is the block, the stage or the
   // template whose settings the panel shows; without it a wide panel shows the stage.
-  // `stageFacts` outlive a preview with problems: stage settings do not change them.
+  // `stageFacts` and `blockFacts` come from the last preview without problems and outlive
+  // a preview with problems: the panel keeps showing default instructions and rules.
   const state = {
     template: null,
     savedSnapshot: '',
@@ -40,6 +41,7 @@
     stageIcons: { icons: {}, aliases: {} },
     preview: null,
     stageFacts: {},
+    blockFacts: {},
     blocks: new Map(),
     stageIndex: 0,
     selection: null,
@@ -497,6 +499,67 @@
     }
   }
 
+  const paramOf = (block, key, spec) => (Object.hasOwn(block.params || {}, key) ? block.params[key] : spec.default);
+
+  // A parameter typed into the panel. The server checks it: its problem shows under the
+  // field once the preview comes (`showParamProblems`).
+  function paramField(block, key, spec) {
+    const value = paramOf(block, key, spec);
+    const set = next => edit(() => { block.params = { ...block.params, [key]: next }; });
+    const problem = fieldError('', true);
+    problem.dataset.param = key;
+    let input;
+    switch (spec.type) {
+      case 'integer':
+        input = textInput({
+          value,
+          type: 'number',
+          // An unfinished number stays as typed: the server lists it among the problems.
+          onInput: text => set(text === '' ? null : Number(text)),
+        });
+        Object.assign(input, { min: spec.min, max: spec.max, step: 1, inputMode: 'numeric' });
+        input.classList.add('template-field__input--short');
+        return fieldGroup('label', `${spec.label} (${spec.min}–${spec.max})`, input, problem);
+      case 'choice':
+        input = el('select', 'template-field__input');
+        input.append(...Object.entries(spec.options).map(([option, label]) => new Option(label, option, false, option === value)));
+        input.addEventListener('change', () => set(input.value));
+        return fieldGroup('label', spec.label, input, problem);
+      case 'flag': {
+        const field = el('label', 'template-field template-field--flag');
+        input = el('input');
+        input.type = 'checkbox';
+        input.checked = value;
+        input.addEventListener('change', () => set(input.checked));
+        field.append(input, el('span', 'template-field__label', spec.label), problem);
+        return field;
+      }
+      case 'text':
+        return fieldGroup('label', spec.label, textInput({ value, onInput: text => set(text.trim()) }), problem);
+      case 'textList':
+        input = textInput({
+          value: value.join('\n'),
+          multiline: true,
+          rows: Math.max(3, value.length + 1),
+          onInput: text => set(text.split('\n').map(line => line.trim()).filter(Boolean)),
+        });
+        return fieldGroup('label', spec.label, el('small', 'template-panel__hint', 'Каждый пункт — с новой строки.'), input, problem);
+      default:
+        return settingRow(spec.label, paramValue(spec, value));
+    }
+  }
+
+  // Problems of the selected block's parameters, each under its field.
+  function showParamProblems() {
+    const id = selectedBlockId();
+    for (const problem of panel.querySelectorAll('[data-param]')) {
+      const error = state.preview.errors.find(item => item.block === id && item.param === problem.dataset.param);
+      problem.textContent = error ? capitalize(error.detail || error.message) : '';
+      problem.hidden = !error;
+      problem.parentElement.querySelector('.template-field__input')?.setAttribute('aria-invalid', String(Boolean(error)));
+    }
+  }
+
   function linkButton(text, id) {
     return button('template-link', text, () => selectBlock(id, { scroll: true }));
   }
@@ -524,25 +587,38 @@
     return rows.length > 0 ? panelSection('Связи', ...rows) : null;
   }
 
-  function instructionsSection(block) {
-    const links = described(block.id);
-    const text = el('p', 'template-instructions', block.instructions || '—');
-    const children = [text];
-    if (!state.template.system) {
-      const same = (block.instructions || '').trim() === (links.defaultInstructions || '').trim();
-      children.unshift(el('small', 'template-panel__hint', same ? 'Как в исходном шаблоне' : 'Изменены относительно исходного шаблона'));
-    }
-    return panelSection('Указания для ИИ', ...children);
+  // A block without instructions of its own uses the control's.
+  const controlInstructions = block => state.controls.get(block.control).defaultInstructions;
+  const blockInstructions = block => block.instructions ?? controlInstructions(block);
+
+  // The control's own instructions are left out of the definition, as system templates do.
+  function setBlockInstructions(block, text) {
+    if (text === controlInstructions(block).trim()) delete block.instructions;
+    else block.instructions = text;
   }
 
-  function rulesSection(block) {
-    const rules = described(block.id).rules;
+  function blockInstructionsSection(block) {
+    if (!editable()) return panelSection('Указания для ИИ', el('p', 'template-instructions', blockInstructions(block) || '—'));
+    return instructionsSection({
+      text: blockInstructions(block),
+      fallback: state.blockFacts[block.id]?.defaultInstructions,
+      apply: text => setBlockInstructions(block, text),
+    });
+  }
+
+  // The rules follow the parameters: `showRules` refills them after each preview.
+  function rulesSection() {
     const details = el('details', 'template-rules');
-    details.append(el('summary', '', `Технические правила (${rules.length})`));
-    const list = el('ul');
-    list.append(...rules.map(rule => el('li', '', rule)));
-    details.append(list);
+    details.append(el('summary'), el('ul'));
     return details;
+  }
+
+  function showRules() {
+    const details = panel.querySelector('.template-rules');
+    if (!details) return;
+    const rules = state.blockFacts[selectedBlockId()]?.rules || [];
+    details.querySelector('summary').textContent = `Технические правила (${rules.length})`;
+    details.querySelector('ul').replaceChildren(...rules.map(rule => el('li', '', rule)));
   }
 
   function controlledBlockSections(block) {
@@ -550,10 +626,9 @@
     const sections = [];
     const params = Object.entries(control.params);
     if (params.length > 0) {
-      sections.push(panelSection('Параметры', ...params.map(([key, spec]) => settingRow(
-        spec.label,
-        paramValue(spec, Object.hasOwn(block.params || {}, key) ? block.params[key] : spec.default),
-      ))));
+      sections.push(panelSection('Параметры', ...params.map(([key, spec]) => (editable()
+        ? paramField(block, key, spec)
+        : settingRow(spec.label, paramValue(spec, paramOf(block, key, spec)))))));
     }
     if (control.chrome.length > 0) {
       sections.push(panelSection('Оформление', ...control.chrome.map(field => settingRow(
@@ -562,7 +637,8 @@
       ))));
     }
     if (described(block.id)) sections.push(linksSection(block, control));
-    if (block.kind === 'generated' && described(block.id)) sections.push(instructionsSection(block), rulesSection(block));
+    if (block.kind === 'generated') sections.push(blockInstructionsSection(block));
+    if (block.kind === 'generated' && state.blockFacts[block.id]) sections.push(rulesSection());
     return sections.filter(Boolean);
   }
 
@@ -802,27 +878,29 @@
     );
   }
 
-  // The stage's own words to the model, with a way back to the system template's.
-  function stageInstructionsSection(stage, fallback) {
+  // Words to the model, of a stage or a block, with a way back to the system template's.
+  // `fallback` is unknown until a preview without problems; `apply(text)` writes the
+  // trimmed text to the working copy.
+  function instructionsSection({ text, fallback, apply }) {
     const status = el('small', 'template-panel__hint');
     const reset = button('template-link', 'Вернуть по умолчанию', () => {
       input.value = fallback;
-      edit(() => setOptional(stage, 'instructions', fallback.trim()));
+      edit(() => apply(fallback.trim()));
       showStatus();
       input.focus();
     });
     const input = textInput({
-      value: stage.instructions || '',
+      value: text,
       multiline: true,
       rows: 8,
       onInput: value => {
-        edit(() => setOptional(stage, 'instructions', value.trim()));
+        edit(() => apply(value.trim()));
         showStatus();
       },
     });
     input.setAttribute('aria-label', 'Указания для ИИ');
     const showStatus = () => {
-      const same = (stage.instructions || '') === fallback.trim();
+      const same = input.value.trim() === fallback.trim();
       status.textContent = same ? 'Как в исходном шаблоне' : 'Изменены относительно исходного шаблона';
       reset.hidden = same;
     };
@@ -901,7 +979,13 @@
     const duration = fieldGroup('label', 'Длительность, мин', durationInput, durationHint);
 
     const sections = [header, title, subtitle, duration, fieldGroup('div', 'Иконка', iconPicker(stage))];
-    if (usesModel) sections.push(stageInstructionsSection(stage, facts?.defaultInstructions), contextSection(stage));
+    if (usesModel) {
+      sections.push(instructionsSection({
+        text: stage.instructions || '',
+        fallback: facts?.defaultInstructions,
+        apply: text => setOptional(stage, 'instructions', text),
+      }), contextSection(stage));
+    }
     sections.push(deleteSection('Удалить этап', { stage: stage.id }));
     return sections;
   }
@@ -1021,7 +1105,14 @@
     if (state.selection?.kind === 'template') panel.replaceChildren(...templatePanel());
     else if (entry) panel.replaceChildren(...blockPanel(entry));
     else panel.replaceChildren(...stagePanel());
+    showPanelFacts();
     placePanel();
+  }
+
+  // What the panel takes from the preview: parameter problems and the block's rules.
+  function showPanelFacts() {
+    showParamProblems();
+    showRules();
   }
 
   // On narrow screens the panel opens right under the selected block, under the stage
@@ -1180,10 +1271,12 @@
       if (number !== previewNumber) return;
       state.preview = preview;
       if (preview.stages) state.stageFacts = preview.stages;
+      if (preview.blocks) state.blockFacts = preview.blocks;
       renderProblems();
       renderStage();
       // A field being typed in stays as it is: redrawing the panel would take the focus away.
-      if (!panel.contains(document.activeElement)) renderPanel();
+      if (panel.contains(document.activeElement)) showPanelFacts();
+      else renderPanel();
       renderSaveState();
     } catch (error) {
       if (number === previewNumber) showToast(error.message);
@@ -1269,6 +1362,7 @@
         systemTemplateId: template.systemTemplateId,
       });
       state.stageFacts = state.preview.stages || {};
+      state.blockFacts = state.preview.blocks || {};
     } catch (error) {
       byId('template-loading').hidden = true;
       byId('template-error').hidden = false;
