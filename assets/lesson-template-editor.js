@@ -26,6 +26,7 @@
   const PREVIEW_DELAY = 300;
   const DRAG_THRESHOLD = 7;
   const SCROLL_EDGE = 70;
+  const HEX_COLOR = /^#[0-9a-f]{6}$/i;
   const Edits = window.LessonTemplateEdits;
 
   // `template` is the working copy: edits change it in place. `savedSnapshot` is what the
@@ -368,10 +369,31 @@
     const lessonStage = state.preview.lesson?.stages.find(item => item.id === stage.id);
     const components = new Map((lessonStage?.content || []).map(component => [component.id, component]));
     renderStageHeading();
-    byId('template-blocks').replaceChildren(...stage.blocks.map(block => blockFrame(block, components.get(block.id))));
-    markSelectedFrame();
-    placePanel();
+    keepingPanelInPlace(() => {
+      byId('template-blocks').replaceChildren(...stage.blocks.map(block => blockFrame(block, components.get(block.id))));
+      markSelectedFrame();
+      placePanel();
+    });
     window.history.replaceState(null, '', `#${encodeURIComponent(stage.id)}`);
+  }
+
+  // On narrow screens the panel sits among the block frames, so redrawing them takes it
+  // out of the page for a moment, and frames above it may change height (examples become
+  // placeholders while problems exist). A field being typed in gets its focus and caret
+  // back, and the panel stays where it was on the screen.
+  function keepingPanelInPlace(update) {
+    const field = panel.contains(document.activeElement) ? document.activeElement : null;
+    if (!field) {
+      update();
+      return;
+    }
+    const caret = typeof field.selectionStart === 'number' ? [field.selectionStart, field.selectionEnd] : null;
+    const top = panel.getBoundingClientRect().top;
+    update();
+    window.scrollBy(0, panel.getBoundingClientRect().top - top);
+    if (!field.isConnected || document.activeElement === field) return;
+    field.focus({ preventScroll: true });
+    if (caret) field.setSelectionRange(...caret);
   }
 
   // The current stage in the list and its heading above the blocks.
@@ -502,7 +524,7 @@
   const paramOf = (block, key, spec) => (Object.hasOwn(block.params || {}, key) ? block.params[key] : spec.default);
 
   // A parameter typed into the panel. The server checks it: its problem shows under the
-  // field once the preview comes (`showParamProblems`).
+  // field once the preview comes (`showFieldProblems`).
   function paramField(block, key, spec) {
     const value = paramOf(block, key, spec);
     const set = next => edit(() => { block.params = { ...block.params, [key]: next }; });
@@ -549,11 +571,91 @@
     }
   }
 
-  // Problems of the selected block's parameters, each under its field.
-  function showParamProblems() {
+  // A chrome key left out of the block takes the control's default, which only the preview
+  // shows: an emptied field or «по умолчанию» removes the key.
+  function setChrome(block, key, value) {
+    const chrome = { ...block.chrome };
+    if (value === undefined) delete chrome[key];
+    else chrome[key] = value;
+    if (Object.keys(chrome).length > 0) block.chrome = chrome;
+    else delete block.chrome;
+  }
+
+  // Choices and flags start with «по умолчанию»: a flag cannot be a checkbox, since its
+  // default is unknown here.
+  function chromeSelect(field, value, set) {
+    const options = field.type === 'flag' ? { true: 'да', false: 'нет' } : field.options;
+    const select = el('select', 'template-field__input');
+    select.append(
+      new Option('по умолчанию', ''),
+      ...Object.entries(options).map(([option, label]) => new Option(label, option, false, String(value) === option)),
+    );
+    select.addEventListener('change', () => {
+      if (select.value === '') set(undefined);
+      else set(field.type === 'flag' ? select.value === 'true' : select.value);
+    });
+    return select;
+  }
+
+  // A colour is typed as #RRGGBB or picked; the picker looks empty while the default applies.
+  function colorInput(label, value, set) {
+    const picker = el('input', 'template-color-picker');
+    picker.type = 'color';
+    picker.setAttribute('aria-label', 'Выбрать цвет');
+    const paint = color => {
+      const valid = HEX_COLOR.test(color);
+      if (valid) picker.value = color.toLowerCase();
+      picker.classList.toggle('template-color-picker--unset', !valid);
+    };
+    const text = textInput({
+      value: value ?? '',
+      onInput: typed => {
+        set(typed.trim().toUpperCase() || undefined);
+        paint(typed.trim());
+      },
+    });
+    text.placeholder = 'по умолчанию';
+    text.setAttribute('aria-label', label);
+    picker.addEventListener('input', () => {
+      text.value = picker.value.toUpperCase();
+      set(text.value);
+      paint(text.value);
+    });
+    paint(value ?? '');
+    const row = el('div', 'template-color-field');
+    row.append(picker, text);
+    return row;
+  }
+
+  // A chrome value set in the panel; like parameters, the server checks it.
+  function chromeField(block, field) {
+    const value = block.chrome?.[field.key];
+    const set = next => edit(() => setChrome(block, field.key, next));
+    const problem = fieldError('', true);
+    problem.dataset.chrome = field.key;
+    switch (field.type) {
+      case 'text': {
+        const input = textInput({ value: value ?? '', onInput: text => set(text.trim() || undefined) });
+        input.placeholder = 'по умолчанию';
+        return fieldGroup('label', field.label, input, problem);
+      }
+      case 'color':
+        return fieldGroup('div', field.label, colorInput(field.label, value, set), problem);
+      case 'choice':
+      case 'flag':
+        return fieldGroup('label', field.label, chromeSelect(field, value, set), problem);
+      default:
+        return settingRow(field.label, chromeValue(field, value));
+    }
+  }
+
+  // Problems of the selected block's parameters and chrome, each under its field.
+  function showFieldProblems() {
     const id = selectedBlockId();
-    for (const problem of panel.querySelectorAll('[data-param]')) {
-      const error = state.preview.errors.find(item => item.block === id && item.param === problem.dataset.param);
+    for (const problem of panel.querySelectorAll('[data-param], [data-chrome]')) {
+      const { param, chrome } = problem.dataset;
+      const error = state.preview.errors.find(item => item.block === id
+        && (param ? item.param === param : item.chrome === chrome));
       problem.textContent = error ? capitalize(error.detail || error.message) : '';
       problem.hidden = !error;
       problem.parentElement.querySelector('.template-field__input')?.setAttribute('aria-invalid', String(Boolean(error)));
@@ -631,10 +733,9 @@
         : settingRow(spec.label, paramValue(spec, paramOf(block, key, spec)))))));
     }
     if (control.chrome.length > 0) {
-      sections.push(panelSection('Оформление', ...control.chrome.map(field => settingRow(
-        field.label,
-        chromeValue(field, block.chrome?.[field.key]),
-      ))));
+      sections.push(panelSection('Оформление', ...control.chrome.map(field => (editable()
+        ? chromeField(block, field)
+        : settingRow(field.label, chromeValue(field, block.chrome?.[field.key]))))));
     }
     if (described(block.id)) sections.push(linksSection(block, control));
     if (block.kind === 'generated') sections.push(blockInstructionsSection(block));
@@ -1109,9 +1210,9 @@
     placePanel();
   }
 
-  // What the panel takes from the preview: parameter problems and the block's rules.
+  // What the panel takes from the preview: field problems and the block's rules.
   function showPanelFacts() {
-    showParamProblems();
+    showFieldProblems();
     showRules();
   }
 

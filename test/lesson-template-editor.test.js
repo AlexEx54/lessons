@@ -3,6 +3,8 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { describeControls, previewLessonTemplate } = require('../lib/lesson-template-editor.js');
+const MarkdownCard = require('../assets/components/markdown-card.js');
+const { CARD_ICONS } = require('../lib/lesson-templates/chrome-fields.js');
 const { findSystemTemplate } = require('../lib/lesson-templates/system-templates.js');
 const { CONTROL_CATALOG } = require('../lib/template-controls/index.js');
 
@@ -59,6 +61,35 @@ test('a stage icon must be one the lesson page draws; older names stay valid', (
   assert.deepEqual(errors, [{ message: 'У этапа wrap-up неизвестная иконка rocket.', stage: 'wrap-up' }]);
 });
 
+test('chrome values are checked by their field; a left out key takes the default', () => {
+  const definition = templateTwo();
+  const block = id => stage(definition, id === 'target-vocabulary-card' ? 'target-vocabulary' : 'grammar-presentation')
+    .blocks.find(candidate => candidate.id === id);
+  block('target-vocabulary-card').chrome = { title: ' ', icon: 'rocket', accentColor: 'green', studentVisibility: 'sometimes' };
+  block('grammar-presentation-concept-checking').chrome.showBorder = 'yes';
+  const { errors } = previewLessonTemplate({ definition, systemTemplateId: 'template-2' });
+  assert.deepEqual(errors.map(({ block: id, chrome, detail }) => [id, chrome, detail]), [
+    ['target-vocabulary-card', 'title', 'нужен непустой текст'],
+    ['target-vocabulary-card', 'icon', 'нужно одно из: Книга, Галочка, Диалог, Лампочка, Ключ, Карандаш, Спасательный круг, Кубок'],
+    ['target-vocabulary-card', 'accentColor', 'нужен цвет вида #RRGGBB'],
+    ['target-vocabulary-card', 'studentVisibility', 'нужно одно из: Всегда, По кнопке учителя, Только учителю'],
+    ['grammar-presentation-concept-checking', 'showBorder', 'нужно да или нет'],
+  ]);
+  assert.equal(errors[0].message, 'Блок target-vocabulary-card, «Заголовок»: нужен непустой текст.');
+
+  block('target-vocabulary-card').chrome = { accentColor: '#3563d4' };
+  delete block('grammar-presentation-concept-checking').chrome.showBorder;
+  const { errors: none, lesson } = previewLessonTemplate({ definition, systemTemplateId: 'template-2' });
+  assert.deepEqual(none, []);
+  const card = lesson.stages.find(item => item.id === 'target-vocabulary').content
+    .find(component => component.id === 'target-vocabulary-card');
+  assert.deepEqual([card.title, card.icon, card.accentColor], ['Vocabulary', 'book', '#3563d4']);
+});
+
+test('card icons are the ones markdownCard draws', () => {
+  assert.deepEqual(Object.keys(CARD_ICONS), MarkdownCard.icons);
+});
+
 test('default instructions come from the system template, then from the control', () => {
   const definition = templateTwo();
   const original = stage(definition, 'target-vocabulary').blocks.find(block => block.id === 'target-vocabulary-stories');
@@ -100,4 +131,7 @@ test('controls are described for the editor with labelled parameters and chrome'
   assert.deepEqual(stories.chrome.map(field => field.label), ['Заголовок', 'Цвета карточек']);
   assert.deepEqual(stories.inputs, { highlight: { type: 'vocabulary', required: false }, guesses: { type: 'statements', required: false } });
   assert.equal(controls.find(control => control.type === 'teacherNoteSections').params.sections.type, 'custom');
+  const icon = controls.find(control => control.type === 'listCard').chrome.find(field => field.key === 'icon');
+  assert.equal(icon.type, 'choice');
+  assert.equal(icon.options.lifeRing, 'Спасательный круг');
 });

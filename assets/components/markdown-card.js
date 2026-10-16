@@ -604,7 +604,7 @@
     return card;
   }
 
-  const api = { normalizeMarkdownCard, renderMarkdownCard, shouldRenderMarkdownCard };
+  const api = { icons: Object.freeze([...ICONS]), normalizeMarkdownCard, renderMarkdownCard, shouldRenderMarkdownCard };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.MarkdownCardComponent = api;
 })(typeof window !== 'undefined' ? window : globalThis);

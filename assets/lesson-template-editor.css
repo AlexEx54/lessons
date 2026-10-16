@@ -240,6 +240,24 @@ textarea.template-field__input { resize: vertical; }
 .template-field--flag .template-field__error { grid-column: 1 / -1; }
 .template-panel__section > .template-field:first-of-type { margin-top: 10px; }
 .template-field__input--short { width: 120px; }
+.template-color-field { display: flex; align-items: center; gap: 8px; }
+.template-color-picker {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  cursor: pointer;
+}
+.template-color-picker::-webkit-color-swatch-wrapper { padding: 0; }
+.template-color-picker::-webkit-color-swatch { border: 0; border-radius: 6px; }
+.template-color-picker::-moz-color-swatch { border: 0; border-radius: 6px; }
+/* No colour of its own: the control's default applies. */
+.template-color-picker--unset { background: repeating-linear-gradient(135deg, #fff 0 5px, #eceef4 5px 10px); }
+.template-color-picker--unset::-webkit-color-swatch { visibility: hidden; }
+.template-color-picker--unset::-moz-color-swatch { visibility: hidden; }
 .template-panel__row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
 .template-panel__row .template-panel__hint { margin: 0 0 8px; }
 
