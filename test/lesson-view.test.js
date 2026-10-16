@@ -83,3 +83,14 @@ test('revealing and hiding a sibling leaves the mounted exercise in place', () =
   view.selectStage(1, true);
   assert.equal(disposed, true);
 });
+
+test('components render outside the lesson page, unknown ones as a placeholder', () => {
+  const { window, calls } = fixture();
+  const options = { viewerRole: 'teacher' };
+  window.LessonView.renderComponent({ type: 'thisOrThat', id: 'choice' }, options);
+  assert.equal(calls[0].options, options);
+  const unknown = window.LessonView.renderComponent({ type: 'mystery', id: 'x' });
+  assert.equal(unknown.className, 'unsupported-component');
+  window.ThisOrThatComponent.renderThisOrThat = () => { throw new Error('broken'); };
+  assert.equal(window.LessonView.renderComponent({ type: 'thisOrThat', id: 'choice' }).className, 'unsupported-component');
+});

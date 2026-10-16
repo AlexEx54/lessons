@@ -104,6 +104,19 @@ test('admins copy, rename and delete templates and create drafts from copies', a
   assert.equal((await call('PATCH', `/api/lesson-templates/${copy.id}`, { body: { revision: 0, title: 'Мой' } })).status, 409);
   assert.equal((await call('PATCH', '/api/lesson-templates/template-2', { body: { revision: 0, title: 'Мой' } })).status, 403);
 
+  // The editor page opens for admins on existing templates only.
+  const editorPage = `/lesson-templates/${copy.id}`;
+  const guestEditor = await fetch(`${baseUrl}${editorPage}`, { redirect: 'manual' });
+  assert.equal(guestEditor.status, 302);
+  assert.equal(guestEditor.headers.get('location'), `/login?next=${encodeURIComponent(editorPage)}`);
+  assert.equal((await fetch(`${baseUrl}${editorPage}`, { headers: { Cookie: teacherCookie } })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/lesson-templates/missing`, { headers: { Cookie: cookie } })).status, 404);
+  for (const id of ['template-1', copy.id]) {
+    const page = await fetch(`${baseUrl}/lesson-templates/${id}`, { headers: { Cookie: cookie } });
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /src="\/assets\/lesson-template-editor\.js"/);
+  }
+
   // The editor reads the copy, previews an unsaved change and saves it.
   assert.equal((await call('GET', '/api/template-controls', { auth: teacherCookie })).status, 403);
   const { controls } = await (await call('GET', '/api/template-controls')).json();

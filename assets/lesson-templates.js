@@ -158,7 +158,9 @@
 
     const actions = document.createElement('div');
     actions.className = 'template-card__actions';
-    addButton(actions, template.system ? 'template-card__primary' : '', 'Копировать', button => copyTemplate(template, button));
+    const open = addText(actions, 'a', 'template-card__primary', 'Открыть');
+    open.href = `/lesson-templates/${encodeURIComponent(template.id)}`;
+    addButton(actions, '', 'Копировать', button => copyTemplate(template, button));
     if (!template.system) {
       addButton(actions, '', 'Изменить', () => {
         state.editingId = template.id;

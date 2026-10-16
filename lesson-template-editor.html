@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Шаблон урока — EasyClass</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/lesson-editor.css" />
+  <link rel="stylesheet" href="/assets/components/safe-markdown.css" />
+  <link rel="stylesheet" href="/assets/components/teacher-note-block.css" />
+  <link rel="stylesheet" href="/assets/components/teacher-note.css" />
+  <link rel="stylesheet" href="/assets/components/task-prompt.css" />
+  <link rel="stylesheet" href="/assets/components/this-or-that.css" />
+  <link rel="stylesheet" href="/assets/components/match-words.css" />
+  <link rel="stylesheet" href="/assets/components/dropdown-choice.css" />
+  <link rel="stylesheet" href="/assets/components/gap-fill.css" />
+  <link rel="stylesheet" href="/assets/components/sentence-matching.css" />
+  <link rel="stylesheet" href="/assets/components/sentence-builder.css" />
+  <link rel="stylesheet" href="/assets/components/sentence-correction.css" />
+  <link rel="stylesheet" href="/assets/components/fill-in-blanks.css" />
+  <link rel="stylesheet" href="/assets/components/drag-words-in-text.css" />
+  <link rel="stylesheet" href="/assets/components/personalized-questions.css" />
+  <link rel="stylesheet" href="/assets/components/describe-and-guess.css" />
+  <link rel="stylesheet" href="/assets/components/how-to-play.css" />
+  <link rel="stylesheet" href="/assets/components/guided-communication-cards.css" />
+  <link rel="stylesheet" href="/assets/components/guided-role-cards.css" />
+  <link rel="stylesheet" href="/assets/components/speaking-support.css" />
+  <link rel="stylesheet" href="/assets/components/three-two-one.css" />
+  <link rel="stylesheet" href="/assets/components/self-assessment.css" />
+  <link rel="stylesheet" href="/assets/components/text-panel.css" />
+  <link rel="stylesheet" href="/assets/components/mini-situation.css" />
+  <link rel="stylesheet" href="/assets/components/story-cards.css" />
+  <link rel="stylesheet" href="/assets/components/text-reading.css" />
+  <link rel="stylesheet" href="/assets/components/multiple-choice.css" />
+  <link rel="stylesheet" href="/assets/components/odd-one-out.css" />
+  <link rel="stylesheet" href="/assets/components/fact-or-myth.css" />
+  <link rel="stylesheet" href="/assets/components/checkbox-choice.css" />
+  <link rel="stylesheet" href="/assets/components/audio-player.css" />
+  <link rel="stylesheet" href="/assets/components/video-player.css" />
+  <link rel="stylesheet" href="/assets/components/markdown-card.css" />
+  <link rel="stylesheet" href="/assets/components/card-row.css" />
+  <link rel="stylesheet" href="/assets/lesson-template-editor.css" />
+</head>
+<body>
+  <div class="template-editor" id="template-editor">
+    <header class="lesson-header">
+      <a class="lesson-brand" href="/app" aria-label="EasyClass — главная">
+        <img src="/assets/images/easyclass-mark-cropped.png" alt="" width="34" height="28" />
+        <span>Easy<span>Class</span></span>
+      </a>
+      <div class="lesson-identity">
+        <strong id="template-title">Загрузка шаблона…</strong>
+        <small id="template-subtitle">Шаблон урока</small>
+      </div>
+      <div class="lesson-header__actions">
+        <button class="template-status" id="template-status" type="button" hidden></button>
+        <button class="template-copy" id="template-copy" type="button" hidden>Сделать копию</button>
+        <a class="end-lesson template-back" href="/lesson-templates">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+          <span>Шаблоны</span>
+        </a>
+      </div>
+    </header>
+
+    <div class="template-editor__layout" id="template-content" hidden>
+      <aside class="template-outline" aria-label="Устройство шаблона">
+        <section class="template-outline__section">
+          <h2>Поля при создании</h2>
+          <ul class="template-inputs" id="template-inputs"></ul>
+        </section>
+        <section class="template-outline__section">
+          <h2 id="template-stages-title">Этапы</h2>
+          <nav class="template-stages" id="template-stages" aria-labelledby="template-stages-title"></nav>
+        </section>
+      </aside>
+
+      <main class="lesson-content template-canvas">
+        <div class="lesson-content__inner">
+          <section class="template-problems" id="template-problems" hidden aria-labelledby="template-problems-title">
+            <h2 id="template-problems-title">Что нужно исправить</h2>
+            <ul id="template-problems-list"></ul>
+          </section>
+          <div class="stage-heading">
+            <h1><span id="stage-number">1.</span> <span id="stage-title"></span></h1>
+            <span class="teacher-version" id="stage-duration"></span>
+          </div>
+          <p class="stage-kicker" id="stage-kicker"></p>
+          <div class="stage-components template-blocks" id="template-blocks"></div>
+        </div>
+      </main>
+
+      <aside class="template-panel" id="block-panel" aria-label="Выбранный блок"></aside>
+    </div>
+
+    <div class="lesson-loading" id="template-loading">Загружаем шаблон…</div>
+    <div class="lesson-error" id="template-error" hidden>
+      <strong>Не удалось открыть шаблон</strong>
+      <p id="template-error-message"></p>
+      <a href="/lesson-templates">Вернуться к шаблонам</a>
+    </div>
+  </div>
+  <div class="lesson-toast" id="lesson-toast" role="status" aria-live="polite"></div>
+  <script src="/assets/components/component-tree.js" defer></script>
+  <script src="/assets/components/safe-markdown.js" defer></script>
+  <script src="/assets/components/teacher-note-block.js" defer></script>
+  <script src="/assets/components/teacher-note.js" defer></script>
+  <script src="/assets/components/task-prompt.js" defer></script>
+  <script src="/assets/components/this-or-that.js" defer></script>
+  <script src="/assets/components/exercise-state.js" defer></script>
+  <script src="/assets/components/match-words.js" defer></script>
+  <script src="/assets/components/inline-gap-text.js" defer></script>
+  <script src="/assets/components/dropdown-choice.js" defer></script>
+  <script src="/assets/components/gap-fill.js" defer></script>
+  <script src="/assets/components/sentence-matching.js" defer></script>
+  <script src="/assets/components/sentence-builder-model.js" defer></script>
+  <script src="/assets/components/sentence-builder.js" defer></script>
+  <script src="/assets/components/sentence-correction.js" defer></script>
+  <script src="/assets/components/fill-in-blanks.js" defer></script>
+  <script src="/assets/components/drag-words-in-text.js" defer></script>
+  <script src="/assets/components/personalized-questions.js" defer></script>
+  <script src="/assets/components/describe-and-guess.js" defer></script>
+  <script src="/assets/components/how-to-play.js" defer></script>
+  <script src="/assets/components/flip-card.js" defer></script>
+  <script src="/assets/components/communication-task.js" defer></script>
+  <script src="/assets/components/guided-communication-cards.js" defer></script>
+  <script src="/assets/components/guided-role-cards.js" defer></script>
+  <script src="/assets/components/speaking-support.js" defer></script>
+  <script src="/assets/components/three-two-one.js" defer></script>
+  <script src="/assets/components/self-assessment.js" defer></script>
+  <script src="/assets/components/text-panel.js" defer></script>
+  <script src="/assets/components/mini-situation.js" defer></script>
+  <script src="/assets/components/story-cards.js" defer></script>
+  <script src="/assets/components/text-reading.js" defer></script>
+  <script src="/assets/components/multiple-choice.js" defer></script>
+  <script src="/assets/components/odd-one-out.js" defer></script>
+  <script src="/assets/components/fact-or-myth.js" defer></script>
+  <script src="/assets/components/checkbox-choice.js" defer></script>
+  <script src="/assets/components/audio-player.js" defer></script>
+  <script src="/assets/components/video-player.js" defer></script>
+  <script src="/assets/components/markdown-card.js" defer></script>
+  <script src="/assets/components/card-row.js" defer></script>
+  <script src="/assets/lesson-view.js" defer></script>
+  <script src="/assets/lesson-template-editor.js" defer></script>
+</body>
+</html>

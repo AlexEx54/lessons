@@ -111,7 +111,8 @@
   gap: 8px;
 }
 
-.template-card__actions button {
+.template-card__actions button,
+.template-card__actions a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -125,7 +126,8 @@
   font-weight: 750;
 }
 
-.template-card__actions button:hover { border-color: #b9a9ff; background: var(--purple-soft); }
+.template-card__actions button:hover,
+.template-card__actions a:hover { border-color: #b9a9ff; background: var(--purple-soft); }
 .template-card__actions button:disabled { opacity: .55; cursor: wait; }
 
 .template-card__actions .template-card__primary {

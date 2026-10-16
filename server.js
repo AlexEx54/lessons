@@ -1386,6 +1386,25 @@ async function handleRequest(req, res) {
     return;
   }
 
+  const templateEditorPage = pathname.match(/^\/lesson-templates\/([^/]+)$/);
+  if (req.method === 'GET' && templateEditorPage) {
+    const user = getAuthenticatedUser(req, database);
+    if (!user) {
+      redirect(res, loginRedirect(pathname));
+      return;
+    }
+    if (user.role !== 'admin') {
+      json(res, 403, { error: 'Раздел доступен только администратору.' });
+      return;
+    }
+    if (!findLessonTemplate(getLessonIdFromPath(pathname, '/lesson-templates/'), database)) {
+      json(res, 404, { error: 'Шаблон не найден.' });
+      return;
+    }
+    serveStatic('/lesson-template-editor.html', res);
+    return;
+  }
+
   if (req.method === 'GET' && (pathname === '/settings' || pathname === '/settings/')) {
     const user = getAuthenticatedUser(req, database);
     if (!user) {
