@@ -2,9 +2,10 @@
   'use strict';
 
   // Template editor: the template shown as its lesson built from sample data, every block
-  // in a frame with its kind and links, and a panel with the selected block's settings.
-  // The server builds the preview: controls run only there. A copy is edited in place
-  // and saved explicitly; a system template is read-only.
+  // in a frame with its kind and links, and a panel with the settings of the selected
+  // block, the current stage or the template itself. The server builds the preview:
+  // controls run only there. A copy is edited in place and saved explicitly; a system
+  // template is read-only.
 
   const KIND_LABELS = { static: 'Статичный', generated: 'Генерирует ИИ', derived: 'Собирается сам', row: 'Ряд' };
   const STATIC_LABELS = {
@@ -20,17 +21,23 @@
   const NARROW_LAYOUT = window.matchMedia('(max-width: 1180px)');
   const TITLE_MAX_LENGTH = 80;
   const DESCRIPTION_MAX_LENGTH = 500;
+  const STAGE_TITLE_MAX_LENGTH = 80;
+  const STAGE_SUBTITLE_MAX_LENGTH = 120;
   const PREVIEW_DELAY = 300;
+  const Edits = window.LessonTemplateEdits;
 
   // `template` is the working copy: edits change it in place. `savedSnapshot` is what the
-  // server holds, to tell unsaved changes. `selection` is the block or the template whose
-  // settings the panel shows.
+  // server holds, to tell unsaved changes. `selection` is the block, the stage or the
+  // template whose settings the panel shows; without it a wide panel shows the stage.
+  // `stageFacts` outlive a preview with problems: stage settings do not change them.
   const state = {
     template: null,
     savedSnapshot: '',
     controls: new Map(),
     variableTypes: {},
+    stageIcons: { icons: {}, aliases: {} },
     preview: null,
+    stageFacts: {},
     blocks: new Map(),
     stageIndex: 0,
     selection: null,
@@ -69,6 +76,15 @@
   }
 
   const capitalize = text => text.charAt(0).toUpperCase() + text.slice(1);
+  const stageTitle = stage => stage.title || 'Без названия';
+  // A duration being typed may be unfinished: the problems list explains it.
+  const durationText = stage => (Number.isInteger(stage.durationMinutes) ? `${stage.durationMinutes} мин` : '— мин');
+
+  // An optional text setting is left out of the definition while empty.
+  function setOptional(object, key, value) {
+    if (value) object[key] = value;
+    else delete object[key];
+  }
 
   function showToast(message) {
     const toast = byId('lesson-toast');
@@ -130,7 +146,7 @@
   // A block's name, with its stage when that is not the stage `fromStageId`.
   function placedName(id, fromStageId) {
     const { block, stage } = state.blocks.get(id);
-    return stage.id === fromStageId ? blockName(block) : `${blockName(block)} · ${stage.title}`;
+    return stage.id === fromStageId ? blockName(block) : `${blockName(block)} · ${stageTitle(stage)}`;
   }
 
   function readersText(readers) {
@@ -203,11 +219,22 @@
     return frame;
   }
 
+  const currentStage = () => state.template.definition.stages[state.stageIndex];
+
   function renderStage() {
-    const stage = state.template.definition.stages[state.stageIndex];
+    const stage = currentStage();
     const lessonStage = state.preview.lesson?.stages.find(item => item.id === stage.id);
     const components = new Map((lessonStage?.content || []).map(component => [component.id, component]));
+    renderStageHeading();
+    byId('template-blocks').replaceChildren(...stage.blocks.map(block => blockFrame(block, components.get(block.id))));
+    markSelectedFrame();
+    placePanel();
+    window.history.replaceState(null, '', `#${encodeURIComponent(stage.id)}`);
+  }
 
+  // The current stage in the list and its heading above the blocks.
+  function renderStageHeading() {
+    const stage = currentStage();
     const stageList = byId('template-stages');
     [...stageList.children].forEach((item, index) => {
       const active = index === state.stageIndex;
@@ -218,15 +245,11 @@
     const activeStage = stageList.children[state.stageIndex];
     stageList.scrollLeft = activeStage.offsetLeft - stageList.offsetLeft - 16;
     byId('stage-number').textContent = `${state.stageIndex + 1}.`;
-    byId('stage-title').textContent = stage.title;
-    byId('stage-duration').textContent = `${stage.durationMinutes} мин`;
+    byId('stage-title').textContent = stageTitle(stage);
+    byId('stage-duration').textContent = durationText(stage);
     const kicker = byId('stage-kicker');
     kicker.textContent = stage.subtitle || '';
     kicker.hidden = !stage.subtitle;
-    byId('template-blocks').replaceChildren(...stage.blocks.map(block => blockFrame(block, components.get(block.id))));
-    markSelectedFrame();
-    placePanel();
-    window.history.replaceState(null, '', `#${encodeURIComponent(stage.id)}`);
   }
 
   const selectedBlockId = () => (state.selection?.kind === 'block' ? state.selection.id : null);
@@ -244,13 +267,22 @@
     return selectedFrame;
   }
 
+  // Opens a stage. A selected block gives way to the stage, the template's or the stage's
+  // settings stay open.
   function selectStage(index) {
-    if (index === state.stageIndex) return;
+    const moved = index !== state.stageIndex;
     state.stageIndex = index;
     if (state.selection?.kind === 'block') state.selection = null;
     renderStage();
     renderPanel();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (moved) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function selectStageSettings() {
+    state.selection = { kind: 'stage' };
+    markSelectedFrame();
+    renderPanel();
+    if (NARROW_LAYOUT.matches) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function selectBlock(id, { scroll = false } = {}) {
@@ -394,18 +426,26 @@
     return sections.filter(Boolean);
   }
 
-  // A text field that writes to the working copy as the admin types.
-  function textField({ label, value, maxLength, multiline = false, onInput }) {
-    const field = el('label', 'template-field');
-    field.append(el('span', 'template-field__label', label));
+  // An input that writes to the working copy as the admin types.
+  function textInput({ value, maxLength, multiline = false, rows = 4, type = 'text', onInput }) {
     const input = el(multiline ? 'textarea' : 'input', 'template-field__input');
+    if (multiline) input.rows = rows;
+    else input.type = type;
+    if (maxLength) input.maxLength = maxLength;
     input.value = value;
-    input.maxLength = maxLength;
-    if (multiline) input.rows = 4;
     input.addEventListener('input', () => onInput(input.value));
-    field.append(input);
+    return input;
+  }
+
+  function fieldGroup(tag, label, ...children) {
+    const field = el(tag, 'template-field');
+    field.append(el('span', 'template-field__label', label), ...children);
     return field;
   }
+
+  const textField = ({ label, ...options }) => fieldGroup('label', label, textInput(options));
+
+  const fieldError = (text, valid) => Object.assign(el('small', 'template-field__error', text), { hidden: valid });
 
   function templatePanel() {
     const { template } = state;
@@ -418,8 +458,7 @@
         panelSection('Описание', el('p', 'template-instructions', template.description || '—')),
       ];
     }
-    const titleHint = el('small', 'template-field__error', 'Без названия шаблон не сохранить.');
-    titleHint.hidden = Boolean(template.title);
+    const titleHint = fieldError('Без названия шаблон не сохранить.', Boolean(template.title));
     const title = textField({
       label: 'Название',
       value: template.title,
@@ -466,34 +505,263 @@
     return [header, ...sections];
   }
 
+  const iconName = icon => state.stageIcons.aliases[icon] || icon || 'sparkles';
+
+  function stageIcon(name) {
+    const icon = el('span', 'template-icon__picture');
+    icon.append(window.LessonView.createStageIcon(name));
+    return icon;
+  }
+
+  // Nine pictures to choose from; an older name lights up the picture it stands for.
+  function iconPicker(stage) {
+    const picker = el('div', 'template-icons');
+    picker.setAttribute('role', 'group');
+    picker.setAttribute('aria-label', 'Иконка');
+    const options = Object.entries(state.stageIcons.icons).map(([name, label]) => {
+      const option = button('template-icon', '', () => {
+        edit(() => { stage.icon = name; });
+        markChosen();
+      });
+      option.title = label;
+      option.setAttribute('aria-label', label);
+      option.append(stageIcon(name));
+      return [name, option];
+    });
+    const markChosen = () => {
+      for (const [name, option] of options) option.setAttribute('aria-pressed', String(name === iconName(stage.icon)));
+    };
+    markChosen();
+    picker.append(...options.map(([, option]) => option));
+    return picker;
+  }
+
+  // What a context line passes to the model: a field filled in when the lesson is created,
+  // or a value another stage generated.
+  function contextSource(line, producers) {
+    if (line.source === 'input') {
+      const input = state.template.definition.inputs[line.name];
+      return el('small', '', input ? `Поле «${input.label}»` : `Неизвестное поле ${line.name}`);
+    }
+    const producer = line.source === 'var' && producers.get(line.name);
+    if (!producer) return el('small', '', line.reference);
+    const type = state.controls.get(producer.block.control)?.outputs[producer.port]?.type;
+    return linkButton(`${capitalize(typeLabel(type))} · ${stageTitle(producer.stage)}`, producer.block.id);
+  }
+
+  function contextLine(stage, line, index, { producers, inUse }) {
+    const item = el('li', 'template-context__line');
+    const error = fieldError('', true);
+    const label = textInput({
+      value: line.label,
+      maxLength: Edits.CONTEXT_LABEL_MAX_LENGTH,
+      onInput: value => {
+        const problem = Edits.renameContextLine(stage, index, value);
+        error.textContent = problem || '';
+        error.hidden = !problem;
+        if (!problem) edited();
+      },
+    });
+    label.setAttribute('aria-label', 'Подпись строки');
+    // A label that cannot be kept goes back to the one the template has.
+    label.addEventListener('blur', () => {
+      if (error.hidden) return;
+      label.value = Edits.contextLines(stage)[index].label;
+      error.hidden = true;
+    });
+    const source = el('div', 'template-context__source');
+    source.append(contextSource(line, producers));
+    item.append(label);
+    if (line.source === 'var' && inUse.has(line.name)) {
+      item.classList.add('template-context__line--kept');
+      source.append(el('small', '', ' · её читают блоки этапа'));
+    } else {
+      const remove = button('template-context__remove', '×', () => change(() => Edits.removeContextLine(stage, index)));
+      remove.setAttribute('aria-label', `Убрать строку «${line.label}»`);
+      item.append(remove);
+    }
+    item.append(source, error);
+    return item;
+  }
+
+  // «+ Строка»: a field or another stage's value the context does not pass yet.
+  function contextAdder(stage, producers) {
+    const { definition } = state.template;
+    const taken = new Set(Edits.contextLines(stage).map(line => line.reference));
+    const inputs = el('optgroup');
+    inputs.label = 'Поля при создании';
+    for (const [name, input] of Object.entries(definition.inputs)) {
+      if (!taken.has(`$input.${name}`)) inputs.append(new Option(input.label, `input.${name}`));
+    }
+    const variables = el('optgroup');
+    variables.label = 'Другие этапы';
+    for (const [name, producer] of producers) {
+      if (producer.stage === stage || taken.has(`$var.${name}`)) continue;
+      const type = state.controls.get(producer.block.control)?.outputs[producer.port]?.type;
+      variables.append(new Option(`${capitalize(typeLabel(type))} · ${stageTitle(producer.stage)}`, `var.${name}`));
+    }
+    const groups = [inputs, variables].filter(group => group.children.length > 0);
+    if (groups.length === 0) return null;
+
+    const select = el('select', 'template-field__input template-context__add');
+    select.setAttribute('aria-label', 'Добавить строку');
+    select.append(new Option('+ Строка', '', true, true), ...groups);
+    select.options[0].disabled = true;
+    select.addEventListener('change', () => {
+      const [source, name] = select.value.split('.');
+      change(() => Edits.addContextLine(stage, source, name));
+      const added = panel.querySelectorAll('.template-context__line .template-field__input');
+      added[added.length - 1]?.select();
+    });
+    return select;
+  }
+
+  function contextSection(stage) {
+    const { definition } = state.template;
+    const producers = Edits.variableProducers(definition);
+    const scope = { producers, inUse: Edits.contextVariablesInUse(definition, stage) };
+    const list = el('ul', 'template-context');
+    list.append(...Edits.contextLines(stage).map((line, index) => contextLine(stage, line, index, scope)));
+    return panelSection(
+      'Контекст',
+      el('p', 'template-panel__hint', 'Что ИИ получает перед заданием этапа. Подписи — по-английски, как в запросе.'),
+      list,
+      ...[contextAdder(stage, producers)].filter(Boolean),
+    );
+  }
+
+  // The stage's own words to the model, with a way back to the system template's.
+  function stageInstructionsSection(stage, fallback) {
+    const status = el('small', 'template-panel__hint');
+    const reset = button('template-link', 'Вернуть по умолчанию', () => {
+      input.value = fallback;
+      edit(() => setOptional(stage, 'instructions', fallback.trim()));
+      showStatus();
+      input.focus();
+    });
+    const input = textInput({
+      value: stage.instructions || '',
+      multiline: true,
+      rows: 8,
+      onInput: value => {
+        edit(() => setOptional(stage, 'instructions', value.trim()));
+        showStatus();
+      },
+    });
+    input.setAttribute('aria-label', 'Указания для ИИ');
+    const showStatus = () => {
+      const same = (stage.instructions || '') === fallback.trim();
+      status.textContent = same ? 'Как в исходном шаблоне' : 'Изменены относительно исходного шаблона';
+      reset.hidden = same;
+    };
+    if (fallback === undefined) {
+      status.textContent = 'По-английски: текст идёт в запрос к ИИ.';
+      reset.hidden = true;
+    } else {
+      showStatus();
+    }
+    const head = el('div', 'template-panel__row');
+    head.append(status, reset);
+    return panelSection('Указания для ИИ', head, input);
+  }
+
+  function readOnlyStagePanel(stage, usesModel) {
+    const icon = el('span', 'template-icon template-icon--shown');
+    icon.append(stageIcon(iconName(stage.icon)));
+    const settings = el('section', 'template-panel__section');
+    settings.append(
+      settingRow('Название', stageTitle(stage)),
+      settingRow('Подзаголовок', stage.subtitle || '—'),
+      settingRow('Длительность', durationText(stage)),
+      settingRow('Иконка', icon),
+    );
+    const sections = [settings];
+    if (!usesModel) return sections;
+    sections.push(panelSection('Указания для ИИ', el('p', 'template-instructions', stage.instructions || '—')));
+    const producers = Edits.variableProducers(state.template.definition);
+    const lines = Edits.contextLines(stage);
+    sections.push(panelSection('Контекст', ...(lines.length > 0
+      ? lines.map(line => settingRow(line.label, contextSource(line, producers)))
+      : [el('small', 'template-panel__hint', 'Пусто')])));
+    return sections;
+  }
+
+  function stagePanel() {
+    const stage = currentStage();
+    const facts = state.stageFacts[stage.id];
+    // Before the first preview without problems the stage is taken to use the model.
+    const usesModel = facts?.usesModel ?? true;
+    const header = el('header', 'template-panel__header');
+    header.append(el('h2', '', `Этап ${state.stageIndex + 1}`));
+    if (!usesModel) header.append(el('p', '', 'Собирается без ИИ: указания и контекст ему не нужны.'));
+    if (!editable()) return [header, ...readOnlyStagePanel(stage, usesModel)];
+
+    const titleHint = fieldError('Без названия этап не сохранить.', Boolean(stage.title));
+    const title = textField({
+      label: 'Название',
+      value: stage.title || '',
+      maxLength: STAGE_TITLE_MAX_LENGTH,
+      onInput: value => {
+        edit(() => { stage.title = value.trim(); });
+        titleHint.hidden = Boolean(stage.title);
+      },
+    });
+    title.append(titleHint);
+    const subtitle = textField({
+      label: 'Подзаголовок',
+      value: stage.subtitle || '',
+      maxLength: STAGE_SUBTITLE_MAX_LENGTH,
+      onInput: value => edit(() => setOptional(stage, 'subtitle', value.trim())),
+    });
+    const durationHint = fieldError('Целое число минут, больше нуля.', true);
+    const durationInput = textInput({
+      value: stage.durationMinutes ?? '',
+      type: 'number',
+      onInput: value => {
+        // An unfinished number stays as typed: the server lists it among the problems.
+        edit(() => { stage.durationMinutes = value === '' ? null : Number(value); });
+        durationHint.hidden = Number.isInteger(stage.durationMinutes) && stage.durationMinutes > 0;
+      },
+    });
+    Object.assign(durationInput, { min: 1, step: 1, inputMode: 'numeric' });
+    durationInput.classList.add('template-field__input--short');
+    const duration = fieldGroup('label', 'Длительность, мин', durationInput, durationHint);
+
+    const sections = [header, title, subtitle, duration, fieldGroup('div', 'Иконка', iconPicker(stage))];
+    if (usesModel) sections.push(stageInstructionsSection(stage, facts?.defaultInstructions), contextSection(stage));
+    return sections;
+  }
+
   function renderPanel() {
     const entry = state.blocks.get(selectedBlockId());
-    if (state.selection?.kind === 'template') {
-      panel.replaceChildren(...templatePanel());
-    } else if (entry) {
-      panel.replaceChildren(...blockPanel(entry));
-    } else {
-      panel.replaceChildren(el('p', 'template-panel__empty', 'Выберите блок, чтобы увидеть его настройки и связи.'));
-    }
+    if (state.selection?.kind === 'template') panel.replaceChildren(...templatePanel());
+    else if (entry) panel.replaceChildren(...blockPanel(entry));
+    else panel.replaceChildren(...stagePanel());
     placePanel();
   }
 
-  // On narrow screens the panel opens right under the selected block, or above the stage
-  // for the template's own settings.
+  // On narrow screens the panel opens right under the selected block, under the stage
+  // heading for the stage's settings and above the stage for the template's. Without a
+  // selection it stays closed. The panel moves only when it has to: moving takes the focus
+  // out of its fields.
   function placePanel() {
     if (!NARROW_LAYOUT.matches) {
       panel.hidden = false;
       if (panel.parentElement !== layout) layout.append(panel);
       return;
     }
-    if (state.selection?.kind === 'template') {
+    const kind = state.selection?.kind;
+    if (kind === 'template') {
       panel.hidden = false;
-      byId('template-canvas').prepend(panel);
+      const canvas = byId('template-canvas');
+      if (canvas.firstElementChild !== panel) canvas.prepend(panel);
       return;
     }
-    const frame = selectedBlockId() && byId('template-blocks').querySelector('.template-block--selected');
-    panel.hidden = !frame;
-    if (frame) frame.after(panel);
+    const anchor = kind === 'stage'
+      ? byId('stage-kicker')
+      : selectedBlockId() && byId('template-blocks').querySelector('.template-block--selected');
+    panel.hidden = !anchor;
+    if (anchor && anchor.nextElementSibling !== panel) anchor.after(panel);
   }
 
   function renderOutline() {
@@ -503,7 +771,7 @@
       if (input.optional) item.append(el('small', '', 'необязательное'));
       return item;
     }));
-    const minutes = definition.stages.reduce((sum, stage) => sum + stage.durationMinutes, 0);
+    const minutes = definition.stages.reduce((sum, stage) => sum + (Number.isInteger(stage.durationMinutes) ? stage.durationMinutes : 0), 0);
     byId('template-stages-title').textContent = `Этапы · ${minutes} мин`;
     byId('template-stages').replaceChildren(...definition.stages.map((stage, index) => {
       const item = button('lesson-stage', '', () => selectStage(index));
@@ -512,8 +780,8 @@
       item.append(
         icon,
         el('span', 'lesson-stage__number', String(index + 1)),
-        el('span', 'lesson-stage__title', stage.title),
-        el('span', 'lesson-stage__duration', `${stage.durationMinutes} мин`),
+        el('span', 'lesson-stage__title', stageTitle(stage)),
+        el('span', 'lesson-stage__duration', durationText(stage)),
       );
       return item;
     }));
@@ -596,6 +864,19 @@
     schedulePreview();
   }
 
+  // Edits typed into the panel: the panel itself stays, so its field keeps the focus.
+  function edit(mutate) {
+    mutate(state.template);
+    edited();
+  }
+
+  function edited() {
+    renderHeader();
+    renderOutline();
+    renderStageHeading();
+    schedulePreview();
+  }
+
   // Only the latest preview counts: an answer to an older definition is dropped.
   function schedulePreview() {
     const number = ++previewNumber;
@@ -609,10 +890,11 @@
       const preview = await request('POST', '/api/lesson-templates/preview', { definition, systemTemplateId });
       if (number !== previewNumber) return;
       state.preview = preview;
+      if (preview.stages) state.stageFacts = preview.stages;
       renderProblems();
       renderStage();
-      // The template's fields stay as they are: redrawing them would take the focus away.
-      if (state.selection?.kind !== 'template') renderPanel();
+      // A field being typed in stays as it is: redrawing the panel would take the focus away.
+      if (!panel.contains(document.activeElement)) renderPanel();
       renderSaveState();
     } catch (error) {
       if (number === previewNumber) showToast(error.message);
@@ -641,7 +923,7 @@
         byId('template-conflict').hidden = false;
         byId('template-conflict').scrollIntoView({ behavior: 'smooth', block: 'center' });
       } else if (error.errors) {
-        state.preview = { errors: error.errors, lesson: null, blocks: null };
+        state.preview = { errors: error.errors, lesson: null, blocks: null, stages: null };
         renderProblems();
         renderStage();
       } else {
@@ -691,11 +973,13 @@
       state.savedSnapshot = snapshot(template);
       state.controls = new Map(controls.controls.map(control => [control.type, control]));
       state.variableTypes = controls.variableTypes;
+      state.stageIcons = controls.stageIcons;
       state.blocks = indexBlocks(template.definition);
       state.preview = await request('POST', '/api/lesson-templates/preview', {
         definition: template.definition,
         systemTemplateId: template.systemTemplateId,
       });
+      state.stageFacts = state.preview.stages || {};
     } catch (error) {
       byId('template-loading').hidden = true;
       byId('template-error').hidden = false;
@@ -716,6 +1000,7 @@
 
   byId('template-copy').addEventListener('click', copyTemplate);
   byId('template-title').addEventListener('click', selectTemplate);
+  byId('stage-settings').addEventListener('click', selectStageSettings);
   byId('template-save').addEventListener('click', save);
   byId('template-discard').addEventListener('click', discardChanges);
   byId('template-reload').addEventListener('click', loadFreshVersion);

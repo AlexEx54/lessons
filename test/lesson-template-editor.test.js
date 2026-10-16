@@ -36,6 +36,29 @@ test('the preview builds the sample lesson and describes every block', () => {
   assert.equal(Object.hasOwn(preview.blocks['target-vocabulary-guess-answers'], 'rules'), false);
 });
 
+test('the preview tells which stages reach the model and their default instructions', () => {
+  const definition = templateTwo();
+  const system = templateTwo();
+  stage(definition, 'wrap-up').instructions = 'Keep it short.';
+
+  const { stages } = previewLessonTemplate({ definition, systemTemplateId: 'template-2' });
+  assert.deepEqual(Object.keys(stages), definition.stages.map(item => item.id));
+  assert.deepEqual(stages['watch-and-interact'], { usesModel: false, defaultInstructions: '' });
+  assert.equal(stages['wrap-up'].usesModel, true);
+  assert.equal(stages['wrap-up'].defaultInstructions, stage(system, 'wrap-up').instructions);
+
+  const orphan = previewLessonTemplate({ definition, systemTemplateId: null });
+  assert.equal(orphan.stages['wrap-up'].defaultInstructions, '');
+});
+
+test('a stage icon must be one the lesson page draws; older names stay valid', () => {
+  const definition = templateTwo();
+  assert.equal(stage(definition, 'lead-in').icon, 'compass');
+  stage(definition, 'wrap-up').icon = 'rocket';
+  const { errors } = previewLessonTemplate({ definition, systemTemplateId: 'template-2' });
+  assert.deepEqual(errors, [{ message: 'У этапа wrap-up неизвестная иконка rocket.', stage: 'wrap-up' }]);
+});
+
 test('default instructions come from the system template, then from the control', () => {
   const definition = templateTwo();
   const original = stage(definition, 'target-vocabulary').blocks.find(block => block.id === 'target-vocabulary-stories');
@@ -56,15 +79,19 @@ test('a broken template previews as its problems only', () => {
   const preview = previewLessonTemplate({ definition, systemTemplateId: 'template-2' });
   assert.equal(preview.lesson, null);
   assert.equal(preview.blocks, null);
+  assert.equal(preview.stages, null);
   assert.ok(preview.errors.some(error => error.block === 'target-vocabulary-stories' && /leadInGuesses/.test(error.message)));
   assert.deepEqual(previewLessonTemplate({ definition: 'nope' }).errors, [{ message: 'Определение шаблона должно быть объектом.' }]);
 });
 
 test('controls are described for the editor with labelled parameters and chrome', () => {
-  const { controls, variableTypes } = describeControls();
+  const { controls, variableTypes, stageIcons } = describeControls();
   assert.equal(controls.length, CONTROL_CATALOG.size);
   assert.deepEqual(JSON.parse(JSON.stringify(controls)), controls, 'plain data only');
   assert.equal(variableTypes.vocabulary, 'словарь');
+  assert.equal(Object.keys(stageIcons.icons).length, 9);
+  assert.equal(stageIcons.icons.cap, 'Шапочка');
+  assert.deepEqual(stageIcons.aliases, { compass: 'pencil', check: 'question' });
 
   const stories = controls.find(control => control.type === 'storyCards');
   assert.deepEqual(stories.params.minWords, {
