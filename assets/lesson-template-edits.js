@@ -89,6 +89,17 @@
     setContextLines(stage, contextLines(stage).filter((_line, other) => other !== index));
   }
 
+  // Puts the item at `from` to index `to`; the others keep their order.
+  function moveItem(list, from, to) {
+    const [item] = list.splice(from, 1);
+    list.splice(to, 0, item);
+  }
+
+  // Stages run in data-flow order, so any order is valid; blocks move only within their
+  // stage, where their links live.
+  const moveStage = (definition, from, to) => moveItem(definition.stages, from, to);
+  const moveBlock = (stage, from, to) => moveItem(stage.blocks, from, to);
+
   const api = {
     CONTEXT_LABEL_MAX_LENGTH,
     flattenBlocks,
@@ -100,6 +111,8 @@
     renameContextLine,
     addContextLine,
     removeContextLine,
+    moveStage,
+    moveBlock,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.LessonTemplateEdits = api;

@@ -24,6 +24,8 @@
   const STAGE_TITLE_MAX_LENGTH = 80;
   const STAGE_SUBTITLE_MAX_LENGTH = 120;
   const PREVIEW_DELAY = 300;
+  const DRAG_THRESHOLD = 7;
+  const SCROLL_EDGE = 70;
   const Edits = window.LessonTemplateEdits;
 
   // `template` is the working copy: edits change it in place. `savedSnapshot` is what the
@@ -51,6 +53,8 @@
   let toastTimer;
   let previewTimer;
   let previewNumber = 0;
+  let drag = null;
+  let suppressClick = false;
 
   function el(tag, className, text) {
     const element = document.createElement(tag);
@@ -185,12 +189,130 @@
     return [...inputs, ...exports];
   }
 
+  const GRIP_ICON = '<svg viewBox="0 0 10 16" aria-hidden="true">'
+    + [3, 8, 13].map(y => `<circle cx="2.5" cy="${y}" r="1.4"/><circle cx="7.5" cy="${y}" r="1.4"/>`).join('')
+    + '</svg>';
+
+  // A handle to drag an item to another place among `items()`. The item stays where it is,
+  // dimmed, while a compact ghost follows the pointer and a line shows where it lands.
+  // `items()` is read on every move: a preview that comes mid-drag draws them anew.
+  function dragHandle({ items, label, autoScroll = false, onMove }) {
+    const handle = el('span', 'template-handle');
+    handle.title = 'Перетащить';
+    handle.innerHTML = GRIP_ICON;
+    handle.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || drag) return;
+      event.preventDefault();
+      drag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        x: event.clientX,
+        y: event.clientY,
+        from: items().findIndex(item => item.contains(handle)),
+        items,
+        label,
+        autoScroll,
+        onMove,
+        ghost: null,
+        slot: null,
+        frame: 0,
+      };
+    });
+    return handle;
+  }
+
+  function dragMove(event) {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    if (!drag.ghost) {
+      if (Math.hypot(drag.x - drag.startX, drag.y - drag.startY) < DRAG_THRESHOLD) return;
+      drag.ghost = el('div', 'template-ghost', drag.label);
+      document.body.append(drag.ghost);
+      document.body.classList.add('template-sorting');
+      if (drag.autoScroll) drag.frame = window.requestAnimationFrame(scrollWhileDragging);
+    }
+    drag.ghost.style.transform = `translate(${drag.x + 14}px, ${drag.y + 10}px)`;
+    markDrop();
+  }
+
+  // The slot is the gap the pointer is over: 0 before the first item, the item count after
+  // the last. The gaps around the dragged item leave it where it is.
+  function markDrop() {
+    const items = drag.items();
+    const slot = items.filter(item => {
+      const box = item.getBoundingClientRect();
+      return box.top + box.height / 2 < drag.y;
+    }).length;
+    drag.slot = slot === drag.from || slot === drag.from + 1 ? null : slot;
+    items.forEach((item, index) => {
+      item.classList.toggle('template-dragged', index === drag.from);
+      item.classList.toggle('template-drop-before', index === drag.slot);
+      item.classList.toggle('template-drop-after', index === items.length - 1 && drag.slot === items.length);
+    });
+  }
+
+  // Near the top or the bottom of the window the page scrolls by itself: stages are long.
+  function scrollWhileDragging() {
+    const top = Math.max(0, document.querySelector('.lesson-header').getBoundingClientRect().bottom) + SCROLL_EDGE;
+    const bottom = window.innerHeight - SCROLL_EDGE;
+    const overshoot = drag.y < top ? drag.y - top : Math.max(0, drag.y - bottom);
+    if (overshoot !== 0) {
+      window.scrollBy(0, Math.max(-SCROLL_EDGE, Math.min(SCROLL_EDGE, overshoot)) / 5);
+      markDrop();
+    }
+    drag.frame = window.requestAnimationFrame(scrollWhileDragging);
+  }
+
+  function dragEnd(event) {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const { ghost, from, slot, onMove } = drag;
+    stopDrag();
+    if (!ghost) return;
+    // The click that ends a drag does not open or select what was dragged.
+    suppressClick = true;
+    window.setTimeout(() => { suppressClick = false; });
+    if (slot !== null) onMove(from, slot > from ? slot - 1 : slot);
+  }
+
+  function stopDrag() {
+    if (!drag) return;
+    window.cancelAnimationFrame(drag.frame);
+    drag.ghost?.remove();
+    for (const item of drag.items()) item.classList.remove('template-dragged', 'template-drop-before', 'template-drop-after');
+    document.body.classList.remove('template-sorting');
+    drag = null;
+  }
+
+  const blockFrames = () => [...byId('template-blocks').querySelectorAll(':scope > .template-block')];
+  const stageItems = () => [...byId('template-stages').children];
+
+  // The current stage moves with its place in the list.
+  function reorderStage(from, to) {
+    const current = currentStage();
+    change(({ definition }) => {
+      Edits.moveStage(definition, from, to);
+      state.stageIndex = definition.stages.indexOf(current);
+    });
+  }
+
+  const reorderBlock = (from, to) => change(() => Edits.moveBlock(currentStage(), from, to));
+
   function blockFrame(block, component) {
     const frame = el('article', 'template-block');
     frame.dataset.blockId = block.id;
     frame.addEventListener('click', () => selectBlock(block.id));
 
     const bar = el('div', 'template-block__bar');
+    if (editable()) {
+      bar.append(dragHandle({
+        items: blockFrames,
+        label: `${KIND_LABELS[block.kind]} · ${blockName(block)}`,
+        autoScroll: true,
+        onMove: reorderBlock,
+      }));
+    }
     bar.append(kindBadge(block.kind));
     bar.append(button('template-block__name', blockName(block), event => {
       event.stopPropagation();
@@ -483,13 +605,39 @@
     return [header, el('p', 'template-panel__hint', 'Видны в списке шаблонов и в «Новом уроке».'), title, description];
   }
 
-  function blockPanel({ block, row }) {
+  // «Выше / Ниже»: the moves a handle makes, for the keyboard and for phones. The panel is
+  // drawn anew after a move, so the focus goes on to the same button, or to the other one
+  // once the item reached the end.
+  function orderButtons(index, count, move) {
+    if (count < 2) return [];
+    const row = el('div', 'template-order');
+    for (const [label, offset, direction] of [['↑ Выше', -1, 'up'], ['↓ Ниже', 1, 'down']]) {
+      const control = button('template-order__button', label, () => {
+        move(index, index + offset);
+        (panel.querySelector(`[data-order="${direction}"]:enabled`) || panel.querySelector('[data-order]:enabled'))?.focus();
+      });
+      control.dataset.order = direction;
+      control.disabled = index + offset < 0 || index + offset >= count;
+      row.append(control);
+    }
+    return [row];
+  }
+
+  // A block moved by the buttons stays in sight.
+  function moveSelectedBlock(from, to) {
+    reorderBlock(from, to);
+    markSelectedFrame()?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function blockPanel({ block, stage, row }) {
     const header = el('header', 'template-panel__header');
     header.append(kindBadge(block.kind));
     header.append(el('h2', '', blockName(block)));
     const title = blockTitle(block);
     if (title) header.append(el('p', '', title));
     if (row) header.append(linkButton('Часть ряда', row.id));
+    if (editable() && row) header.append(el('small', 'template-panel__hint', 'Части ряда не переставляются: двигается весь ряд.'));
+    else if (editable()) header.append(...orderButtons(stage.blocks.indexOf(block), stage.blocks.length, moveSelectedBlock));
 
     const sections = [];
     if (block.kind === 'row') {
@@ -695,6 +843,7 @@
     header.append(el('h2', '', `Этап ${state.stageIndex + 1}`));
     if (!usesModel) header.append(el('p', '', 'Собирается без ИИ: указания и контекст ему не нужны.'));
     if (!editable()) return [header, ...readOnlyStagePanel(stage, usesModel)];
+    header.append(...orderButtons(state.stageIndex, state.template.definition.stages.length, reorderStage));
 
     const titleHint = fieldError('Без названия этап не сохранить.', Boolean(stage.title));
     const title = textField({
@@ -773,10 +922,13 @@
     }));
     const minutes = definition.stages.reduce((sum, stage) => sum + (Number.isInteger(stage.durationMinutes) ? stage.durationMinutes : 0), 0);
     byId('template-stages-title').textContent = `Этапы · ${minutes} мин`;
-    byId('template-stages').replaceChildren(...definition.stages.map((stage, index) => {
+    const stageList = byId('template-stages');
+    stageList.classList.toggle('template-stages--sortable', editable());
+    stageList.replaceChildren(...definition.stages.map((stage, index) => {
       const item = button('lesson-stage', '', () => selectStage(index));
       const icon = el('span', 'lesson-stage__icon');
       icon.append(window.LessonView.createStageIcon(stage.icon));
+      if (editable()) item.append(dragHandle({ items: stageItems, label: stageTitle(stage), onMove: reorderStage }));
       item.append(
         icon,
         el('span', 'lesson-stage__number', String(index + 1)),
@@ -1023,6 +1175,18 @@
     });
   }
   byId('template-status').addEventListener('click', () => byId('template-problems').scrollIntoView({ behavior: 'smooth' }));
+  document.addEventListener('pointermove', dragMove);
+  document.addEventListener('pointerup', dragEnd);
+  document.addEventListener('pointercancel', stopDrag);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') stopDrag();
+  });
+  document.addEventListener('click', event => {
+    if (!suppressClick) return;
+    suppressClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
   NARROW_LAYOUT.addEventListener('change', placePanel);
   load();
 })();

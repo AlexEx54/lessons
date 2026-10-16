@@ -68,3 +68,20 @@ test('added lines get an English label of their own; the last removed line drops
   assert.equal(Object.hasOwn(wrapUp, 'context'), false);
   assert.equal(Edits.addContextLine(wrapUp, 'input', 'topic'), 'Topic');
 });
+
+test('stages and blocks move to a new index, the rest keep their order', () => {
+  const definition = templateTwo();
+  const ids = list => list.map(item => item.id);
+  const stages = ids(definition.stages);
+  Edits.moveStage(definition, 0, 2);
+  assert.deepEqual(ids(definition.stages), [stages[1], stages[2], stages[0], ...stages.slice(3)]);
+  Edits.moveStage(definition, 2, 0);
+  assert.deepEqual(ids(definition.stages), stages);
+  Edits.moveStage(definition, stages.length - 1, 0);
+  assert.deepEqual(ids(definition.stages), [stages.at(-1), ...stages.slice(0, -1)]);
+
+  const vocabulary = stage(definition, 'target-vocabulary');
+  const blocks = ids(vocabulary.blocks);
+  Edits.moveBlock(vocabulary, 1, blocks.length - 1);
+  assert.deepEqual(ids(vocabulary.blocks), [blocks[0], ...blocks.slice(2), blocks[1]]);
+});

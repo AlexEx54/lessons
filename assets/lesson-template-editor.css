@@ -95,7 +95,7 @@
   font-weight: 600;
 }
 .template-inputs small { color: #8a8fa5; font-size: 10px; font-weight: 500; }
-.template-stages { display: grid; gap: 5px; }
+.template-stages { --drop-gap: 5px; display: grid; gap: var(--drop-gap); }
 
 .template-canvas { padding: 32px clamp(20px, 3vw, 44px) 80px; }
 
@@ -130,7 +130,7 @@
 .template-problems h2 { margin: 0 0 8px; font-size: 14px; }
 .template-problems ul { margin: 0; padding-left: 18px; }
 
-.template-blocks { gap: 16px; }
+.template-blocks { --drop-gap: 16px; gap: var(--drop-gap); }
 
 .template-block {
   min-width: 0;
@@ -282,6 +282,77 @@ textarea.template-field__input { resize: vertical; }
 .template-context__line--kept > .template-field__input { grid-column: 1 / -1; }
 .template-context__add { margin-top: 12px; color: var(--purple); font-weight: 650; cursor: pointer; }
 
+/* Reordering: a handle on every block and stage of a copy, a compact ghost under the
+   pointer and a line in the gap the item lands in. */
+.template-handle {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 26px;
+  border-radius: 6px;
+  color: #a7abbe;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.template-handle:hover { color: var(--purple); background: #f3f0ff; }
+.template-handle svg { width: 10px; height: 16px; fill: currentColor; }
+.template-stages--sortable .lesson-stage { grid-template-columns: 14px 18px auto minmax(0, 1fr) auto; padding-left: 4px; }
+.template-stages--sortable .lesson-stage--active { grid-template-columns: 14px 23px minmax(0, 1fr) auto; }
+.template-stages .template-handle { width: 14px; height: 24px; }
+
+.template-sorting,
+.template-sorting * { cursor: grabbing !important; user-select: none; }
+.template-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
+  max-width: 280px;
+  padding: 8px 12px;
+  overflow: hidden;
+  border: 1px solid var(--purple);
+  border-radius: 9px;
+  color: var(--purple);
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(40, 31, 92, .18);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.template-dragged { opacity: .4; }
+.template-drop-before,
+.template-drop-after { position: relative; }
+.template-drop-before::before,
+.template-drop-after::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--purple);
+  pointer-events: none;
+}
+.template-drop-before::before { top: calc(var(--drop-gap) / -2 - 1.5px); }
+.template-drop-after::after { bottom: calc(var(--drop-gap) / -2 - 1.5px); }
+
+.template-order { display: flex; margin: 10px 0 2px; gap: 6px; }
+.template-order__button {
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #4c5269;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 650;
+}
+.template-order__button:hover:not(:disabled) { border-color: #b9a9ff; color: var(--purple); }
+.template-order__button:disabled { opacity: .45; cursor: default; }
+
 .template-rules { margin-top: 16px; font-size: 12px; }
 .template-rules summary { color: #5d6278; font-weight: 650; cursor: pointer; }
 .template-rules ul { margin: 10px 0 0; padding-left: 18px; color: #5d6278; line-height: 1.5; }
@@ -314,6 +385,8 @@ textarea.template-field__input { resize: vertical; }
   .template-outline h2 { padding: 0; }
   .template-inputs { display: flex; flex-wrap: wrap; }
   .template-stages { grid-auto-columns: max-content; grid-auto-flow: column; overflow-x: auto; padding-bottom: 4px; }
+  .template-stages .template-handle { display: none; }
+  .template-stages--sortable .lesson-stage { padding-left: 10px; }
   .template-stages .lesson-stage { grid-template-columns: repeat(4, auto); min-height: 44px; }
   .template-stages .lesson-stage--active { grid-template-columns: repeat(3, auto); }
   .template-canvas { padding: 24px 16px 60px; }
