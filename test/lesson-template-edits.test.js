@@ -3,6 +3,9 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const Edits = require('../assets/lesson-template-edits.js');
+const { describeControls } = require('../lib/lesson-template-editor.js');
+const { validateTemplate } = require('../lib/lesson-templates/validate-template.js');
+const { CONTROL_CATALOG } = require('../lib/template-controls/index.js');
 const { findSystemTemplate } = require('../lib/lesson-templates/system-templates.js');
 
 const templateTwo = () => structuredClone(findSystemTemplate('template-2').definition);
@@ -84,4 +87,114 @@ test('stages and blocks move to a new index, the rest keep their order', () => {
   const blocks = ids(vocabulary.blocks);
   Edits.moveBlock(vocabulary, 1, blocks.length - 1);
   assert.deepEqual(ids(vocabulary.blocks), [blocks[0], ...blocks.slice(2), blocks[1]]);
+});
+
+const controls = new Map(describeControls().controls.map(control => [control.type, control]));
+const templateOne = () => structuredClone(findSystemTemplate('template-1').definition);
+const blockIds = plan => plan.blocks.map(entry => entry.block);
+
+test('a deleted block takes required readers, sources and slots with it; optional inputs are unbound', () => {
+  const definition = templateTwo();
+  const plan = Edits.deletionPlan(definition, { block: 'target-vocabulary-card' }, controls);
+  assert.deepEqual(blockIds(plan), [
+    'target-vocabulary-card',
+    'target-vocabulary-meanings',
+    'target-vocabulary-context-dropdown',
+    'target-vocabulary-drag-words',
+    'target-vocabulary-type-words',
+    'grammar-focus-support',
+    'guided-communication-cards',
+  ]);
+  assert.deepEqual(plan.unbound.map(entry => `${entry.block}.${entry.port}`), [
+    'target-vocabulary-stories.highlight',
+    'target-vocabulary-personalized-questions.highlight',
+  ]);
+  assert.deepEqual(plan.context.map(line => line.stage), ['grammar-presentation', 'grammar-focus', 'guided-speaking', 'wrap-up']);
+  assert.deepEqual(plan.stages, []);
+
+  Edits.applyDeletion(definition, plan);
+  const vocabulary = stage(definition, 'target-vocabulary');
+  assert.deepEqual(vocabulary.blocks.find(block => block.id === 'target-vocabulary-stories').inputs, { guesses: 'leadInGuesses' });
+  assert.equal(Object.hasOwn(vocabulary.blocks.find(block => block.id === 'target-vocabulary-personalized-questions'), 'inputs'), false);
+  assert.deepEqual(Object.keys(stage(definition, 'wrap-up').context), ['Lesson topic', 'Grammar topic']);
+});
+
+test('a stage emptied by the cascade goes too; nothing is changed before applyDeletion', () => {
+  const definition = templateTwo();
+  const before = JSON.stringify(definition);
+  const plan = Edits.deletionPlan(definition, { block: 'warm-up-odd-one-out' }, controls);
+  // The teacher note reads its example word from the exercise through a slot.
+  assert.deepEqual(blockIds(plan), ['warm-up-teacher-note', 'warm-up-odd-one-out', 'warm-up-odd-one-out-answer-key']);
+  assert.deepEqual(plan.stages, ['warm-up']);
+  assert.equal(JSON.stringify(definition), before);
+  Edits.applyDeletion(definition, plan);
+  assert.equal(definition.stages[0].id, 'lead-in');
+});
+
+test('a deleted stage clears what other stages read from it', () => {
+  const definition = templateTwo();
+  const plan = Edits.deletionPlan(definition, { stage: 'lead-in' }, controls);
+  assert.deepEqual(plan.stages, ['lead-in']);
+  assert.deepEqual(blockIds(plan).filter(id => !id.startsWith('lead-in-')), ['target-vocabulary-guess-answers']);
+  assert.deepEqual(plan.unbound.map(entry => `${entry.block}.${entry.port}`), ['target-vocabulary-stories.guesses']);
+  assert.deepEqual(plan.context, [{ stage: 'target-vocabulary', label: 'Guess statements from the Lead-In' }]);
+});
+
+test('a block built from several sources only loses the deleted one', () => {
+  const definition = templateTwo();
+  const plan = Edits.deletionPlan(definition, { block: 'grammar-presentation-complete-the-rule' }, controls);
+  assert.deepEqual(blockIds(plan), ['grammar-presentation-complete-the-rule']);
+  assert.deepEqual(plan.sources.map(entry => `${entry.block} ← ${entry.source}`), [
+    'grammar-presentation-answer-key ← grammar-presentation-complete-the-rule',
+  ]);
+  Edits.applyDeletion(definition, plan);
+  const answerKey = stage(definition, 'grammar-presentation').blocks.find(block => block.id === 'grammar-presentation-answer-key');
+  assert.deepEqual(answerKey.from.map(source => source.id), ['task-two-answers', 'short-explanations']);
+
+  // Both parts of this answer key come from one exercise: the key goes with it.
+  const focus = Edits.deletionPlan(definition, { block: 'grammar-focus-choose-the-correct-options' }, controls);
+  assert.deepEqual(blockIds(focus), ['grammar-focus-choose-the-correct-options', 'grammar-focus-answer-key']);
+});
+
+test('a row keeps two parts, turns into its last part and goes as a whole', () => {
+  const rowId = 'grammar-focus-practice-support-row';
+  const row = definition => stage(definition, 'grammar-focus').blocks.find(block => block.id === rowId);
+
+  const definition = templateOne();
+  Edits.applyDeletion(definition, Edits.deletionPlan(definition, { block: 'grammar-focus-support' }, controls));
+  assert.deepEqual(row(definition).blocks.map(part => part.id), ['grammar-focus-writing-support', 'grammar-focus-challenge']);
+  Edits.applyDeletion(definition, Edits.deletionPlan(definition, { block: 'grammar-focus-challenge' }, controls));
+  assert.equal(row(definition), undefined);
+  assert.equal(stage(definition, 'grammar-focus').blocks.filter(block => block.id === 'grammar-focus-writing-support').length, 1);
+
+  const whole = templateOne();
+  const plan = Edits.deletionPlan(whole, { block: rowId }, controls);
+  assert.deepEqual(blockIds(plan), ['grammar-focus-writing-support', 'grammar-focus-support', 'grammar-focus-challenge']);
+});
+
+test('the last stage cannot go, by itself or by a cascade', () => {
+  const definition = templateTwo();
+  definition.stages = [stage(definition, 'warm-up')];
+  assert.equal(Edits.deletionPlan(definition, { stage: 'warm-up' }, controls).emptiesTemplate, true);
+  assert.equal(Edits.deletionPlan(definition, { block: 'warm-up-odd-one-out' }, controls).emptiesTemplate, true);
+  assert.equal(Edits.deletionPlan(definition, { block: 'warm-up-odd-one-out-answer-key' }, controls).emptiesTemplate, false);
+});
+
+test('deleting any block or stage of a system template leaves a valid template', () => {
+  for (const id of ['template-1', 'template-2']) {
+    const base = findSystemTemplate(id).definition;
+    const targets = [
+      ...base.stages.map(item => ({ stage: item.id })),
+      ...base.stages.flatMap(item => item.blocks.flatMap(block => [block, ...(block.blocks || [])]))
+        .map(block => ({ block: block.id })),
+    ];
+    for (const target of targets) {
+      const definition = structuredClone(base);
+      const plan = Edits.deletionPlan(definition, target, controls);
+      assert.equal(plan.emptiesTemplate, false);
+      Edits.applyDeletion(definition, plan);
+      const { errors } = validateTemplate(definition, CONTROL_CATALOG);
+      assert.deepEqual(errors.map(error => error.message), [], `${id}: ${JSON.stringify(target)}`);
+    }
+  }
 });

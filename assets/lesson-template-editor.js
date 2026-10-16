@@ -90,12 +90,29 @@
     else delete object[key];
   }
 
-  function showToast(message) {
+  // A toast may carry one action, such as «Вернуть»: it stays longer then, and goes away
+  // once the template changes again (`dropToastAction`).
+  function showToast(message, action) {
     const toast = byId('lesson-toast');
-    toast.textContent = message;
+    toast.replaceChildren(el('span', '', message));
+    if (action) {
+      toast.append(button('lesson-toast__action', action.label, () => {
+        hideToast();
+        action.run();
+      }));
+    }
+    toast.classList.toggle('lesson-toast--action', Boolean(action));
     toast.classList.add('lesson-toast--visible');
     window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => toast.classList.remove('lesson-toast--visible'), 2600);
+    toastTimer = window.setTimeout(hideToast, action ? 6000 : 2600);
+  }
+
+  function hideToast() {
+    byId('lesson-toast').classList.remove('lesson-toast--visible', 'lesson-toast--action');
+  }
+
+  function dropToastAction() {
+    if (byId('lesson-toast').classList.contains('lesson-toast--action')) hideToast();
   }
 
   async function request(method, url, body) {
@@ -342,6 +359,7 @@
   }
 
   const currentStage = () => state.template.definition.stages[state.stageIndex];
+  const stageById = id => state.template.definition.stages.find(stage => stage.id === id);
 
   function renderStage() {
     const stage = currentStage();
@@ -650,6 +668,12 @@
     } else {
       sections.push(...controlledBlockSections(block));
     }
+    if (editable()) {
+      let label = 'Удалить блок';
+      if (row) label = 'Удалить из ряда';
+      else if (block.kind === 'row') label = 'Удалить ряд';
+      sections.push(deleteSection(label, { block: block.id }));
+    }
     return [header, ...sections];
   }
 
@@ -878,7 +902,118 @@
 
     const sections = [header, title, subtitle, duration, fieldGroup('div', 'Иконка', iconPicker(stage))];
     if (usesModel) sections.push(stageInstructionsSection(stage, facts?.defaultInstructions), contextSection(stage));
+    sections.push(deleteSection('Удалить этап', { stage: stage.id }));
     return sections;
+  }
+
+  // Deletion is worked out from the working copy, so it works while the template has
+  // problems too. Only the target goes at once; anything else that would go or change is
+  // listed in a dialog first. Either way the toast offers «Вернуть».
+  const deletionPlan = target => Edits.deletionPlan(state.template.definition, target, state.controls);
+
+  // A deletion that would leave no stage is not offered.
+  function deleteSection(label, target) {
+    const section = el('div', 'template-delete');
+    const control = button('template-delete__button', label, () => requestDeletion(target));
+    section.append(control);
+    if (deletionPlan(target).emptiesTemplate) {
+      control.disabled = true;
+      section.append(el('small', 'template-panel__hint', target.stage && state.template.definition.stages.length === 1
+        ? 'Последний этап не удалить: в шаблоне должен остаться хотя бы один.'
+        : 'Вместе с ним удалились бы все этапы шаблона.'));
+    }
+    return section;
+  }
+
+  // A stage's own blocks and a row's own parts go with it and are not listed apart.
+  function ownBlock({ target }, entry) {
+    if (target.stage) return entry.stage === target.stage;
+    return entry.block === target.block || state.blocks.get(entry.block).row?.id === target.block;
+  }
+
+  // A block as the dialog lists it, with its stage when that is another one.
+  function blockLine(id, fromStageId) {
+    const { block, stage } = state.blocks.get(id);
+    const title = blockTitle(block);
+    const name = title ? `${blockName(block)} «${title}»` : blockName(block);
+    return stage.id === fromStageId ? name : `${name} — этап «${stageTitle(stage)}»`;
+  }
+
+  function targetName({ target }) {
+    return target.stage ? `этап «${stageTitle(stageById(target.stage))}»` : `«${blockName(state.blocks.get(target.block).block)}»`;
+  }
+
+  // Everything the deletion takes or changes besides the target, by group; empty when
+  // only the target goes.
+  function deletionEffects(plan) {
+    const stageId = plan.target.stage || state.blocks.get(plan.target.block).stage.id;
+    const portType = ({ block, port }) => {
+      const { control } = state.blocks.get(block).block;
+      return typeLabel(state.controls.get(control).inputs[port].type);
+    };
+    return [
+      ['Удалятся вместе с ним', plan.blocks
+        .filter(entry => !ownBlock(plan, entry))
+        .map(entry => blockLine(entry.block, stageId))],
+      ['Опустеют и удалятся этапы', plan.stages
+        .filter(id => id !== plan.target.stage)
+        .map(id => `«${stageTitle(stageById(id))}»`)],
+      ['Изменятся', [
+        ...plan.unbound.map(entry => `${blockLine(entry.block, stageId)}: больше не берёт ${portType(entry)}`),
+        ...plan.sources.map(entry => `${blockLine(entry.block, stageId)}: больше не собирается из «${blockName(state.blocks.get(entry.source).block)}»`),
+      ]],
+      ['Уйдут строки контекста', plan.context
+        .map(line => `«${line.label}» — этап «${stageTitle(stageById(line.stage))}»`)],
+    ].filter(([, items]) => items.length > 0);
+  }
+
+  let pendingDeletion = null;
+
+  function requestDeletion(target) {
+    const plan = deletionPlan(target);
+    if (plan.emptiesTemplate) return;
+    const effects = deletionEffects(plan);
+    if (effects.length === 0) {
+      deleteNow(plan);
+      return;
+    }
+    pendingDeletion = plan;
+    byId('delete-dialog-title').textContent = `Удалить ${targetName(plan)}?`;
+    byId('delete-dialog-effects').replaceChildren(...effects.map(([title, items]) => {
+      const list = el('ul');
+      list.append(...items.map(item => el('li', '', item)));
+      return panelSection(title, list);
+    }));
+    const dialog = byId('delete-dialog');
+    dialog.showModal();
+    dialog.scrollTop = 0;
+    byId('delete-cancel').focus({ preventScroll: true });
+  }
+
+  function deleteNow(plan) {
+    const { definition } = state.template;
+    const before = { definition: structuredClone(definition), stageIndex: state.stageIndex, selection: state.selection };
+    const others = plan.blocks.filter(entry => !ownBlock(plan, entry)).length;
+    let message = 'Блок удалён';
+    if (plan.target.stage) message = 'Этап удалён';
+    else if (state.blocks.get(plan.target.block).block.kind === 'row') message = 'Ряд удалён';
+    if (others > 0) message += `, с ним ещё ${others} ${plural(others, ['блок', 'блока', 'блоков'])}`;
+    // The open stage stays open; once it is gone, the stage that took its place opens.
+    const stagesBefore = definition.stages.slice(0, state.stageIndex).filter(stage => !plan.stages.includes(stage.id)).length;
+    change(template => {
+      Edits.applyDeletion(template.definition, plan);
+      state.stageIndex = Math.min(stagesBefore, template.definition.stages.length - 1);
+      // The last preview's links name deleted blocks: links wait for the next preview.
+      state.preview = { ...state.preview, blocks: null };
+    });
+    showToast(message, {
+      label: 'Вернуть',
+      run: () => {
+        state.stageIndex = before.stageIndex;
+        state.selection = before.selection;
+        change(template => { template.definition = before.definition; });
+      },
+    });
   }
 
   function renderPanel() {
@@ -1011,6 +1146,7 @@
   // Every edit of the template goes through here: the page redraws from the working copy
   // at once, and the preview with its problems catches up a moment later.
   function change(mutate) {
+    dropToastAction();
     mutate(state.template);
     redraw();
     schedulePreview();
@@ -1023,6 +1159,7 @@
   }
 
   function edited() {
+    dropToastAction();
     renderHeader();
     renderOutline();
     renderStageHeading();
@@ -1156,6 +1293,22 @@
   byId('template-save').addEventListener('click', save);
   byId('template-discard').addEventListener('click', discardChanges);
   byId('template-reload').addEventListener('click', loadFreshVersion);
+  const deleteDialog = byId('delete-dialog');
+  byId('delete-confirm').addEventListener('click', () => {
+    const plan = pendingDeletion;
+    deleteDialog.close();
+    deleteNow(plan);
+  });
+  byId('delete-cancel').addEventListener('click', () => deleteDialog.close());
+  // A click on the backdrop lands on the dialog too: only one outside its box closes it.
+  deleteDialog.addEventListener('click', event => {
+    if (event.target !== deleteDialog) return;
+    const box = deleteDialog.getBoundingClientRect();
+    const inside = event.clientX >= box.left && event.clientX <= box.right
+      && event.clientY >= box.top && event.clientY <= box.bottom;
+    if (!inside) deleteDialog.close();
+  });
+  deleteDialog.addEventListener('close', () => { pendingDeletion = null; });
   document.addEventListener('keydown', event => {
     if (!(event.metaKey || event.ctrlKey) || event.code !== 'KeyS' || !state.template || !editable()) return;
     event.preventDefault();

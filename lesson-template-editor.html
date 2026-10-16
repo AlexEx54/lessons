@@ -108,6 +108,15 @@
       <a href="/lesson-templates">Вернуться к шаблонам</a>
     </div>
   </div>
+  <dialog class="template-dialog" id="delete-dialog" aria-labelledby="delete-dialog-title">
+    <h2 id="delete-dialog-title"></h2>
+    <p class="template-panel__hint">Сразу после удаления его можно вернуть.</p>
+    <div id="delete-dialog-effects"></div>
+    <div class="template-dialog__actions">
+      <button class="template-discard" id="delete-cancel" type="button">Отмена</button>
+      <button class="template-danger" id="delete-confirm" type="button">Удалить</button>
+    </div>
+  </dialog>
   <div class="lesson-toast" id="lesson-toast" role="status" aria-live="polite"></div>
   <script src="/assets/components/component-tree.js" defer></script>
   <script src="/assets/components/safe-markdown.js" defer></script>
