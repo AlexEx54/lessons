@@ -124,10 +124,13 @@ test('controls are described for the editor with labelled parameters and chrome'
   const byType = type => controls.find(control => control.type === type);
   assert.deepEqual(byType('vocabularyList').outputs.vocabulary.features, { distractor: 'distractors', imagePrompt: 'imagePrompts' });
   assert.deepEqual(byType('matchPictures').inputs.vocabulary.requires, ['imagePrompt']);
-  assert.deepEqual(byType('repeatAudio').sources, { accepts: ['audioScript'], single: true });
-  assert.equal(byType('answerKey').sources.single, false);
+  assert.deepEqual(byType('repeatAudio').sources, { accepts: ['audioScript'], single: true, label: 'аудио' });
+  assert.deepEqual([byType('answerKey').sources.single, byType('answerKey').sources.label], [false, 'ответы']);
   assert.ok(byType('answerKey').sources.accepts.includes('contextDropdown'));
   assert.equal(byType('contextDropdown').sources, undefined);
+  // An answer key chooses the parts of a key in two parts one by one.
+  assert.deepEqual(byType('choiceSentences').answerKeyParts, { answers: 'Ответы', explanations: 'Пояснения' });
+  assert.equal(byType('contextDropdown').answerKeyParts, undefined);
   assert.equal(controls.find(control => control.type === 'teacherNoteSections').params.sections.type, 'custom');
   const icon = controls.find(control => control.type === 'listCard').chrome.find(field => field.key === 'icon');
   assert.equal(icon.type, 'choice');

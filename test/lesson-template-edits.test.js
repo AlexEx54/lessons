@@ -333,6 +333,91 @@ test('a source of the stage itself needs no line; an optional input may be left 
 const templateOne = () => structuredClone(findSystemTemplate('template-1').definition);
 const blockIds = plan => plan.blocks.map(entry => entry.block);
 
+test('an answer key may take every block of its stage with answers, a key in two parts part by part', () => {
+  const definition = templateOne();
+  const presentation = stage(definition, 'grammar-presentation');
+  const key = block(definition, 'grammar-presentation-answer-key');
+  assert.deepEqual(Edits.sourceOptions(presentation, key, controls), [
+    { block: 'grammar-presentation-complete-the-rule', index: 0 },
+    { block: 'grammar-presentation-check-the-rule', part: 'answers', index: 1 },
+    { block: 'grammar-presentation-check-the-rule', part: 'explanations', index: 2 },
+  ]);
+  assert.deepEqual(Edits.blockLinks(definition, key, controls).sources, [
+    { block: 'grammar-presentation-complete-the-rule', inStage: true },
+    { block: 'grammar-presentation-check-the-rule', inStage: true },
+  ]);
+
+  // An entry without a part is the first part; one the stage lacks comes after the rows.
+  const focus = stage(definition, 'grammar-focus');
+  const gapsKey = block(definition, 'grammar-focus-complete-the-gaps-answer-key');
+  gapsKey.from = ['grammar-focus-choose-the-correct-options', 'reading-gist-quiz'];
+  assert.deepEqual(Edits.sourceOptions(focus, gapsKey, controls), [
+    { block: 'grammar-focus-choose-the-correct-options', part: 'answers', index: 0 },
+    { block: 'grammar-focus-choose-the-correct-options', part: 'explanations', index: -1 },
+    { block: 'grammar-focus-complete-the-gaps', index: -1 },
+    { block: 'reading-gist-quiz', index: 1 },
+  ]);
+  assert.deepEqual(Edits.blockLinks(definition, gapsKey, controls).sources, [
+    { block: 'grammar-focus-choose-the-correct-options', inStage: true },
+    { block: 'reading-gist-quiz', inStage: false },
+  ]);
+  assert.equal(Object.hasOwn(Edits.blockLinks(definition, block(definition, 'grammar-focus-complete-the-gaps'), controls), 'sources'), false);
+});
+
+test('chosen sources keep their order, titles and ids; a new one takes its block’s place in the stage', () => {
+  const definition = templateOne();
+  const presentation = stage(definition, 'grammar-presentation');
+  const key = block(definition, 'grammar-presentation-answer-key');
+  const [rule, answers, explanations] = structuredClone(key.from);
+
+  Edits.setSources(presentation, key, [{ block: rule.block }, { block: answers.block, part: 'explanations' }], controls);
+  assert.deepEqual(key.from, [rule, explanations]);
+  Edits.setSources(presentation, key, [{ block: rule.block }, { block: answers.block, part: 'explanations' }, { block: answers.block, part: 'answers' }], controls);
+  assert.deepEqual(key.from, [rule, { block: answers.block, part: 'answers' }, explanations]);
+
+  // The answers of a block above go first, of one below last.
+  const tasks = stage(definition, 'reading');
+  const readingKey = block(definition, 'reading-answer-key');
+  Edits.setSources(tasks, readingKey, [{ block: 'reading-detail-quiz' }], controls);
+  assert.deepEqual(readingKey.from, [{ block: 'reading-detail-quiz', title: 'Task 2:' }]);
+  Edits.setSources(tasks, readingKey, [{ block: 'reading-detail-quiz' }, { block: 'reading-gist-quiz' }], controls);
+  assert.deepEqual(readingKey.from, ['reading-gist-quiz', { block: 'reading-detail-quiz', title: 'Task 2:' }]);
+  assert.deepEqual(problems(definition), []);
+
+  // The last one may go: the server reports the key.
+  Edits.setSources(tasks, readingKey, [], controls);
+  assert.equal(Object.hasOwn(readingKey, 'from'), false);
+  assert.deepEqual(problems(definition), ['Блок reading-answer-key не собирается ни из одного блока этапа.']);
+});
+
+test('a section title is set or dropped; an entry left with its block alone becomes the id', () => {
+  const definition = templateOne();
+  const key = block(definition, 'grammar-focus-complete-the-gaps-answer-key');
+  Edits.setSourceTitle(key, 0, '  Task 2  ');
+  assert.deepEqual(key.from, [{ block: 'grammar-focus-complete-the-gaps', title: 'Task 2' }]);
+  Edits.setSourceTitle(key, 0, ' ');
+  assert.deepEqual(key.from, ['grammar-focus-complete-the-gaps']);
+
+  const presentation = block(definition, 'grammar-presentation-answer-key');
+  Edits.setSourceTitle(presentation, 1, '');
+  assert.deepEqual(presentation.from[1], { block: 'grammar-presentation-check-the-rule', part: 'answers', id: 'task-two-answers' });
+  assert.deepEqual(problems(definition), []);
+});
+
+test('a block built from one block takes another source of its stage instead', () => {
+  const definition = templateOne();
+  const listening = stage(definition, 'listening');
+  const again = block(definition, 'listening-audio-again');
+  const audio = addBlock(definition, 'listening', 'audioScript').block;
+  assert.deepEqual(Edits.sourceOptions(listening, again, controls), [
+    { block: 'listening-audio', index: 0 },
+    { block: audio.id, index: -1 },
+  ]);
+  Edits.setSources(listening, again, [{ block: audio.id }], controls);
+  assert.deepEqual(again.from, [audio.id]);
+  assert.deepEqual(problems(definition), []);
+});
+
 test('a deleted block takes required readers, sources and slots with it; optional inputs are unbound', () => {
   const definition = templateTwo();
   const plan = Edits.deletionPlan(definition, { block: 'target-vocabulary-card' }, controls);

@@ -95,6 +95,7 @@ const CONTROLS = [
     kind: 'derived',
     chrome: ['title'],
     acceptsSource: control => (control.answerKey ? null : `у ${control.type} нет ключа ответов.`),
+    sourceLabel: 'ответы',
     build: ({ sources }, { id, chrome }) => ({
       type: 'markdownCard',
       id,
@@ -479,6 +480,14 @@ test('the catalog rejects incomplete controls', () => {
   const answerKey = CONTROLS.find(control => control.type === 'answerKey');
   assert.throws(() => createControlCatalog([{ ...answerKey, singleSource: 'yes' }]), /singleSource бывает только true/);
   assert.throws(() => createControlCatalog([{ ...answerKey, acceptsSource: undefined, singleSource: true }]), /только вместе с acceptsSource/);
+  assert.throws(() => createControlCatalog([{ ...answerKey, sourceLabel: undefined }]), /acceptsSource и sourceLabel задаются только вместе/);
+  assert.throws(() => createControlCatalog([{ ...CONTROLS[0], sourceLabel: 'ответы' }]), /acceptsSource и sourceLabel задаются только вместе/);
+  const withParts = (control, answerKeyParts) => () => createControlCatalog([{ ...control, answerKeyParts }]);
+  const keyed = CONTROLS.find(control => typeof control.answerKey === 'function');
+  assert.throws(withParts(keyed, { answers: 'Ответы' }), /подписи хотя бы двух частей/);
+  assert.throws(withParts(keyed, { answers: 'Ответы', explanations: '' }), /подписи хотя бы двух частей/);
+  assert.throws(withParts(answerKey, { answers: 'Ответы', explanations: 'Пояснения' }), /только вместе с answerKey/);
+  assert.doesNotThrow(withParts(keyed, { answers: 'Ответы', explanations: 'Пояснения' }));
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], group: 'misc' }]), /неизвестная группа misc/);
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], description: ' ' }]), /описание должно быть непустой строкой/);
 });

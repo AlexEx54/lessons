@@ -316,7 +316,8 @@
   // while the template has problems too. An input reads `variable` from the block `from`;
   // both are null while it is not connected, and `from` is null for a variable nobody
   // gives away. An output's readers are the blocks that read its variable and the stages
-  // whose context passes it.
+  // whose context passes it. A block built from other blocks lists them as `sources`, each
+  // block once, in `from` order; `inStage` is false for an id its stage lacks.
   function blockLinks(definition, block, controls) {
     const control = controls.get(block.control);
     const producers = variableProducers(definition);
@@ -344,7 +345,11 @@
       }
       exports[port] = { variable, type: control?.outputs[port]?.type, readers };
     }
-    return { inputs, exports };
+    if (!control?.sources) return { inputs, exports };
+    const stageBlocks = flattenBlocks(definition.stages.find(stage => flattenBlocks(stage.blocks).includes(block))?.blocks || []);
+    const sources = [...new Set(sourceList(block.from).map(sourceBlock))]
+      .map(id => ({ block: id, inStage: stageBlocks.some(other => other.id === id && other !== block) }));
+    return { inputs, exports, sources };
   }
 
   // Connects the block's `port` to `variable`, or disconnects it when that is null. A
@@ -381,6 +386,78 @@
   const slotSourceBlock = source => /^[a-z][a-z0-9-]*/.exec(String(source))?.[0];
   const sourceBlock = source => (typeof source === 'string' ? source : source?.block);
   const sourceList = from => (from === undefined ? [] : [].concat(from));
+
+  // A block built from other blocks of its stage names them in `from`: by id, or by an
+  // object that adds the `part` of a key in several parts, a section `title` and `id`.
+  // A source is told by its block and part; an entry without a part takes the key's first.
+  const keyParts = (block, controls) => Object.keys(controls.get(block?.control)?.answerKeyParts || {});
+  const sourceRef = (block, part) => (part === undefined ? { block } : { block, part });
+  const sameSource = (a, b) => a.block === b.block && a.part === b.part;
+
+  function sourceOf(entry, stage, controls) {
+    const id = sourceBlock(entry);
+    const part = typeof entry === 'string' ? undefined : entry?.part;
+    return sourceRef(id, part ?? keyParts(flattenBlocks(stage.blocks).find(block => block.id === id), controls)[0]);
+  }
+
+  // Where a source sits in its stage: its block's place, then its part's. One the stage
+  // lacks comes last.
+  function sourceOrder(item, stage, controls) {
+    const blocks = flattenBlocks(stage.blocks);
+    const index = blocks.findIndex(block => block.id === item.block);
+    if (index < 0) return [Infinity, 0];
+    return [index, Math.max(0, keyParts(blocks[index], controls).indexOf(item.part))];
+  }
+  const comesBefore = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
+
+  // What a block built from other blocks may be built from: every block of the stage its
+  // control takes, in stage order and a row per part of a key in several parts, then the
+  // entries of `from` that are none of them. `index` is the row's entry in `from`, or -1.
+  function sourceOptions(stage, block, controls) {
+    const entries = sourceList(block.from).map(entry => sourceOf(entry, stage, controls));
+    const accepts = controls.get(block.control)?.sources?.accepts || [];
+    const claimed = new Set();
+    const rows = flattenBlocks(stage.blocks)
+      .filter(candidate => candidate !== block && candidate.kind !== 'static' && accepts.includes(candidate.control))
+      .flatMap(candidate => {
+        const parts = keyParts(candidate, controls);
+        return parts.length > 0 ? parts.map(part => sourceRef(candidate.id, part)) : [sourceRef(candidate.id)];
+      })
+      .map(row => {
+        const index = entries.findIndex((entry, other) => !claimed.has(other) && sameSource(entry, row));
+        if (index >= 0) claimed.add(index);
+        return { ...row, index };
+      });
+    const rest = entries.map((entry, index) => ({ ...entry, index })).filter(entry => !claimed.has(entry.index));
+    return [...rows, ...rest];
+  }
+
+  // Builds the block from the sources `chosen` ({ block, part? }). The ones it keeps stay
+  // in their order with their section title and id; a new one goes before the first that
+  // comes later in the stage, so a new answer key section takes its block's place.
+  function setSources(stage, block, chosen, controls) {
+    const of = entry => sourceOf(entry, stage, controls);
+    const kept = sourceList(block.from).filter(entry => chosen.some(item => sameSource(item, of(entry))));
+    for (const item of chosen) {
+      if (kept.some(entry => sameSource(item, of(entry)))) continue;
+      const order = sourceOrder(item, stage, controls);
+      const at = kept.findIndex(entry => comesBefore(order, sourceOrder(of(entry), stage, controls)));
+      kept.splice(at < 0 ? kept.length : at, 0, item.part === undefined ? item.block : { block: item.block, part: item.part });
+    }
+    if (kept.length > 0) block.from = kept;
+    else delete block.from;
+  }
+
+  // The section title of the source at `index` in `from`. An empty one is dropped, and an
+  // entry left with its block alone is written as the id.
+  function setSourceTitle(block, index, title) {
+    const from = sourceList(block.from);
+    const entry = typeof from[index] === 'string' ? { block: from[index] } : { ...from[index] };
+    if (title.trim()) entry.title = title.trim();
+    else delete entry.title;
+    from[index] = Object.keys(entry).length === 1 ? entry.block : entry;
+    block.from = from;
+  }
 
   // What goes away with a block, a row or a stage (`target` is `{ block }` or `{ stage }`;
   // a row is a block). A deleted block takes its variables with it, and the loop goes on
@@ -603,6 +680,9 @@
     plannedLinks,
     blockLinks,
     setInputSource,
+    sourceOptions,
+    setSources,
+    setSourceTitle,
     addBlock,
     deletionPlan,
     applyDeletion,
