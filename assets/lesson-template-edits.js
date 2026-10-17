@@ -5,7 +5,12 @@
   // definition in place: the editor works on its own copy and sends it to the server,
   // which checks the result. Runs in the browser and, for tests, in node.
 
+  const Statics = root.LessonTemplateStatics
+    || (typeof require === 'function' ? require('./lesson-template-statics.js') : null);
+  if (!Statics) throw new Error('LessonTemplateEdits requires LessonTemplateStatics.');
+
   const CONTEXT_REFERENCE = /^\$(input|var)\.([a-z][A-Za-z0-9]*)$/;
+  const PLACEHOLDER = /\{\{([a-z][A-Za-z0-9]*)\}\}/g;
   const CONTEXT_LABEL_MAX_LENGTH = 80;
 
   const flattenBlocks = blocks => blocks.flatMap(block => (block.kind === 'row' ? block.blocks : [block]));
@@ -208,6 +213,61 @@
     }
   }
 
+  // Names of the {{slots}} found in the component's texts.
+  function placeholders(value, names = new Set()) {
+    if (typeof value === 'string') {
+      for (const match of value.matchAll(PLACEHOLDER)) names.add(match[1]);
+    } else if (value && typeof value === 'object') {
+      Object.values(value).forEach(item => placeholders(item, names));
+    }
+    return names;
+  }
+
+  // Teacher's Notes saves its own text apart from its sub-blocks: `retainedBlockIds` keeps
+  // some of them, `blocks` gives new texts of one.
+  function teacherNoteWith(note, { text, retainedBlockIds, blocks: updates = [] }) {
+    const next = { ...note };
+    if (text) next.text = text;
+    else if (text !== undefined) delete next.text;
+    const blocks = (note.blocks || [])
+      .filter(block => !retainedBlockIds || retainedBlockIds.includes(block.id))
+      .map(block => {
+        const update = updates.find(item => item.id === block.id);
+        if (!update) return block;
+        const changed = { ...block, title: update.title, text: update.text };
+        if (block.tip) changed.tip = { ...block.tip, text: update.tip?.text };
+        return changed;
+      });
+    if (blocks.length > 0) next.blocks = blocks;
+    else delete next.blocks;
+    return next;
+  }
+
+  // Puts what a component editor saves (`onSave(changes, id)`) into a static block. The
+  // other editors send new values of the fields they edit, null or undefined for a field
+  // to drop. The component's normalizer checks the result before the block changes; a
+  // slot whose {{name}} is gone from the texts goes too. Returns the component.
+  function applyStaticChanges(block, changes) {
+    let component;
+    if (block.component.type === 'teacherNote') {
+      component = teacherNoteWith(block.component, changes);
+    } else {
+      component = { ...block.component };
+      for (const [key, value] of Object.entries(changes)) {
+        if (value === null || value === undefined) delete component[key];
+        else component[key] = value;
+      }
+    }
+    Statics.checkStaticComponent({ ...component, id: block.id });
+    block.component = component;
+    const used = placeholders(component);
+    for (const name of Object.keys(block.slots || {})) {
+      if (!used.has(name)) delete block.slots[name];
+    }
+    if (block.slots && Object.keys(block.slots).length === 0) delete block.slots;
+    return component;
+  }
+
   const api = {
     CONTEXT_LABEL_MAX_LENGTH,
     flattenBlocks,
@@ -223,6 +283,7 @@
     moveBlock,
     deletionPlan,
     applyDeletion,
+    applyStaticChanges,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.LessonTemplateEdits = api;

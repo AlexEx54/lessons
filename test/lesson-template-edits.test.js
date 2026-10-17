@@ -198,3 +198,59 @@ test('deleting any block or stage of a system template leaves a valid template',
     }
   }
 });
+
+const staticBlock = (definition, stageId, id) => stage(definition, stageId).blocks.find(block => block.id === id);
+
+test('a static block takes the fields its editor saves; null drops a field', () => {
+  const definition = templateTwo();
+  const instruction = staticBlock(definition, 'guided-speaking', 'guided-communication-instruction');
+  const saved = Edits.applyStaticChanges(instruction, { title: 'Pick a card', text: 'Pick one.', support: null });
+  assert.equal(saved, instruction.component);
+  assert.deepEqual(instruction.component, { type: 'taskPrompt', variant: 'followUp', title: 'Pick a card', text: 'Pick one.' });
+
+  const discussion = staticBlock(definition, 'watch-and-interact', 'watch-discussion');
+  const sections = [{ id: 'discussion', title: 'Talk', text: 'Why?' }];
+  Edits.applyStaticChanges(discussion, { title: 'After', sections });
+  assert.equal(discussion.component.title, 'After');
+  assert.deepEqual(discussion.component.sections, sections);
+  assert.equal(discussion.component.accentColor, '#8257E5');
+  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
+});
+
+test('Teacher’s Notes keeps, drops and rewrites its sub-blocks apart from its text', () => {
+  const definition = templateTwo();
+  const note = staticBlock(definition, 'target-vocabulary', 'target-vocabulary-teacher-note');
+  const [first, second] = note.component.blocks;
+  Edits.applyStaticChanges(note, { blocks: [{ id: first.id, title: 'Check', text: 'New text', tip: { text: 'New tip' } }] });
+  assert.deepEqual(note.component.blocks[0], { ...first, title: 'Check', text: 'New text', tip: { text: 'New tip' } });
+  assert.equal(note.component.blocks[1], second);
+
+  Edits.applyStaticChanges(note, { text: 'Own words', retainedBlockIds: [second.id] });
+  assert.equal(note.component.text, 'Own words');
+  assert.deepEqual(note.component.blocks.map(block => block.id), [second.id]);
+  Edits.applyStaticChanges(note, { text: null, retainedBlockIds: [second.id] });
+  assert.equal(Object.hasOwn(note.component, 'text'), false);
+  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
+});
+
+test('a broken component leaves the block as it was', () => {
+  const definition = templateTwo();
+  const note = staticBlock(definition, 'watch-and-interact', 'watch-teacher-note');
+  const before = structuredClone(note);
+  assert.throws(() => Edits.applyStaticChanges(note, { text: null }), /TeacherNote requires text/);
+  assert.deepEqual(note, before);
+  const quiz = staticBlock(definition, 'watch-and-interact', 'watch-prediction');
+  assert.throws(() => Edits.applyStaticChanges(quiz, { items: [] }));
+  assert.equal(quiz.component.items.length, 1);
+});
+
+test('a slot whose name is gone from the text goes with it', () => {
+  const definition = templateTwo();
+  const note = staticBlock(definition, 'warm-up', 'warm-up-teacher-note');
+  const text = note.component.text;
+  Edits.applyStaticChanges(note, { text: `${text}\n\nMore.` });
+  assert.deepEqual(Object.keys(note.slots), ['exampleWord']);
+  Edits.applyStaticChanges(note, { text: text.replaceAll('{{exampleWord}}', 'Apple') });
+  assert.equal(Object.hasOwn(note, 'slots'), false);
+  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
+});

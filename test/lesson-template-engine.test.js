@@ -384,6 +384,8 @@ test('validation reports block-level mistakes', () => {
     guess.blocks.push({ id: 'guess-starters-key', kind: 'derived', control: 'answerKey', from: ['guess-starters'] });
     guess.blocks.push({ id: 'guess-mystery', kind: 'generated', control: 'mystery' });
     guess.blocks.push({ id: 'guess-game', kind: 'static', component: { type: 'teacherNote' } });
+    guess.blocks.push({ id: 'guess-empty-note', kind: 'static', component: { type: 'teacherNote', text: ' ' } });
+    guess.blocks.push({ id: 'guess-quiz', kind: 'static', component: { type: 'oddOneOut', items: [] } });
   }).join('\n');
   assert.match(messages, /Блок guess-game, «Проверок»: не больше 4/);
   assert.match(messages, /нет параметра colour/);
@@ -394,6 +396,8 @@ test('validation reports block-level mistakes', () => {
   assert.match(messages, /у bullets нет ключа ответов/);
   assert.match(messages, /неизвестный контрол mystery/);
   assert.match(messages, /Блок guess-game повторяется/);
+  assert.match(messages, /Блок guess-empty-note: содержимое не подходит компоненту: TeacherNote requires text/);
+  assert.match(messages, /Компонент oddOneOut не может быть статичным блоком \(guess-quiz\)/);
 });
 
 test('compileTemplate throws all validation errors at once', () => {

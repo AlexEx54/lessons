@@ -34,6 +34,7 @@
   // template whose settings the panel shows; without it a wide panel shows the stage.
   // `stageFacts` and `blockFacts` come from the last preview without problems and outlive
   // a preview with problems: the panel keeps showing default instructions and rules.
+  // `openEdits` are the static blocks whose component editor holds unsaved changes.
   const state = {
     template: null,
     savedSnapshot: '',
@@ -43,6 +44,7 @@
     preview: null,
     stageFacts: {},
     blockFacts: {},
+    openEdits: new Set(),
     blocks: new Map(),
     stageIndex: 0,
     selection: null,
@@ -58,6 +60,10 @@
   let previewNumber = 0;
   let drag = null;
   let suppressClick = false;
+  // Frames of the current stage's static blocks with the component each was drawn from.
+  // A frame stays while its block keeps that component: redrawing the stage does not
+  // take it out of the page, so an editor open in it keeps its text, focus and caret.
+  let staticFrames = new Map();
 
   function el(tag, className, text) {
     const element = document.createElement(tag);
@@ -137,6 +143,11 @@
   const editable = () => !state.template.system;
   const snapshot = ({ title, description, definition }) => JSON.stringify([title, description, definition]);
   const isDirty = () => editable() && snapshot(state.template) !== state.savedSnapshot;
+  const hasUnsavedWork = () => isDirty() || state.openEdits.size > 0;
+
+  // Opening another stage takes the frames of this one away, with any open block editor.
+  const mayLeaveStage = () => state.openEdits.size === 0
+    || window.confirm('В блоке есть несохранённые изменения. Отменить их и перейти к другому этапу?');
 
   // Every block by id, row parts included, with its stage and the row it sits in.
   function indexBlocks(definition) {
@@ -320,10 +331,19 @@
   const reorderBlock = (from, to) => change(() => Edits.moveBlock(currentStage(), from, to));
 
   function blockFrame(block, component) {
+    const kept = staticFrames.get(block.id);
+    if (block.kind === 'static' && kept?.component === block.component) {
+      kept.frame.firstElementChild.replaceWith(blockBar(block));
+      return kept.frame;
+    }
     const frame = el('article', 'template-block');
     frame.dataset.blockId = block.id;
     frame.addEventListener('click', () => selectBlock(block.id));
+    frame.append(blockBar(block), block.kind === 'static' ? staticBody(block) : sampleBody(component));
+    return frame;
+  }
 
+  function blockBar(block) {
     const bar = el('div', 'template-block__bar');
     if (editable()) {
       bar.append(dragHandle({
@@ -349,16 +369,58 @@
     } else {
       bar.append(...linkChips(block.id));
     }
-    frame.append(bar);
+    return bar;
+  }
 
-    // The sample lesson is shown, not taken: its exercises do not react to clicks.
-    const preview = el('div', 'template-block__preview');
-    preview.inert = true;
-    preview.append(component
+  // The sample lesson is shown, not taken: its exercises do not react to clicks.
+  function sampleBody(component) {
+    const body = el('div', 'template-block__preview');
+    body.inert = true;
+    body.append(component
       ? window.LessonView.renderComponent(component)
       : el('p', 'template-block__empty', 'Пример появится, когда в шаблоне не останется проблем.'));
-    frame.append(preview);
-    return frame;
+    return body;
+  }
+
+  // A static block is drawn from the definition, its {{slots}} as they are, and a copy's
+  // one is edited in place with the editor of its component. A video has no editor here.
+  function staticBody(block) {
+    const body = el('div', 'template-block__preview');
+    const component = { id: block.id, ...block.component };
+    if (!editable() || component.type === 'videoPlayer') {
+      body.inert = true;
+      body.append(window.LessonView.renderComponent(component));
+      return body;
+    }
+    body.append(window.LessonView.renderComponent(component, {
+      onSave: changes => saveStatic(block.id, changes),
+      onDirtyChange: dirty => {
+        if (dirty) state.openEdits.add(block.id);
+        else state.openEdits.delete(block.id);
+        renderSaveState();
+      },
+      onError: showToast,
+      onMessage: showToast,
+    }));
+    return body;
+  }
+
+  // What a component editor saves goes into the working copy. The frame stays with the
+  // block's new component: the editor repaints itself from the returned one.
+  function saveStatic(id, changes) {
+    const { block } = state.blocks.get(id);
+    let component;
+    try {
+      change(() => {
+        component = Edits.applyStaticChanges(block, changes);
+        const kept = staticFrames.get(id);
+        if (kept) kept.component = component;
+      });
+    } catch (error) {
+      showToast(`Не удалось применить изменения: ${error.message}`);
+      throw error;
+    }
+    return { id, ...component };
   }
 
   const currentStage = () => state.template.definition.stages[state.stageIndex];
@@ -370,11 +432,37 @@
     const components = new Map((lessonStage?.content || []).map(component => [component.id, component]));
     renderStageHeading();
     keepingPanelInPlace(() => {
-      byId('template-blocks').replaceChildren(...stage.blocks.map(block => blockFrame(block, components.get(block.id))));
+      const frames = stage.blocks.map(block => blockFrame(block, components.get(block.id)));
+      const previous = staticFrames;
+      staticFrames = new Map(stage.blocks.flatMap((block, index) => (block.kind === 'static'
+        ? [[block.id, { component: block.component, frame: frames[index] }]]
+        : [])));
+      // An editor whose frame is gone took its unsaved changes with it.
+      const open = state.openEdits.size;
+      for (const id of state.openEdits) {
+        if (previous.get(id)?.frame !== staticFrames.get(id)?.frame) state.openEdits.delete(id);
+      }
+      if (state.openEdits.size !== open) renderSaveState();
+      placeFrames(frames);
       markSelectedFrame();
       placePanel();
     });
     window.history.replaceState(null, '', `#${encodeURIComponent(stage.id)}`);
+  }
+
+  // Frames are put in place one by one, so a frame that stays where it was is never taken
+  // out of the page. On narrow screens the panel sits among them: `placePanel` moves it.
+  function placeFrames(frames) {
+    const container = byId('template-blocks');
+    for (const child of [...container.children]) {
+      if (child !== panel && !frames.includes(child)) child.remove();
+    }
+    let next = container.firstElementChild;
+    for (const frame of frames) {
+      if (next === panel) next = next.nextElementSibling;
+      if (next === frame) next = frame.nextElementSibling;
+      else container.insertBefore(frame, next);
+    }
   }
 
   // On narrow screens the panel sits among the block frames, so redrawing them takes it
@@ -435,6 +523,7 @@
   // settings stay open.
   function selectStage(index) {
     const moved = index !== state.stageIndex;
+    if (moved && !mayLeaveStage()) return;
     state.stageIndex = index;
     if (state.selection?.kind === 'block') state.selection = null;
     renderStage();
@@ -452,6 +541,7 @@
   function selectBlock(id, { scroll = false } = {}) {
     const entry = state.blocks.get(id);
     if (!entry) return;
+    if (entry.stageIndex !== state.stageIndex && !mayLeaveStage()) return;
     state.selection = { kind: 'block', id };
     if (entry.stageIndex !== state.stageIndex) {
       state.stageIndex = entry.stageIndex;
@@ -842,6 +932,9 @@
       ))));
     } else if (block.kind === 'static') {
       sections.push(el('p', 'template-panel__hint', 'Попадает в урок как есть: ИИ его не меняет.'));
+      if (editable() && block.component.type !== 'videoPlayer') {
+        sections.push(el('p', 'template-panel__hint', 'Текст правится прямо в блоке: кнопка ✎ в его углу.'));
+      }
     } else {
       sections.push(...controlledBlockSections(block));
     }
@@ -1301,7 +1394,7 @@
     renderSaveState();
   }
 
-  const canSave = () => isDirty() && !state.saving && !state.conflict
+  const canSave = () => isDirty() && !state.saving && !state.conflict && state.openEdits.size === 0
     && state.preview.errors.length === 0 && Boolean(state.template.title);
 
   function renderSaveState() {
@@ -1312,13 +1405,14 @@
     const dirty = isDirty();
     let subtitle = 'Копия · все изменения сохранены';
     if (state.saving) subtitle = 'Копия · сохраняем…';
-    else if (dirty) subtitle = 'Копия · есть несохранённые изменения';
+    else if (dirty || state.openEdits.size > 0) subtitle = 'Копия · есть несохранённые изменения';
     byId('template-subtitle').textContent = subtitle;
     byId('template-discard').hidden = !dirty;
     const save = byId('template-save');
     save.disabled = !canSave();
     save.textContent = state.saving ? 'Сохраняем…' : 'Сохранить';
-    if (dirty && state.preview.errors.length > 0) save.title = 'Сначала исправьте проблемы';
+    if (state.openEdits.size > 0) save.title = 'Сначала сохраните или отмените правку блока';
+    else if (dirty && state.preview.errors.length > 0) save.title = 'Сначала исправьте проблемы';
     else if (dirty && !state.template.title) save.title = 'Укажите название шаблона';
     else save.title = '';
   }
@@ -1426,7 +1520,7 @@
 
   // Someone saved the copy first: their version is loaded, ours is dropped.
   function loadFreshVersion() {
-    if (isDirty() && !window.confirm('Ваши несохранённые изменения пропадут. Загрузить свежую версию?')) return;
+    if (hasUnsavedWork() && !window.confirm('Ваши несохранённые изменения пропадут. Загрузить свежую версию?')) return;
     state.leaving = true;
     window.location.reload();
   }
@@ -1510,14 +1604,14 @@
     save();
   });
   window.addEventListener('beforeunload', event => {
-    if (!state.template || !isDirty() || state.leaving) return;
+    if (!state.template || !hasUnsavedWork() || state.leaving) return;
     event.preventDefault();
     event.returnValue = '';
   });
   // Links away from the editor ask in the page's own words instead of the browser's.
   for (const link of document.querySelectorAll('.lesson-header a')) {
     link.addEventListener('click', event => {
-      if (!state.template || !isDirty()) return;
+      if (!state.template || !hasUnsavedWork()) return;
       if (window.confirm('Есть несохранённые изменения. Уйти без сохранения?')) state.leaving = true;
       else event.preventDefault();
     });
