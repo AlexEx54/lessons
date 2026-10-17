@@ -5,7 +5,8 @@
   "description": "This or That, Lead-In, чтение, аудирование, грамматика, Guided Speaking и Wrap-Up.",
   "inputs": {
     "topic": {
-      "label": "Тема урока"
+      "label": "Тема урока",
+      "placeholder": "Напр. Luca Cartoon"
     },
     "warmUpTopic": {
       "label": "Тема Warm-Up",
@@ -13,7 +14,8 @@
       "fallback": "topic"
     },
     "grammarTopic": {
-      "label": "Грамматика"
+      "label": "Грамматика",
+      "placeholder": "Напр. Past Simple"
     }
   },
   "lesson": {

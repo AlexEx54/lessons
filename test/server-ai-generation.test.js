@@ -277,7 +277,7 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: cookie },
     body: JSON.stringify({
-      topic: 'Travel choices', warmUpTopic: '  City transport  ', grammarTopic: 'Past Simple',
+      inputs: { topic: 'Travel choices', warmUpTopic: '  City transport  ', grammarTopic: 'Past Simple' },
       ageGroup: '9-11', level: 'B1', template: 'template-1',
       model: 'deepseek/deepseek-v4-flash-vision-exp', synthetic: false,
     }),
@@ -285,7 +285,7 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
   assert.equal(createdResponse.status, 201);
   const created = (await createdResponse.json()).draft;
   assert.equal(created.status, 'generating');
-  assert.equal(created.warmUpTopic, 'City transport');
+  assert.equal(created.inputs.warmUpTopic, 'City transport');
   assert.equal(created.ageGroup, '9-11');
   assert.equal(created.level, 'B1');
   assert.equal(created.generation.mode, 'ai');
@@ -506,7 +506,7 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: cookie },
     body: JSON.stringify({
-      topic: 'Travel choices', warmUpTopic: 'Warm-up transport', grammarTopic: 'Past Simple',
+      inputs: { topic: 'Travel choices', warmUpTopic: 'Warm-up transport', grammarTopic: 'Past Simple' },
       template: 'template-1', model: 'google/gemini-3.7-flash', synthetic: false,
     }),
   });
@@ -689,7 +689,7 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: cookie },
     body: JSON.stringify({
-      topic: 'Travel choices', warmUpTopic: 'City transport', grammarTopic: 'Past Simple',
+      inputs: { topic: 'Travel choices', warmUpTopic: 'City transport', grammarTopic: 'Past Simple' },
       ageGroup: '12-14', level: 'A2', template: 'template-2', model: 'google/gemini-3.7-flash', synthetic: false,
     }),
   });

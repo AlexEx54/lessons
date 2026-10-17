@@ -66,10 +66,10 @@ test('admin sees lesson creation, drafts and templates links in both profile men
   assert.equal((html.match(/href="\/lesson-drafts"/g) || []).length, 2);
   assert.equal((html.match(/Черновики уроков<\/a>\s*<a href="\/lesson-templates" role="menuitem">Шаблоны уроков<\/a>/g) || []).length, 2);
   assert.equal((html.match(/id="new-lesson-modal"/g) || []).length, 1);
-  assert.match(html, /placeholder="Напр\. Luca Cartoon"/);
-  assert.match(html, /name="warmUpTopic"/);
-  assert.match(html, /placeholder="Необязательно — по умолчанию тема урока"/);
-  assert.match(html, /id="new-lesson-grammar-topic"[^>]*name="grammarTopic"[^>]*required/);
+  // Fields come from the chosen template; until the list arrives only the topic is shown.
+  assert.match(html, /data-new-lesson-inputs>\s*<label[^>]*>\s*<span>Тема урока<\/span>\s*<input[^>]*name="topic"[^>]*required/);
+  assert.doesNotMatch(html, /name="(warmUpTopic|grammarTopic)"/);
+  assert.ok(html.indexOf('id="new-lesson-template"') < html.indexOf('data-new-lesson-inputs'));
   assert.match(html, /id="new-lesson-template-list" role="listbox"[^>]*hidden><\/ul>/);
   assert.match(html, /data-new-lesson-select/);
   assert.match(html, /name="template" value=""/);

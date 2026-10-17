@@ -97,37 +97,41 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(adminPage.status, 200);
   assert.match(await adminPage.text(), /Черновики уроков/);
 
-  for (const body of [
-    { topic: '   ', grammarTopic: 'Past Simple', template: 'template-1' },
-    { topic: 'Topic', grammarTopic: 'Past Simple', template: 'template-unknown' },
-    { topic: 'x'.repeat(121), grammarTopic: 'Past Simple', template: 'template-1' },
-    { topic: 'Topic', warmUpTopic: 42, grammarTopic: 'Past Simple', template: 'template-1' },
-    { topic: 'Topic', warmUpTopic: 'x'.repeat(121), grammarTopic: 'Past Simple', template: 'template-1' },
-    { topic: 'Topic', template: 'template-1' },
-    { topic: 'Topic', grammarTopic: '   ', template: 'template-1' },
-    { topic: 'Topic', grammarTopic: 'x'.repeat(121), template: 'template-1' },
-    { topic: 'Topic', grammarTopic: 'Past Simple', ageGroup: '18+', template: 'template-1' },
-    { topic: 'Topic', grammarTopic: 'Past Simple', level: 'C1', template: 'template-1' },
-    { topic: 'Topic', grammarTopic: 'Past Simple', model: undefined, template: 'template-1' },
-    { topic: 'Topic', grammarTopic: 'Past Simple', model: '', template: 'template-1' },
-    { topic: 'Topic', grammarTopic: 'Past Simple', model: null, template: 'template-1' },
-    { topic: 'Topic', grammarTopic: 'Past Simple', model: 42, template: 'template-1' },
-    { topic: 'Topic', grammarTopic: 'Past Simple', model: 'unknown/model', template: 'template-1' },
+  const valid = { topic: 'Topic', grammarTopic: 'Past Simple' };
+  for (const [body, error] of [
+    [{ inputs: { ...valid, topic: '   ' } }, /«Тема урока»/],
+    [{ inputs: valid, template: 'template-unknown' }],
+    [{ inputs: { ...valid, topic: 'x'.repeat(121) } }, /«Тема урока».*120/],
+    [{ inputs: { ...valid, warmUpTopic: 42 } }, /«Тема Warm-Up» должно быть строкой/],
+    [{ inputs: { ...valid, warmUpTopic: 'x'.repeat(121) } }, /«Тема Warm-Up».*120/],
+    [{ inputs: { topic: 'Topic' } }, /Заполните поле «Грамматика»/],
+    [{ inputs: { ...valid, grammarTopic: '   ' } }, /Заполните поле «Грамматика»/],
+    [{ inputs: { ...valid, grammarTopic: 'x'.repeat(121) } }, /«Грамматика».*120/],
+    [{ inputs: [] }, /объектом/],
+    [{ inputs: null }, /объектом/],
+    [{}, /«Тема урока»/],
+    [{ inputs: valid, ageGroup: '18+' }],
+    [{ inputs: valid, level: 'C1' }],
+    [{ inputs: valid, model: undefined }],
+    [{ inputs: valid, model: '' }],
+    [{ inputs: valid, model: null }],
+    [{ inputs: valid, model: 42 }],
+    [{ inputs: valid, model: 'unknown/model' }],
   ]) {
     const invalid = await fetch(`${baseUrl}/api/lesson-drafts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
-      body: JSON.stringify({ model: 'google/gemini-3.7-flash', ...body }),
+      body: JSON.stringify({ model: 'google/gemini-3.7-flash', template: 'template-1', ...body }),
     });
     assert.equal(invalid.status, 400);
+    if (error) assert.match((await invalid.json()).error, error);
   }
 
   const createdResponse = await fetch(`${baseUrl}/api/lesson-drafts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({
-      topic: '  Travel English  ',
-      grammarTopic: '  Past Simple  ',
+      inputs: { topic: '  Travel English  ', grammarTopic: '  Past Simple  ', unknownField: 'ignored' },
       ageGroup: '15-18',
       level: 'B2',
       template: 'template-1',
@@ -156,8 +160,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.deepEqual((await savedNotes.json()).content, notesContent);
   assert.equal(created.ownerAdminId, firstAdmin.id);
   assert.equal(created.topic, 'Travel English');
-  assert.equal(created.warmUpTopic, 'Travel English');
-  assert.equal(created.grammarTopic, 'Past Simple');
+  assert.deepEqual(created.inputs, { topic: 'Travel English', warmUpTopic: 'Travel English', grammarTopic: 'Past Simple' });
   assert.equal(created.ageGroup, '15-18');
   assert.equal(created.level, 'B2');
   assert.equal(created.status, 'review');

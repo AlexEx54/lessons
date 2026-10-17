@@ -5,7 +5,8 @@
   "description": "Odd One Out, Fact or Myth, истории со словами, видео, грамматика, карточки для разговора и 3–2–1.",
   "inputs": {
     "topic": {
-      "label": "Тема урока"
+      "label": "Тема урока",
+      "placeholder": "Напр. Luca Cartoon"
     },
     "warmUpTopic": {
       "label": "Тема Warm-Up",
@@ -13,7 +14,8 @@
       "fallback": "topic"
     },
     "grammarTopic": {
-      "label": "Грамматика"
+      "label": "Грамматика",
+      "placeholder": "Напр. Past Simple"
     }
   },
   "lesson": {

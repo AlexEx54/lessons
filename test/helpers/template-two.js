@@ -38,8 +38,8 @@ function stageRequest(key, { topic = 'Travel', warmUpTopic, grammarTopic = 'Past
   });
 }
 
-function templateTwoPlan(context = {}) {
-  return createGenerationPlan(TEMPLATE_TWO_DEFINITION, { topic: 'Summer time', grammarTopic: 'Past Simple', ...context });
+function templateTwoPlan(inputs = {}) {
+  return createGenerationPlan(TEMPLATE_TWO_DEFINITION, { inputs: { topic: 'Summer time', grammarTopic: 'Past Simple', ...inputs } });
 }
 
 module.exports = {

@@ -106,7 +106,12 @@ const {
   retryLessonGeneration,
   updateLessonGenerationStream,
 } = require('./lib/lesson-generation-store.js');
-const { createExampleLesson, createGenerationPlan, createGenerationSkeleton } = require('./lib/lesson-generation-plan.js');
+const {
+  createExampleLesson,
+  createGenerationPlan,
+  createGenerationSkeleton,
+  resolveTemplateInputs,
+} = require('./lib/lesson-generation-plan.js');
 const {
   copyLessonTemplate,
   deleteLessonTemplate,
@@ -271,9 +276,7 @@ function aggregateGenerationUsage(first = {}, second = {}) {
 async function runAiLessonGeneration({
   draftId,
   ownerAdminId,
-  topic,
-  warmUpTopic,
-  grammarTopic,
+  inputs,
   ageGroup,
   level,
   templateDefinition,
@@ -356,7 +359,7 @@ async function runAiLessonGeneration({
     if (typeof model !== 'string' || !model.trim()) {
       throw new Error('Модель генерации не задана.');
     }
-    const plan = createGenerationPlan(templateDefinition, { topic, warmUpTopic, grammarTopic, ageGroup, level });
+    const plan = createGenerationPlan(templateDefinition, { inputs, ageGroup, level });
     let state = plan.start(skeleton);
     for (const step of plan.steps) {
       state = plan.apply(step.key, state, await answerFor(plan, step, state));
@@ -1917,29 +1920,13 @@ async function handleRequest(req, res) {
       return;
     }
 
-    const topic = typeof body.topic === 'string' ? body.topic.trim() : '';
-    const requestedWarmUpTopic = typeof body.warmUpTopic === 'string' ? body.warmUpTopic.trim() : '';
-    const warmUpTopic = requestedWarmUpTopic || topic;
-    const grammarTopic = typeof body.grammarTopic === 'string' ? body.grammarTopic.trim() : '';
     const ageGroup = body.ageGroup === undefined ? '12-14' : body.ageGroup;
     const level = body.level === undefined ? 'A2' : body.level;
     const template = typeof body.template === 'string' ? body.template.trim() : '';
     const model = typeof body.model === 'string' ? body.model.trim() : null;
     const synthetic = body.synthetic === true;
-    if (!topic || topic.length > 120) {
-      json(res, 400, { error: 'Тема должна содержать от 1 до 120 символов.' });
-      return;
-    }
-    if (body.warmUpTopic !== undefined && typeof body.warmUpTopic !== 'string') {
-      json(res, 400, { error: 'Тема Warm-Up должна быть строкой.' });
-      return;
-    }
-    if (warmUpTopic.length > 120) {
-      json(res, 400, { error: 'Тема Warm-Up должна содержать не более 120 символов.' });
-      return;
-    }
-    if (!grammarTopic || grammarTopic.length > 120) {
-      json(res, 400, { error: 'Тема Grammar должна содержать от 1 до 120 символов.' });
+    if (body.inputs !== undefined && (!body.inputs || typeof body.inputs !== 'object' || Array.isArray(body.inputs))) {
+      json(res, 400, { error: 'Поля урока должны быть объектом.' });
       return;
     }
     if (!['9-11', '12-14', '15-18'].includes(ageGroup)) {
@@ -1955,6 +1942,14 @@ async function handleRequest(req, res) {
       json(res, 400, { error: 'Выбран неизвестный шаблон урока.' });
       return;
     }
+    let inputs;
+    try {
+      inputs = resolveTemplateInputs(templateEntry.definition, body.inputs);
+    } catch (error) {
+      json(res, error.statusCode === 400 ? 400 : 500, { error: error.message || 'Не удалось разобрать поля урока.' });
+      return;
+    }
+    const { topic } = inputs;
     if (!model || !LESSON_MODEL_OPTIONS[model]) {
       json(res, 400, { error: 'Выбрана неизвестная модель генерации.' });
       return;
@@ -1982,8 +1977,7 @@ async function handleRequest(req, res) {
         pendingDraft = createLessonDraft({
           ownerAdminId: user.id,
           topic,
-          warmUpTopic,
-          grammarTopic,
+          inputs,
           ageGroup,
           level,
           template,
@@ -2019,9 +2013,7 @@ async function handleRequest(req, res) {
           runAiLessonGeneration({
             draftId: draft.id,
             ownerAdminId: user.id,
-            topic,
-            warmUpTopic,
-            grammarTopic,
+            inputs,
             ageGroup,
             level,
             templateDefinition: templateEntry.definition,
@@ -2075,9 +2067,7 @@ async function handleRequest(req, res) {
         model,
       });
       const recovery = recoverLessonGeneration(generation.output, skeleton, createGenerationPlan(templateDefinition, {
-        topic: draft.topic,
-        warmUpTopic: draft.warmUpTopic,
-        grammarTopic: draft.grammarTopic,
+        inputs: draft.inputs,
         ageGroup: draft.ageGroup,
         level: draft.level,
       }));
@@ -2102,9 +2092,7 @@ async function handleRequest(req, res) {
         runAiLessonGeneration({
           draftId,
           ownerAdminId: user.id,
-          topic: draft.topic,
-          warmUpTopic: draft.warmUpTopic,
-          grammarTopic: draft.grammarTopic,
+          inputs: draft.inputs,
           ageGroup: draft.ageGroup,
           level: draft.level,
           templateDefinition,

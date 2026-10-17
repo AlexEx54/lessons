@@ -150,7 +150,7 @@ test('admins copy, rename and delete templates and create drafts from copies', a
   assert.equal((await call('PATCH', `/api/lesson-templates/${copy.id}`, { body: { revision: 2, definition: opened.definition } })).status, 200);
 
   const createDraft = template => call('POST', '/api/lesson-drafts', {
-    body: { topic: 'Travel', grammarTopic: 'Past Simple', template, ageGroup: '9-11', level: 'A1',
+    body: { inputs: { topic: 'Travel', grammarTopic: 'Past Simple' }, template, ageGroup: '9-11', level: 'A1',
       model: 'google/gemini-3.7-flash', synthetic: true },
   });
   const created = await createDraft(copy.id);

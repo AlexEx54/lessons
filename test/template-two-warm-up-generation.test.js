@@ -104,6 +104,6 @@ test('Template 2 recovery knows only its own steps', () => {
   assert.deepEqual(Object.keys(partial.recoveredSections), ['lessonMetadata']);
   assert.equal(partial.validOutput, `=== Lesson Metadata ===\n${JSON.stringify(metadata)}`);
 
-  const templateOne = createGenerationPlan(findSystemTemplate('template-1').definition, { topic: 'Travel', grammarTopic: 'Past Simple' });
+  const templateOne = createGenerationPlan(findSystemTemplate('template-1').definition, { inputs: { topic: 'Travel', grammarTopic: 'Past Simple' } });
   assert.equal(recoverLessonGeneration(output, skeleton, templateOne).complete, false);
 });

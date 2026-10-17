@@ -40,6 +40,7 @@ test('templates list the system ones first, then copies from the newest', t => {
     id: second.id,
     title: 'Для младших',
     description: TEMPLATE_TWO_DEFINITION.description,
+    inputs: TEMPLATE_TWO_DEFINITION.inputs,
     system: false,
     sourceTemplateId: first.id,
     systemTemplateId: 'template-2',

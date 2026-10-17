@@ -23,9 +23,7 @@
   const mobileLogoutButton = document.getElementById('mobile-logout-button');
   const newLessonModal = document.getElementById('new-lesson-modal');
   const newLessonDialog = newLessonModal?.querySelector('.new-lesson-dialog');
-  const newLessonTopic = document.getElementById('new-lesson-topic');
-  const newLessonWarmUpTopic = document.getElementById('new-lesson-warm-up-topic');
-  const newLessonGrammarTopic = document.getElementById('new-lesson-grammar-topic');
+  const newLessonInputs = newLessonModal?.querySelector('[data-new-lesson-inputs]');
   const newLessonSynthetic = document.getElementById('new-lesson-synthetic');
   const createLessonDraftButton = newLessonModal?.querySelector('[data-create-lesson-draft]');
   const newLessonSelects = newLessonModal
@@ -46,6 +44,9 @@
     : [];
   let toastTimer = null;
   let newLessonReturnFocus = null;
+  let newLessonTemplates = [];
+  // What was typed, by input name: it survives switching templates and reopening the modal.
+  const newLessonInputValues = new Map();
 
   function showToast(message) {
     if (!message) return;
@@ -175,7 +176,57 @@
     });
     select.value.textContent = label;
     select.input.value = value;
+    if (select === newLessonTemplateSelect) renderNewLessonInputs();
     closeNewLessonSelect({ restoreFocus: true });
+  }
+
+  function selectedNewLessonTemplate() {
+    return newLessonTemplates.find(template => template.id === newLessonSelectInput?.value) || null;
+  }
+
+  // The topic comes first, then required fields, then optional ones, each in template order.
+  function orderedNewLessonInputs(inputs) {
+    const rank = ([name, input]) => (name === 'topic' ? 0 : input.optional ? 2 : 1);
+    return Object.entries(inputs).sort((a, b) => rank(a) - rank(b));
+  }
+
+  function newLessonInputPlaceholder(input, inputs) {
+    if (input.placeholder) return input.placeholder;
+    if (!input.optional) return '';
+    const fallback = inputs[input.fallback];
+    return fallback ? `Необязательно — по умолчанию «${fallback.label}»` : 'Необязательно';
+  }
+
+  // Rebuilds the fields for the chosen template; a field being typed in keeps focus and caret.
+  function renderNewLessonInputs() {
+    const template = selectedNewLessonTemplate();
+    if (!newLessonInputs || !template) return;
+    const active = newLessonInputs.contains(document.activeElement) ? document.activeElement : null;
+    newLessonInputs.replaceChildren(...orderedNewLessonInputs(template.inputs).map(([name, input]) => {
+      const label = document.createElement('label');
+      label.className = 'new-lesson-field';
+      label.htmlFor = `new-lesson-input-${name}`;
+      const caption = document.createElement('span');
+      caption.textContent = input.label;
+      const field = document.createElement('input');
+      Object.assign(field, {
+        id: label.htmlFor,
+        name,
+        type: 'text',
+        autocomplete: 'off',
+        maxLength: 120,
+        required: !input.optional,
+        placeholder: newLessonInputPlaceholder(input, template.inputs),
+        value: newLessonInputValues.get(name) || '',
+      });
+      label.append(caption, field);
+      return label;
+    }));
+    const restored = active && newLessonInputs.querySelector(`input[name="${active.name}"]`);
+    if (restored) {
+      restored.focus();
+      restored.setSelectionRange(active.selectionStart, active.selectionEnd);
+    }
   }
 
   function moveNewLessonSelectFocus(delta) {
@@ -189,14 +240,16 @@
   }
 
   // Copies change on the templates page, so the list is loaded on every opening.
-  // The previous choice stays selected while it still exists.
+  // The previous choice stays selected while it still exists. Until the list arrives the
+  // fields are unknown, so a lesson cannot be created.
   async function loadNewLessonTemplates() {
     if (!newLessonTemplateSelect) return;
+    const { list, value, input } = newLessonTemplateSelect;
+    if (createLessonDraftButton) createLessonDraftButton.disabled = true;
     try {
       const response = await fetch('/api/lesson-templates', { cache: 'no-store' });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Не удалось загрузить шаблоны.');
-      const { list, value, input } = newLessonTemplateSelect;
       const selected = payload.templates.find(template => template.id === input.value) || payload.templates[0];
       list.replaceChildren(...payload.templates.map(template => {
         const option = document.createElement('li');
@@ -210,7 +263,11 @@
       }));
       value.textContent = selected?.title || 'Шаблонов нет';
       input.value = selected?.id || '';
+      newLessonTemplates = payload.templates;
+      renderNewLessonInputs();
+      if (createLessonDraftButton) createLessonDraftButton.disabled = !selected;
     } catch (error) {
+      value.textContent = 'Не удалось загрузить шаблоны';
       showToast(error.message || 'Не удалось загрузить шаблоны.');
     }
   }
@@ -224,7 +281,7 @@
     newLessonModal.classList.add('new-lesson-modal--visible');
     newLessonModal.setAttribute('aria-hidden', 'false');
     body.classList.add('new-lesson-modal-open');
-    window.requestAnimationFrame(() => newLessonTopic?.focus());
+    window.requestAnimationFrame(() => newLessonInputs?.querySelector('input')?.focus());
     loadNewLessonTemplates();
   }
 
@@ -239,21 +296,17 @@
   }
 
   async function createLessonDraft() {
-    if (!createLessonDraftButton || !newLessonTopic || !newLessonGrammarTopic || !newLessonSelectInput) return;
-    const topic = newLessonTopic.value.trim();
-    if (!topic) {
-      showToast('Укажите тему урока.');
-      newLessonTopic.focus();
-      return;
-    }
-    const grammarTopic = newLessonGrammarTopic.value.trim();
-    if (!grammarTopic) {
-      showToast('Укажите тему Grammar.');
-      newLessonGrammarTopic.focus();
-      return;
-    }
-    if (!newLessonSelectInput.value) {
+    if (!createLessonDraftButton || !newLessonInputs) return;
+    const template = selectedNewLessonTemplate();
+    if (!template) {
       showToast('Выберите шаблон урока.');
+      return;
+    }
+    const fields = [...newLessonInputs.querySelectorAll('input')];
+    const missing = fields.find(field => field.required && !field.value.trim());
+    if (missing) {
+      showToast(`Заполните поле «${template.inputs[missing.name].label}».`);
+      missing.focus();
       return;
     }
     const ageGroup = newLessonModal
@@ -271,12 +324,10 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          topic,
-          warmUpTopic: newLessonWarmUpTopic?.value.trim() || '',
-          grammarTopic,
+          inputs: Object.fromEntries(fields.map(field => [field.name, field.value.trim()])),
           ageGroup,
           level,
-          template: newLessonSelectInput.value,
+          template: template.id,
           model: newLessonModelInput?.value || '',
           synthetic: Boolean(newLessonSynthetic?.checked),
         }),
@@ -434,6 +485,9 @@
         button.setAttribute('aria-pressed', String(button === choice));
       });
     });
+  });
+  newLessonInputs?.addEventListener('input', event => {
+    newLessonInputValues.set(event.target.name, event.target.value);
   });
   createLessonDraftButton?.addEventListener('click', createLessonDraft);
   document.addEventListener('click', event => {

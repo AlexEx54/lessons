@@ -78,7 +78,7 @@ test('template two creation and editing update the answer key atomically', async
 
   const cookie = await login(baseUrl, 'admin-one@example.com', password);
   const otherCookie = await login(baseUrl, 'admin-two@example.com', password);
-  const params = { topic: 'Superheroes', grammarTopic: 'Adjectives', template: 'template-2',
+  const params = { inputs: { topic: 'Superheroes', grammarTopic: 'Adjectives' }, template: 'template-2',
     ageGroup: '12-14', level: 'A2', model: 'google/gemini-3.7-flash', synthetic: true };
   const create = body => fetch(`${baseUrl}/api/lesson-drafts`, {
     method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body),

@@ -308,6 +308,22 @@ test('inputs are trimmed, fall back, and required ones must be filled', () => {
   assert.deepEqual(plan.resolveInputs({ topic: ' Clothes ', warmUpTopic: ' Hats ' }), { topic: 'Clothes', warmUpTopic: 'Hats' });
   assert.deepEqual(plan.resolveInputs({ topic: 'Clothes', warmUpTopic: '  ' }), { topic: 'Clothes', warmUpTopic: 'Clothes' });
   assert.throws(() => plan.resolveInputs({}), error => error.statusCode === 400 && /«Тема урока»/.test(error.message));
+  assert.throws(() => plan.resolveInputs({ topic: 7 }), error => error.statusCode === 400 && /«Тема урока» должно быть строкой/.test(error.message));
+  assert.throws(
+    () => plan.resolveInputs({ topic: 'Clothes', warmUpTopic: 'x'.repeat(121) }),
+    error => error.statusCode === 400 && /не более 120/.test(error.message),
+  );
+  assert.deepEqual(plan.resolveInputs({ topic: 'Clothes', unknown: 'skipped' }), { topic: 'Clothes', warmUpTopic: 'Clothes' });
+});
+
+test('every template asks for a required topic; a placeholder is optional text', () => {
+  assert.deepEqual(errorsAfter(template => { template.inputs.topic.placeholder = 'Напр. Clothes'; }), []);
+  assert.match(errorsAfter(template => { template.inputs.topic.placeholder = ' '; }).join('\n'), /Подсказка поля ввода topic/);
+  const topicProblem = /обязательное поле ввода topic/;
+  assert.match(errorsAfter(template => { template.inputs.topic.optional = true; }).join('\n'), topicProblem);
+  assert.match(errorsAfter(template => {
+    template.inputs = { theme: { label: 'Тема' } };
+  }).join('\n'), topicProblem);
 });
 
 function errorsAfter(change) {
