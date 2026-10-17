@@ -2,7 +2,8 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { describeControls, previewLessonTemplate } = require('../lib/lesson-template-editor.js');
+const { controlExample, describeControls, previewLessonTemplate } = require('../lib/lesson-template-editor.js');
+const Statics = require('../assets/lesson-template-statics.js');
 const MarkdownCard = require('../assets/components/markdown-card.js');
 const { CARD_ICONS } = require('../lib/lesson-templates/chrome-fields.js');
 const { findSystemTemplate } = require('../lib/lesson-templates/system-templates.js');
@@ -134,4 +135,34 @@ test('controls are described for the editor with labelled parameters and chrome'
   const icon = controls.find(control => control.type === 'listCard').chrome.find(field => field.key === 'icon');
   assert.equal(icon.type, 'choice');
   assert.equal(icon.options.lifeRing, 'Спасательный круг');
+});
+
+test('every block of the catalog has a group and a description; static ones come with a sample', () => {
+  const { controls, statics, groups } = describeControls();
+  assert.equal(controls.length + statics.length, 51);
+  for (const block of [...controls, ...statics]) {
+    assert.ok(groups.some(group => group.key === block.group), `${block.type}: группа ${block.group}`);
+    assert.ok(block.description.trim().length > 0, block.type);
+    assert.ok(block.description.length <= 90, `${block.type}: описание длиннее одной строки`);
+  }
+  assert.deepEqual(groups.map(group => group.label), ['Заметки и карточки', 'Лексика', 'Грамматика', 'Чтение и аудирование', 'Говорение', 'Ответы']);
+  for (const { key } of groups) assert.ok([...controls, ...statics].some(block => block.group === key), key);
+  assert.deepEqual(statics.map(block => block.type).sort(), Object.keys(Statics.STATIC_BLOCKS).sort());
+  for (const { type, sample } of statics) {
+    assert.equal(sample.type, type);
+    assert.doesNotThrow(() => Statics.checkStaticComponent({ id: 'new-block', ...sample }), type);
+  }
+});
+
+test('every control has a catalog sample built with its default parameters', () => {
+  for (const control of CONTROL_CATALOG.values()) {
+    const component = controlExample(control.type);
+    assert.equal(component?.id, 'catalog-example', control.type);
+  }
+  // Inputs read sample variables, and a block built from others gets a source it accepts.
+  assert.equal(controlExample('contextDropdown').choices.length, CONTROL_CATALOG.get('contextDropdown').params.gaps.default);
+  assert.equal(controlExample('repeatAudio').type, 'audioPlayer');
+  assert.equal(controlExample('answerKey').type, 'markdownCard');
+  assert.equal(controlExample('contextDropdown'), controlExample('contextDropdown'));
+  assert.equal(controlExample('missing'), null);
 });

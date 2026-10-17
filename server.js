@@ -119,7 +119,7 @@ const {
   listLessonTemplates,
   updateLessonTemplate,
 } = require('./lib/lesson-template-store.js');
-const { describeControls, previewLessonTemplate } = require('./lib/lesson-template-editor.js');
+const { controlExample, describeControls, previewLessonTemplate } = require('./lib/lesson-template-editor.js');
 const { recoverLessonGeneration } = require('./lib/lesson-generation-recovery.js');
 const { stopInterruptedLessonImageGenerations } = require('./lib/lesson-image-generation-store.js');
 const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
@@ -1855,6 +1855,22 @@ async function handleRequest(req, res) {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     json(res, 200, describeControls());
+    return;
+  }
+
+  // The block catalog's sample of one control, built with its default parameters.
+  const templateControlExample = pathname.match(/^\/api\/template-controls\/([A-Za-z]+)\/example$/);
+  if (req.method === 'GET' && templateControlExample) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    try {
+      const component = controlExample(templateControlExample[1]);
+      if (component) json(res, 200, { component });
+      else json(res, 404, { error: 'Такого блока нет в каталоге.' });
+    } catch (error) {
+      console.error('Cannot build control example:', error);
+      json(res, 500, { error: 'Не удалось собрать пример блока.' });
+    }
     return;
   }
 

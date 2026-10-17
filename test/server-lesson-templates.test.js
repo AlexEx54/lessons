@@ -121,6 +121,10 @@ test('admins copy, rename and delete templates and create drafts from copies', a
   assert.equal((await call('GET', '/api/template-controls', { auth: teacherCookie })).status, 403);
   const { controls } = await (await call('GET', '/api/template-controls')).json();
   assert.ok(controls.some(control => control.type === 'storyCards'));
+  assert.equal((await call('GET', '/api/template-controls/contextDropdown/example', { auth: teacherCookie })).status, 403);
+  const { component: sample } = await (await call('GET', '/api/template-controls/contextDropdown/example')).json();
+  assert.equal(sample.type, 'dropdownChoice');
+  assert.equal((await call('GET', '/api/template-controls/missing/example')).status, 404);
   assert.equal((await call('GET', '/api/lesson-templates/missing')).status, 404);
   const { template: opened } = await (await call('GET', `/api/lesson-templates/${copy.id}`)).json();
   assert.equal(opened.systemTemplateId, 'template-2');

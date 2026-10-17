@@ -468,6 +468,8 @@ test('the catalog rejects incomplete controls', () => {
     /должен связывать два целых/,
   );
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], chrome: ['sparkle'] }]), /неизвестный ключ оформления sparkle/);
+  assert.throws(() => createControlCatalog([{ ...CONTROLS[0], group: 'misc' }]), /неизвестная группа misc/);
+  assert.throws(() => createControlCatalog([{ ...CONTROLS[0], description: ' ' }]), /описание должно быть непустой строкой/);
 });
 
 test('a parameter may not exceed the one its atMost names', () => {
