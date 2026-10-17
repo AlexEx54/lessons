@@ -172,6 +172,19 @@
 .template-block__name { padding: 2px 4px; border-radius: 6px; background: none; font-size: 13px; font-weight: 700; }
 .template-block__name:hover { color: var(--purple); }
 .template-block__empty { margin: 0; padding: 18px; color: var(--muted); font-size: 13px; text-align: center; }
+.template-empty-stage {
+  display: grid;
+  justify-items: center;
+  padding: 56px 24px;
+  gap: 16px;
+  border: 1px dashed #d9d4f2;
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+.template-empty-stage p { margin: 0; }
+.template-empty-stage strong { display: block; margin-bottom: 4px; color: #12152f; font-size: 15px; }
 
 .template-kind {
   flex: none;

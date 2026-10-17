@@ -450,7 +450,9 @@
     const components = new Map((lessonStage?.content || []).map(component => [component.id, component]));
     renderStageHeading();
     keepingPanelInPlace(() => {
-      const frames = stage.blocks.map(block => blockFrame(block, components.get(block.id)));
+      const frames = stage.blocks.length > 0
+        ? stage.blocks.map(block => blockFrame(block, components.get(block.id)))
+        : [emptyStageNote()];
       const previous = staticFrames;
       staticFrames = new Map(stage.blocks.flatMap((block, index) => (block.kind === 'static'
         ? [[block.id, { component: block.component, frame: frames[index] }]]
@@ -470,6 +472,15 @@
       placePanel();
     });
     window.history.replaceState(null, '', `#${encodeURIComponent(stage.id)}`);
+  }
+
+  // A stage is left without blocks only while it is new: it cannot be saved like that.
+  function emptyStageNote() {
+    const note = el('div', 'template-empty-stage');
+    const text = el('p', '', 'Пустой этап не сохранить: добавьте в него блок или удалите этап.');
+    text.prepend(el('strong', '', 'В этапе пока нет блоков'));
+    note.append(text);
+    return note;
   }
 
   // Frames are put in place one by one, so a frame that stays where it was is never taken
@@ -565,6 +576,22 @@
   }
 
   const selectStageSettings = () => openSettings({ kind: 'stage' });
+
+  // «+ Этап»: a new stage after the open one opens with its settings, its title ready to
+  // be typed over.
+  function addStage() {
+    if (!mayLeaveStage()) return;
+    change(({ definition }) => {
+      Edits.addStage(definition, state.stageIndex);
+      state.stageIndex += 1;
+      state.selection = { kind: 'stage' };
+    });
+    if (NARROW_LAYOUT.matches) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
+    const title = panel.querySelector('input');
+    title?.focus({ preventScroll: true });
+    title?.select();
+  }
   const selectTemplate = () => openSettings({ kind: 'template' });
   const selectInput = name => openSettings({ kind: 'input', name });
 
@@ -1760,6 +1787,7 @@
       return line;
     }));
     byId('template-add-input').hidden = !editable();
+    byId('template-add-stage').hidden = !editable();
     markSelectedInput();
     const minutes = definition.stages.reduce((sum, stage) => sum + (Number.isInteger(stage.durationMinutes) ? stage.durationMinutes : 0), 0);
     byId('template-stages-title').textContent = `Этапы · ${minutes} мин`;
@@ -2003,6 +2031,7 @@
   byId('template-copy').addEventListener('click', copyTemplate);
   byId('template-title').addEventListener('click', selectTemplate);
   byId('template-add-input').addEventListener('click', selectNewInput);
+  byId('template-add-stage').addEventListener('click', addStage);
   byId('stage-settings').addEventListener('click', selectStageSettings);
   byId('template-save').addEventListener('click', save);
   byId('template-discard').addEventListener('click', discardChanges);

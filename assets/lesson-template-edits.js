@@ -156,6 +156,25 @@
   const moveStage = (definition, from, to) => moveItem(definition.stages, from, to);
   const moveBlock = (stage, from, to) => moveItem(stage.blocks, from, to);
 
+  // «+ Этап»: a stage right after the stage at `after`, with all a stage needs but blocks.
+  // Until it gets one the server lists it among the problems. Its context passes the
+  // lesson topic, which every template has. Returns the stage.
+  function addStage(definition, after) {
+    const taken = new Set(definition.stages.map(stage => stage.id));
+    let id = 'new-stage';
+    for (let number = 2; taken.has(id); number += 1) id = `new-stage-${number}`;
+    const stage = {
+      id,
+      title: 'New Stage',
+      durationMinutes: 5,
+      icon: 'sparkles',
+      context: { [defaultContextLabel('topic')]: '$input.topic' },
+      blocks: [],
+    };
+    definition.stages.splice(after + 1, 0, stage);
+    return stage;
+  }
+
   // `<block>.items[0].answer` → `<block>`.
   const slotSourceBlock = source => /^[a-z][a-z0-9-]*/.exec(String(source))?.[0];
   const sourceBlock = source => (typeof source === 'string' ? source : source?.block);
@@ -376,6 +395,7 @@
     removeInput,
     moveStage,
     moveBlock,
+    addStage,
     deletionPlan,
     applyDeletion,
     applyStaticChanges,

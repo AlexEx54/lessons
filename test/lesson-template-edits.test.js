@@ -132,6 +132,33 @@ test('stages and blocks move to a new index, the rest keep their order', () => {
 });
 
 const controls = new Map(describeControls().controls.map(control => [control.type, control]));
+
+test('a new stage goes after the given one and is the only problem until it gets a block', () => {
+  const definition = templateTwo();
+  const second = definition.stages[1].id;
+  const added = Edits.addStage(definition, 1);
+  assert.equal(definition.stages[2], added);
+  assert.deepEqual(added, {
+    id: 'new-stage',
+    title: 'New Stage',
+    durationMinutes: 5,
+    icon: 'sparkles',
+    context: { Topic: '$input.topic' },
+    blocks: [],
+  });
+  assert.equal(Edits.addStage(definition, 2).id, 'new-stage-2');
+  assert.equal(definition.stages[1].id, second);
+
+  const { errors } = validateTemplate(definition, CONTROL_CATALOG);
+  assert.deepEqual(errors, [
+    { message: 'Этап 3 «New Stage» пуст: добавьте блок или удалите этап.', stage: 'new-stage' },
+    { message: 'Этап 4 «New Stage» пуст: добавьте блок или удалите этап.', stage: 'new-stage-2' },
+  ]);
+
+  const plan = Edits.deletionPlan(definition, { stage: 'new-stage' }, controls);
+  assert.deepEqual([plan.blocks, plan.stages, plan.unbound, plan.context], [[], ['new-stage'], [], []]);
+});
+
 const templateOne = () => structuredClone(findSystemTemplate('template-1').definition);
 const blockIds = plan => plan.blocks.map(entry => entry.block);
 
