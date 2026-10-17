@@ -97,6 +97,7 @@
           </div>
           <p class="stage-kicker" id="stage-kicker"></p>
           <div class="stage-components template-blocks" id="template-blocks"></div>
+          <button class="template-add-block" id="template-add-block" type="button" hidden>+ Блок</button>
         </div>
       </main>
 
@@ -118,6 +119,25 @@
       <button class="template-discard" id="delete-cancel" type="button">Отмена</button>
       <button class="template-danger" id="delete-confirm" type="button">Удалить</button>
     </div>
+  </dialog>
+  <dialog class="template-catalog" id="catalog-dialog" aria-labelledby="catalog-title">
+    <header class="template-catalog__head">
+      <h2 id="catalog-title">Добавить блок<small id="catalog-stage"></small></h2>
+      <input class="template-field__input template-catalog__search" id="catalog-search" type="search" placeholder="Найти блок по названию" aria-label="Найти блок" autocomplete="off" />
+      <button class="template-catalog__close" id="catalog-close" type="button" aria-label="Закрыть">×</button>
+    </header>
+    <div class="template-catalog__body">
+      <nav class="template-catalog__groups" id="catalog-groups" aria-label="Группы блоков"></nav>
+      <div class="template-catalog__list" id="catalog-list"></div>
+      <aside class="template-catalog__preview" id="catalog-preview" aria-live="polite"></aside>
+    </div>
+    <footer class="template-catalog__foot">
+      <small>Блок встанет в конец этапа. Параметры поменяете в панели блока.</small>
+      <div class="template-catalog__actions">
+        <button class="template-discard" id="catalog-cancel" type="button">Отмена</button>
+        <button class="template-save" id="catalog-add" type="button" disabled>Добавить в этап</button>
+      </div>
+    </footer>
   </dialog>
   <div class="lesson-toast" id="lesson-toast" role="status" aria-live="polite"></div>
   <script src="/assets/components/component-tree.js" defer></script>

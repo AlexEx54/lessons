@@ -159,6 +159,94 @@ test('a new stage goes after the given one and is the only problem until it gets
   assert.deepEqual([plan.blocks, plan.stages, plan.unbound, plan.context], [[], ['new-stage'], [], []]);
 });
 
+const { STATIC_BLOCKS } = require('../assets/lesson-template-statics.js');
+
+const addBlock = (definition, stageId, type) => Edits.addBlock(definition, stage(definition, stageId), controls.get(type), controls);
+const problems = definition => validateTemplate(definition, CONTROL_CATALOG).errors.map(error => error.message);
+
+test('a block from the catalog goes to the end of the stage with an id and variables of its own', () => {
+  const definition = templateTwo();
+  const { block, addedLines } = Edits.addBlock(definition, stage(definition, 'wrap-up'), { kind: 'static', type: 'teacherNote', sample: STATIC_BLOCKS.teacherNote.sample }, controls);
+  assert.deepEqual(block, { id: 'wrap-up-teacher-note-2', kind: 'static', component: STATIC_BLOCKS.teacherNote.sample });
+  assert.notEqual(block.component, STATIC_BLOCKS.teacherNote.sample);
+  assert.deepEqual(addedLines, []);
+  assert.equal(stage(definition, 'wrap-up').blocks.at(-1), block);
+
+  const first = addBlock(definition, 'watch-and-interact', 'vocabularyList').block;
+  const second = addBlock(definition, 'watch-and-interact', 'vocabularyList').block;
+  assert.deepEqual([first.id, first.exports], ['watch-and-interact-vocabulary-list', { vocabulary: 'vocabulary' }]);
+  assert.deepEqual([second.id, second.exports], ['watch-and-interact-vocabulary-list-2', { vocabulary: 'vocabulary2' }]);
+  // Both write `items` in one answer: the second takes another name.
+  assert.equal(first.fields, undefined);
+  assert.deepEqual(second.fields, { items: 'items2' });
+  assert.deepEqual(problems(definition), []);
+});
+
+test('an input takes the nearest source of its type; a source of another stage joins the context', () => {
+  const definition = templateTwo();
+  // Grammar Focus passes the target vocabulary already.
+  let added = addBlock(definition, 'grammar-focus', 'contextDropdown');
+  assert.deepEqual([added.block.inputs, added.addedLines], [{ vocabulary: 'targetVocabulary' }, []]);
+  // Watch & Interact has no context at all.
+  added = addBlock(definition, 'watch-and-interact', 'dragSentences');
+  assert.deepEqual([added.block.inputs, added.addedLines], [{ vocabulary: 'targetVocabulary' }, ['Target vocabulary']]);
+  assert.deepEqual(stage(definition, 'watch-and-interact').context, { 'Target vocabulary': '$var.targetVocabulary' });
+  assert.deepEqual(problems(definition), []);
+
+  // Words of the stage itself come first; a generated block reads them only from a generated one.
+  const own = addBlock(definition, 'grammar-focus', 'vocabularyList').block;
+  assert.deepEqual(addBlock(definition, 'grammar-focus', 'fillInBlanks').block.inputs, { vocabulary: own.exports.vocabulary });
+  assert.deepEqual(addBlock(definition, 'grammar-focus', 'vocabularyMeanings').block.inputs, { vocabulary: own.exports.vocabulary });
+  assert.deepEqual(problems(definition), []);
+  const sources = (kind, input) => Edits.inputSources(definition, stage(definition, 'grammar-focus'), kind, input, controls)
+    .map(source => [source.variable, source.sameStage]);
+  const both = [['vocabulary', true], ['targetVocabulary', false]];
+  assert.deepEqual(sources('generated', controls.get('contextDropdown').inputs.vocabulary), both);
+  assert.deepEqual(sources('generated', { type: 'vocabulary' }), [['targetVocabulary', false]]);
+  assert.deepEqual(sources('derived', { type: 'vocabulary' }), both);
+  assert.deepEqual(sources('derived', { type: 'statements' }), [['leadInGuesses', false]]);
+});
+
+test('without a source an input stays unbound; a source without a required feature is linked and reported', () => {
+  const definition = templateTwo();
+  const early = addBlock(definition, 'lead-in', 'vocabularyMeanings').block;
+  assert.equal(early.inputs, undefined);
+
+  const links = Edits.plannedLinks(definition, stage(definition, 'wrap-up'), controls.get('matchPictures'), controls);
+  assert.deepEqual(links.inputs.vocabulary.missing, ['imagePrompt']);
+  const pictures = addBlock(definition, 'wrap-up', 'matchPictures').block;
+  assert.deepEqual(pictures.inputs, { vocabulary: 'targetVocabulary' });
+
+  assert.deepEqual(problems(definition), [
+    'Блоку lead-in-vocabulary-meanings нужен вход vocabulary (словарь).',
+    'Вход vocabulary блока wrap-up-match-pictures требует у targetVocabulary: imagePrompt.',
+  ]);
+});
+
+test('an answer key takes every block of the stage with answers; a repeated audio takes the nearest audio', () => {
+  const definition = templateTwo();
+  const key = addBlock(definition, 'grammar-focus', 'answerKey').block;
+  assert.deepEqual(key.from, [
+    'grammar-focus-choose-the-correct-options',
+    'grammar-focus-complete-the-gaps',
+    'grammar-focus-correct-the-mistakes',
+    'grammar-focus-translate-sentences',
+  ]);
+  addBlock(definition, 'wrap-up', 'audioScript');
+  const audio = addBlock(definition, 'wrap-up', 'audioScript').block;
+  assert.deepEqual(addBlock(definition, 'wrap-up', 'repeatAudio').block.from, [audio.id]);
+  assert.deepEqual(problems(definition), []);
+
+  const lonely = addBlock(definition, 'watch-and-interact', 'answerKey').block;
+  assert.equal(lonely.from, undefined);
+  const twice = addBlock(definition, 'wrap-up', 'repeatAudio').block;
+  twice.from = ['wrap-up-audio-script', audio.id];
+  assert.deepEqual(problems(definition), [
+    'Блок watch-and-interact-answer-key не собирается ни из одного блока этапа.',
+    'Блок wrap-up-repeat-audio-2 собирается ровно из одного блока, а указано 2.',
+  ]);
+});
+
 const templateOne = () => structuredClone(findSystemTemplate('template-1').definition);
 const blockIds = plan => plan.blocks.map(entry => entry.block);
 

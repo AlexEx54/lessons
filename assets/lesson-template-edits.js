@@ -175,6 +175,141 @@
     return stage;
   }
 
+  // `contextDropdown` → `context-dropdown`.
+  const kebabCase = name => name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+
+  // Ids of every block, rows and their parts too: a block id is unique in the template.
+  function blockIds(definition) {
+    return new Set(definition.stages.flatMap(stage => stage.blocks.flatMap(block => [
+      block.id,
+      ...(block.kind === 'row' ? block.blocks.map(part => part.id) : []),
+    ])));
+  }
+
+  // `base`, `base2`, `base3`…: the first name `taken` lacks. Block ids put a dash before the number.
+  function freeName(base, taken, separator = '') {
+    if (!taken.has(base)) return base;
+    let number = 2;
+    while (taken.has(`${base}${separator}${number}`)) number += 1;
+    return `${base}${separator}${number}`;
+  }
+
+  // Optional parts of an output's items that the producing block has on: a feature is
+  // turned on by a flag parameter, which takes its default while the block leaves it out.
+  // `controls` maps a control type to its description from /api/template-controls.
+  function producerFeatures(producer, controls) {
+    const control = controls.get(producer.block.control);
+    const features = control?.outputs[producer.port]?.features || {};
+    return Object.keys(features).filter(feature => {
+      const param = features[feature];
+      const value = Object.hasOwn(producer.block.params || {}, param) ? producer.block.params[param] : control.params[param]?.default;
+      return value === true;
+    });
+  }
+
+  // Where a block of `kind` at the end of `stage` may take its `input` from: blocks of this
+  // and earlier stages that give away a variable of its type, the nearest first. A
+  // generated block takes a variable of its own stage only when the control can, and only
+  // from another generated block, which the model writes in the same answer. `missing`
+  // lists the features the input requires and the producer has off.
+  function inputSources(definition, stage, kind, input, controls) {
+    const stageIndex = definition.stages.indexOf(stage);
+    const sources = [];
+    for (const [variable, producer] of variableProducers(definition)) {
+      const index = definition.stages.indexOf(producer.stage);
+      const type = controls.get(producer.block.control)?.outputs[producer.port]?.type;
+      if (type !== input.type || index > stageIndex) continue;
+      if (index === stageIndex && kind === 'generated' && !(input.sameStage && producer.block.kind === 'generated')) continue;
+      const features = producerFeatures(producer, controls);
+      sources.push({
+        variable,
+        block: producer.block.id,
+        port: producer.port,
+        stage: producer.stage.id,
+        sameStage: index === stageIndex,
+        missing: (input.requires || []).filter(feature => !features.includes(feature)),
+        order: [index, flattenBlocks(producer.stage.blocks).indexOf(producer.block)],
+      });
+    }
+    return sources
+      .sort((a, b) => b.order[0] - a.order[0] || b.order[1] - a.order[1])
+      .map(({ order, ...source }) => source);
+  }
+
+  // Blocks of the stage a block built from other blocks takes as sources (`sources` of
+  // its control description), in stage order.
+  function stageSources(stage, sources) {
+    return flattenBlocks(stage.blocks)
+      .filter(block => block.kind !== 'static' && sources.accepts.includes(block.control))
+      .map(block => block.id);
+  }
+
+  // What a block of the catalog gets once added at the end of the stage: for every input
+  // the nearest source with all the features it needs, or else the nearest one, which
+  // the server then reports; for a block built from other blocks the nearest such block,
+  // or all of them for one that takes several, as an answer key does. `entry` is the
+  // control's description.
+  function plannedLinks(definition, stage, entry, controls) {
+    const inputs = {};
+    for (const [port, input] of Object.entries(entry.inputs || {})) {
+      const sources = inputSources(definition, stage, entry.kind, input, controls);
+      inputs[port] = sources.find(source => source.missing.length === 0) || sources[0] || null;
+    }
+    let from = [];
+    if (entry.sources) {
+      from = stageSources(stage, entry.sources);
+      if (entry.sources.single) from = from.slice(-1);
+    }
+    return { inputs, from };
+  }
+
+  // «+ Блок»: a block of the catalog at the end of the stage. Its id comes from the stage
+  // and the control or component type, each output gives away a variable named after the
+  // port, answer fields the stage already holds get another name, and the links are those
+  // of `plannedLinks`. A variable of an earlier stage gets a context line, as the model
+  // needs it. `entry` is the control's description, or for a static block
+  // `{ kind: 'static', type, sample }`. Returns the block and `addedLines`, the labels of
+  // the context lines added.
+  function addBlock(definition, stage, entry, controls) {
+    const id = freeName(`${stage.id}-${kebabCase(entry.type)}`, blockIds(definition), '-');
+    if (entry.kind === 'static') {
+      const block = { id, kind: 'static', component: JSON.parse(JSON.stringify(entry.sample)) };
+      stage.blocks.push(block);
+      return { block, addedLines: [] };
+    }
+
+    const block = { id, kind: entry.kind, control: entry.type };
+    if (entry.kind === 'generated') {
+      const taken = answerNames(stage, controls);
+      const renamed = entry.fields.map(field => {
+        const name = freeName(field, taken);
+        taken.add(name);
+        return [field, name];
+      }).filter(([field, name]) => field !== name);
+      if (renamed.length > 0) block.fields = Object.fromEntries(renamed);
+    }
+    const links = plannedLinks(definition, stage, entry, controls);
+    const addedLines = [];
+    const inputs = Object.entries(links.inputs).filter(([, source]) => source);
+    if (inputs.length > 0) block.inputs = Object.fromEntries(inputs.map(([port, source]) => [port, source.variable]));
+    for (const [, source] of inputs) {
+      const passed = contextLines(stage).some(line => line.source === 'var' && line.name === source.variable);
+      if (!source.sameStage && !passed) addedLines.push(addContextLine(stage, 'var', source.variable));
+    }
+    if (links.from.length > 0) block.from = links.from;
+    const variables = new Set(variableProducers(definition).keys());
+    const ports = Object.keys(entry.outputs || {});
+    if (ports.length > 0) {
+      block.exports = {};
+      for (const port of ports) {
+        block.exports[port] = freeName(port, variables);
+        variables.add(block.exports[port]);
+      }
+    }
+    stage.blocks.push(block);
+    return { block, addedLines };
+  }
+
   // `<block>.items[0].answer` → `<block>`.
   const slotSourceBlock = source => /^[a-z][a-z0-9-]*/.exec(String(source))?.[0];
   const sourceBlock = source => (typeof source === 'string' ? source : source?.block);
@@ -396,6 +531,9 @@
     moveStage,
     moveBlock,
     addStage,
+    inputSources,
+    plannedLinks,
+    addBlock,
     deletionPlan,
     applyDeletion,
     applyStaticChanges,

@@ -130,7 +130,19 @@ test('controls are described for the editor with labelled parameters and chrome'
     type: 'integer', label: 'Слов в истории: от', min: 10, max: 150, default: 40, atMost: 'maxWords',
   });
   assert.deepEqual(stories.chrome.map(field => field.label), ['Заголовок', 'Цвета карточек']);
-  assert.deepEqual(stories.inputs, { highlight: { type: 'vocabulary', required: false }, guesses: { type: 'statements', required: false } });
+  assert.deepEqual(stories.inputs, {
+    highlight: { type: 'vocabulary', required: false, requires: [], sameStage: true },
+    guesses: { type: 'statements', required: false, requires: [], sameStage: false },
+  });
+  // What the catalog needs to link a new block: features a producer turns on with a flag,
+  // features an input requires, and the blocks one built from others accepts.
+  const byType = type => controls.find(control => control.type === type);
+  assert.deepEqual(byType('vocabularyList').outputs.vocabulary.features, { distractor: 'distractors', imagePrompt: 'imagePrompts' });
+  assert.deepEqual(byType('matchPictures').inputs.vocabulary.requires, ['imagePrompt']);
+  assert.deepEqual(byType('repeatAudio').sources, { accepts: ['audioScript'], single: true });
+  assert.equal(byType('answerKey').sources.single, false);
+  assert.ok(byType('answerKey').sources.accepts.includes('contextDropdown'));
+  assert.equal(byType('contextDropdown').sources, undefined);
   assert.equal(controls.find(control => control.type === 'teacherNoteSections').params.sections.type, 'custom');
   const icon = controls.find(control => control.type === 'listCard').chrome.find(field => field.key === 'icon');
   assert.equal(icon.type, 'choice');

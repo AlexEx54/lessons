@@ -8,17 +8,9 @@
   // template is read-only.
 
   const KIND_LABELS = { static: 'Статичный', generated: 'Генерирует ИИ', derived: 'Собирается сам', row: 'Ряд' };
-  const STATIC_LABELS = {
-    teacherNote: 'Заметки учителю',
-    taskPrompt: 'Задание',
-    markdownCard: 'Карточка',
-    textPanel: 'Текстовая панель',
-    multipleChoice: 'Выбор ответа',
-    videoPlayer: 'Видео',
-    howToPlay: 'Как играть',
-    selfAssessment: 'Самооценка',
-  };
   const NARROW_LAYOUT = window.matchMedia('(max-width: 1180px)');
+  // On phones the catalog takes the whole screen and shows the example under its card.
+  const PHONE_LAYOUT = window.matchMedia('(max-width: 700px)');
   const TITLE_MAX_LENGTH = 80;
   const DESCRIPTION_MAX_LENGTH = 500;
   const INPUT_LABEL_MAX_LENGTH = 60;
@@ -43,6 +35,10 @@
     template: null,
     savedSnapshot: '',
     controls: new Map(),
+    statics: new Map(),
+    // The block catalog: its entries in catalog order, the open group and search, the
+    // chosen entry.
+    catalog: { entries: [], groups: [], group: 'all', query: '', selected: null },
     variableTypes: {},
     stageIcons: { icons: {}, aliases: {} },
     preview: null,
@@ -172,7 +168,7 @@
 
   function blockName(block) {
     if (block.kind === 'row') return `${block.blocks.length} ${plural(block.blocks.length, ['блок', 'блока', 'блоков'])} в ряд`;
-    if (block.kind === 'static') return STATIC_LABELS[block.component.type] || 'Статичный блок';
+    if (block.kind === 'static') return state.statics.get(block.component.type)?.label || 'Статичный блок';
     return state.controls.get(block.control)?.label || block.control;
   }
 
@@ -471,15 +467,19 @@
       markSelectedFrame();
       placePanel();
     });
+    byId('template-add-block').hidden = !editable() || stage.blocks.length === 0;
     window.history.replaceState(null, '', `#${encodeURIComponent(stage.id)}`);
   }
 
   // A stage is left without blocks only while it is new: it cannot be saved like that.
   function emptyStageNote() {
     const note = el('div', 'template-empty-stage');
-    const text = el('p', '', 'Пустой этап не сохранить: добавьте в него блок или удалите этап.');
+    const text = el('p', '', editable()
+      ? 'Добавьте первый из каталога. Пустой этап не сохранить.'
+      : 'Пустой этап не сохранить: добавьте в него блок или удалите этап.');
     text.prepend(el('strong', '', 'В этапе пока нет блоков'));
     note.append(text);
+    if (editable()) note.append(button('template-add-block template-add-block--first', '+ Блок', openCatalog));
     return note;
   }
 
@@ -1732,6 +1732,249 @@
     });
   }
 
+  // The block catalog: «+ Блок» opens it for the current stage. Groups on the left, an
+  // entry's card tells what the block is and what it would take and give in this stage,
+  // and the chosen one shows its component built from sample data.
+  const catalogDialog = byId('catalog-dialog');
+  const examples = new Map();
+
+  // A control's example is built by the server once per type; a static block's is its sample.
+  function catalogExample(entry) {
+    if (entry.kind === 'static') return Promise.resolve({ id: 'catalog-example', ...entry.sample });
+    if (!examples.has(entry.type)) {
+      examples.set(entry.type, request('GET', `/api/template-controls/${encodeURIComponent(entry.type)}/example`)
+        .then(({ component }) => component)
+        .catch(error => {
+          examples.delete(entry.type);
+          throw error;
+        }));
+    }
+    return examples.get(entry.type);
+  }
+
+  const quoted = names => names.map(name => `«${name}»`).join(', ');
+
+  // What the entry would take and give at the end of the current stage, as rows of
+  // `{ label, value, chip, note?, warning?, output? }`: the preview shows `label` and
+  // `value`, the card a chip or the warning.
+  function catalogLinks(entry) {
+    if (entry.kind === 'static') return [];
+    const planned = Edits.plannedLinks(state.template.definition, currentStage(), entry, state.controls);
+    const rows = [];
+    for (const [port, input] of Object.entries(entry.inputs)) {
+      const source = planned.inputs[port];
+      const label = `Берёт: ${typeLabel(input.type)}`;
+      if (!source) {
+        if (input.required) {
+          rows.push({
+            label,
+            value: 'не подключено',
+            warning: `В этом и прошлых этапах нет блока, который отдаёт ${typeLabel(input.type)}: вход останется не подключён.`,
+          });
+        }
+        continue;
+      }
+      const { block } = state.blocks.get(source.block);
+      const row = {
+        label,
+        value: blockName(block),
+        chip: `${capitalize(typeLabel(input.type))} ← ${placedName(source.block, currentStage().id)}`,
+        note: source.sameStage ? 'этот этап' : `этап «${stageTitle(stageById(source.stage))}»`,
+      };
+      if (source.missing.length > 0) {
+        const producer = state.controls.get(block.control);
+        const params = source.missing.map(feature => producer.params[producer.outputs[source.port].features[feature]].label);
+        row.warning = `Включите ${quoted(params)} в блоке «${blockName(block)}»: без этого блок не соберётся.`;
+      }
+      rows.push(row);
+    }
+    if (entry.sources) {
+      const names = planned.from.map(id => blockName(state.blocks.get(id).block));
+      if (names.length > 0) {
+        const shown = names.length > 2 ? `${quoted(names.slice(0, 2))} и ещё ${names.length - 2}` : quoted(names);
+        rows.push({ label: 'Собирается из', value: quoted(names), chip: `Из ${shown}` });
+      } else {
+        const { accepts } = entry.sources;
+        rows.push({
+          label: 'Собирается из',
+          value: 'не из чего',
+          warning: accepts.length === 1
+            ? `Нужен блок «${state.controls.get(accepts[0]).label}» в этом этапе.`
+            : 'В этапе нет блоков, из которых он собирается.',
+        });
+      }
+    }
+    for (const output of Object.values(entry.outputs)) {
+      rows.push({ label: 'Отдаёт', value: typeLabel(output.type), chip: `Отдаёт ${typeLabel(output.type)}`, output: true });
+    }
+    return rows;
+  }
+
+  function catalogLinkChips(rows) {
+    const chips = el('span', 'template-catalog__links');
+    for (const row of rows) {
+      if (row.warning) chips.append(el('span', 'template-catalog__warning', row.warning));
+      else chips.append(el('span', `template-chip template-chip--${row.output ? 'output' : 'input'}`, row.chip));
+    }
+    return chips;
+  }
+
+  // Parameters a new block starts with; lists and special ones are left to its panel.
+  function defaultsList(entry) {
+    const items = Object.values(entry.params || {}).flatMap(spec => {
+      if (spec.type === 'integer') return [`${spec.label} — ${spec.default}`];
+      if (spec.type === 'choice') return [`${spec.label} — ${spec.options[spec.default].toLowerCase()}`];
+      if (spec.type === 'flag') return [`${spec.label} — ${spec.default ? 'да' : 'нет'}`];
+      return [];
+    });
+    if (items.length === 0) return null;
+    const list = el('ul', 'template-setting__list');
+    list.append(...items.map(item => el('li', '', item)));
+    return list;
+  }
+
+  // A search looks in names and descriptions; a match in the name comes first.
+  const visibleEntries = () => {
+    const { entries, group, query } = state.catalog;
+    const words = query.trim().toLowerCase();
+    const inGroup = entries.filter(entry => group === 'all' || entry.group === group);
+    if (!words) return inGroup;
+    const named = inGroup.filter(entry => entry.label.toLowerCase().includes(words));
+    return [...named, ...inGroup.filter(entry => !named.includes(entry) && entry.description.toLowerCase().includes(words))];
+  };
+
+  function catalogGroups() {
+    const { entries, groups, group } = state.catalog;
+    return [{ key: 'all', label: 'Все' }, ...groups].map(item => {
+      const count = item.key === 'all' ? entries.length : entries.filter(entry => entry.group === item.key).length;
+      const control = button('template-catalog__group', '', () => {
+        state.catalog.group = item.key;
+        renderCatalog();
+      });
+      control.setAttribute('aria-pressed', String(item.key === group));
+      control.append(el('span', '', item.label), el('small', '', String(count)));
+      return control;
+    });
+  }
+
+  function catalogCard(entry) {
+    const card = button('template-catalog__item', '', () => chooseEntry(entry));
+    card.setAttribute('aria-pressed', String(entry === state.catalog.selected));
+    card.addEventListener('dblclick', () => {
+      chooseEntry(entry);
+      addFromCatalog();
+    });
+    const top = el('span', 'template-catalog__item-top');
+    top.append(kindBadge(entry.kind), el('span', 'template-catalog__name', entry.label));
+    card.append(top, el('span', 'template-catalog__about', entry.description));
+    const links = catalogLinks(entry);
+    if (links.length > 0) card.append(catalogLinkChips(links));
+    return card;
+  }
+
+  // The chosen entry: what it is, what it would take and give, its parameters and its
+  // example. The example comes a moment later; a newer choice drops it.
+  function catalogPreview(entry) {
+    const preview = byId('catalog-preview');
+    if (!entry) {
+      preview.replaceChildren(el('p', 'template-catalog__placeholder', 'Выберите блок, чтобы увидеть, как он выглядит в уроке.'));
+      return;
+    }
+    const links = catalogLinks(entry);
+    const rows = links.map(row => {
+      const value = el('span', '', row.value);
+      if (row.note) value.append(el('small', '', ` (${row.note})`));
+      return settingRow(row.label, value);
+    });
+    const defaults = defaultsList(entry);
+    if (defaults) rows.push(settingRow('По умолчанию', defaults));
+    const warnings = links.filter(row => row.warning).map(row => el('p', 'template-catalog__warning', row.warning));
+    const frame = el('div', 'template-catalog__frame');
+    frame.inert = true;
+    frame.append(el('p', 'template-catalog__placeholder', 'Загружаем пример…'));
+    // On phones the card above says the same.
+    const head = el('div', 'template-catalog__preview-head');
+    head.append(kindBadge(entry.kind), el('h3', '', entry.label), el('p', '', entry.description));
+    preview.replaceChildren(
+      head,
+      ...rows,
+      ...warnings,
+      frame,
+    );
+    catalogExample(entry).then(component => {
+      if (state.catalog.selected === entry) frame.replaceChildren(window.LessonView.renderComponent(component));
+    }, () => {
+      if (state.catalog.selected === entry) frame.replaceChildren(el('p', 'template-catalog__placeholder', 'Не удалось загрузить пример.'));
+    });
+  }
+
+  // On phones the example opens right under its card.
+  function placeCatalogPreview() {
+    const preview = byId('catalog-preview');
+    const card = byId('catalog-list').querySelector('[aria-pressed="true"]');
+    if (PHONE_LAYOUT.matches) {
+      preview.hidden = !card;
+      if (card && card.nextElementSibling !== preview) card.after(preview);
+    } else {
+      preview.hidden = false;
+      if (preview.previousElementSibling !== byId('catalog-list')) byId('catalog-list').after(preview);
+    }
+  }
+
+  function renderCatalog() {
+    const entries = visibleEntries();
+    byId('catalog-groups').replaceChildren(...catalogGroups());
+    byId('catalog-list').replaceChildren(...(entries.length > 0
+      ? entries.map(catalogCard)
+      : [el('p', 'template-catalog__placeholder', 'Ничего не нашлось.')]));
+    byId('catalog-add').disabled = !state.catalog.selected;
+    catalogPreview(state.catalog.selected);
+    placeCatalogPreview();
+  }
+
+  function chooseEntry(entry) {
+    if (state.catalog.selected === entry) return;
+    state.catalog.selected = entry;
+    for (const card of byId('catalog-list').querySelectorAll('.template-catalog__item')) {
+      card.setAttribute('aria-pressed', 'false');
+    }
+    const cards = [...byId('catalog-list').querySelectorAll('.template-catalog__item')];
+    cards[visibleEntries().indexOf(entry)]?.setAttribute('aria-pressed', 'true');
+    byId('catalog-add').disabled = false;
+    catalogPreview(entry);
+    placeCatalogPreview();
+  }
+
+  // The catalog opens on the group it was left at, with nothing chosen.
+  function openCatalog() {
+    const stage = currentStage();
+    state.catalog.selected = null;
+    state.catalog.query = '';
+    byId('catalog-search').value = '';
+    byId('catalog-stage').textContent = `в этап ${state.stageIndex + 1} «${stageTitle(stage)}»`;
+    renderCatalog();
+    catalogDialog.showModal();
+    byId('catalog-list').scrollTop = 0;
+    // On phones the keyboard would cover the catalog.
+    if (!PHONE_LAYOUT.matches) byId('catalog-search').focus();
+  }
+
+  // The new block goes to the end of the stage, selected, with the panel of its settings.
+  function addFromCatalog() {
+    const entry = state.catalog.selected;
+    if (!entry) return;
+    let added;
+    change(({ definition }) => {
+      added = Edits.addBlock(definition, currentStage(), entry, state.controls);
+      state.selection = { kind: 'block', id: added.block.id };
+    });
+    catalogDialog.close();
+    markSelectedFrame()?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (added.addedLines.length > 0) {
+      showToast(`В контекст этапа ${plural(added.addedLines.length, ['добавлена строка', 'добавлены строки', 'добавлены строки'])} ${quoted(added.addedLines)}`);
+    }
+  }
+
   function renderPanel() {
     const entry = state.blocks.get(selectedBlockId());
     const kind = state.selection?.kind;
@@ -2001,6 +2244,13 @@
       state.template = template;
       state.savedSnapshot = snapshot(template);
       state.controls = new Map(controls.controls.map(control => [control.type, control]));
+      state.statics = new Map(controls.statics.map(entry => [entry.type, { ...entry, kind: 'static' }]));
+      // Static blocks come first in their group: notes and cards are mostly theirs.
+      const groupOrder = controls.groups.map(group => group.key);
+      state.catalog.groups = controls.groups;
+      state.catalog.entries = [...state.statics.values(), ...controls.controls]
+        .filter(entry => groupOrder.includes(entry.group))
+        .sort((a, b) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group));
       state.variableTypes = controls.variableTypes;
       state.stageIcons = controls.stageIcons;
       state.blocks = indexBlocks(template.definition);
@@ -2032,6 +2282,17 @@
   byId('template-title').addEventListener('click', selectTemplate);
   byId('template-add-input').addEventListener('click', selectNewInput);
   byId('template-add-stage').addEventListener('click', addStage);
+  byId('template-add-block').addEventListener('click', openCatalog);
+  byId('catalog-add').addEventListener('click', addFromCatalog);
+  byId('catalog-cancel').addEventListener('click', () => catalogDialog.close());
+  byId('catalog-close').addEventListener('click', () => catalogDialog.close());
+  byId('catalog-search').addEventListener('input', event => {
+    state.catalog.query = event.target.value;
+    // A search looks through every group.
+    if (state.catalog.query.trim()) state.catalog.group = 'all';
+    renderCatalog();
+  });
+  PHONE_LAYOUT.addEventListener('change', placeCatalogPreview);
   byId('stage-settings').addEventListener('click', selectStageSettings);
   byId('template-save').addEventListener('click', save);
   byId('template-discard').addEventListener('click', discardChanges);
@@ -2044,13 +2305,15 @@
   });
   byId('delete-cancel').addEventListener('click', () => deleteDialog.close());
   // A click on the backdrop lands on the dialog too: only one outside its box closes it.
-  deleteDialog.addEventListener('click', event => {
-    if (event.target !== deleteDialog) return;
-    const box = deleteDialog.getBoundingClientRect();
-    const inside = event.clientX >= box.left && event.clientX <= box.right
-      && event.clientY >= box.top && event.clientY <= box.bottom;
-    if (!inside) deleteDialog.close();
-  });
+  for (const dialog of [deleteDialog, catalogDialog]) {
+    dialog.addEventListener('click', event => {
+      if (event.target !== dialog) return;
+      const box = dialog.getBoundingClientRect();
+      const inside = event.clientX >= box.left && event.clientX <= box.right
+        && event.clientY >= box.top && event.clientY <= box.bottom;
+      if (!inside) dialog.close();
+    });
+  }
   deleteDialog.addEventListener('close', () => { pendingDeletion = null; });
   document.addEventListener('keydown', event => {
     if (!(event.metaKey || event.ctrlKey) || event.code !== 'KeyS' || !state.template || !editable()) return;

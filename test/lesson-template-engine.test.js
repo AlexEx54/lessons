@@ -34,7 +34,7 @@ const CONTROLS = [
     type: 'wordList',
     fields: ['words'],
     params: { count: integer('Слов', 2, 10, 3), distractors: flag('Отвлекающие варианты', false) },
-    outputs: { vocabulary: { type: 'vocabulary', field: 'words', features: params => (params.distractors ? ['distractor'] : []) } },
+    outputs: { vocabulary: { type: 'vocabulary', field: 'words', features: { distractor: 'distractors' } } },
     schema: ({ params }) => ({ words: { type: 'array', minItems: params.count, maxItems: params.count, items: { type: 'object' } } }),
     rules: ({ params, f }) => [`${f.words}: exactly ${params.count} items.`],
     defaultInstructions: 'Useful words for the topic.',
@@ -407,6 +407,7 @@ test('validation reports block-level mistakes', () => {
     guess.blocks.push({ id: 'guess-starters', kind: 'generated', control: 'bullets' });
     guess.blocks.push({ id: 'guess-starters-key', kind: 'derived', control: 'answerKey', from: ['guess-starters'] });
     guess.blocks.push({ id: 'guess-mystery', kind: 'generated', control: 'mystery' });
+    guess.blocks.push({ id: 'guess-key-3', kind: 'derived', control: 'answerKey' });
     guess.blocks.push({ id: 'guess-game', kind: 'static', component: { type: 'teacherNote' } });
     guess.blocks.push({ id: 'guess-empty-note', kind: 'static', component: { type: 'teacherNote', text: ' ' } });
     guess.blocks.push({ id: 'guess-quiz', kind: 'static', component: { type: 'oddOneOut', items: [] } });
@@ -419,6 +420,7 @@ test('validation reports block-level mistakes', () => {
   assert.match(messages, /собирается из vocabulary-list, а такого блока нет в этапе guess/);
   assert.match(messages, /у bullets нет ключа ответов/);
   assert.match(messages, /неизвестный контрол mystery/);
+  assert.match(messages, /Блок guess-key-3 не собирается ни из одного блока этапа/);
   assert.match(messages, /Блок guess-game повторяется/);
   assert.match(messages, /Блок guess-empty-note: содержимое не подходит компоненту: TeacherNote requires text/);
   assert.match(messages, /Компонент oddOneOut не может быть статичным блоком \(guess-quiz\)/);
@@ -468,6 +470,15 @@ test('the catalog rejects incomplete controls', () => {
     /должен связывать два целых/,
   );
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], chrome: ['sparkle'] }]), /неизвестный ключ оформления sparkle/);
+  const wordList = CONTROLS.find(control => control.type === 'wordList');
+  const withFeatures = features => () => createControlCatalog([{
+    ...wordList, outputs: { vocabulary: { ...wordList.outputs.vocabulary, features } },
+  }]);
+  assert.throws(withFeatures({ sparkle: 'distractors' }), /у типа vocabulary нет возможности sparkle/);
+  assert.throws(withFeatures({ distractor: 'count' }), /возможность distractor должна включаться флагом/);
+  const answerKey = CONTROLS.find(control => control.type === 'answerKey');
+  assert.throws(() => createControlCatalog([{ ...answerKey, singleSource: 'yes' }]), /singleSource бывает только true/);
+  assert.throws(() => createControlCatalog([{ ...answerKey, acceptsSource: undefined, singleSource: true }]), /только вместе с acceptsSource/);
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], group: 'misc' }]), /неизвестная группа misc/);
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], description: ' ' }]), /описание должно быть непустой строкой/);
 });
