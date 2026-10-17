@@ -247,6 +247,89 @@ test('an answer key takes every block of the stage with answers; a repeated audi
   ]);
 });
 
+const block = (definition, id) => definition.stages.flatMap(item => Edits.flattenBlocks(item.blocks)).find(item => item.id === id);
+
+test('a block’s links come from the definition, unbound inputs included', () => {
+  const definition = templateTwo();
+  const links = id => Edits.blockLinks(definition, block(definition, id), controls);
+  assert.deepEqual(links('lead-in-fact-or-myth'), {
+    inputs: {},
+    exports: {
+      guessStatements: {
+        variable: 'leadInGuesses',
+        type: 'statements',
+        readers: {
+          blocks: [
+            { block: 'target-vocabulary-stories', stage: 'target-vocabulary', port: 'guesses' },
+            { block: 'target-vocabulary-guess-answers', stage: 'target-vocabulary', port: 'guesses' },
+          ],
+          stages: ['target-vocabulary'],
+        },
+      },
+    },
+  });
+  assert.deepEqual(links('target-vocabulary-stories').inputs.guesses, {
+    type: 'statements', required: false, variable: 'leadInGuesses', from: { block: 'lead-in-fact-or-myth', stage: 'lead-in' },
+  });
+
+  delete block(definition, 'target-vocabulary-meanings').inputs;
+  assert.deepEqual(links('target-vocabulary-meanings').inputs.vocabulary, { type: 'vocabulary', required: true, variable: null, from: null });
+  block(definition, 'target-vocabulary-meanings').inputs = { vocabulary: 'gone' };
+  assert.equal(links('target-vocabulary-meanings').inputs.vocabulary.from, null);
+});
+
+test('a block never lists itself among the sources of its input', () => {
+  const definition = templateTwo();
+  const card = block(definition, 'target-vocabulary-card');
+  const sources = except => Edits.inputSources(definition, stage(definition, 'target-vocabulary'), 'derived', { type: 'vocabulary' }, controls, except)
+    .map(source => source.variable);
+  assert.deepEqual(sources(null), ['targetVocabulary']);
+  assert.deepEqual(sources(card), []);
+});
+
+test('another source of an earlier stage joins the context; the line read before goes once no block reads it', () => {
+  const definition = templateTwo();
+  const words = addBlock(definition, 'lead-in', 'vocabularyList').block.exports.vocabulary;
+  const focus = stage(definition, 'grammar-focus');
+  const support = block(definition, 'grammar-focus-support');
+
+  assert.deepEqual(Edits.setInputSource(definition, focus, support, 'vocabulary', words), {
+    addedLines: ['Vocabulary'],
+    removedLines: ['Target Vocabulary'],
+  });
+  assert.deepEqual(support.inputs, { vocabulary: words });
+  assert.deepEqual(focus.context, { 'Lesson topic': '$input.topic', 'Grammar topic': '$input.grammarTopic', Vocabulary: '$var.vocabulary' });
+  assert.deepEqual(problems(definition), []);
+
+  // Back again; then a line another block of the stage reads stays.
+  assert.deepEqual(addBlock(definition, 'grammar-focus', 'contextDropdown').addedLines, ['Target vocabulary']);
+  assert.deepEqual(Edits.setInputSource(definition, focus, support, 'vocabulary', 'targetVocabulary'), {
+    addedLines: [],
+    removedLines: ['Vocabulary'],
+  });
+  assert.deepEqual(Edits.setInputSource(definition, focus, support, 'vocabulary', words), {
+    addedLines: ['Vocabulary'],
+    removedLines: [],
+  });
+  assert.deepEqual(problems(definition), []);
+});
+
+test('a source of the stage itself needs no line; an optional input may be left unbound', () => {
+  const definition = templateTwo();
+  const vocabulary = stage(definition, 'target-vocabulary');
+  const context = structuredClone(vocabulary.context);
+  const questions = block(definition, 'target-vocabulary-personalized-questions');
+  assert.deepEqual(Edits.setInputSource(definition, vocabulary, questions, 'highlight', null), { addedLines: [], removedLines: [] });
+  assert.equal(Object.hasOwn(questions, 'inputs'), false);
+  assert.deepEqual(Edits.setInputSource(definition, vocabulary, questions, 'highlight', 'targetVocabulary'), { addedLines: [], removedLines: [] });
+  assert.deepEqual(questions.inputs, { highlight: 'targetVocabulary' });
+  assert.deepEqual(vocabulary.context, context);
+
+  // A required one left unbound is the server's problem.
+  Edits.setInputSource(definition, vocabulary, block(definition, 'target-vocabulary-meanings'), 'vocabulary', null);
+  assert.deepEqual(problems(definition), ['Блоку target-vocabulary-meanings нужен вход vocabulary (словарь).']);
+});
+
 const templateOne = () => structuredClone(findSystemTemplate('template-1').definition);
 const blockIds = plan => plan.blocks.map(entry => entry.block);
 

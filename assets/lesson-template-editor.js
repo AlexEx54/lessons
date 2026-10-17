@@ -93,6 +93,7 @@
   }
 
   const capitalize = text => text.charAt(0).toUpperCase() + text.slice(1);
+  const quoted = names => names.map(name => `«${name}»`).join(', ');
   const stageTitle = stage => stage.title || 'Без названия';
   // A duration being typed may be unfinished: the problems list explains it.
   const durationText = stage => (Number.isInteger(stage.durationMinutes) ? `${stage.durationMinutes} мин` : '— мин');
@@ -180,7 +181,8 @@
 
   const kindBadge = kind => el('span', `template-kind template-kind--${kind}`, KIND_LABELS[kind]);
   const typeLabel = type => state.variableTypes[type] || type;
-  const described = id => state.preview.blocks?.[id];
+  // Links come from the working copy, so they show while the template has problems too.
+  const blockLinks = block => Edits.blockLinks(state.template.definition, block, state.controls);
 
   // A block's name, with its stage when that is not the stage `fromStageId`.
   function placedName(id, fromStageId) {
@@ -202,17 +204,31 @@
   }
 
   // Link chips of one block: what it reads (← source) and what it gives away (→ readers).
+  // In a copy an input chip opens the choice of its source; in a system template it leads
+  // to the source.
   function linkChips(id) {
-    const links = described(id);
-    if (!links) return [];
-    const inputs = Object.values(links.inputs).map(link => button(
-      'template-chip template-chip--input',
-      `${capitalize(typeLabel(link.type))} ← ${placedName(link.from.block, links.stage)}`,
-      event => {
-        event.stopPropagation();
-        selectBlock(link.from.block, { scroll: true });
-      },
-    ));
+    const { block, stage } = state.blocks.get(id);
+    if (block.kind === 'static') return [];
+    const links = blockLinks(block);
+    const inputs = Object.entries(links.inputs).map(([port, link]) => {
+      const type = capitalize(typeLabel(link.type));
+      if (!editable() && !link.from) return null;
+      const chip = button(
+        `template-chip template-chip--input${link.from ? '' : ` template-chip--${link.required ? 'missing' : 'unbound'}`}`,
+        `${type} ← ${link.from ? placedName(link.from.block, stage.id) : 'не подключено'}`,
+        event => {
+          event.stopPropagation();
+          if (!editable()) {
+            selectBlock(link.from.block, { scroll: true });
+            return;
+          }
+          selectBlock(id);
+          openSourcePicker(chip, id, port);
+        },
+      );
+      if (editable()) chip.setAttribute('aria-haspopup', 'dialog');
+      return chip;
+    }).filter(Boolean);
     const exports = Object.values(links.exports).map(output => button(
       'template-chip template-chip--output',
       `${capitalize(typeLabel(output.type))} → ${readersText(output.readers)}`,
@@ -222,6 +238,136 @@
       },
     ));
     return [...inputs, ...exports];
+  }
+
+  // Where the block's `port` may read from: blocks of its stage and earlier ones that give
+  // away a variable of the input's type, the nearest first (`Edits.inputSources`).
+  function inputChoices(id, port) {
+    const { block, stage } = state.blocks.get(id);
+    const input = state.controls.get(block.control).inputs[port];
+    return Edits.inputSources(state.template.definition, stage, block.kind, input, state.controls, block);
+  }
+
+  function sourceName(source) {
+    const { block, stageIndex } = state.blocks.get(source.block);
+    return [blockName(block), source.sameStage ? 'этот этап' : `${stageIndex + 1}. ${stageTitle(state.template.definition.stages[stageIndex])}`];
+  }
+
+  // What choosing the source brings: a context line for a variable of an earlier stage,
+  // and the features the input needs that the source has off, named by their flags.
+  function sourceNotes(id, source) {
+    const { stage } = state.blocks.get(id);
+    const notes = [];
+    const passed = Edits.contextLines(stage).some(line => line.source === 'var' && line.name === source.variable);
+    if (!source.sameStage && !passed) {
+      const label = Edits.uniqueContextLabel(stage, Edits.defaultContextLabel(source.variable));
+      notes.push(`В контекст этапа добавится строка «${label}».`);
+    }
+    if (source.missing.length > 0) notes.push(`В нём нужно включить ${quoted(missingFlags(source))}.`);
+    return notes;
+  }
+
+  // The flags of the source block that turn on the features an input misses.
+  function missingFlags(source) {
+    const producer = state.controls.get(state.blocks.get(source.block).block.control);
+    return source.missing.map(feature => producer.params[producer.outputs[source.port].features[feature]].label);
+  }
+
+  // The choice of an input's source, under its chip. Choosing connects at once.
+  const sourcePicker = byId('source-picker');
+  let pickerChip = null;
+
+  function openSourcePicker(chip, id, port) {
+    const { block } = state.blocks.get(id);
+    const link = blockLinks(block).inputs[port];
+    const type = typeLabel(link.type);
+    const choices = inputChoices(id, port);
+    const choose = variable => {
+      sourcePicker.hidePopover();
+      if (variable !== link.variable) connectInput(id, port, variable);
+    };
+    const option = ({ title, notes = [], variable, disabled = false }) => {
+      const item = el('label', `template-source-option${disabled ? ' template-source-option--disabled' : ''}`);
+      const radio = el('input');
+      Object.assign(radio, { type: 'radio', name: 'source-picker', checked: variable === link.variable, disabled });
+      radio.addEventListener('change', () => choose(variable));
+      item.append(radio, title, ...notes.map(note => el('small', '', note)));
+      return item;
+    };
+    const items = choices.map(source => {
+      const [name, place] = sourceName(source);
+      const title = el('span');
+      title.append(el('b', '', name), ` · ${place}`);
+      return option({ title, notes: sourceNotes(id, source), variable: source.variable });
+    });
+    items.push(option({
+      title: el('span', '', 'Не подключать'),
+      notes: link.required ? ['Этот вход обязателен.'] : [],
+      variable: null,
+      disabled: link.required,
+    }));
+    sourcePicker.replaceChildren(
+      el('h4', '', `Откуда брать ${type}`),
+      ...items,
+      el('p', 'template-source-picker__foot', choices.length > 0
+        ? `Блоки, которые отдают ${type}, из этого и более ранних этапов.`
+        : `Подходящих блоков нет: добавьте в этот или более ранний этап блок, который отдаёт ${type}.`),
+    );
+    pickerChip?.removeAttribute('aria-expanded');
+    pickerChip = chip;
+    chip.setAttribute('aria-expanded', 'true');
+    sourcePicker.showPopover();
+    placeSourcePicker();
+    // On narrow screens selecting the block has just moved the panel under it: the page
+    // settles on the next frame.
+    window.requestAnimationFrame(placeSourcePicker);
+    (sourcePicker.querySelector('input:checked') || sourcePicker.querySelector('input:enabled'))?.focus({ preventScroll: true });
+  }
+
+  // The picker sits in the top layer, so it follows its chip on screen by itself; a chip
+  // a redraw took away closes it.
+  function placeSourcePicker() {
+    if (!pickerChip) return;
+    if (!pickerChip.isConnected) {
+      sourcePicker.hidePopover();
+      return;
+    }
+    const rect = pickerChip.getBoundingClientRect();
+    const left = Math.min(Math.max(16, rect.left), document.documentElement.clientWidth - sourcePicker.offsetWidth - 16);
+    sourcePicker.style.left = `${left}px`;
+    sourcePicker.style.top = `${rect.bottom + 6}px`;
+  }
+
+  sourcePicker.addEventListener('toggle', event => {
+    if (event.newState === 'open') return;
+    pickerChip?.removeAttribute('aria-expanded');
+    pickerChip = null;
+  });
+  window.addEventListener('scroll', placeSourcePicker, { capture: true, passive: true });
+  window.addEventListener('resize', placeSourcePicker);
+
+  const addedLinesText = lines => `В контекст этапа ${plural(lines.length, ['добавлена строка', 'добавлены строки', 'добавлены строки'])} ${quoted(lines)}`;
+
+  // A new source; the toast names the context lines it adds and takes away. «Вернуть»
+  // brings a line taken away back to its place, and the new source stays: the model may
+  // still need the line.
+  function connectInput(id, port, variable) {
+    const { block, stage } = state.blocks.get(id);
+    const before = Edits.contextLines(stage);
+    let lines;
+    change(({ definition }) => { lines = Edits.setInputSource(definition, stage, block, port, variable); });
+    const messages = [];
+    if (lines.addedLines.length > 0) messages.push(addedLinesText(lines.addedLines));
+    if (lines.removedLines.length === 0) {
+      if (messages.length > 0) showToast(messages[0]);
+      return;
+    }
+    messages.push(`Из контекста этапа ${plural(lines.removedLines.length, ['убрана строка', 'убраны строки', 'убраны строки'])} ${quoted(lines.removedLines)}`);
+    const added = Edits.contextLines(stage).filter(line => lines.addedLines.includes(line.label));
+    showToast(messages.join('. '), {
+      label: 'Вернуть',
+      run: () => change(() => Edits.setContextLines(stage, [...before, ...added])),
+    });
   }
 
   const GRIP_ICON = '<svg viewBox="0 0 10 16" aria-hidden="true">'
@@ -821,21 +967,46 @@
     return button('template-link', text, () => selectBlock(id, { scroll: true }));
   }
 
-  function linksSection(block, control) {
-    const links = described(block.id);
+  // An input's source is chosen here as well as from its chip.
+  function inputSourceField(id, port, link) {
+    const select = el('select', 'template-field__input');
+    const choices = inputChoices(id, port);
+    if (link.variable === null) {
+      select.append(new Option(link.required ? 'не подключено' : 'Не подключать', '', true, true));
+      if (link.required) select.options[0].disabled = true;
+    } else if (!link.required) {
+      select.append(new Option('Не подключать', ''));
+    }
+    // A source that is out of reach now stays shown: the problems tell what is wrong.
+    if (link.variable !== null && !choices.some(source => source.variable === link.variable)) {
+      const { stage } = state.blocks.get(id);
+      select.append(new Option(link.from ? placedName(link.from.block, stage.id) : link.variable, link.variable, true, true));
+    }
+    select.append(...choices.map(source => new Option(sourceName(source).join(' · '), source.variable, false, source.variable === link.variable)));
+    select.addEventListener('change', () => connectInput(id, port, select.value || null));
+    const field = fieldGroup('label', `Берёт ${typeLabel(link.type)} из`, select);
+    return link.from ? [field, linkButton(`Перейти к «${blockName(state.blocks.get(link.from.block).block)}» →`, link.from.block)] : [field];
+  }
+
+  function linksSection(block) {
+    const links = blockLinks(block);
+    const { stage } = state.blocks.get(block.id);
     const rows = [];
-    for (const [port, spec] of Object.entries(control.inputs)) {
-      const link = links.inputs[port];
+    for (const [port, link] of Object.entries(links.inputs)) {
+      if (editable()) {
+        rows.push(...inputSourceField(block.id, port, link));
+        continue;
+      }
       rows.push(settingRow(
-        `Берёт: ${typeLabel(spec.type)}`,
-        link ? linkButton(`← ${placedName(link.from.block, links.stage)}`, link.from.block) : el('small', '', 'не подключено'),
+        `Берёт: ${typeLabel(link.type)}`,
+        link.from ? linkButton(`← ${placedName(link.from.block, stage.id)}`, link.from.block) : el('small', '', 'не подключено'),
       ));
     }
     for (const output of Object.values(links.exports)) {
       const readers = el('div', 'template-readers');
-      for (const reader of output.readers.blocks) readers.append(linkButton(placedName(reader.block, links.stage), reader.block));
+      for (const reader of output.readers.blocks) readers.append(linkButton(placedName(reader.block, stage.id), reader.block));
       if (output.readers.stages.length > 0) {
-        const titles = output.readers.stages.map(id => state.template.definition.stages.find(stage => stage.id === id).title);
+        const titles = output.readers.stages.map(id => stageTitle(stageById(id)));
         readers.append(el('small', '', `Контекст этапов: ${titles.join(', ')}`));
       }
       if (readers.children.length === 0) readers.append(el('small', '', 'никто не читает'));
@@ -892,7 +1063,7 @@
         ? chromeField(block, field)
         : settingRow(field.label, chromeValue(field, block.chrome?.[field.key]))))));
     }
-    if (described(block.id)) sections.push(linksSection(block, control));
+    sections.push(linksSection(block));
     if (block.kind === 'generated') sections.push(blockInstructionsSection(block));
     if (block.kind === 'generated' && state.blockFacts[block.id]) sections.push(rulesSection());
     return sections.filter(Boolean);
@@ -1719,8 +1890,6 @@
     change(template => {
       Edits.applyDeletion(template.definition, plan);
       state.stageIndex = Math.min(stagesBefore, template.definition.stages.length - 1);
-      // The last preview's links name deleted blocks: links wait for the next preview.
-      state.preview = { ...state.preview, blocks: null };
     });
     showToast(message, {
       label: 'Вернуть',
@@ -1752,8 +1921,6 @@
     return examples.get(entry.type);
   }
 
-  const quoted = names => names.map(name => `«${name}»`).join(', ');
-
   // What the entry would take and give at the end of the current stage, as rows of
   // `{ label, value, chip, note?, warning?, output? }`: the preview shows `label` and
   // `value`, the card a chip or the warning.
@@ -1782,9 +1949,7 @@
         note: source.sameStage ? 'этот этап' : `этап «${stageTitle(stageById(source.stage))}»`,
       };
       if (source.missing.length > 0) {
-        const producer = state.controls.get(block.control);
-        const params = source.missing.map(feature => producer.params[producer.outputs[source.port].features[feature]].label);
-        row.warning = `Включите ${quoted(params)} в блоке «${blockName(block)}»: без этого блок не соберётся.`;
+        row.warning = `Включите ${quoted(missingFlags(source))} в блоке «${blockName(block)}»: без этого блок не соберётся.`;
       }
       rows.push(row);
     }
@@ -1971,7 +2136,7 @@
     catalogDialog.close();
     markSelectedFrame()?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     if (added.addedLines.length > 0) {
-      showToast(`В контекст этапа ${plural(added.addedLines.length, ['добавлена строка', 'добавлены строки', 'добавлены строки'])} ${quoted(added.addedLines)}`);
+      showToast(addedLinesText(added.addedLines));
     }
   }
 

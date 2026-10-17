@@ -211,11 +211,13 @@
   // and earlier stages that give away a variable of its type, the nearest first. A
   // generated block takes a variable of its own stage only when the control can, and only
   // from another generated block, which the model writes in the same answer. `missing`
-  // lists the features the input requires and the producer has off.
-  function inputSources(definition, stage, kind, input, controls) {
+  // lists the features the input requires and the producer has off. A block already in
+  // the stage passes itself as `except`: it cannot read its own variables.
+  function inputSources(definition, stage, kind, input, controls, except = null) {
     const stageIndex = definition.stages.indexOf(stage);
     const sources = [];
     for (const [variable, producer] of variableProducers(definition)) {
+      if (producer.block === except) continue;
       const index = definition.stages.indexOf(producer.stage);
       const type = controls.get(producer.block.control)?.outputs[producer.port]?.type;
       if (type !== input.type || index > stageIndex) continue;
@@ -308,6 +310,71 @@
     }
     stage.blocks.push(block);
     return { block, addedLines };
+  }
+
+  // What a block reads and gives away, worked out from the definition, so the links show
+  // while the template has problems too. An input reads `variable` from the block `from`;
+  // both are null while it is not connected, and `from` is null for a variable nobody
+  // gives away. An output's readers are the blocks that read its variable and the stages
+  // whose context passes it.
+  function blockLinks(definition, block, controls) {
+    const control = controls.get(block.control);
+    const producers = variableProducers(definition);
+    const inputs = {};
+    for (const [port, spec] of Object.entries(control?.inputs || {})) {
+      const variable = block.inputs?.[port] ?? null;
+      const producer = producers.get(variable);
+      inputs[port] = {
+        type: spec.type,
+        required: spec.required,
+        variable,
+        from: producer ? { block: producer.block.id, stage: producer.stage.id } : null,
+      };
+    }
+    const exports = {};
+    for (const [port, variable] of Object.entries(block.exports || {})) {
+      const readers = { blocks: [], stages: [] };
+      for (const stage of definition.stages) {
+        if (contextLines(stage).some(line => line.source === 'var' && line.name === variable)) readers.stages.push(stage.id);
+        for (const reader of flattenBlocks(stage.blocks)) {
+          for (const [readerPort, read] of Object.entries(reader.inputs || {})) {
+            if (read === variable) readers.blocks.push({ block: reader.id, stage: stage.id, port: readerPort });
+          }
+        }
+      }
+      exports[port] = { variable, type: control?.outputs[port]?.type, readers };
+    }
+    return { inputs, exports };
+  }
+
+  // Connects the block's `port` to `variable`, or disconnects it when that is null. A
+  // variable of an earlier stage gets a context line, as the model needs it; the line of
+  // the variable read before goes once no block of the stage reads it, while lines only
+  // the model reads stay. Returns the labels of the lines added and removed.
+  function setInputSource(definition, stage, block, port, variable) {
+    const previous = block.inputs?.[port] ?? null;
+    if (variable === null) {
+      const { [port]: _removed, ...inputs } = block.inputs || {};
+      if (Object.keys(inputs).length > 0) block.inputs = inputs;
+      else delete block.inputs;
+    } else {
+      block.inputs = { ...block.inputs, [port]: variable };
+    }
+
+    const producers = variableProducers(definition);
+    const passes = name => contextLines(stage).some(line => line.source === 'var' && line.name === name);
+    const addedLines = [];
+    if (variable !== null && producers.get(variable)?.stage !== stage && !passes(variable)) {
+      addedLines.push(addContextLine(stage, 'var', variable));
+    }
+    let removedLines = [];
+    if (previous !== null && previous !== variable && passes(previous)
+      && producers.get(previous)?.stage !== stage && !contextVariablesInUse(definition, stage).has(previous)) {
+      const lines = contextLines(stage);
+      removedLines = lines.filter(line => line.source === 'var' && line.name === previous).map(line => line.label);
+      setContextLines(stage, lines.filter(line => !(line.source === 'var' && line.name === previous)));
+    }
+    return { addedLines, removedLines };
   }
 
   // `<block>.items[0].answer` → `<block>`.
@@ -522,6 +589,7 @@
     renameContextLine,
     addContextLine,
     removeContextLine,
+    setContextLines,
     inputNameFromTitle,
     newInputProblem,
     addInput,
@@ -533,6 +601,8 @@
     addStage,
     inputSources,
     plannedLinks,
+    blockLinks,
+    setInputSource,
     addBlock,
     deletionPlan,
     applyDeletion,

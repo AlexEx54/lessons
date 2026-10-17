@@ -12,31 +12,16 @@ const { CONTROL_CATALOG } = require('../lib/template-controls/index.js');
 const templateTwo = () => structuredClone(findSystemTemplate('template-2').definition);
 const stage = (definition, id) => definition.stages.find(candidate => candidate.id === id);
 
-test('the preview builds the sample lesson and describes every block', () => {
+test('the preview builds the sample lesson and describes its generated blocks', () => {
   const preview = previewLessonTemplate({ definition: templateTwo(), systemTemplateId: 'template-2' });
   assert.deepEqual(preview.errors, []);
   assert.equal(preview.lesson.stages.length, 8);
   assert.deepEqual(previewLessonTemplate({ definition: templateTwo(), systemTemplateId: 'template-2' }), preview);
 
-  const guesses = preview.blocks['lead-in-fact-or-myth'];
-  assert.deepEqual(guesses.exports.guessStatements, {
-    variable: 'leadInGuesses',
-    type: 'statements',
-    readers: {
-      blocks: [
-        { block: 'target-vocabulary-stories', stage: 'target-vocabulary', port: 'guesses' },
-        { block: 'target-vocabulary-guess-answers', stage: 'target-vocabulary', port: 'guesses' },
-      ],
-      stages: ['target-vocabulary'],
-    },
-  });
   const stories = preview.blocks['target-vocabulary-stories'];
-  assert.deepEqual(stories.inputs.guesses, {
-    variable: 'leadInGuesses', type: 'statements', from: { block: 'lead-in-fact-or-myth', stage: 'lead-in' },
-  });
   assert.match(stories.rules[0], /exactly four short first-person stories \(40–60 words each\)/);
   assert.ok(stories.rules.every(rule => !rule.includes('Four different people')), 'rules leave out the instructions');
-  assert.equal(Object.hasOwn(preview.blocks['target-vocabulary-guess-answers'], 'rules'), false);
+  assert.equal(Object.hasOwn(preview.blocks, 'target-vocabulary-guess-answers'), false, 'only generated blocks are described');
 });
 
 test('the preview tells which stages reach the model and their default instructions', () => {
