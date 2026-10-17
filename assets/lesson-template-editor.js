@@ -423,8 +423,12 @@
     let component;
     try {
       change(() => {
-        component = Edits.applyStaticChanges(block, changes, state.newSlots.get(id));
-        state.newSlots.delete(id);
+        const pending = state.newSlots.get(id) || {};
+        component = Edits.applyStaticChanges(block, changes, pending);
+        // A field the saved text lacks stays pending: another open sub-block of Teacher's Notes may hold it.
+        const left = Object.entries(pending).filter(([name]) => !block.slots?.[name]);
+        if (left.length > 0) state.newSlots.set(id, Object.fromEntries(left));
+        else state.newSlots.delete(id);
         const kept = staticFrames.get(id);
         if (kept) kept.component = component;
       });

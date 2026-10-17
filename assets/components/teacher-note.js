@@ -75,6 +75,9 @@
     let editing = false;
     let saving = false;
     let initialSnapshot = '';
+    let ownDirty = false;
+    // Sub-blocks whose own editor holds unsaved changes: they count as the note's.
+    const dirtyBlocks = new Set();
 
     const note = doc.createElement('aside');
     note.className = 'teacher-note';
@@ -182,9 +185,24 @@
       });
     }
 
-    function setDirty(dirty) {
+    function reportDirty() {
+      const dirty = ownDirty || dirtyBlocks.size > 0;
       note.classList.toggle('teacher-note--dirty', dirty);
       if (typeof settings.onDirtyChange === 'function') settings.onDirtyChange(dirty, data.id);
+    }
+
+    function setDirty(dirty) {
+      ownDirty = dirty;
+      reportDirty();
+    }
+
+    // The note's own editor paints the sub-blocks again: an open edit of one would be lost.
+    function setBlockDirty(dirty, blockId) {
+      if (dirty) dirtyBlocks.add(blockId);
+      else dirtyBlocks.delete(blockId);
+      editButton.disabled = dirtyBlocks.size > 0;
+      editButton.title = dirtyBlocks.size > 0 ? 'Сначала сохраните или отмените правку подблока' : '';
+      reportDirty();
     }
 
     function updateDirty() { setDirty(snapshot() !== initialSnapshot); }
@@ -195,8 +213,11 @@
         editable: !editing && typeof settings.onSave === 'function',
         onSave: async (nextBlock) => {
           const saved = await settings.onSave({ blocks: [nextBlock] }, data.id);
-          return (saved.blocks || []).find(item => item.id === nextBlock.id) || nextBlock;
+          // The note's own editor starts from `current`, and its cancel repaints it.
+          current = normalizeTeacherNote(saved);
+          return current.blocks.find(item => item.id === nextBlock.id) || nextBlock;
         },
+        onDirtyChange: setBlockDirty,
         onError: settings.onError,
         onRemove: (blockId) => {
           if (!editing || saving) return;

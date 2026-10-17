@@ -9,9 +9,97 @@ const {
   normalizeTeacherNote,
   parseInlineMarkdown,
   parseTeacherNoteMarkdown,
+  renderTeacherNote,
   serializeTeacherNoteBlocks,
 } = require('../assets/components/teacher-note.js');
-const { normalizeTeacherNoteBlock } = require('../assets/components/teacher-note-block.js');
+const { normalizeTeacherNoteBlock, renderTeacherNoteBlock } = require('../assets/components/teacher-note-block.js');
+
+// Just enough DOM for the editors: events bubble, text nodes read back through nodeValue.
+function createDocument() {
+  const textNode = value => ({ nodeType: 3, nodeValue: String(value), childNodes: [] });
+  function element(tag) {
+    const node = {
+      nodeType: 1,
+      tagName: tag.toUpperCase(),
+      childNodes: [],
+      attributes: {},
+      dataset: {},
+      listeners: {},
+      style: { setProperty() {} },
+      className: '',
+      title: '',
+      value: '',
+      hidden: false,
+      disabled: false,
+      get children() { return this.childNodes.filter(child => child.nodeType === 1); },
+      get textContent() {
+        return this.childNodes.map(child => (child.nodeType === 3 ? child.nodeValue : child.textContent)).join('');
+      },
+      set textContent(value) { this.replaceChildren(...(value ? [textNode(value)] : [])); },
+      append(...nodes) {
+        nodes.forEach((child) => { child.parentNode = this; });
+        this.childNodes.push(...nodes);
+      },
+      replaceChildren(...nodes) {
+        this.childNodes = [];
+        this.append(...nodes);
+      },
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+      getAttribute(name) { return this.attributes[name] ?? null; },
+      removeAttribute(name) { delete this.attributes[name]; },
+      addEventListener(type, listener) { (this.listeners[type] ||= []).push(listener); },
+      dispatch(type, init = {}) {
+        const event = { type, ...init, preventDefault() {} };
+        for (let target = this; target; target = target.parentNode) {
+          (target.listeners[type] || []).forEach(listener => listener(event));
+        }
+      },
+      click() { if (!this.disabled) this.dispatch('click'); },
+      focus() {},
+    };
+    node.classList = {
+      tokens: () => new Set(node.className.split(/\s+/).filter(Boolean)),
+      toggle(name, on = !this.contains(name)) {
+        const tokens = this.tokens();
+        if (on) tokens.add(name);
+        else tokens.delete(name);
+        node.className = [...tokens].join(' ');
+      },
+      add(name) { this.toggle(name, true); },
+      remove(name) { this.toggle(name, false); },
+      contains(name) { return this.tokens().has(name); },
+    };
+    return node;
+  }
+  return {
+    createElement: element,
+    createElementNS: (_namespace, tag) => element(tag),
+    createTextNode: textNode,
+  };
+}
+
+function byClass(node, className) {
+  return node.childNodes.flatMap(child => [
+    ...(child.classList?.contains(className) ? [child] : []),
+    ...(child.nodeType === 1 ? byClass(child, className) : []),
+  ]);
+}
+
+// What the admin types: a new value of the title input, or the text of an editable body.
+function type(field, value, doc) {
+  if (field.tagName === 'INPUT') {
+    field.value = value;
+  } else {
+    const paragraph = doc.createElement('p');
+    paragraph.textContent = value;
+    field.replaceChildren(paragraph);
+  }
+  field.dispatch('input');
+}
+
+const subBlock = (id, overrides = {}) => ({
+  type: 'teacherNoteBlock', id, title: 'Check', titleColor: '#6545F5', icon: 'chat', text: 'Listen.', ...overrides,
+});
 
 test('teacher note accepts legacy text and composite notes with optional custom text', () => {
   assert.deepEqual(normalizeTeacherNote({ text: ' Legacy ' }), { text: 'Legacy', blocks: [] });
@@ -204,4 +292,83 @@ test('teacher note styles separate paragraph and list blocks and color Safari bo
   const blockCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'teacher-note-block.css'), 'utf8');
   assert.match(blockCss, /--teacher-note-block-accent/);
   assert.match(blockCss, /\.teacher-note-block__tip/);
+});
+
+test('a sub-block tells of unsaved edits of its title, text and tip until it is saved or cancelled', async () => {
+  const doc = createDocument();
+  const changes = [];
+  let saved = null;
+  const card = renderTeacherNoteBlock(subBlock('pronunciation-check', { tip: { text: 'Repeat.' } }), {
+    editable: true,
+    onSave: async (next) => { saved = next; return { ...subBlock(next.id), ...next }; },
+    onDirtyChange: (dirty, id) => changes.push([dirty, id]),
+  }, doc);
+  const edit = byClass(card, 'teacher-note-block__edit')[0];
+  const body = byClass(card, 'teacher-note-block__body')[0];
+  const tip = byClass(card, 'teacher-note-block__tip-text')[0];
+
+  edit.click();
+  const title = byClass(card, 'teacher-note-block__title-input')[0];
+  type(title, 'Sound check', doc);
+  assert.deepEqual(changes.at(-1), [true, 'pronunciation-check']);
+  type(title, 'Check', doc);
+  assert.deepEqual(changes.at(-1), [false, 'pronunciation-check'], 'typed back, the edit holds nothing');
+  type(body, 'Listen twice.', doc);
+  assert.deepEqual(changes.at(-1), [true, 'pronunciation-check']);
+  card.dispatch('keydown', { key: 'Escape' });
+  assert.deepEqual(changes.at(-1), [false, 'pronunciation-check']);
+  assert.equal(editorToMarkdown(body), 'Listen.');
+
+  edit.click();
+  type(tip, 'Repeat it.', doc);
+  assert.deepEqual(changes.at(-1), [true, 'pronunciation-check']);
+  edit.click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(saved, { id: 'pronunciation-check', title: 'Check', text: 'Listen.', tip: { text: 'Repeat it.' } });
+  assert.deepEqual(changes.at(-1), [false, 'pronunciation-check']);
+});
+
+test('teacher note stays dirty while any sub-block edit is open and keeps its own editor shut', () => {
+  const doc = createDocument();
+  const changes = [];
+  const note = renderTeacherNote({ id: 'warm-up-note', blocks: [subBlock('first-check'), subBlock('second-check')] }, {
+    onSave: async () => {},
+    onDirtyChange: (dirty, id) => changes.push([dirty, id]),
+  }, doc);
+  const noteEdit = byClass(note, 'teacher-note__edit')[0];
+  const [first, second] = byClass(note, 'teacher-note-block');
+
+  byClass(first, 'teacher-note-block__edit')[0].click();
+  type(byClass(first, 'teacher-note-block__body')[0], 'First change.', doc);
+  byClass(second, 'teacher-note-block__edit')[0].click();
+  type(byClass(second, 'teacher-note-block__body')[0], 'Second change.', doc);
+  assert.deepEqual(changes.at(-1), [true, 'warm-up-note']);
+  assert.equal(noteEdit.disabled, true, 'the note would paint the open sub-blocks away');
+
+  first.dispatch('keydown', { key: 'Escape' });
+  assert.deepEqual(changes.at(-1), [true, 'warm-up-note'], 'the second sub-block is still open');
+  assert.equal(noteEdit.disabled, true);
+  second.dispatch('keydown', { key: 'Escape' });
+  assert.deepEqual(changes.at(-1), [false, 'warm-up-note']);
+  assert.equal(noteEdit.disabled, false);
+});
+
+test('a saved sub-block keeps its text when the own edit of the note is cancelled', async () => {
+  const doc = createDocument();
+  let stored = { id: 'warm-up-note', text: 'Own text.', blocks: [subBlock('first-check')] };
+  const note = renderTeacherNote(stored, {
+    onSave: async ({ blocks: [update] }) => {
+      stored = { ...stored, blocks: stored.blocks.map(block => (block.id === update.id ? { ...block, ...update } : block)) };
+      return stored;
+    },
+  }, doc);
+  const block = byClass(note, 'teacher-note-block')[0];
+  byClass(block, 'teacher-note-block__edit')[0].click();
+  type(byClass(block, 'teacher-note-block__body')[0], 'Listen twice.', doc);
+  byClass(block, 'teacher-note-block__edit')[0].click();
+  await new Promise(resolve => setImmediate(resolve));
+
+  byClass(note, 'teacher-note__edit')[0].click();
+  note.dispatch('keydown', { key: 'Escape' });
+  assert.equal(editorToMarkdown(byClass(note, 'teacher-note-block__body')[0]), 'Listen twice.');
 });

@@ -113,6 +113,15 @@
     let saving = false;
     let titleInput;
     let tipText;
+    let initialSnapshot = '';
+
+    function snapshot() {
+      return JSON.stringify([titleInput.value, editorToMarkdown(body), tipText ? editorToMarkdown(tipText) : null]);
+    }
+
+    function setDirty(dirty) {
+      if (typeof settings.onDirtyChange === 'function') settings.onDirtyChange(dirty, block.id);
+    }
 
     function cancelEditing() {
       if (!editing || saving) return;
@@ -132,6 +141,7 @@
         tipText.removeAttribute('aria-label');
         markdown.renderMarkdownInto(tipText, block.tip.text, doc, 'teacher-note-block__spacer', { linkify: true });
       }
+      setDirty(false);
     }
 
     async function saveEditing() {
@@ -182,6 +192,7 @@
       }
       edit.textContent = '✓';
       edit.setAttribute('aria-label', `Сохранить подблок «${block.title}»`);
+      initialSnapshot = snapshot();
       titleInput.focus();
     }
 
@@ -216,6 +227,7 @@
       tip.append(tipIcon, tipContent);
       card.append(tip);
     }
+    card.addEventListener('input', () => { if (editing) setDirty(snapshot() !== initialSnapshot); });
     card.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
