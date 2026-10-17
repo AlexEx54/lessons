@@ -326,6 +326,14 @@ test('every template asks for a required topic; a placeholder is optional text',
   }).join('\n'), topicProblem);
 });
 
+test('a problem of an input names the input', () => {
+  const broken = definition();
+  broken.inputs.warmUpTopic.label = ' ';
+  broken.inputs.warmUpTopic.fallback = 'missing';
+  broken.inputs.topic.optional = true;
+  assert.deepEqual(validateTemplate(broken, catalog).errors.map(error => error.input), ['warmUpTopic', 'topic', 'warmUpTopic']);
+});
+
 function errorsAfter(change) {
   const broken = definition();
   change(broken);

@@ -21,6 +21,8 @@
   const NARROW_LAYOUT = window.matchMedia('(max-width: 1180px)');
   const TITLE_MAX_LENGTH = 80;
   const DESCRIPTION_MAX_LENGTH = 500;
+  const INPUT_LABEL_MAX_LENGTH = 60;
+  const INPUT_PLACEHOLDER_MAX_LENGTH = 60;
   const STAGE_TITLE_MAX_LENGTH = 80;
   const STAGE_SUBTITLE_MAX_LENGTH = 120;
   const PREVIEW_DELAY = 300;
@@ -541,21 +543,42 @@
 
   // Opens a stage. A selected block gives way to the stage, the template's or the stage's
   // settings stay open.
+  // Returns false when the admin keeps an open block editor instead.
   function selectStage(index) {
     const moved = index !== state.stageIndex;
-    if (moved && !mayLeaveStage()) return;
+    if (moved && !mayLeaveStage()) return false;
     state.stageIndex = index;
     if (state.selection?.kind === 'block') state.selection = null;
     renderStage();
     renderPanel();
     if (moved) window.scrollTo({ top: 0, behavior: 'smooth' });
+    return true;
   }
 
-  function selectStageSettings() {
-    state.selection = { kind: 'stage' };
+  // Settings that are not a block's: the panel shows them and, on narrow screens, comes
+  // into sight.
+  function openSettings(selection) {
+    state.selection = selection;
     markSelectedFrame();
     renderPanel();
     if (NARROW_LAYOUT.matches) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  const selectStageSettings = () => openSettings({ kind: 'stage' });
+  const selectTemplate = () => openSettings({ kind: 'template' });
+  const selectInput = name => openSettings({ kind: 'input', name });
+
+  // The new field's title and label live in the selection until the field is added.
+  function selectNewInput() {
+    openSettings({ kind: 'newInput', title: '', label: '' });
+    panel.querySelector('input')?.focus({ preventScroll: true });
+  }
+
+  function markSelectedInput() {
+    const name = state.selection?.kind === 'input' ? state.selection.name : null;
+    for (const item of byId('template-inputs').querySelectorAll('.template-input')) {
+      item.classList.toggle('template-input--selected', item.dataset.input === name);
+    }
   }
 
   function selectBlock(id, { scroll = false } = {}) {
@@ -571,13 +594,6 @@
     const selectedFrame = markSelectedFrame();
     renderPanel();
     if (scroll) selectedFrame?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function selectTemplate() {
-    state.selection = { kind: 'template' };
-    markSelectedFrame();
-    renderPanel();
-    if (NARROW_LAYOUT.matches) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function panelSection(title, ...children) {
@@ -910,6 +926,231 @@
       },
     });
     return [header, el('p', 'template-panel__hint', 'Видны в списке шаблонов и в «Новом уроке».'), title, description];
+  }
+
+  const inputLabel = name => `«${state.template.definition.inputs[name].label || name}»`;
+  const fieldsText = names => `${plural(names.length, ['поле', 'поля', 'поля'])} ${names.map(inputLabel).join(', ')}`;
+
+  function requirementText(input) {
+    if (!input.optional) return 'обязательно';
+    return input.fallback ? `необязательно, если пусто — ${inputLabel(input.fallback)}` : 'необязательно';
+  }
+
+  // Who keeps a field: the stages that pass it to the model and the fields that take its
+  // value when left empty.
+  function inputReadersSection(readers) {
+    const { definition } = state.template;
+    const rows = [];
+    if (readers.stages.length === 0) {
+      rows.push(el('p', 'template-panel__hint', editable()
+        ? 'Пока не читает ни один этап. Чтобы ИИ получил поле, добавьте его в контекст этапа: «+ Строка» в панели этапа.'
+        : 'Пока не читает ни один этап.'));
+    } else {
+      const stages = el('div', 'template-readers');
+      stages.append(...readers.stages.map(id => {
+        const index = definition.stages.findIndex(stage => stage.id === id);
+        return button('template-link', stageTitle(definition.stages[index]), () => {
+          if (selectStage(index)) selectStageSettings();
+        });
+      }));
+      rows.push(settingRow('Контекст этапов', stages));
+    }
+    if (readers.fallbacks.length > 0) {
+      const fields = el('div', 'template-readers');
+      fields.append(...readers.fallbacks.map(name => button('template-link', inputLabel(name), () => selectInput(name))));
+      rows.push(settingRow('Замена для полей', fields));
+    }
+    return panelSection('Кто читает', ...rows);
+  }
+
+  // The topic and a fallback's target stay required; an optional field may take another
+  // field's value when left empty.
+  function requirementFields(name, input, readers) {
+    let reason = '';
+    if (name === 'topic') reason = 'Тема урока обязательна: из неё название и обложка урока.';
+    else if (readers.fallbacks.length > 0) reason = `Из него берёт значение ${fieldsText(readers.fallbacks)}, поэтому оно обязательное.`;
+    const field = el('label', 'template-field template-field--flag');
+    const box = el('input');
+    box.type = 'checkbox';
+    box.checked = Boolean(input.optional);
+    box.disabled = Boolean(reason);
+    box.dataset.inputOptional = '';
+    box.addEventListener('change', () => {
+      change(() => Edits.setInputOptional(input, box.checked));
+      panel.querySelector('[data-input-optional]')?.focus();
+    });
+    field.append(box, el('span', 'template-field__label', 'Необязательное'));
+    if (reason) field.append(el('small', 'template-panel__hint', reason));
+    if (!input.optional) return [field];
+
+    const select = el('select', 'template-field__input');
+    select.append(
+      new Option('ничего: поле останется пустым', ''),
+      ...Object.entries(state.template.definition.inputs)
+        .filter(([other, candidate]) => other !== name && !candidate.optional && candidate.fallback === undefined)
+        .map(([other, candidate]) => new Option(candidate.label || other, other, false, other === input.fallback)),
+    );
+    select.addEventListener('change', () => edit(() => Edits.setInputOptional(input, true, select.value)));
+    return [field, fieldGroup('label', 'Если пусто, брать из', select)];
+  }
+
+  // Only a field nothing reads can go; a stage's context line is taken away in its panel.
+  function inputDeleteSection(name, readers) {
+    const section = el('div', 'template-delete');
+    const control = button('template-delete__button', 'Удалить поле', () => deleteInput(name));
+    section.append(control);
+    const stages = readers.stages.map(id => `«${stageTitle(stageById(id))}»`);
+    let reason = '';
+    if (name === 'topic') {
+      reason = 'Тему урока не удалить: из неё название и обложка урока.';
+    } else if (stages.length > 0) {
+      reason = `Поле ${plural(stages.length, ['читает этап', 'читают этапы', 'читают этапы'])} ${stages.join(', ')}.`
+        + ` Сначала уберите его строку из контекста ${plural(stages.length, ['этапа', 'этих этапов', 'этих этапов'])}.`;
+    } else if (readers.fallbacks.length > 0) {
+      reason = `Из него берёт значение ${fieldsText(readers.fallbacks)}.`;
+    }
+    control.disabled = Boolean(reason);
+    if (reason) section.append(el('small', 'template-panel__hint', reason));
+    return section;
+  }
+
+  function deleteInput(name) {
+    const before = structuredClone(state.template.definition);
+    change(template => Edits.removeInput(template.definition, name));
+    showToast('Поле удалено', {
+      label: 'Вернуть',
+      run: () => {
+        state.selection = { kind: 'input', name };
+        change(template => { template.definition = before; });
+      },
+    });
+  }
+
+  // A field the teacher fills in «Новый урок». Its name, and so its title for the AI,
+  // never changes: context lines and fallbacks refer to it.
+  function inputPanel(name) {
+    const input = state.template.definition.inputs[name];
+    const readers = Edits.inputReaders(state.template.definition, name);
+    const header = el('header', 'template-panel__header');
+    header.append(el('h2', '', 'Поле при создании'), el('p', '', 'Его заполняет учитель в «Новом уроке».'));
+    const promptTitle = settingRow('Название для ИИ', Edits.defaultContextLabel(name));
+    if (!editable()) {
+      return [header, panelSection(
+        'Поле',
+        settingRow('Подпись', input.label),
+        settingRow('Подсказка', input.placeholder || '—'),
+        settingRow('Заполнять', requirementText(input)),
+        promptTitle,
+      ), inputReadersSection(readers)];
+    }
+
+    const labelHint = fieldError('Без подписи поле не сохранить.', Boolean(input.label));
+    const label = textField({
+      label: 'Подпись',
+      value: input.label || '',
+      maxLength: INPUT_LABEL_MAX_LENGTH,
+      onInput: value => {
+        edit(() => { input.label = value.trim(); });
+        labelHint.hidden = Boolean(input.label);
+      },
+    });
+    label.append(labelHint);
+    const placeholder = textField({
+      label: 'Подсказка',
+      value: input.placeholder || '',
+      maxLength: INPUT_PLACEHOLDER_MAX_LENGTH,
+      onInput: value => edit(() => setOptional(input, 'placeholder', value.trim())),
+    });
+    placeholder.querySelector('input').placeholder = 'Напр. Past Simple';
+    placeholder.append(el('small', 'template-panel__hint', 'Видна серым в пустом поле.'));
+    const settings = el('section', 'template-panel__section');
+    settings.append(promptTitle, el('small', 'template-panel__hint', 'Не меняется. Подпись строки в контексте этапа правится в его панели.'));
+    return [
+      header,
+      label,
+      placeholder,
+      ...requirementFields(name, input, readers),
+      settings,
+      inputReadersSection(readers),
+      inputDeleteSection(name, readers),
+    ];
+  }
+
+  // «+ Поле»: the title for the AI names the field, the label is what the teacher sees.
+  function newInputPanel() {
+    const draft = state.selection;
+    const problemOf = () => Edits.newInputProblem(state.template.definition, draft.title);
+    const header = el('header', 'template-panel__header');
+    header.append(
+      el('h2', '', 'Новое поле'),
+      el('p', '', 'Его заполнит учитель в «Новом уроке», а ИИ получит в контексте этапов, куда вы его добавите.'),
+    );
+
+    const titleError = fieldError('', true);
+    const titleNote = el('small', 'template-panel__hint');
+    const showTitle = () => {
+      const problem = draft.title.trim() ? problemOf() : null;
+      titleError.textContent = problem || '';
+      titleError.hidden = !problem;
+      titleNote.textContent = draft.title.trim() && !problem
+        ? `В запросе к ИИ: «${Edits.defaultContextLabel(Edits.inputNameFromTitle(draft.title))}». Потом не меняется.`
+        : 'По-английски: так поле увидит ИИ. Потом не меняется.';
+    };
+    const title = textField({
+      label: 'Название для ИИ',
+      value: draft.title,
+      maxLength: Edits.INPUT_TITLE_MAX_LENGTH,
+      onInput: value => {
+        draft.title = value;
+        showTitle();
+      },
+    });
+    const titleInput = title.querySelector('input');
+    titleInput.placeholder = 'Например: Main character';
+    title.append(titleError, titleNote);
+    showTitle();
+
+    const labelError = fieldError('Напишите подпись: её увидит учитель.', true);
+    const label = textField({
+      label: 'Подпись для учителя',
+      value: draft.label,
+      maxLength: INPUT_LABEL_MAX_LENGTH,
+      onInput: value => {
+        draft.label = value;
+        labelError.hidden = true;
+      },
+    });
+    const labelInput = label.querySelector('input');
+    labelInput.placeholder = 'Например: Главный герой';
+    label.append(labelError);
+
+    const add = el('button', 'template-save', 'Добавить');
+    add.type = 'submit';
+    const actions = el('div', 'template-panel__actions');
+    actions.append(add, button('template-discard', 'Отмена', () => {
+      state.selection = null;
+      renderPanel();
+    }));
+    const form = el('form');
+    form.noValidate = true;
+    form.append(title, label, actions);
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const problem = problemOf();
+      if (problem) {
+        titleError.textContent = problem;
+        titleError.hidden = false;
+        titleInput.focus();
+      } else if (!draft.label.trim()) {
+        labelError.hidden = false;
+        labelInput.focus();
+      } else {
+        change(template => {
+          state.selection = { kind: 'input', name: Edits.addInput(template.definition, draft.title, draft.label) };
+        });
+      }
+    });
+    return [header, form];
   }
 
   // «Выше / Ниже»: the moves a handle makes, for the keyboard and for phones. The panel is
@@ -1466,9 +1707,13 @@
 
   function renderPanel() {
     const entry = state.blocks.get(selectedBlockId());
-    if (state.selection?.kind === 'template') panel.replaceChildren(...templatePanel());
+    const kind = state.selection?.kind;
+    if (kind === 'template') panel.replaceChildren(...templatePanel());
+    else if (kind === 'input') panel.replaceChildren(...inputPanel(state.selection.name));
+    else if (kind === 'newInput') panel.replaceChildren(...newInputPanel());
     else if (entry) panel.replaceChildren(...blockPanel(entry));
     else panel.replaceChildren(...stagePanel());
+    markSelectedInput();
     showPanelFacts();
     placePanel();
   }
@@ -1480,9 +1725,9 @@
   }
 
   // On narrow screens the panel opens right under the selected block, under the stage
-  // heading for the stage's settings and above the stage for the template's. Without a
-  // selection it stays closed. The panel moves only when it has to: moving takes the focus
-  // out of its fields.
+  // heading for the stage's settings and above the stage for the template's and a field's.
+  // Without a selection it stays closed. The panel moves only when it has to: moving takes
+  // the focus out of its fields.
   function placePanel() {
     if (!NARROW_LAYOUT.matches) {
       panel.hidden = false;
@@ -1490,7 +1735,7 @@
       return;
     }
     const kind = state.selection?.kind;
-    if (kind === 'template') {
+    if (kind === 'template' || kind === 'input' || kind === 'newInput') {
       panel.hidden = false;
       const canvas = byId('template-canvas');
       if (canvas.firstElementChild !== panel) canvas.prepend(panel);
@@ -1505,11 +1750,17 @@
 
   function renderOutline() {
     const { definition } = state.template;
-    byId('template-inputs').replaceChildren(...Object.values(definition.inputs).map(input => {
-      const item = el('li', '', input.label);
+    byId('template-inputs').replaceChildren(...Object.entries(definition.inputs).map(([name, input]) => {
+      const item = button('template-input', '', () => selectInput(name));
+      item.dataset.input = name;
+      item.append(el('span', '', input.label || 'Без подписи'));
       if (input.optional) item.append(el('small', '', 'необязательное'));
-      return item;
+      const line = el('li');
+      line.append(item);
+      return line;
     }));
+    byId('template-add-input').hidden = !editable();
+    markSelectedInput();
     const minutes = definition.stages.reduce((sum, stage) => sum + (Number.isInteger(stage.durationMinutes) ? stage.durationMinutes : 0), 0);
     byId('template-stages-title').textContent = `Этапы · ${minutes} мин`;
     const stageList = byId('template-stages');
@@ -1544,7 +1795,9 @@
     byId('template-problems-list').replaceChildren(...errors.map(error => {
       const item = el('li', '', error.message);
       const target = error.block || error.stage;
-      if (error.block && state.blocks.has(error.block)) {
+      if (error.input && Object.hasOwn(state.template.definition.inputs, error.input)) {
+        item.append(' ', button('template-link', 'Показать поле', () => selectInput(error.input)));
+      } else if (error.block && state.blocks.has(error.block)) {
         item.append(' ', linkButton('Показать блок', error.block));
       } else if (target) {
         const index = state.template.definition.stages.findIndex(stage => stage.id === target);
@@ -1592,6 +1845,7 @@
     const { definition } = state.template;
     state.blocks = indexBlocks(definition);
     if (state.selection?.kind === 'block' && !state.blocks.has(state.selection.id)) state.selection = null;
+    if (state.selection?.kind === 'input' && !Object.hasOwn(definition.inputs, state.selection.name)) state.selection = null;
     state.stageIndex = Math.min(state.stageIndex, definition.stages.length - 1);
     renderHeader();
     renderOutline();
@@ -1748,6 +2002,7 @@
 
   byId('template-copy').addEventListener('click', copyTemplate);
   byId('template-title').addEventListener('click', selectTemplate);
+  byId('template-add-input').addEventListener('click', selectNewInput);
   byId('stage-settings').addEventListener('click', selectStageSettings);
   byId('template-save').addEventListener('click', save);
   byId('template-discard').addEventListener('click', discardChanges);

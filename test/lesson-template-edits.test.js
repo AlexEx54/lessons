@@ -72,6 +72,48 @@ test('added lines get an English label of their own; the last removed line drops
   assert.equal(Edits.addContextLine(wrapUp, 'input', 'topic'), 'Topic');
 });
 
+test('a new field is named from its English title, and its context line reads the title back', () => {
+  const definition = templateTwo();
+  assert.equal(Edits.inputNameFromTitle('  Main   CHARACTER '), 'mainCharacter');
+  assert.equal(Edits.defaultContextLabel(Edits.inputNameFromTitle('Main character')), 'Main character');
+
+  assert.equal(Edits.newInputProblem(definition, 'Main character'), null);
+  assert.equal(Edits.newInputProblem(definition, ' '), 'Напишите название по-английски.');
+  assert.equal(Edits.newInputProblem(definition, 'Главный герой'), 'Только латинские буквы и пробелы.');
+  assert.equal(Edits.newInputProblem(definition, 'Hero 2'), 'Только латинские буквы и пробелы.');
+  assert.equal(Edits.newInputProblem(definition, 'x'.repeat(41)), 'Не длиннее 40 символов.');
+  assert.equal(Edits.newInputProblem(definition, 'grammar Topic'), 'Поле «Грамматика» уже так называется.');
+
+  assert.equal(Edits.addInput(definition, 'Main character', ' Главный герой '), 'mainCharacter');
+  assert.deepEqual(Object.keys(definition.inputs), ['topic', 'warmUpTopic', 'grammarTopic', 'mainCharacter']);
+  assert.deepEqual(definition.inputs.mainCharacter, { label: 'Главный герой' });
+  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
+});
+
+test('a field is kept by the stages that pass it and the fields that fall back to it', () => {
+  const definition = templateTwo();
+  assert.deepEqual(Edits.inputReaders(definition, 'topic'), {
+    stages: ['lead-in', 'target-vocabulary', 'grammar-presentation', 'grammar-focus', 'guided-speaking', 'wrap-up'],
+    fallbacks: ['warmUpTopic'],
+  });
+  assert.deepEqual(Edits.inputReaders(definition, 'warmUpTopic'), { stages: ['warm-up'], fallbacks: [] });
+
+  Edits.addInput(definition, 'Main character', 'Главный герой');
+  assert.deepEqual(Edits.inputReaders(definition, 'mainCharacter'), { stages: [], fallbacks: [] });
+  Edits.removeInput(definition, 'mainCharacter');
+  assert.deepEqual(Object.keys(definition.inputs), ['topic', 'warmUpTopic', 'grammarTopic']);
+});
+
+test('an optional field may take another field’s value; a required one has no fallback', () => {
+  const input = { label: 'Тема Warm-Up', optional: true, fallback: 'topic' };
+  Edits.setInputOptional(input, true, '');
+  assert.deepEqual(input, { label: 'Тема Warm-Up', optional: true });
+  Edits.setInputOptional(input, true, 'topic');
+  assert.deepEqual(input, { label: 'Тема Warm-Up', optional: true, fallback: 'topic' });
+  Edits.setInputOptional(input, false, 'topic');
+  assert.deepEqual(input, { label: 'Тема Warm-Up' });
+});
+
 test('stages and blocks move to a new index, the rest keep their order', () => {
   const definition = templateTwo();
   const ids = list => list.map(item => item.id);

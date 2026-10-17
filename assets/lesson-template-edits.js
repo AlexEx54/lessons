@@ -12,6 +12,7 @@
   const CONTEXT_REFERENCE = /^\$(input|var)\.([a-z][A-Za-z0-9]*)$/;
   const PLACEHOLDER = /\{\{([a-z][A-Za-z0-9]*)\}\}/g;
   const CONTEXT_LABEL_MAX_LENGTH = 80;
+  const INPUT_TITLE_MAX_LENGTH = 40;
 
   const flattenBlocks = blocks => blocks.flatMap(block => (block.kind === 'row' ? block.blocks : [block]));
 
@@ -92,6 +93,56 @@
 
   function removeContextLine(stage, index) {
     setContextLines(stage, contextLines(stage).filter((_line, other) => other !== index));
+  }
+
+  // A new field is named from its English title, which the model sees: `Main character`
+  // → `mainCharacter`, and a context line made from that name reads `Main character`
+  // again. The name never changes later: context lines and fallbacks refer to it.
+  function inputNameFromTitle(title) {
+    const words = title.trim().split(/\s+/).map(word => word.toLowerCase());
+    return words.map((word, index) => (index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1))).join('');
+  }
+
+  // Returns the problem with the title of a new field, or null.
+  function newInputProblem(definition, title) {
+    const trimmed = title.trim();
+    if (!trimmed) return 'Напишите название по-английски.';
+    if (trimmed.length > INPUT_TITLE_MAX_LENGTH) return `Не длиннее ${INPUT_TITLE_MAX_LENGTH} символов.`;
+    if (!/^[A-Za-z]+(?: +[A-Za-z]+)*$/.test(trimmed)) return 'Только латинские буквы и пробелы.';
+    const name = inputNameFromTitle(trimmed);
+    if (Object.hasOwn(definition.inputs, name)) return `Поле «${definition.inputs[name].label}» уже так называется.`;
+    return null;
+  }
+
+  // Adds a required field at the end of the list; returns its name.
+  function addInput(definition, title, label) {
+    const name = inputNameFromTitle(title);
+    definition.inputs = { ...definition.inputs, [name]: { label: label.trim() } };
+    return name;
+  }
+
+  // What keeps a field in the template: the stages whose context passes it and the
+  // fields that take its value when left empty.
+  function inputReaders(definition, name) {
+    return {
+      stages: definition.stages
+        .filter(stage => contextLines(stage).some(line => line.source === 'input' && line.name === name))
+        .map(stage => stage.id),
+      fallbacks: Object.keys(definition.inputs).filter(other => definition.inputs[other].fallback === name),
+    };
+  }
+
+  // A field is set optional with what an empty one takes, or required again.
+  function setInputOptional(input, optional, fallback) {
+    if (optional) input.optional = true;
+    else delete input.optional;
+    if (optional && fallback) input.fallback = fallback;
+    else delete input.fallback;
+  }
+
+  function removeInput(definition, name) {
+    const { [name]: _removed, ...inputs } = definition.inputs;
+    definition.inputs = inputs;
   }
 
   // Puts the item at `from` to index `to`; the others keep their order.
@@ -307,6 +358,7 @@
 
   const api = {
     CONTEXT_LABEL_MAX_LENGTH,
+    INPUT_TITLE_MAX_LENGTH,
     flattenBlocks,
     variableProducers,
     contextLines,
@@ -316,6 +368,12 @@
     renameContextLine,
     addContextLine,
     removeContextLine,
+    inputNameFromTitle,
+    newInputProblem,
+    addInput,
+    inputReaders,
+    setInputOptional,
+    removeInput,
     moveStage,
     moveBlock,
     deletionPlan,

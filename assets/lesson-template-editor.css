@@ -82,19 +82,38 @@
 .template-outline h2 { padding: 0 10px; }
 
 .template-inputs { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
-.template-inputs li {
+.template-input {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  width: 100%;
   padding: 9px 10px;
   gap: 8px;
+  border: 1px solid transparent;
   border-radius: 8px;
   color: #4c5269;
   background: #f8f7fc;
   font-size: 12px;
   font-weight: 600;
+  text-align: left;
 }
-.template-inputs small { color: #8a8fa5; font-size: 10px; font-weight: 500; }
+.template-input:hover { border-color: #ddd6ff; }
+.template-input--selected { border-color: var(--purple); color: var(--purple); background: #f3f0ff; }
+.template-input small { flex: none; color: #8a8fa5; font-size: 10px; font-weight: 500; }
+.template-add-input {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px dashed #b9a9ff;
+  border-radius: 8px;
+  color: var(--purple);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+}
+.template-add-input:hover { background: var(--purple-soft); }
+.template-panel__actions { display: flex; flex-wrap: wrap; margin-top: 20px; gap: 8px; }
 .template-stages { --drop-gap: 5px; display: grid; gap: var(--drop-gap); }
 
 .template-canvas { padding: 32px clamp(20px, 3vw, 44px) 80px; }
@@ -237,7 +256,8 @@ textarea.template-field__input { resize: vertical; }
 .template-field__input[aria-invalid="true"] { border-color: #f0a3a3; }
 .template-field--flag { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; }
 .template-field--flag input { width: 16px; height: 16px; margin: 0; accent-color: var(--purple); }
-.template-field--flag .template-field__error { grid-column: 1 / -1; }
+.template-field--flag .template-field__error,
+.template-field--flag .template-panel__hint { grid-column: 1 / -1; margin: 0; }
 .template-panel__section > .template-field:first-of-type { margin-top: 10px; }
 .template-field__input--short { width: 120px; }
 .template-color-field { display: flex; align-items: center; gap: 8px; }
@@ -473,6 +493,7 @@ textarea.template-field__input { resize: vertical; }
   .template-outline__section + .template-outline__section { margin-top: 16px; }
   .template-outline h2 { padding: 0; }
   .template-inputs { display: flex; flex-wrap: wrap; }
+  .template-add-input { width: auto; }
   .template-stages { grid-auto-columns: max-content; grid-auto-flow: column; overflow-x: auto; padding-bottom: 4px; }
   .template-stages .template-handle { display: none; }
   .template-stages--sortable .lesson-stage { padding-left: 10px; }
