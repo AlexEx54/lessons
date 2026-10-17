@@ -34,7 +34,9 @@
   // template whose settings the panel shows; without it a wide panel shows the stage.
   // `stageFacts` and `blockFacts` come from the last preview without problems and outlive
   // a preview with problems: the panel keeps showing default instructions and rules.
-  // `openEdits` are the static blocks whose component editor holds unsaved changes.
+  // `openEdits` are the static blocks whose component editor holds unsaved changes;
+  // `newSlots` the fields for the AI inserted into such an editor, by block: they join the
+  // definition when the editor saves the text that holds them.
   const state = {
     template: null,
     savedSnapshot: '',
@@ -45,6 +47,7 @@
     stageFacts: {},
     blockFacts: {},
     openEdits: new Set(),
+    newSlots: new Map(),
     blocks: new Map(),
     stageIndex: 0,
     selection: null,
@@ -64,6 +67,9 @@
   // A frame stays while its block keeps that component: redrawing the stage does not
   // take it out of the page, so an editor open in it keeps its text, focus and caret.
   let staticFrames = new Map();
+  // The text field of a static block last typed in, with the caret of a contenteditable
+  // one: «Вставить поле для ИИ» puts the field there.
+  let caret = null;
 
   function el(tag, className, text) {
     const element = document.createElement(tag);
@@ -395,8 +401,13 @@
     body.append(window.LessonView.renderComponent(component, {
       onSave: changes => saveStatic(block.id, changes),
       onDirtyChange: dirty => {
-        if (dirty) state.openEdits.add(block.id);
-        else state.openEdits.delete(block.id);
+        if (dirty) {
+          state.openEdits.add(block.id);
+        } else {
+          state.openEdits.delete(block.id);
+          // Saved, cancelled or typed back: the editor holds no field of its own now.
+          if (state.newSlots.delete(block.id) && selectedBlockId() === block.id) renderPanel();
+        }
         renderSaveState();
       },
       onError: showToast,
@@ -412,7 +423,8 @@
     let component;
     try {
       change(() => {
-        component = Edits.applyStaticChanges(block, changes);
+        component = Edits.applyStaticChanges(block, changes, state.newSlots.get(id));
+        state.newSlots.delete(id);
         const kept = staticFrames.get(id);
         if (kept) kept.component = component;
       });
@@ -439,8 +451,12 @@
         : [])));
       // An editor whose frame is gone took its unsaved changes with it.
       const open = state.openEdits.size;
+      const gone = id => previous.get(id)?.frame !== staticFrames.get(id)?.frame;
       for (const id of state.openEdits) {
-        if (previous.get(id)?.frame !== staticFrames.get(id)?.frame) state.openEdits.delete(id);
+        if (gone(id)) state.openEdits.delete(id);
+      }
+      for (const id of state.newSlots.keys()) {
+        if (gone(id)) state.newSlots.delete(id);
       }
       if (state.openEdits.size !== open) renderSaveState();
       placeFrames(frames);
@@ -739,13 +755,15 @@
     }
   }
 
-  // Problems of the selected block's parameters and chrome, each under its field.
+  // Problems of the selected block's parameters, chrome and fields for the AI, each under
+  // its field.
   function showFieldProblems() {
     const id = selectedBlockId();
-    for (const problem of panel.querySelectorAll('[data-param], [data-chrome]')) {
-      const { param, chrome } = problem.dataset;
-      const error = state.preview.errors.find(item => item.block === id
-        && (param ? item.param === param : item.chrome === chrome));
+    for (const problem of panel.querySelectorAll('[data-param], [data-chrome], [data-slot]')) {
+      const { param, chrome, slot } = problem.dataset;
+      const error = state.preview.errors.find(item => item.block === id && (param
+        ? item.param === param
+        : (chrome ? item.chrome === chrome : item.slot === slot)));
       problem.textContent = error ? capitalize(error.detail || error.message) : '';
       problem.hidden = !error;
       problem.parentElement.querySelector('.template-field__input')?.setAttribute('aria-invalid', String(Boolean(error)));
@@ -914,6 +932,150 @@
     markSelectedFrame()?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
+  const fieldChip = name => el('span', 'markdown-field', name);
+  const writtenByModel = slot => slot.from === undefined;
+
+  function fieldRow(name, value, joint = '') {
+    const row = settingRow('', value);
+    row.firstElementChild.append(fieldChip(name), joint);
+    return row;
+  }
+
+  // A field the AI writes: what to write is part of the prompt, so it is English. A field
+  // still in the open editor keeps its rule here until the editor saves the text.
+  function ruleField(block, name, slot, pending) {
+    const field = el('label', 'template-field template-slot');
+    const problem = fieldError('', true);
+    problem.dataset.slot = name;
+    const input = textInput({
+      value: slot.rule ?? '',
+      multiline: true,
+      rows: 3,
+      onInput: text => {
+        if (pending) slot.rule = text.trim();
+        else edit(() => { block.slots[name] = { ...block.slots[name], rule: text.trim() }; });
+      },
+    });
+    input.placeholder = 'Например: one short measurable sentence about the goal of the stage.';
+    input.dataset.slotRule = name;
+    input.setAttribute('aria-label', `Что ИИ пишет в поле ${name}`);
+    field.append(el('span', 'template-field__label', 'Что ИИ пишет в поле '), input, problem);
+    field.firstElementChild.append(fieldChip(name));
+    if (pending) field.append(el('small', 'template-panel__hint', 'Появится в шаблоне, когда сохраните текст блока (✓).'));
+    return field;
+  }
+
+  // A field filled from a block of the same stage, without the AI. New ones come with the
+  // block catalog.
+  function sourceField(block, name, slot) {
+    const source = Edits.slotSourceBlock(slot.from);
+    const value = el('span', 'template-slot__source');
+    value.append(
+      linkButton(placedName(source, state.blocks.get(block.id).stage.id), source),
+      el('small', '', `${slot.from.slice(source.length)}${slot.capitalize ? ', с заглавной буквы' : ''}`),
+    );
+    const row = fieldRow(name, value, ' ← ');
+    const problem = fieldError('', true);
+    problem.dataset.slot = name;
+    const field = el('div', 'template-slot');
+    field.append(row, problem);
+    return field;
+  }
+
+  // «Поля для ИИ»: the {{slots}} of a static block. A copy inserts new ones into the text.
+  function fieldsSection(block) {
+    if (block.component.type === 'videoPlayer') return null;
+    const slots = Object.entries(block.slots || {});
+    const pending = Object.entries(state.newSlots.get(block.id) || {});
+    const fields = [
+      ...slots.map(([name, slot]) => {
+        if (!writtenByModel(slot)) return sourceField(block, name, slot);
+        return editable() ? ruleField(block, name, slot, false) : fieldRow(name, slot.rule || '—');
+      }),
+      ...pending.map(([name, slot]) => ruleField(block, name, slot, true)),
+    ];
+    if (!editable()) return fields.length > 0 ? panelSection('Поля для ИИ', ...fields) : null;
+    const insert = button('template-slot__insert', '+ Вставить поле для ИИ', () => insertField(block));
+    // The editor keeps its focus and caret while the button is pressed.
+    insert.addEventListener('mousedown', event => event.preventDefault());
+    const hint = pending.length > 0 || slots.some(([, slot]) => writtenByModel(slot))
+      ? 'Что писать — по-английски: текст идёт в запрос к ИИ.'
+      : 'Поставьте курсор в текст блока и вставьте поле: его напишет ИИ вместе с этапом.';
+    return panelSection('Поля для ИИ', el('p', 'template-panel__hint', hint), ...fields, insert);
+  }
+
+  const writable = field => field.isConnected
+    && (field.isContentEditable || (field.matches('textarea, input') && !field.disabled && !field.readOnly));
+
+  // The selection inside a contenteditable field, if it is there.
+  function rangeIn(field) {
+    const selection = document.getSelection();
+    const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    return range && field.isContentEditable && field.contains(range.startContainer) ? range.cloneRange() : null;
+  }
+
+  // The field in focus, or else the one last typed in, if it is in the frame and open.
+  function caretIn(frame) {
+    const active = document.activeElement;
+    if (frame?.contains(active) && writable(active)) return { field: active, range: rangeIn(active) };
+    return caret && frame?.contains(caret.field) && writable(caret.field) ? caret : null;
+  }
+
+  // At the caret of the block's open editor; into a closed Teacher's Notes, at the end of
+  // its text. The name is new in the stage, so it never takes over an answer field.
+  function insertField(block) {
+    const target = caretIn(staticFrames.get(block.id)?.frame);
+    const taken = [...state.newSlots.values()].flatMap(Object.keys);
+    const name = Edits.newFieldName(currentStage(), state.controls, taken);
+    if (target) {
+      putField(target, name);
+      caret = target;
+      state.newSlots.set(block.id, { ...state.newSlots.get(block.id), [name]: { rule: '' } });
+      renderPanel();
+    } else if (block.component.type === 'teacherNote' && !state.openEdits.has(block.id)) {
+      change(() => Edits.appendNoteField(block, name));
+    } else {
+      showToast('Поставьте курсор в текст блока: откройте его редактор кнопкой ✎.');
+      return;
+    }
+    panel.querySelector(`[data-slot-rule="${name}"]`)?.focus();
+  }
+
+  // A contenteditable gets the chip the Markdown draws, a plain field the {{name}} itself.
+  // The editor hears an `input`, as if the admin typed it.
+  function putField(target, name) {
+    const { field } = target;
+    if (field.isContentEditable) {
+      let range = target.range && field.contains(target.range.startContainer) ? target.range : null;
+      if (!range) {
+        range = document.createRange();
+        range.selectNodeContents(field);
+        range.collapse(false);
+      }
+      const chip = window.SafeMarkdown.createFieldChip(name, document);
+      range.deleteContents();
+      range.insertNode(chip);
+      range.setStartAfter(chip);
+      range.collapse(true);
+      target.range = range.cloneRange();
+    } else {
+      const { selectionStart: start, selectionEnd: end, value } = field;
+      const text = `{{${name}}}`;
+      field.value = `${value.slice(0, start)}${text}${value.slice(end)}`;
+      field.setSelectionRange(start + text.length, start + text.length);
+    }
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  // A chip in the text tells on hover what goes there.
+  function fieldTitle(id, name) {
+    const block = state.blocks.get(id)?.block;
+    const slot = block?.slots?.[name] || state.newSlots.get(id)?.[name];
+    if (!slot) return 'Поле не описано';
+    if (!writtenByModel(slot)) return `Подставляется из блока «${placedName(Edits.slotSourceBlock(slot.from), currentStage().id)}»`;
+    return `ИИ пишет: ${slot.rule || 'не сказано, что'}`;
+  }
+
   function blockPanel({ block, stage, row }) {
     const header = el('header', 'template-panel__header');
     header.append(kindBadge(block.kind));
@@ -931,10 +1093,14 @@
         part.id,
       ))));
     } else if (block.kind === 'static') {
-      sections.push(el('p', 'template-panel__hint', 'Попадает в урок как есть: ИИ его не меняет.'));
+      const written = Object.values(block.slots || {}).some(writtenByModel);
+      sections.push(el('p', 'template-panel__hint', written
+        ? 'Попадает в урок как есть, кроме полей для ИИ: их ИИ пишет вместе с этапом.'
+        : 'Попадает в урок как есть: ИИ его не меняет.'));
       if (editable() && block.component.type !== 'videoPlayer') {
         sections.push(el('p', 'template-panel__hint', 'Текст правится прямо в блоке: кнопка ✎ в его углу.'));
       }
+      sections.push(fieldsSection(block));
     } else {
       sections.push(...controlledBlockSections(block));
     }
@@ -944,7 +1110,7 @@
       else if (block.kind === 'row') label = 'Удалить ряд';
       sections.push(deleteSection(label, { block: block.id }));
     }
-    return [header, ...sections];
+    return [header, ...sections.filter(Boolean)];
   }
 
   const iconName = icon => state.stageIcons.aliases[icon] || icon || 'sparkles';
@@ -1630,5 +1796,20 @@
     event.stopPropagation();
   }, true);
   NARROW_LAYOUT.addEventListener('change', placePanel);
+  const blocksContainer = byId('template-blocks');
+  // On narrow screens the panel sits among the frames: its fields are no place for a field.
+  const inFrame = node => !panel.contains(node) && Boolean(node.closest('.template-block'));
+  blocksContainer.addEventListener('focusin', event => {
+    const field = event.target;
+    if (inFrame(field) && writable(field)) caret = { field, range: rangeIn(field) };
+  });
+  document.addEventListener('selectionchange', () => {
+    const range = caret && rangeIn(caret.field);
+    if (range) caret.range = range;
+  });
+  blocksContainer.addEventListener('mouseover', event => {
+    const chip = event.target.closest('[data-md-field]');
+    if (chip && inFrame(chip)) chip.title = fieldTitle(chip.closest('.template-block')?.dataset.blockId, chip.dataset.mdField);
+  });
   load();
 })();

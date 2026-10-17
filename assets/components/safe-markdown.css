@@ -3,3 +3,17 @@
 [data-md-size="l"] { font-size: 1.25em; }
 [data-md-size="xl"] { font-size: 1.5em; }
 [data-md-tone="muted"] { color: #656a80; }
+.markdown-field {
+  display: inline-block;
+  padding: 0 7px;
+  border-radius: 999px;
+  color: #6545f5;
+  background: #f2efff;
+  font-size: .85em;
+  font-weight: 650;
+  line-height: 1.6;
+  white-space: nowrap;
+  cursor: default;
+  user-select: all;
+}
+.markdown-field__brace { display: none; }

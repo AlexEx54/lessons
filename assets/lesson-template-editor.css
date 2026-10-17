@@ -376,6 +376,21 @@ textarea.template-field__input { resize: vertical; }
 .template-order__button:hover:not(:disabled) { border-color: #b9a9ff; color: var(--purple); }
 .template-order__button:disabled { opacity: .45; cursor: default; }
 
+.template-slot .markdown-field { margin-left: 2px; font-size: 11px; }
+.template-slot > .template-panel__hint { margin: 0; }
+.template-slot__source { display: grid; justify-items: start; gap: 3px; }
+.template-slot__insert {
+  margin-top: 14px;
+  padding: 7px 12px;
+  border: 1px dashed #b9a9ff;
+  border-radius: 8px;
+  color: var(--purple);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 650;
+}
+.template-slot__insert:hover { background: var(--purple-soft); }
+
 .template-rules { margin-top: 16px; font-size: 12px; }
 .template-rules summary { color: #5d6278; font-weight: 650; cursor: pointer; }
 .template-rules ul { margin: 10px 0 0; padding-left: 18px; color: #5d6278; line-height: 1.5; }

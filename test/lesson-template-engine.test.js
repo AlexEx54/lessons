@@ -400,6 +400,23 @@ test('validation reports block-level mistakes', () => {
   assert.match(messages, /Компонент oddOneOut не может быть статичным блоком \(guess-quiz\)/);
 });
 
+test('slot problems name the slot and say what is wrong under its field', () => {
+  const broken = definition();
+  const note = block(broken, 'guess', 'guess-note');
+  note.component.text += ' {{checks}}';
+  note.slots.success = { rule: '  ' };
+  note.slots.checks = { rule: 'Clashes with the game.' };
+  note.slots.unused = { rule: 'Never used.' };
+  const problems = validateTemplate(broken, catalog).errors
+    .filter(error => error.slot)
+    .map(({ block: id, slot, detail }) => [id, slot, detail]);
+  assert.deepEqual(problems, [
+    ['guess-note', 'success', 'напишите, что должен вписать ИИ'],
+    ['guess-note', 'unused', 'его нет в тексте блока'],
+    ['guess-note', 'checks', 'это имя уже занято в этапе: guess-game'],
+  ]);
+});
+
 test('compileTemplate throws all validation errors at once', () => {
   const broken = definition();
   broken.schemaVersion = 'lesson-template-v0';

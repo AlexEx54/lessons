@@ -8,6 +8,11 @@
   const MUTED_CLOSE = '{/muted}';
   const AUTO_LINK = /(?:https?:\/\/|www\.)[^\s<>]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}(?:\/[^\s<>]*)?/gi;
   const TRAILING_LINK_PUNCTUATION = /[.,!?;:)}\]»”"']+$/;
+  // A template's field for the AI, `{{name}}`, is drawn as a chip that edits as one piece
+  // and is written back as it was. Its hidden braces keep `{{name}}` in its textContent, so
+  // a plain-text field (a title) reads it back too. Lessons never hold one: the engine
+  // fills them all.
+  const FIELD = /\{\{([a-z][A-Za-z0-9]*)\}\}/g;
 
   function appendTextToken(tokens, value) {
     if (!value) return;
@@ -174,11 +179,41 @@
     if (cursor < value.length) parent.append(documentRef.createTextNode(value.slice(cursor)));
   }
 
+  function createFieldChip(name, documentRef) {
+    const chip = documentRef.createElement('span');
+    chip.className = 'markdown-field';
+    chip.setAttribute('data-md-field', name);
+    chip.contentEditable = 'false';
+    const brace = text => {
+      const part = documentRef.createElement('span');
+      part.className = 'markdown-field__brace';
+      part.textContent = text;
+      return part;
+    };
+    chip.append(brace('{{'), documentRef.createTextNode(name), brace('}}'));
+    return chip;
+  }
+
+  function appendPlainText(parent, value, documentRef, options) {
+    if (!value) return;
+    if (options.linkify) appendAutoLinkedText(parent, value, documentRef);
+    else parent.append(documentRef.createTextNode(value));
+  }
+
+  function appendText(parent, value, documentRef, options) {
+    let cursor = 0;
+    for (const match of value.matchAll(FIELD)) {
+      appendPlainText(parent, value.slice(cursor, match.index), documentRef, options);
+      parent.append(createFieldChip(match[1], documentRef));
+      cursor = match.index + match[0].length;
+    }
+    appendPlainText(parent, value.slice(cursor), documentRef, options);
+  }
+
   function appendInlineTokens(parent, tokens, documentRef, options = {}) {
     tokens.forEach((token) => {
       if (token.type === 'text') {
-        if (options.linkify) appendAutoLinkedText(parent, token.value, documentRef);
-        else parent.append(documentRef.createTextNode(token.value));
+        appendText(parent, token.value, documentRef, options);
         return;
       }
       if (token.type === 'size') {
@@ -255,6 +290,8 @@
     if (node.nodeType === 3) return String(node.nodeValue || '').replace(/\u00a0/g, ' ');
     if (node.nodeType !== 1) return '';
     const tag = node.tagName.toLowerCase();
+    const field = tag === 'span' && node.getAttribute('data-md-field');
+    if (field) return `{{${field}}}`;
     const value = Array.from(node.childNodes).map(inlineNodeToMarkdown).join('');
     if (tag === 'br') return '\n';
     if (tag === 'strong' || tag === 'b') return value ? `**${value}**` : '';
@@ -410,6 +447,7 @@
   const api = {
     TEXT_SIZES,
     applyTextSize,
+    createFieldChip,
     editorToMarkdown,
     parseInlineMarkdown,
     parseMarkdown,

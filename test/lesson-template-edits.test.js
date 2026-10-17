@@ -254,3 +254,35 @@ test('a slot whose name is gone from the text goes with it', () => {
   assert.equal(Object.hasOwn(note, 'slots'), false);
   assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
 });
+
+test('a field for the AI inserted into the open editor joins the block when its text is saved', () => {
+  const definition = templateTwo();
+  const note = staticBlock(definition, 'warm-up', 'warm-up-teacher-note');
+  const { text } = note.component;
+  const newSlots = { aiField1: { rule: 'One short question.' }, aiField2: { rule: 'Erased before saving.' } };
+  Edits.applyStaticChanges(note, { text: `${text}\n\nAsk: {{aiField1}}` }, newSlots);
+  assert.deepEqual(note.slots, {
+    exampleWord: { from: 'warm-up-odd-one-out.items[0].answer', capitalize: true },
+    aiField1: { rule: 'One short question.' },
+  });
+  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
+});
+
+test('a new field takes the first aiField name free among the stage answer names', () => {
+  const definition = templateTwo();
+  const speaking = stage(definition, 'guided-speaking');
+  assert.equal(Edits.newFieldName(speaking, controls), 'aiField1');
+  assert.equal(Edits.newFieldName(speaking, controls, ['aiField1']), 'aiField2');
+
+  const note = staticBlock(definition, 'guided-speaking', 'guided-communication-teacher-note');
+  Edits.appendNoteField(note, 'aiField1');
+  assert.match(note.component.text, /\n\n\{\{aiField1\}\}$/);
+  assert.deepEqual(note.slots.aiField1, { rule: '' });
+  assert.equal(Edits.newFieldName(speaking, controls), 'aiField2');
+
+  // A generated block's answer field renamed to aiField2 takes that name too.
+  const generated = Edits.flattenBlocks(speaking.blocks).find(block => block.kind === 'generated');
+  const [field] = controls.get(generated.control).fields;
+  generated.fields = { ...generated.fields, [field]: 'aiField2' };
+  assert.equal(Edits.newFieldName(speaking, controls), 'aiField3');
+});

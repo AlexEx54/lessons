@@ -148,6 +148,41 @@ test('editor serialization preserves data-md-size and data-md-tone spans', () =>
   ].join('\n'));
 });
 
+test('a template field {{name}} is drawn as a chip and written back as it was', () => {
+  const { renderMarkdownInto } = require('../assets/components/safe-markdown.js');
+  function createNode(tagName) {
+    const node = {
+      nodeType: 1,
+      tagName: tagName.toUpperCase(),
+      childNodes: [],
+      attributes: {},
+      get children() { return this.childNodes.filter(child => child.nodeType === 1); },
+      append(...children) { this.childNodes.push(...children); },
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+      getAttribute(name) { return this.attributes[name] ?? null; },
+      replaceChildren(...children) { this.childNodes = children; },
+    };
+    return node;
+  }
+  const documentRef = {
+    createElement: tag => createNode(tag),
+    createTextNode: value => ({ nodeType: 3, nodeValue: value }),
+  };
+  const container = createNode('div');
+  const source = '**Success:** {{successCriteria}}\n\n- Say "{{exampleWord}}!"';
+
+  renderMarkdownInto(container, source, documentRef, 'markdown-spacer', { linkify: true });
+
+  const chips = container.childNodes.flatMap(block => block.childNodes.flatMap(node => (
+    node.childNodes ? [node, ...node.childNodes] : [node])))
+    .filter(node => node.attributes?.['data-md-field']);
+  assert.deepEqual(chips.map(chip => chip.attributes['data-md-field']), ['successCriteria', 'exampleWord']);
+  assert.ok(chips.every(chip => chip.contentEditable === 'false' && chip.className === 'markdown-field'));
+  assert.deepEqual(chips[0].childNodes.map(node => node.textContent ?? node.nodeValue), ['{{', 'successCriteria', '}}']);
+  assert.equal(chips[0].childNodes[0].className, 'markdown-field__brace');
+  assert.equal(editorToMarkdown(container), source);
+});
+
 test('safe markdown CSS defines relative size presets', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'safe-markdown.css'), 'utf8');
   assert.match(css, /\[data-md-size="s"\]/);

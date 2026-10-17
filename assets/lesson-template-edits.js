@@ -246,8 +246,10 @@
   // Puts what a component editor saves (`onSave(changes, id)`) into a static block. The
   // other editors send new values of the fields they edit, null or undefined for a field
   // to drop. The component's normalizer checks the result before the block changes; a
-  // slot whose {{name}} is gone from the texts goes too. Returns the component.
-  function applyStaticChanges(block, changes) {
+  // slot whose {{name}} is gone from the texts goes too, and a field for the AI inserted
+  // into the open editor (`newSlots`) joins the block once its {{name}} is in the texts.
+  // Returns the component.
+  function applyStaticChanges(block, changes, newSlots = {}) {
     let component;
     if (block.component.type === 'teacherNote') {
       component = teacherNoteWith(block.component, changes);
@@ -261,11 +263,46 @@
     Statics.checkStaticComponent({ ...component, id: block.id });
     block.component = component;
     const used = placeholders(component);
-    for (const name of Object.keys(block.slots || {})) {
-      if (!used.has(name)) delete block.slots[name];
+    const slots = { ...block.slots };
+    for (const name of Object.keys(slots)) {
+      if (!used.has(name)) delete slots[name];
     }
-    if (block.slots && Object.keys(block.slots).length === 0) delete block.slots;
+    for (const [name, slot] of Object.entries(newSlots)) {
+      if (used.has(name) && !slots[name]) slots[name] = slot;
+    }
+    if (Object.keys(slots).length > 0) block.slots = slots;
+    else delete block.slots;
     return component;
+  }
+
+  // Names the stage's model answer already holds: fields of its generated blocks and its
+  // slots, which share one flat answer object. `controls` maps a control type to
+  // `{ fields }`.
+  function answerNames(stage, controls) {
+    const names = new Set();
+    for (const block of flattenBlocks(stage.blocks)) {
+      if (block.kind === 'generated') {
+        for (const field of controls.get(block.control)?.fields || []) names.add(block.fields?.[field] ?? field);
+      }
+      Object.keys(block.slots || {}).forEach(name => names.add(name));
+    }
+    return names;
+  }
+
+  // `aiField1`, `aiField2`…: the first name free in the stage and among `taken`.
+  function newFieldName(stage, controls, taken = []) {
+    const names = new Set([...answerNames(stage, controls), ...taken]);
+    let number = 1;
+    while (names.has(`aiField${number}`)) number += 1;
+    return `aiField${number}`;
+  }
+
+  // A field for the AI put at the end of a Teacher's Notes text, for a note whose editor
+  // is closed: the AI writes it, by `rule`, together with the stage.
+  function appendNoteField(block, name, rule = '') {
+    const { text } = block.component;
+    block.component = { ...block.component, text: text ? `${text}\n\n{{${name}}}` : `{{${name}}}` };
+    block.slots = { ...block.slots, [name]: { rule } };
   }
 
   const api = {
@@ -284,6 +321,9 @@
     deletionPlan,
     applyDeletion,
     applyStaticChanges,
+    newFieldName,
+    appendNoteField,
+    slotSourceBlock,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.LessonTemplateEdits = api;
