@@ -1551,6 +1551,108 @@
     markSelectedFrame()?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
+  // Long lists of blocks name the first few.
+  function someNames(ids) {
+    const names = ids.slice(0, 3).map(id => `«${blockName(state.blocks.get(id).block)}»`).join(', ');
+    return ids.length > 3 ? `${names} и ещё ${ids.length - 3}` : names;
+  }
+
+  // What keeps a block out of a stage, alike blockers told once, the blocks of one stage
+  // together.
+  function moveBlockerTexts(blockers) {
+    const groups = new Map();
+    for (const blocker of blockers) {
+      const key = JSON.stringify([blocker.kind, blocker.stage, blocker.inStage, blocker.type, blocker.blocks]);
+      const group = groups.get(key) || { ...blocker, others: new Set() };
+      if (blocker.block) group.others.add(blocker.block);
+      groups.set(key, group);
+    }
+    return [...groups.values()].map(group => {
+      const others = [...group.others];
+      const where = group.stage && `«${stageTitle(stageById(group.stage))}»`;
+      const type = group.type && typeLabel(group.type);
+      switch (group.kind) {
+        case 'builtFrom':
+          return `Собирается из блоков своего этапа: ${someNames(group.blocks)}.`;
+        case 'usedBy':
+          return `Из него собираются блоки своего этапа: ${someNames(group.blocks)}.`;
+        case 'input':
+          return `${group.inStage ? `Выше этапа ${where}` : `В этап ${where} и выше`} нельзя: он берёт ${type} из ${someNames(others)} этого этапа.`;
+        default: {
+          const below = group.inStage ? `Ниже этапа ${where}` : `В этап ${where} и ниже`;
+          if (others.length === 0) return `${below} нельзя: его ${type} передаётся в контекст этого этапа.`;
+          return `${below} нельзя: его ${type} ${others.length === 1 ? 'читает' : 'читают'} ${someNames(others)} этого этапа.`;
+        }
+      }
+    });
+  }
+
+  // «Этап»: the block or row goes to the end of another stage. Stages its links keep it
+  // out of stay in the list, inactive. Those form a run above and a run below the block's
+  // stage, so the nearest inactive stage on each side tells why.
+  function stageField(block, stage) {
+    const { stages } = state.template.definition;
+    if (stages.length < 2) return [];
+    const home = stages.indexOf(stage);
+    const blockers = stages.map(other => (other === stage
+      ? []
+      : Edits.moveBlockers(state.template.definition, block.id, other.id, state.controls)));
+    const select = el('select', 'template-field__input');
+    select.append(...stages.map((other, index) => Object.assign(
+      new Option(`${index + 1}. ${stageTitle(other)}`, other.id, false, other === stage),
+      { disabled: blockers[index].length > 0 },
+    )));
+    select.disabled = blockers.every((list, index) => index === home || list.length > 0);
+    select.addEventListener('change', () => {
+      if (!moveToStage(block.id, select.value)) select.value = stage.id;
+    });
+    const above = blockers.findLastIndex((list, index) => index < home && list.length > 0);
+    const below = blockers.findIndex((list, index) => index > home && list.length > 0);
+    const reasons = [above, below].filter(index => index >= 0).flatMap(index => blockers[index]);
+    const field = fieldGroup('label', 'Этап', select);
+    field.classList.add('template-move');
+    for (const text of new Set(moveBlockerTexts(reasons))) field.append(el('small', 'template-panel__hint', text));
+    return [field];
+  }
+
+  // Context lines a move changed, a sentence per stage.
+  function linesText(lines, intro, forms) {
+    const byStage = new Map();
+    for (const line of lines) byStage.set(line.stage, [...(byStage.get(line.stage) || []), line.label]);
+    return [...byStage].map(([stageId, labels]) => `${intro} «${stageTitle(stageById(stageId))}» ${plural(labels.length, forms)} ${quoted(labels)}`);
+  }
+
+  // The block opens in its new stage; the toast names the context lines the move added
+  // and took away, and «Вернуть» brings the template back as it was.
+  // Returns false when the admin keeps an open block editor instead.
+  function moveToStage(id, targetId) {
+    if (!mayLeaveStage()) return false;
+    const before = { definition: structuredClone(state.template.definition), stageIndex: state.stageIndex, selection: state.selection };
+    const target = stageById(targetId);
+    const isRow = state.blocks.get(id).block.kind === 'row';
+    let lines;
+    change(({ definition }) => {
+      lines = Edits.moveToStage(definition, id, targetId, state.controls);
+      state.stageIndex = definition.stages.indexOf(target);
+      state.selection = { kind: 'block', id };
+    });
+    markSelectedFrame()?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const messages = [
+      `${isRow ? 'Ряд перенесён' : 'Блок перенесён'} в этап «${stageTitle(target)}»`,
+      ...linesText(lines.addedLines, 'В контекст этапа', ['добавлена строка', 'добавлены строки', 'добавлены строки']),
+      ...linesText(lines.removedLines, 'Из контекста этапа', ['убрана строка', 'убраны строки', 'убраны строки']),
+    ];
+    showToast(messages.join('. '), {
+      label: 'Вернуть',
+      run: () => {
+        state.stageIndex = before.stageIndex;
+        state.selection = before.selection;
+        change(template => { template.definition = before.definition; });
+      },
+    });
+    return true;
+  }
+
   const fieldChip = name => el('span', 'markdown-field', name);
   const writtenByModel = slot => slot.from === undefined;
 
@@ -1703,7 +1805,7 @@
     if (title) header.append(el('p', '', title));
     if (row) header.append(linkButton('Часть ряда', row.id));
     if (editable() && row) header.append(el('small', 'template-panel__hint', 'Части ряда не переставляются: двигается весь ряд.'));
-    else if (editable()) header.append(...orderButtons(stage.blocks.indexOf(block), stage.blocks.length, moveSelectedBlock));
+    else if (editable()) header.append(...orderButtons(stage.blocks.indexOf(block), stage.blocks.length, moveSelectedBlock), ...stageField(block, stage));
 
     const sections = [];
     if (block.kind === 'row') {

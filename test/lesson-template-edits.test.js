@@ -524,6 +524,130 @@ test('deleting any block or stage of a system template leaves a valid template',
   }
 });
 
+const blockersOf = (definition, id, target) => Edits.moveBlockers(definition, id, target, controls)
+  .map(({ kind, block, stage: stageId }) => [kind, block ?? null, stageId ?? null].filter(Boolean).join(' '));
+const stageBlockIds = (definition, id) => stage(definition, id).blocks.map(block => block.id);
+
+test('a block built from blocks of its stage, or a source of one, stays in its stage', () => {
+  const definition = templateTwo();
+  assert.deepEqual(Edits.moveBlockers(definition, 'warm-up-odd-one-out-answer-key', 'wrap-up', controls), [
+    { kind: 'builtFrom', blocks: ['warm-up-odd-one-out'] },
+  ]);
+  // The teacher note reads its example word from the exercise through a slot.
+  assert.deepEqual(Edits.moveBlockers(definition, 'warm-up-odd-one-out', 'wrap-up', controls), [
+    { kind: 'usedBy', blocks: ['warm-up-teacher-note', 'warm-up-odd-one-out-answer-key'] },
+  ]);
+  assert.deepEqual(blockersOf(definition, 'warm-up-teacher-note', 'lead-in'), ['builtFrom']);
+});
+
+test('a block goes no higher than its sources and no lower than its readers', () => {
+  const definition = templateTwo();
+  // The vocabulary may go up: its readers below then take it through the context.
+  assert.deepEqual(blockersOf(definition, 'target-vocabulary-card', 'lead-in'), []);
+  assert.deepEqual(blockersOf(definition, 'target-vocabulary-card', 'grammar-presentation'), [
+    'reader target-vocabulary-stories target-vocabulary',
+    'reader target-vocabulary-meanings target-vocabulary',
+    'reader target-vocabulary-context-dropdown target-vocabulary',
+    'reader target-vocabulary-drag-words target-vocabulary',
+    'reader target-vocabulary-type-words target-vocabulary',
+    'reader target-vocabulary-personalized-questions target-vocabulary',
+  ]);
+  assert.deepEqual(blockersOf(definition, 'target-vocabulary-drag-words', 'lead-in'), [
+    'input target-vocabulary-card target-vocabulary',
+  ]);
+  assert.deepEqual(blockersOf(definition, 'target-vocabulary-drag-words', 'wrap-up'), []);
+
+  // The reading text cannot be written in one answer with the vocabulary it takes.
+  const one = templateOne();
+  assert.deepEqual(Edits.moveBlockers(one, 'reading-text', 'target-vocabulary', controls), [
+    { kind: 'input', block: 'target-vocabulary-card', stage: 'target-vocabulary', inStage: false, type: 'vocabulary' },
+  ]);
+  assert.deepEqual(blockersOf(one, 'target-vocabulary-card', 'reading').slice(-1), ['reader reading-text reading']);
+  // Listening passes the vocabulary to the model, though none of its blocks reads it.
+  assert.deepEqual(blockersOf(one, 'target-vocabulary-card', 'grammar-presentation').filter(text => !text.endsWith(' target-vocabulary')), [
+    'reader reading-text reading',
+    'reader listening',
+  ]);
+});
+
+test('a moved block goes to the end of the stage; context lines follow its links', () => {
+  const definition = templateTwo();
+  const moved = Edits.moveToStage(definition, 'target-vocabulary-card', 'lead-in', controls);
+  assert.equal(stageBlockIds(definition, 'lead-in').at(-1), 'target-vocabulary-card');
+  assert.deepEqual(moved, {
+    addedLines: [{ stage: 'target-vocabulary', label: 'Target vocabulary' }],
+    removedLines: [],
+  });
+  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
+
+  // Back home: a line on the stage's own variable goes.
+  assert.deepEqual(Edits.moveToStage(definition, 'target-vocabulary-card', 'target-vocabulary', controls), {
+    addedLines: [],
+    removedLines: [{ stage: 'target-vocabulary', label: 'Target vocabulary' }],
+  });
+  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
+
+  const watch = Edits.moveToStage(definition, 'target-vocabulary-drag-words', 'watch-and-interact', controls);
+  assert.deepEqual(watch.addedLines, [{ stage: 'watch-and-interact', label: 'Target vocabulary' }]);
+});
+
+test('the old stage loses a line only the moved block read; a row moves whole', () => {
+  const one = templateOne();
+  assert.deepEqual(Edits.moveToStage(one, 'reading-text', 'listening', controls), {
+    addedLines: [],
+    removedLines: [{ stage: 'reading', label: 'Target Vocabulary' }],
+  });
+
+  const definition = templateTwo();
+  const rowId = 'grammar-focus-practice-support-row';
+  assert.deepEqual(blockersOf(definition, rowId, 'wrap-up'), []);
+  const moved = Edits.moveToStage(definition, rowId, 'wrap-up', controls);
+  assert.equal(stageBlockIds(definition, 'wrap-up').at(-1), rowId);
+  assert.equal(stageBlockIds(definition, 'grammar-focus').includes(rowId), false);
+  assert.deepEqual(moved.removedLines, [{ stage: 'grammar-focus', label: 'Target Vocabulary' }]);
+  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
+});
+
+test('answer names the target stage holds are renamed, fields for the AI in their text too', () => {
+  const one = templateOne();
+  Edits.moveToStage(one, 'lead-in-teacher-note', 'warm-up', controls);
+  Edits.moveToStage(one, 'wrap-up-possible-language', 'warm-up', controls);
+  const [note, language] = stage(one, 'warm-up').blocks.slice(-2);
+  assert.deepEqual(note.fields, { text: 'teacherNotes2' });
+  assert.deepEqual(language.fields, { items: 'possibleLanguage2' });
+  assert.deepEqual(validateTemplate(one, CONTROL_CATALOG).errors, []);
+
+  const definition = templateTwo();
+  Edits.appendNoteField(staticBlock(definition, 'lead-in', 'lead-in-teacher-note'), 'aiField1', 'Say hello.');
+  Edits.appendNoteField(staticBlock(definition, 'target-vocabulary', 'target-vocabulary-teacher-note'), 'aiField1', 'Say bye.');
+  Edits.moveToStage(definition, 'lead-in-teacher-note', 'target-vocabulary', controls);
+  const moved = stage(definition, 'target-vocabulary').blocks.at(-1);
+  assert.deepEqual(moved.slots, { aiField2: { rule: 'Say hello.' } });
+  assert.match(moved.component.text, /\{\{aiField2\}\}$/);
+  assert.doesNotMatch(moved.component.text, /aiField1/);
+  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
+});
+
+test('every move a system template allows leaves a valid template', () => {
+  for (const id of ['template-1', 'template-2']) {
+    const base = findSystemTemplate(id).definition;
+    for (const home of base.stages) {
+      for (const block of home.blocks) {
+        for (const target of base.stages) {
+          if (target === home) continue;
+          const definition = structuredClone(base);
+          if (Edits.moveBlockers(definition, block.id, target.id, controls).length > 0) continue;
+          Edits.moveToStage(definition, block.id, target.id, controls);
+          const errors = validateTemplate(definition, CONTROL_CATALOG).errors
+            .map(error => error.message)
+            .filter(message => !message.endsWith('пуст: добавьте блок или удалите этап.'));
+          assert.deepEqual(errors, [], `${id}: ${block.id} → ${target.id}`);
+        }
+      }
+    }
+  }
+});
+
 const staticBlock = (definition, stageId, id) => stage(definition, stageId).blocks.find(block => block.id === id);
 
 test('a static block takes the fields its editor saves; null drops a field', () => {

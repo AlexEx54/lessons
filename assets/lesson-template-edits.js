@@ -562,6 +562,167 @@
     }
   }
 
+  // The stage's block or row `id` with every block it takes along: a row moves whole.
+  function moving(definition, id) {
+    for (const stage of definition.stages) {
+      const index = stage.blocks.findIndex(block => block.id === id);
+      if (index >= 0) return { stage, index, blocks: flattenBlocks([stage.blocks[index]]) };
+    }
+    throw new Error(`No block ${id} among the stage blocks.`);
+  }
+
+  // Whether `reader` may read a variable of `producer` in one stage: a generated block
+  // reads only a generated one, which the model writes in the same answer, and only when
+  // its control can (`sameStage` of the input).
+  function readsInStage(reader, port, producer, controls) {
+    if (reader.kind !== 'generated') return true;
+    return producer.kind === 'generated' && controls.get(reader.control)?.inputs?.[port]?.sameStage === true;
+  }
+
+  // What keeps the block or row `id` out of the stage `targetId`, links within a row aside:
+  //   - `builtFrom`: it is built from blocks of its stage (`from` or a slot's `from`);
+  //   - `usedBy`: blocks of its stage are built from it;
+  //   - `input`: its input reads a block of a later stage, or of the target one where the
+  //     block cannot read it (`inStage` tells whether that stage would do);
+  //   - `reader`: a block of an earlier stage reads its variable, or one of the target
+  //     stage that cannot; `block` is null for a context line of an earlier stage.
+  // `input` and `reader` carry the variable's `type`.
+  // Stages run in data-flow order, but the editor keeps the links pointing down the list,
+  // as its source picker does. An empty list means the block may go there.
+  function moveBlockers(definition, id, targetId, controls) {
+    const { stage: home, blocks } = moving(definition, id);
+    const ids = new Set(blocks.map(block => block.id));
+    const position = stageId => definition.stages.findIndex(stage => stage.id === stageId);
+    const target = position(targetId);
+    const blockers = [];
+
+    const builtFrom = blocks.flatMap(block => [
+      ...sourceList(block.from).map(sourceBlock),
+      ...Object.values(block.slots || {}).map(slot => slot?.from).filter(Boolean).map(slotSourceBlock),
+    ]).filter(source => !ids.has(source));
+    if (builtFrom.length > 0) blockers.push({ kind: 'builtFrom', blocks: [...new Set(builtFrom)] });
+    const usedBy = flattenBlocks(home.blocks)
+      .filter(block => !ids.has(block.id))
+      .filter(block => sourceList(block.from).some(source => ids.has(sourceBlock(source)))
+        || Object.values(block.slots || {}).some(slot => ids.has(slotSourceBlock(slot?.from))))
+      .map(block => block.id);
+    if (usedBy.length > 0) blockers.push({ kind: 'usedBy', blocks: usedBy });
+
+    const producers = variableProducers(definition);
+    const typeOf = variable => {
+      const producer = producers.get(variable);
+      return controls.get(producer.block.control)?.outputs?.[producer.port]?.type;
+    };
+    for (const block of blocks) {
+      for (const [port, variable] of Object.entries(block.inputs || {})) {
+        const producer = producers.get(variable);
+        if (!producer || ids.has(producer.block.id)) continue;
+        const at = position(producer.stage.id);
+        const inStage = readsInStage(block, port, producer.block, controls);
+        if (at > target || (at === target && !inStage)) {
+          blockers.push({ kind: 'input', block: producer.block.id, stage: producer.stage.id, inStage, type: typeOf(variable) });
+        }
+      }
+    }
+
+    const variables = new Set(blocks.flatMap(block => Object.values(block.exports || {})));
+    for (const stage of definition.stages) {
+      const at = position(stage.id);
+      let readByBlock = false;
+      for (const reader of flattenBlocks(stage.blocks)) {
+        if (ids.has(reader.id)) continue;
+        for (const [port, variable] of Object.entries(reader.inputs || {})) {
+          if (!variables.has(variable)) continue;
+          readByBlock = true;
+          const inStage = readsInStage(reader, port, producers.get(variable).block, controls);
+          if (at < target || (at === target && !inStage)) {
+            blockers.push({ kind: 'reader', block: reader.id, stage: stage.id, inStage, type: typeOf(variable) });
+          }
+        }
+      }
+      const passed = contextLines(stage).find(line => line.source === 'var' && variables.has(line.name));
+      if (passed && !readByBlock && at < target) {
+        blockers.push({ kind: 'reader', block: null, stage: stage.id, inStage: true, type: typeOf(passed.name) });
+      }
+    }
+    return blockers;
+  }
+
+  // Puts `{{to}}` in place of `{{from}}` in every text of the component.
+  function renamePlaceholder(value, from, to) {
+    if (typeof value === 'string') return value.split(`{{${from}}}`).join(`{{${to}}}`);
+    if (Array.isArray(value)) return value.map(item => renamePlaceholder(item, from, to));
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, renamePlaceholder(item, from, to)]));
+    }
+    return value;
+  }
+
+  // The moved blocks' answer names the target stage already holds get other ones: the
+  // stage's answer is one flat object. A field for the AI is renamed in its text too.
+  function renameAnswerNames(blocks, target, controls) {
+    const taken = answerNames(target, controls);
+    for (const block of blocks) {
+      if (block.kind === 'generated') {
+        for (const field of controls.get(block.control)?.fields || []) {
+          const name = block.fields?.[field] ?? field;
+          const free = taken.has(name) ? freeName(name.replace(/\d+$/, ''), taken) : name;
+          taken.add(free);
+          if (free === name) continue;
+          block.fields = { ...block.fields, [field]: free };
+          if (free === field) delete block.fields[field];
+          if (Object.keys(block.fields).length === 0) delete block.fields;
+        }
+      }
+      for (const name of Object.keys(block.slots || {})) {
+        if (!taken.has(name)) {
+          taken.add(name);
+          continue;
+        }
+        const free = newFieldName(target, controls, [...taken]);
+        taken.add(free);
+        const { [name]: slot, ...slots } = block.slots;
+        block.slots = { ...slots, [free]: slot };
+        block.component = renamePlaceholder(block.component, name, free);
+      }
+    }
+  }
+
+  // Moves the block or row `id` to the end of the stage `targetId`, which `moveBlockers`
+  // let it go to; its id and variables stay. Context lines follow the links it carries:
+  // a stage reading a variable of another stage gets a line, a line on a variable of its
+  // own stage goes, and the old stage loses a line only the moved block read, as when an
+  // input switches. Returns the lines added and removed, as `{ stage, label }`.
+  function moveToStage(definition, id, targetId, controls) {
+    const { stage: home, index, blocks } = moving(definition, id);
+    const target = definition.stages.find(stage => stage.id === targetId);
+    const read = new Set(blocks.flatMap(block => Object.values(block.inputs || {})));
+    const exported = blocks.flatMap(block => Object.values(block.exports || {}));
+    renameAnswerNames(blocks, target, controls);
+    target.blocks.push(...home.blocks.splice(index, 1));
+
+    const producers = variableProducers(definition);
+    const addedLines = [];
+    const removedLines = [];
+    for (const stage of definition.stages) {
+      for (const variable of new Set([...read, ...exported])) {
+        const producer = producers.get(variable);
+        if (!producer) continue;
+        const lines = contextLines(stage);
+        const passing = lines.filter(line => line.source === 'var' && line.name === variable);
+        const readByBlock = flattenBlocks(stage.blocks).some(block => Object.values(block.inputs || {}).includes(variable));
+        const forsaken = stage === home && read.has(variable) && !readByBlock;
+        if (passing.length > 0 && (producer.stage === stage || forsaken)) {
+          setContextLines(stage, lines.filter(line => !passing.includes(line)));
+          removedLines.push(...passing.map(line => ({ stage: stage.id, label: line.label })));
+        } else if (passing.length === 0 && producer.stage !== stage && readByBlock) {
+          addedLines.push({ stage: stage.id, label: addContextLine(stage, 'var', variable) });
+        }
+      }
+    }
+    return { addedLines, removedLines };
+  }
+
   // Names of the {{slots}} found in the component's texts.
   function placeholders(value, names = new Set()) {
     if (typeof value === 'string') {
@@ -686,6 +847,8 @@
     addBlock,
     deletionPlan,
     applyDeletion,
+    moveBlockers,
+    moveToStage,
     applyStaticChanges,
     newFieldName,
     appendNoteField,

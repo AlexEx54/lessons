@@ -478,6 +478,8 @@ textarea.template-field__input { resize: vertical; }
 }
 .template-order__button:hover:not(:disabled) { border-color: #b9a9ff; color: var(--purple); }
 .template-order__button:disabled { opacity: .45; cursor: default; }
+.template-move { margin-top: 12px; }
+.template-move .template-panel__hint { margin: 2px 0 0; }
 
 .template-slot .markdown-field { margin-left: 2px; font-size: 11px; }
 .template-slot > .template-panel__hint { margin: 0; }
