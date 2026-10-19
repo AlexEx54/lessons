@@ -9,6 +9,7 @@ const { loadDotEnv } = require('./lib/env.js');
 loadDotEnv(path.join(__dirname, '.env'));
 
 const { renderAppPage } = require('./lib/app-shell.js');
+const { withClassModal } = require('./lib/class-modal-kit.js');
 const {
   clearSessionCookie,
   clearYandexStateCookie,
@@ -468,18 +469,27 @@ function serveStatic(reqPath, res) {
   });
 }
 
-async function serveAppPage(pageId, res, context = {}) {
+async function serveRenderedPage(res, pageName, render) {
   try {
-    const html = await renderAppPage(pageId, context);
+    const html = await render();
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
     });
     res.end(html);
   } catch (error) {
-    console.error(`Cannot render app page "${pageId}":`, error);
-    json(res, 500, { error: 'Cannot render app page.' });
+    console.error(`Cannot render ${pageName}:`, error);
+    json(res, 500, { error: `Cannot render ${pageName}.` });
   }
+}
+
+function serveAppPage(pageId, res, context = {}) {
+  return serveRenderedPage(res, `app page "${pageId}"`, () => renderAppPage(pageId, context));
+}
+
+// The library preview is the lesson player plus the «Новое занятие» window, so a teacher can schedule the lesson right there.
+function serveLibraryLessonPage(res) {
+  return serveRenderedPage(res, 'the library lesson page', async () => withClassModal(await fs.promises.readFile(path.join(ROOT, 'lesson-editor.html'), 'utf8')));
 }
 
 function readJsonBody(req) {
@@ -1530,7 +1540,7 @@ async function handleRequest(req, res) {
     }
     const lesson = findLibraryLesson((libraryPage || libraryDetail)[1], database);
     if (!lesson) { json(res, 404, { error: 'Урок недоступен.' }); return; }
-    if (libraryPage) serveStatic('/lesson-editor.html', res);
+    if (libraryPage) serveLibraryLessonPage(res);
     else json(res, 200, { lesson });
     return;
   }

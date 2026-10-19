@@ -4,6 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const { renderAppPage } = require('../lib/app-shell.js');
+const { withClassModal } = require('../lib/class-modal-kit.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -179,4 +180,17 @@ test('lesson draft review action links to its editor', () => {
 test('hidden lesson plan cannot be forced visible by its layout styles', () => {
   const editorStyles = fs.readFileSync(path.join(ROOT, 'assets', 'lesson-editor.css'), 'utf8');
   assert.match(editorStyles, /\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
+});
+
+test('the lesson preview gets the class modal, while live lessons keep the plain player', async () => {
+  const player = fs.readFileSync(path.join(ROOT, 'lesson-editor.html'), 'utf8');
+  const preview = await withClassModal(player);
+  const scripts = [...preview.matchAll(/<script src="([^"]+)" defer><\/script>/g)].map(match => match[1]);
+
+  assert.doesNotMatch(player, /id="class-modal"|class-modal\.(?:css|js)/);
+  assert.match(preview, /href="\/assets\/class-modal\.css" \/>\n<\/head>/);
+  assert.deepEqual(scripts.slice(-5), ['/assets/class-invite.js', '/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js']);
+  assert.equal((preview.match(/id="class-modal"/g) || []).length, 1);
+  assert.equal((preview.match(/id="slot-picker"/g) || []).length, 1);
+  assert.match(preview, /id="slot-picker"[\s\S]*src="\/assets\/class-invite\.js"[\s\S]*<\/body>/);
 });

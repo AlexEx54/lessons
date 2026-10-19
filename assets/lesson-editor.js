@@ -1456,6 +1456,8 @@
         state.draftStatus = 'readonly';
         document.querySelector('.end-lesson').href = '/library.html';
         document.querySelector('.end-lesson span').textContent = 'В библиотеку';
+        byId('schedule-lesson').hidden = false;
+        byId('schedule-lesson').addEventListener('click', () => window.ClassModal.open({ lessonId: payload.lesson.id }));
         render(payload.lesson.content);
         window.LessonNotes.mount({ mode: 'library', content: payload.lesson.content.notes });
         return;
