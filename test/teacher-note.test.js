@@ -56,6 +56,7 @@ function createDocument() {
       },
       click() { if (!this.disabled) this.dispatch('click'); },
       focus() {},
+      querySelector(selector) { return byClass(this, selector.slice(1))[0] || null; },
     };
     node.classList = {
       tokens: () => new Set(node.className.split(/\s+/).filter(Boolean)),
@@ -305,7 +306,6 @@ test('a sub-block tells of unsaved edits of its title, text and tip until it is 
   }, doc);
   const edit = byClass(card, 'teacher-note-block__edit')[0];
   const body = byClass(card, 'teacher-note-block__body')[0];
-  const tip = byClass(card, 'teacher-note-block__tip-text')[0];
 
   edit.click();
   const title = byClass(card, 'teacher-note-block__title-input')[0];
@@ -320,12 +320,118 @@ test('a sub-block tells of unsaved edits of its title, text and tip until it is 
   assert.equal(editorToMarkdown(body), 'Listen.');
 
   edit.click();
-  type(tip, 'Repeat it.', doc);
+  type(byClass(card, 'teacher-note-block__tip-text')[0], 'Repeat it.', doc);
   assert.deepEqual(changes.at(-1), [true, 'pronunciation-check']);
   edit.click();
   await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(saved, { id: 'pronunciation-check', title: 'Check', text: 'Listen.', tip: { text: 'Repeat it.' } });
+  assert.deepEqual(saved, {
+    id: 'pronunciation-check', title: 'Check', titleColor: '#6545F5', icon: 'chat', text: 'Listen.', tip: { text: 'Repeat it.' },
+  });
   assert.deepEqual(changes.at(-1), [false, 'pronunciation-check']);
+});
+
+test('a sub-block changes its icon and color, takes its tip away and gets a new one back', async () => {
+  const doc = createDocument();
+  const changes = [];
+  const errors = [];
+  const saved = [];
+  const card = renderTeacherNoteBlock(subBlock('pronunciation-check', { tip: { text: 'Repeat.' } }), {
+    editable: true,
+    onSave: async (next) => { saved.push(next); return { type: 'teacherNoteBlock', ...next }; },
+    onDirtyChange: dirty => changes.push(dirty),
+    onError: message => errors.push(message),
+  }, doc);
+  const edit = byClass(card, 'teacher-note-block__edit')[0];
+  edit.click();
+  byClass(card, 'teacher-note-block__icon-choice').find(choice => choice.dataset.icon === 'trophy').click();
+  assert.equal(changes.at(-1), true);
+  byClass(card, 'teacher-note-block__color-choice').find(choice => choice.dataset.color === '#E0812D').click();
+  byClass(card, 'teacher-note-block__remove-tip')[0].click();
+  assert.equal(byClass(card, 'teacher-note-block__tip').length, 0);
+  edit.click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(saved.at(-1), {
+    id: 'pronunciation-check', title: 'Check', titleColor: '#E0812D', icon: 'trophy', text: 'Listen.', tip: null,
+  });
+  assert.equal(byClass(card, 'teacher-note-block__icon')[0].childNodes[0].attributes['data-icon'], 'trophy');
+  assert.equal(byClass(card, 'teacher-note-block__add-tip')[0].hidden, true, 'no + Tip outside the editor');
+
+  edit.click();
+  byClass(card, 'teacher-note-block__add-tip')[0].click();
+  edit.click();
+  assert.deepEqual(errors, ['Заполните Tip или уберите его.']);
+  type(byClass(card, 'teacher-note-block__tip-text')[0], 'Say it twice.', doc);
+  edit.click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(saved.at(-1).tip, { text: 'Say it twice.' });
+});
+
+test('a cancelled sub-block edit brings back its icon, color and tip', () => {
+  const doc = createDocument();
+  const card = renderTeacherNoteBlock(subBlock('pronunciation-check', { tip: { text: 'Repeat.' } }), {
+    editable: true, onSave: async () => {},
+  }, doc);
+  byClass(card, 'teacher-note-block__edit')[0].click();
+  byClass(card, 'teacher-note-block__icon-choice').find(choice => choice.dataset.icon === 'book').click();
+  byClass(card, 'teacher-note-block__remove-tip')[0].click();
+  card.dispatch('keydown', { key: 'Escape' });
+  assert.equal(byClass(card, 'teacher-note-block__icon')[0].childNodes[0].attributes['data-icon'], 'chat');
+  assert.equal(editorToMarkdown(byClass(card, 'teacher-note-block__tip-text')[0]), 'Repeat.');
+});
+
+test('a sub-block added in the note editor is saved with the note after the kept ones', async () => {
+  const doc = createDocument();
+  const errors = [];
+  let sent = null;
+  const note = renderTeacherNote({ id: 'warm-up-note', blocks: [subBlock('first-check'), subBlock('second-check')] }, {
+    onSave: async (changes) => { sent = changes; return null; },
+    onError: message => errors.push(message),
+  }, doc);
+  const noteEdit = byClass(note, 'teacher-note__edit')[0];
+  noteEdit.click();
+  const add = byClass(note, 'teacher-note__add-block')[0];
+  assert.equal(add.hidden, false);
+  add.click();
+  add.click();
+  let fresh = byClass(note, 'teacher-note-block').slice(2);
+  assert.deepEqual(fresh.map(card => card.dataset.blockId), ['warm-up-note-block-3', 'warm-up-note-block-4']);
+  assert.equal(byClass(fresh[0], 'teacher-note-block__edit').length, 0, 'the note saves it');
+
+  type(byClass(fresh[0], 'teacher-note-block__title-input')[0], 'Timing', doc);
+  byClass(fresh[0], 'teacher-note-block__remove')[0].click();
+  assert.equal(byClass(note, 'teacher-note-block').length, 3);
+  byClass(byClass(note, 'teacher-note-block')[0], 'teacher-note-block__remove')[0].click();
+  fresh = byClass(note, 'teacher-note-block').at(-1);
+  noteEdit.click();
+  assert.deepEqual(errors, ['Заполните заголовок и текст подблока.']);
+
+  type(byClass(fresh, 'teacher-note-block__title-input')[0], 'Timing', doc);
+  type(byClass(fresh, 'teacher-note-block__body')[0], 'Keep it short.', doc);
+  byClass(fresh, 'teacher-note-block__icon-choice').find(choice => choice.dataset.icon === 'key').click();
+  noteEdit.click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(sent, {
+    text: null,
+    retainedBlockIds: ['second-check'],
+    addedBlocks: [{ id: 'warm-up-note-block-4', title: 'Timing', titleColor: '#6545F5', icon: 'key', text: 'Keep it short.', tip: null }],
+  });
+  assert.deepEqual(byClass(note, 'teacher-note-block').map(card => card.dataset.blockId), ['second-check', 'warm-up-note-block-4']);
+  assert.equal(add.hidden, true);
+});
+
+test('a cancelled note editor drops the sub-blocks added in it', () => {
+  const doc = createDocument();
+  const changes = [];
+  const note = renderTeacherNote({ id: 'warm-up-note', text: 'Own text.' }, {
+    onSave: async () => {},
+    onDirtyChange: dirty => changes.push(dirty),
+  }, doc);
+  byClass(note, 'teacher-note__edit')[0].click();
+  byClass(note, 'teacher-note__add-block')[0].click();
+  assert.equal(changes.at(-1), true);
+  note.dispatch('keydown', { key: 'Escape' });
+  assert.equal(changes.at(-1), false);
+  assert.equal(byClass(note, 'teacher-note-block').length, 0);
 });
 
 test('teacher note stays dirty while any sub-block edit is open and keeps its own editor shut', () => {

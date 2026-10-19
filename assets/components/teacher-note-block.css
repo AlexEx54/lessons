@@ -49,7 +49,7 @@
   stroke-linejoin: round;
 }
 
-.teacher-note-block__icon circle { fill: currentColor; stroke: none; }
+.teacher-note-block svg[data-icon='chatDots'] circle { fill: currentColor; stroke: none; }
 
 .teacher-note-block__body,
 .teacher-note-block__tip-text {
@@ -144,6 +144,85 @@
   font: inherit;
 }
 .teacher-note-block--saving { opacity: .7; }
+
+.teacher-note-block--editing .teacher-note-block__body:empty::before,
+.teacher-note-block--editing .teacher-note-block__tip-text:empty::before {
+  color: #9690aa;
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
+
+.teacher-note-block__style:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 8px 16px;
+}
+
+.teacher-note-block__choices { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.teacher-note-block__icon-choice {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #e3def5;
+  border-radius: 6px;
+  color: #6b6880;
+  background: #fff;
+}
+.teacher-note-block__icon-choice:hover { background: #f6f4ff; }
+.teacher-note-block__icon-choice[aria-pressed='true'] {
+  border-color: var(--teacher-note-block-accent);
+  color: var(--teacher-note-block-accent);
+  background: color-mix(in srgb, var(--teacher-note-block-accent) 9%, #fff);
+}
+.teacher-note-block__icon-choice svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.teacher-note-block__color-choice {
+  width: 24px;
+  height: 24px;
+  margin: 2px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--teacher-note-block-swatch);
+  box-shadow: 0 0 0 1px #dedbe8;
+}
+.teacher-note-block__color-choice[aria-pressed='true'] { box-shadow: 0 0 0 2px var(--teacher-note-block-swatch); }
+
+.teacher-note-block__add-tip,
+.teacher-note-block__remove-tip {
+  border: 1px solid #dcd5fa;
+  border-radius: 6px;
+  color: #6545f5;
+  background: #fff;
+  font-weight: 700;
+}
+.teacher-note-block__add-tip:hover,
+.teacher-note-block__remove-tip:hover { background: #f3f0ff; }
+.teacher-note-block__add-tip:not([hidden]) { display: block; margin-top: 10px; padding: 5px 10px; font-size: 11px; }
+.teacher-note-block__remove-tip {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+}
+.teacher-note-block--editing .teacher-note-block__tip-content { flex: 1 1 auto; }
+.teacher-note-block--editing .teacher-note-block__tip-text { flex: 1 1 auto; }
 
 @media (max-width: 700px) {
   .teacher-note-block { padding: 13px; }

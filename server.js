@@ -2448,6 +2448,7 @@ async function handleRequest(req, res) {
           text: body.text,
           retainedBlockIds: body.retainedBlockIds,
           blocks: body.blocks,
+          addedBlocks: body.addedBlocks,
         }, database);
       } else if (taskPromptRoute) {
         draft = updateTaskPrompt({

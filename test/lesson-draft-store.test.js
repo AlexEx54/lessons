@@ -147,7 +147,7 @@ test('teacher note update rejects malformed content and duplicate component ids'
   database.close();
 });
 
-test('composite teacher note update edits custom text and can only remove existing blocks', () => {
+test('composite teacher note update edits custom text and keeps only its own blocks', () => {
   const database = openDatabase(':memory:');
   const owner = admin(database, 'composite-note');
   const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Composite', template: 'template-1' }, database);
@@ -191,6 +191,38 @@ test('composite teacher note update edits custom text and can only remove existi
     text: 'Text',
     retainedBlockIds: ['second-block', 'second-block'],
   }, database), /повторяющиеся/);
+  database.close();
+});
+
+test('teacher note sub-blocks change icon, color and tip; new sub-blocks are added after the kept ones', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'styled-note');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Styled', template: 'template-1' }, database);
+  const first = {
+    type: 'teacherNoteBlock', id: 'first-block', title: 'First', titleColor: '#6545F5', icon: 'audio', text: 'One', tip: { text: 'Hint' },
+  };
+  const second = { type: 'teacherNoteBlock', id: 'second-block', title: 'Second', titleColor: '#20A85B', icon: 'chat', text: 'Two' };
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [{ type: 'teacherNote', id: 'styled-note', blocks: [first, second] }] }],
+  }, database);
+  const update = changes => updateTeacherNote({ id: ready.id, ownerAdminId: owner.id, noteId: 'styled-note', ...changes }, database)
+    .content.stages[0].content[0];
+
+  let note = update({ blocks: [{ ...first, icon: 'trophy', titleColor: '#2F80ED', tip: null }] });
+  assert.deepEqual(note.blocks[0], { type: 'teacherNoteBlock', id: 'first-block', title: 'First', titleColor: '#2F80ED', icon: 'trophy', text: 'One' });
+  note = update({ blocks: [{ ...second, tip: { text: ' Smile. ' } }] });
+  assert.deepEqual(note.blocks[1].tip, { text: 'Smile.' });
+
+  const added = { id: 'styled-note-block-3', title: ' New ', titleColor: '#e0812d', icon: 'key', text: 'Three', tip: null };
+  note = update({ retainedBlockIds: ['second-block'], addedBlocks: [added] });
+  assert.deepEqual(note.blocks.map(block => block.id), ['second-block', 'styled-note-block-3']);
+  assert.deepEqual(note.blocks[1], { type: 'teacherNoteBlock', id: 'styled-note-block-3', title: 'New', titleColor: '#E0812D', icon: 'key', text: 'Three' });
+
+  assert.throws(() => update({ blocks: [{ ...second, tip: { text: ' ' } }] }), /недопустимые изменения/);
+  assert.throws(() => update({ blocks: [{ ...second, icon: 'bell' }] }), /недопустимые изменения/);
+  assert.throws(() => update({ addedBlocks: [{ ...added, id: 'fourth', title: '' }] }), /недопустимые изменения/);
+  assert.throws(() => update({ addedBlocks: [{ ...added, id: 'second-block' }] }), /повторяет id/);
+  assert.throws(() => update({ addedBlocks: {} }), /массивом/);
   database.close();
 });
 

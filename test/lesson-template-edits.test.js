@@ -682,6 +682,23 @@ test('Teacher’s Notes keeps, drops and rewrites its sub-blocks apart from its 
   assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
 });
 
+test('Teacher’s Notes sub-blocks change icon, color and tip, and new ones join the end', () => {
+  const definition = templateTwo();
+  const note = staticBlock(definition, 'target-vocabulary', 'target-vocabulary-teacher-note');
+  const [first, second, third] = note.component.blocks;
+  Edits.applyStaticChanges(note, { blocks: [{ ...first, icon: 'bulb', titleColor: '#2F80ED', tip: null }] });
+  assert.deepEqual(note.component.blocks[0], (({ tip, ...rest }) => ({ ...rest, icon: 'bulb', titleColor: '#2F80ED' }))(first));
+  Edits.applyStaticChanges(note, { blocks: [{ ...second, tip: { text: 'Smile.' } }] });
+  assert.deepEqual(note.component.blocks[1].tip, { text: 'Smile.' });
+
+  const added = { id: 'target-vocabulary-teacher-note-block-4', title: 'Timing', titleColor: '#E0812D', icon: 'trophy', text: 'Keep it short.', tip: null };
+  Edits.applyStaticChanges(note, { text: null, retainedBlockIds: [first.id, third.id], addedBlocks: [added] });
+  assert.deepEqual(note.component.blocks.map(block => block.id), [first.id, third.id, added.id]);
+  assert.deepEqual(note.component.blocks[2], { type: 'teacherNoteBlock', id: added.id, title: 'Timing', titleColor: '#E0812D', icon: 'trophy', text: 'Keep it short.' });
+  assert.throws(() => Edits.applyStaticChanges(note, { addedBlocks: [{ ...added, id: 'other', title: '' }] }), /title/);
+  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
+});
+
 test('a broken component leaves the block as it was', () => {
   const definition = templateTwo();
   const note = staticBlock(definition, 'watch-and-interact', 'watch-teacher-note');

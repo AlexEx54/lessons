@@ -13,7 +13,10 @@
     parseMarkdown: parseTeacherNoteMarkdown,
     serializeMarkdownBlocks: serializeTeacherNoteBlocks,
   } = markdown;
-  const { normalizeTeacherNoteBlock, renderTeacherNoteBlock } = blockComponent;
+  const {
+    COLORS, normalizeTeacherNoteBlock, renderTeacherNoteBlock, teacherNoteBlockProblem,
+  } = blockComponent;
+  const KEBAB_ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const renderMarkdownInto = (container, value, documentRef) => (
     markdown.renderMarkdownInto(container, value, documentRef, 'teacher-note__spacer', { linkify: true })
   );
@@ -72,6 +75,8 @@
     const initial = normalizeTeacherNote(data);
     let current = initial;
     let workingBlocks = [...initial.blocks];
+    // Sub-blocks added in the open editor: their cards hold what the admin typed.
+    let freshCards = [];
     let editing = false;
     let saving = false;
     let initialSnapshot = '';
@@ -99,10 +104,15 @@
     content.id = `teacher-note-${safeId}`;
     const blocks = doc.createElement('div');
     blocks.className = 'teacher-note__blocks';
+    const addBlockButton = doc.createElement('button');
+    addBlockButton.type = 'button';
+    addBlockButton.className = 'teacher-note__add-block';
+    addBlockButton.textContent = '+ Подблок';
+    addBlockButton.hidden = true;
     const customText = doc.createElement('div');
     customText.className = 'teacher-note__text';
     customText.dataset.placeholder = 'Добавьте собственную заметку…';
-    content.append(blocks, customText);
+    content.append(blocks, addBlockButton, customText);
 
     const toolbar = doc.createElement('div');
     toolbar.className = 'teacher-note__toolbar';
@@ -182,6 +192,7 @@
       return JSON.stringify({
         text: editorToMarkdown(customText),
         retainedBlockIds: workingBlocks.map(block => block.id),
+        addedBlocks: freshCards.map(card => card.readValue()),
       });
     }
 
@@ -219,21 +230,44 @@
         },
         onDirtyChange: setBlockDirty,
         onError: settings.onError,
-        onRemove: (blockId) => {
-          if (!editing || saving) return;
-          workingBlocks = workingBlocks.filter(item => item.id !== blockId);
-          paintBlocks();
-          updateDirty();
-          customText.focus();
-        },
+        onRemove: removeBlock,
       }, doc));
-      blocks.replaceChildren(...rendered);
-      blocks.hidden = rendered.length === 0;
+      blocks.replaceChildren(...rendered, ...freshCards);
+      blocks.hidden = blocks.childNodes.length === 0;
+    }
+
+    function removeBlock(blockId) {
+      if (!editing || saving) return;
+      workingBlocks = workingBlocks.filter(item => item.id !== blockId);
+      freshCards = freshCards.filter(card => card.dataset.blockId !== blockId);
+      paintBlocks();
+      updateDirty();
+      customText.focus();
+    }
+
+    function freshBlockId() {
+      const prefix = KEBAB_ID.test(data.id) ? data.id : 'note';
+      const taken = new Set([...current.blocks.map(block => block.id), ...freshCards.map(card => card.dataset.blockId)]);
+      let index = current.blocks.length + freshCards.length + 1;
+      while (taken.has(`${prefix}-block-${index}`)) index += 1;
+      return `${prefix}-block-${index}`;
+    }
+
+    function addBlock() {
+      if (!editing || saving) return;
+      const card = renderTeacherNoteBlock({
+        type: 'teacherNoteBlock', id: freshBlockId(), title: '', titleColor: COLORS[0][0], icon: 'chat', text: '',
+      }, { fresh: true, removable: true, onRemove: removeBlock, onDirtyChange: updateDirty }, doc);
+      freshCards.push(card);
+      paintBlocks();
+      updateDirty();
+      card.querySelector('.teacher-note-block__title-input').focus();
     }
 
     function paint(value) {
       current = normalizeTeacherNote(value);
       workingBlocks = [...current.blocks];
+      freshCards = [];
       paintBlocks();
       if (current.text) renderMarkdownInto(customText, current.text, doc);
       else customText.replaceChildren();
@@ -248,11 +282,14 @@
       customText.removeAttribute('aria-label');
       note.classList.remove('teacher-note--editing', 'teacher-note--saving');
       toolbar.hidden = true;
+      addBlockButton.hidden = true;
       button.hidden = false;
       editButton.textContent = '✎';
       editButton.setAttribute('aria-label', 'Редактировать Teacher’s Notes');
       editButton.disabled = false;
       formattingControls.forEach(control => { control.disabled = false; });
+      addBlockButton.disabled = false;
+      freshCards = [];
       paintBlocks();
       customText.hidden = !current.text;
       setDirty(false);
@@ -270,8 +307,10 @@
       if (content.hidden) button.click();
       editing = true;
       workingBlocks = [...current.blocks];
+      freshCards = [];
       note.classList.add('teacher-note--editing');
       toolbar.hidden = false;
+      addBlockButton.hidden = false;
       button.hidden = true;
       customText.hidden = false;
       customText.contentEditable = 'true';
@@ -288,32 +327,41 @@
     async function saveEditing() {
       if (!editing || saving) return;
       const nextText = editorToMarkdown(customText);
-      if (!nextText && workingBlocks.length === 0) {
-        if (typeof settings.onError === 'function') {
-          settings.onError('Teacher’s Notes должна содержать текст или хотя бы один подблок.');
-        }
+      const addedBlocks = freshCards.map(card => card.readValue());
+      const problem = addedBlocks.map(teacherNoteBlockProblem).find(Boolean)
+        || (!nextText && workingBlocks.length + addedBlocks.length === 0
+          && 'Teacher’s Notes должна содержать текст или хотя бы один подблок.');
+      if (problem) {
+        if (typeof settings.onError === 'function') settings.onError(problem);
         return;
       }
       const changes = { text: nextText || null, retainedBlockIds: workingBlocks.map(block => block.id) };
+      if (addedBlocks.length > 0) changes.addedBlocks = addedBlocks;
       saving = true;
       note.classList.add('teacher-note--saving');
       editButton.disabled = true;
+      addBlockButton.disabled = true;
       formattingControls.forEach(control => { control.disabled = true; });
       try {
         const saved = await settings.onSave(changes, data.id);
-        const fallback = { text: nextText, blocks: workingBlocks };
+        const fallback = {
+          text: nextText,
+          blocks: [...workingBlocks, ...addedBlocks.map(block => ({ type: 'teacherNoteBlock', ...block }))],
+        };
         paint(saved || fallback);
         leaveEditMode();
       } catch (_error) {
         saving = false;
         note.classList.remove('teacher-note--saving');
         editButton.disabled = false;
+        addBlockButton.disabled = false;
         formattingControls.forEach(control => { control.disabled = false; });
         customText.focus();
       }
     }
 
     editButton.addEventListener('click', () => editing ? saveEditing() : enterEditMode());
+    addBlockButton.addEventListener('click', addBlock);
     customText.addEventListener('input', () => { if (editing) updateDirty(); });
     note.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {

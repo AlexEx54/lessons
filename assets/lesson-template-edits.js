@@ -734,8 +734,9 @@
   }
 
   // Teacher's Notes saves its own text apart from its sub-blocks: `retainedBlockIds` keeps
-  // some of them, `blocks` gives new texts of one.
-  function teacherNoteWith(note, { text, retainedBlockIds, blocks: updates = [] }) {
+  // some of them, `blocks` gives new values of one (a `tip` of null takes the tip away),
+  // `addedBlocks` go after the kept ones.
+  function teacherNoteWith(note, { text, retainedBlockIds, blocks: updates = [], addedBlocks = [] }) {
     const next = { ...note };
     if (text) next.text = text;
     else if (text !== undefined) delete next.text;
@@ -743,14 +744,16 @@
       .filter(block => !retainedBlockIds || retainedBlockIds.includes(block.id))
       .map(block => {
         const update = updates.find(item => item.id === block.id);
-        if (!update) return block;
-        const changed = { ...block, title: update.title, text: update.text };
-        if (block.tip) changed.tip = { ...block.tip, text: update.tip?.text };
-        return changed;
-      });
+        return update ? withoutEmptyTip({ ...block, ...update }) : block;
+      })
+      .concat(addedBlocks.map(block => withoutEmptyTip({ type: 'teacherNoteBlock', ...block })));
     if (blocks.length > 0) next.blocks = blocks;
     else delete next.blocks;
     return next;
+  }
+
+  function withoutEmptyTip({ tip, ...block }) {
+    return tip ? { ...block, tip } : block;
   }
 
   // Puts what a component editor saves (`onSave(changes, id)`) into a static block. The
