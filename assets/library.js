@@ -168,18 +168,17 @@
         <p class="lesson-description">${lesson.description}</p>
         <div class="lesson-skills">${source.skills.map(skillLabel).join('')}</div>
         <p class="lesson-duration"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4.5l2.5 1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>${lesson.duration}</p>
-        <div class="lesson-actions"><button type="button" data-action="preview">Предпросмотр</button><button type="button" data-action="select">Выбрать урок</button></div>
+        <div class="lesson-actions"><button type="button" data-action="preview">Предпросмотр</button><button type="button" data-action="schedule">Запланировать</button></div>
       </div>`;
     renderBadge(article, source.badge);
-    const buttons = article.querySelectorAll('.lesson-actions button');
+    const preview = article.querySelector('[data-action="preview"]');
+    const schedule = article.querySelector('[data-action="schedule"]');
     if (!source.is_available) {
-      buttons.forEach(button => { button.disabled = true; button.title = 'Урок пока недоступен'; });
-      buttons[1].textContent = 'Скоро';
+      [preview, schedule].forEach(button => { button.disabled = true; button.title = 'Урок пока недоступен'; });
+      schedule.textContent = 'Скоро';
     } else {
-      buttons.forEach(button => button.addEventListener('click', () => {
-        window.location.href = `/library/${encodeURIComponent(source.id)}`;
-      }));
-      buttons[1].textContent = 'Открыть урок';
+      preview.addEventListener('click', () => { window.location.href = `/library/${encodeURIComponent(source.id)}`; });
+      schedule.addEventListener('click', () => window.ClassModal.open({ lessonId: source.id }));
     }
     if (isAdmin) addLessonMenuButton(source, article);
     return article;

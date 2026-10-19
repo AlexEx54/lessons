@@ -42,6 +42,7 @@
   let selectedClassId = null;
   let recommendationLessons = [];
   let selectedRecommendationId = null;
+  let preferredLessonId = null;
   let allRecommendations = [];
   let showAllLessons = false;
   let recommendationRequest = 0;
@@ -160,8 +161,9 @@
   }
 
   // `time` prefills the datetime-local field (the next full hour by default) and `classId` preselects a class, skipping the first step.
+  // `lessonId` preselects a library lesson and shows it first among the recommendations.
   // `onCreated` receives the session right after it is saved.
-  function openClassModal({ time = '', classId = null, onCreated: createdCallback = null } = {}) {
+  function openClassModal({ time = '', classId = null, lessonId = null, onCreated: createdCallback = null } = {}) {
     if (savingClass) return;
     modalReturnFocus = document.activeElement;
     onCreated = createdCallback;
@@ -170,7 +172,8 @@
     classModal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
     createdSession = null;
-    selectedRecommendationId = null;
+    selectedRecommendationId = lessonId;
+    preferredLessonId = lessonId;
     selectedClassId = classId;
     classMode = 'existing';
     requestKey = null;
@@ -353,6 +356,8 @@
       if (request !== recommendationRequest) return;
       loadingRecommendations = false;
       allRecommendations = content.lessons.filter(lesson => lesson.is_published && lesson.is_available).map(lesson => ({ ...lesson, coverSrc: lesson.cover }));
+      // The lesson picked in the library goes first, so it stays among the visible recommendations.
+      allRecommendations.sort((a, b) => (b.id === preferredLessonId) - (a.id === preferredLessonId));
       filterRecommendations();
     } catch {
       if (request !== recommendationRequest) return;
