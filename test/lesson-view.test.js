@@ -6,9 +6,9 @@ const path = require('node:path');
 const test = require('node:test');
 const { createDocument } = require('./helpers/lesson-dom.js');
 const source = fs.readFileSync(path.join(__dirname, '../assets/lesson-view.js'), 'utf8');
-function fixture() {
+function fixture({ narrow = false } = {}) {
   const document = createDocument(), calls = [];
-  const window = { scrollTo() {}, ThisOrThatComponent: { renderThisOrThat(component, options) {
+  const window = { scrollTo() {}, matchMedia: () => ({ matches: narrow }), ThisOrThatComponent: { renderThisOrThat(component, options) {
     calls.push({ component, options });
     return document.createElement('section');
   } } };
@@ -50,6 +50,28 @@ test('student sees the same shared renderer and full stage list with no navigati
   assert.equal(document.getElementById('next-stage').disabled, true);
   view.selectStage(1);
   assert.equal(document.getElementById('stage-title').textContent, 'Warm Up');
+});
+
+test('narrow screen starts with the plan drawer closed and closes it after picking a stage', () => {
+  const { document, window, lesson } = fixture({ narrow: true });
+  const view = window.LessonView.create();
+  view.render(lesson);
+  const plan = document.getElementById('lesson-plan');
+  assert.equal(plan.hidden, true);
+  assert.equal(document.getElementById('show-plan').hidden, false);
+  document.getElementById('show-plan').click();
+  assert.equal(plan.hidden, false);
+  document.getElementById('lesson-stages').children[1].click();
+  assert.equal(document.getElementById('stage-title').textContent, 'Lead In');
+  assert.equal(plan.hidden, true);
+});
+
+test('wide screen keeps the plan open after picking a stage', () => {
+  const { document, window, lesson } = fixture();
+  const view = window.LessonView.create();
+  view.render(lesson);
+  document.getElementById('lesson-stages').children[1].click();
+  assert.equal(document.getElementById('lesson-plan').hidden, false);
 });
 
 test('shared view can restore a stage by id without changing default draft navigation', () => {

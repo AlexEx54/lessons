@@ -38,7 +38,7 @@ async function fixture(role = 'student', quiz = null, globals = {}) {
     clearTimeout(id) { timers.delete(id); }, addEventListener() {},
     setInterval(fn) { intervals.set(++timerId, fn); return timerId; },
     clearInterval(id) { intervals.delete(id); },
-    scrollTo() {},
+    scrollTo() {}, matchMedia: () => ({ matches: false }),
     ComponentTree: require('../assets/components/component-tree.js'),
     GuidedRoleCardsComponent: { renderGuidedRoleCards: (data, options) => require('../assets/components/guided-role-cards.js').renderGuidedRoleCards(data, options, document) },
     GapFillComponent: { renderGapFill() { return mounted.get('choice'); } },
