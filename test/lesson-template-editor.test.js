@@ -131,7 +131,6 @@ test('controls are described for the editor with labelled parameters and chrome'
   // An answer key chooses the parts of a key in two parts one by one.
   assert.deepEqual(byType('choiceSentences').answerKeyParts, { answers: 'Ответы', explanations: 'Пояснения' });
   assert.equal(byType('contextDropdown').answerKeyParts, undefined);
-  assert.equal(controls.find(control => control.type === 'teacherNoteSections').params.sections.type, 'custom');
   const icon = controls.find(control => control.type === 'listCard').chrome.find(field => field.key === 'icon');
   assert.equal(icon.type, 'choice');
   assert.equal(icon.options.lifeRing, 'Спасательный круг');
@@ -139,7 +138,7 @@ test('controls are described for the editor with labelled parameters and chrome'
 
 test('every block of the catalog has a group and a description; static ones come with a sample', () => {
   const { controls, statics, groups } = describeControls();
-  assert.equal(controls.length + statics.length, 51);
+  assert.equal(controls.length + statics.length, 49);
   for (const block of [...controls, ...statics]) {
     assert.ok(groups.some(group => group.key === block.group), `${block.type}: группа ${block.group}`);
     assert.ok(block.description.trim().length > 0, block.type);

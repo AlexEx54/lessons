@@ -41,10 +41,12 @@ Static-блок может содержать **слоты**: `{{name}}` в лю
   заметке Warm-Up (`warm-up-odd-one-out.items[0].answer`). `"capitalize": true`
   делает первую букву заглавной.
 
-Заметка, которая целиком состоит из сгенерированных разделов (четыре блока в
-Grammar Focus, три пункта в Wrap-Up), — это `generated`-блок
-`teacherNoteSections`. Ответ остаётся вложенным объектом `teacherNotes`, как
-сейчас.
+Отдельных контролов для Teacher's Notes нет: заметку, которую целиком пишет
+нейросеть, тоже выражает статичный блок со слотами `rule`. Весь текст —
+`{{teacherNotes}}` (Warm-Up, Lead-In, Guided Speaking шаблона 1); у заметки из
+подблоков слот стоит в тексте каждого подблока (четыре подблока Grammar Focus);
+у списка — в каждой строке (`- **Signs of success:** {{signsOfSuccess}}` в
+Wrap-Up). Заголовки, иконки и цвета подблоков остаются статичными.
 
 `id` блока совпадает с `id` компонента в уроке и уникален в пределах шаблона.
 
@@ -165,8 +167,8 @@ module.exports = {
 - `rules()` — неизменяемая техническая часть промпта. Количество элементов
   зависит от `params`, поэтому редактор не может сломать схему.
 - **Параметры** создаются помощниками из `template-controls/helpers.js`:
-  `integer`, `choice`, `flag`, `text`, `textList` и `custom` (структура,
-  которую редактор не меняет). У каждого есть подпись для редактора.
+  `integer`, `choice`, `flag`, `text` и `textList`. У каждого есть подпись
+  для редактора.
   `integer(…, { atMost: 'maxWords' })` связывает пару «от — до»: проверка
   шаблона не пропустит `minWords` больше `maxWords`.
 - **Оформление.** Ключи `chrome` берутся из `lesson-templates/chrome-fields.js`,
@@ -283,9 +285,9 @@ OpenRouter, метаданные урока (обложка) и описание
 - **Watch & interact** — только статичные блоки, нейросеть не вызывается.
 - **Grammar Presentation** и **Grammar Focus** — общий ключ ответов
   `answerKey` с несколькими источниками и частями (`answers`, `explanations`).
-  Заметка Grammar Focus — `teacherNoteSections` в виде четырёх блоков.
+  Заметка Grammar Focus — четыре подблока, текст каждого — слот `rule`.
 - **Guided Communication** — success criteria — слот `rule` в статичной заметке.
-- **Wrap-Up** — заметка `teacherNoteSections` в виде списка, 3–2–1 и
+- **Wrap-Up** — заметка списком из трёх слотов `rule`, 3–2–1 и
   `listCard` со строкой через « / ».
 
 ### Граф связей шаблона 2
@@ -307,7 +309,6 @@ warm-up, watch-and-interact — без связей
 | `oddOneOut` | oddOneOut | |
 | `factOrMyth` | factOrMyth | → statements |
 | `listCard` | markdownCard (список: paragraphs / bullets / boldBullets / numbered / slashSeparated) | |
-| `teacherNoteSections` | teacherNote (разделы блоками или списком) | |
 | `vocabularyList` | markdownCard | → vocabulary |
 | `storyCards` | storyCards | vocabulary?, statements? |
 | `storyGuessKey` *derived* | markdownCard | блок storyCards, statements |
@@ -330,11 +331,10 @@ warm-up, watch-and-interact — без связей
 | `threeTwoOne` | threeTwoOne | |
 | `answerKey` *derived* | markdownCard (разделы или `format: paragraphs`) | блоки с `answerKey()` |
 
-Шаблону 1 нужны ещё 18:
+Шаблону 1 нужны ещё 17:
 
 | Контрол | Компонент | Входы → выходы |
 |---|---|---|
-| `teacherNoteText` | teacherNote (один текст модели) | |
 | `textCard` | markdownCard | |
 | `thisOrThat` | thisOrThat | |
 | `followUpQuestions` | taskPrompt | |
@@ -356,8 +356,8 @@ warm-up, watch-and-interact — без связей
 Общие для обоих шаблонов: `vocabularyList` (у шаблона 1 с параметром
 `imagePrompts`, словарь тогда несёт картинки), `contextDropdown`,
 `personalizedQuestions`, `listCard`, `numberedPanel`, `ruleGaps`, `quickRule`,
-`choiceSentences`, `teacherNoteSections`, `wordBankSupport`, `threeTwoOne`,
-`answerKey`. Всего 43 контрола.
+`choiceSentences`, `wordBankSupport`, `threeTwoOne`, `answerKey`. Всего 41
+контрол.
 
 **Ключ ответов.** Контрол задания отдаёт `answerKey()` → `{ lines, list }`:
 строки ключа и признак, что это пункты Markdown-списка. Если частей ключа

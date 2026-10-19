@@ -3,12 +3,10 @@
 const TRAVEL_TERMS = ['ticket', 'platform', 'luggage', 'delay', 'journey', 'passport', 'seat', 'timetable', 'map', 'bus stop'];
 
 const GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS = Object.freeze({
-  teacherNotes: {
-    transitionPhrases: '- “Now let’s practise the Past Simple.”\n- “Choose the form and tell me why.”',
-    struggleTips: '- Ask the student to find the time clue first.\n- Remind them: **did + base verb** in questions and negatives.',
-    correctionTiming: '- **Correct now:** wrong Past Simple forms.\n- **Correct later:** pronunciation slips.',
-    successCriteria: '- At least 6 of 8 correct answers in each task.\n- The student explains two answers.',
-  },
+  transitionPhrases: '- “Now let’s practise the Past Simple.”\n- “Choose the form and tell me why.”',
+  struggleTips: '- Ask the student to find the time clue first.\n- Remind them: **did + base verb** in questions and negatives.',
+  correctionTiming: '- **Correct now:** wrong Past Simple forms.\n- **Correct later:** pronunciation slips.',
+  successCriteria: '- At least 6 of 8 correct answers in each task.\n- The student explains two answers.',
   task1Items: [
     ['Last summer, we ', ' a long journey by train.', ['made', 'make', 'making'], 'made', 'Last summer shows a finished past action.'],
     ['Mia did not ', ' her passport.', ['forgot', 'forget', 'forgets'], 'forget', 'After did not, use the base verb.'],

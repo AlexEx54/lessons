@@ -1,12 +1,10 @@
 'use strict';
 
 const GENERATED_GRAMMAR_FOCUS = Object.freeze({
-  teacherNotes: {
-    transitionPhrases: '- “Now let’s practise the Past Simple.”\n- “Choose the form that completes each past event.”',
-    struggleTips: '- Ask the learner to find past-time expressions.\n- Remind them that questions and negatives use **did + base verb**.',
-    correctionTiming: '- **Correct now:** wrong Past Simple verb forms.\n- **Correct later:** small pronunciation or vocabulary slips.',
-    successCriteria: '- The learner uses the Past Simple correctly four or five times.\n- They can make a negative and ask a past question.',
-  },
+  transitionPhrases: '- “Now let’s practise the Past Simple.”\n- “Choose the form that completes each past event.”',
+  struggleTips: '- Ask the learner to find past-time expressions.\n- Remind them that questions and negatives use **did + base verb**.',
+  correctionTiming: '- **Correct now:** wrong Past Simple verb forms.\n- **Correct later:** small pronunciation or vocabulary slips.',
+  successCriteria: '- The learner uses the Past Simple correctly four or five times.\n- They can make a negative and ask a past question.',
   task1Items: [{
     before: 'Last month, I ', after: ' a ticket to London.',
     options: ['booked', 'book', 'am booking'], answer: 'booked',

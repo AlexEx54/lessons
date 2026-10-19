@@ -96,9 +96,3 @@ test('the answer key takes only tasks that have one, and only their parts', () =
   assert.match(answerKey.acceptsSource(CONTROL_CATALOG.get('correctSentences'), { part: 'hints' }), /нет части ключа hints/);
 });
 
-test('teacher note sections are checked as a parameter', () => {
-  const definition = singleBlockTemplate(CONTROL_CATALOG.get('teacherNoteSections'), {
-    sections: [{ key: 'tips', title: 'Tips' }, { key: 'tips', title: 'Again' }],
-  });
-  assert.throws(() => compileTemplate(definition, CONTROL_CATALOG), /«Разделы»: раздел tips повторяется/);
-});

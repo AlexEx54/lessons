@@ -35,12 +35,16 @@
       "blocks": [
         {
           "id": "warm-up-teacher-note",
-          "kind": "generated",
-          "control": "teacherNoteText",
-          "fields": {
-            "text": "teacherNotes"
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "{{teacherNotes}}"
           },
-          "instructions": "Write teacherNotes as exactly three Markdown bullet points followed by a separate Say paragraph, in this order:\n1. In English, briefly explain the purpose of the lead-in question, then provide the exact question for the learner in natural English at the target CEFR level; it must summarize the main Warm-Up topic and guide the learner toward the task.\n2. In English, explain whether the learner should answer with one word or short phrases.\n3. In English, state what kind of answer the teacher should accept.\nAfter the three bullet points, add a blank line and then give the teacher a ready-to-say opening phrase in natural English at the target CEFR level using exactly this Markdown format: **Say:** *English opening phrase*.\nThe Say paragraph must not be a bullet point; only the English opening phrase after **Say:** must be italic.\nThe opening phrase must start the Warm-Up without presenting its topic as the topic of the whole lesson. Do not use phrases such as “Today we will talk about...”."
+          "slots": {
+            "teacherNotes": {
+              "rule": "Write teacherNotes as exactly three Markdown bullet points followed by a separate Say paragraph, in this order:\n1. In English, briefly explain the purpose of the lead-in question, then provide the exact question for the learner in natural English at the target CEFR level; it must summarize the main Warm-Up topic and guide the learner toward the task.\n2. In English, explain whether the learner should answer with one word or short phrases.\n3. In English, state what kind of answer the teacher should accept.\nAfter the three bullet points, add a blank line and then give the teacher a ready-to-say opening phrase in natural English at the target CEFR level using exactly this Markdown format: **Say:** *English opening phrase*.\nThe Say paragraph must not be a bullet point; only the English opening phrase after **Say:** must be italic.\nThe opening phrase must start the Warm-Up without presenting its topic as the topic of the whole lesson. Do not use phrases such as “Today we will talk about...”."
+            }
+          }
         },
         {
           "id": "warm-up-your-turn-card",
@@ -92,12 +96,16 @@
       "blocks": [
         {
           "id": "lead-in-teacher-note",
-          "kind": "generated",
-          "control": "teacherNoteText",
-          "fields": {
-            "text": "teacherNotes"
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "{{teacherNotes}}"
           },
-          "instructions": "Write teacherNotes as one Markdown string, following this exact content order:\n1. Start with this exact instruction: Read the text together with the learner and invite them to answer the questions.\n2. List the one or two modern English phrases, idioms, or slang expressions from the message that the teacher should explain, and briefly explain their meaning in English.\n3. Tell the teacher in English that if the learner gives a one-word or very short answer to question 3, they must encourage the learner to develop their point of view; include a ready-to-say natural English follow-up question such as “Why do you think so?”.\n4. Tell the teacher in English to ask after all three answers whether the learner can guess the lesson topic; include a ready-to-say natural English question at the target CEFR level.\n5. Finish with a ready-to-say natural English lesson preview at the target CEFR level in the exact Markdown format **Say:** *English lesson preview*.\nThe lesson preview must start with “We are going to...” and may mention only topic, vocabulary, or grammar goals explicitly present in the supplied Lesson topic. Never invent a grammar or vocabulary goal."
+          "slots": {
+            "teacherNotes": {
+              "rule": "Write teacherNotes as one Markdown string, following this exact content order:\n1. Start with this exact instruction: Read the text together with the learner and invite them to answer the questions.\n2. List the one or two modern English phrases, idioms, or slang expressions from the message that the teacher should explain, and briefly explain their meaning in English.\n3. Tell the teacher in English that if the learner gives a one-word or very short answer to question 3, they must encourage the learner to develop their point of view; include a ready-to-say natural English follow-up question such as “Why do you think so?”.\n4. Tell the teacher in English to ask after all three answers whether the learner can guess the lesson topic; include a ready-to-say natural English question at the target CEFR level.\n5. Finish with a ready-to-say natural English lesson preview at the target CEFR level in the exact Markdown format **Say:** *English lesson preview*.\nThe lesson preview must start with “We are going to...” and may mention only topic, vocabulary, or grammar goals explicitly present in the supplied Lesson topic. Never invent a grammar or vocabulary goal."
+            }
+          }
         },
         {
           "id": "lead-in-your-turn-card",
@@ -710,45 +718,58 @@
       "blocks": [
         {
           "id": "grammar-focus-teacher-note",
-          "kind": "generated",
-          "control": "teacherNoteSections",
-          "params": {
-            "format": "blocks",
-            "sections": [
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "blocks": [
               {
-                "key": "transitionPhrases",
+                "type": "teacherNoteBlock",
                 "id": "grammar-focus-transition-phrases",
                 "title": "Transition phrases",
                 "titleColor": "#6545F5",
-                "icon": "chatDots"
+                "icon": "chatDots",
+                "text": "{{transitionPhrases}}"
               },
               {
-                "key": "struggleTips",
+                "type": "teacherNoteBlock",
                 "id": "grammar-focus-struggle-tips",
                 "title": "Tips if the student struggles",
                 "titleColor": "#2F80ED",
-                "icon": "chat"
+                "icon": "chat",
+                "text": "{{struggleTips}}"
               },
               {
-                "key": "correctionTiming",
+                "type": "teacherNoteBlock",
                 "id": "grammar-focus-correction-timing",
                 "title": "Correct now / later",
                 "titleColor": "#E0812D",
-                "icon": "chat"
+                "icon": "chat",
+                "text": "{{correctionTiming}}"
               },
               {
-                "key": "successCriteria",
+                "type": "teacherNoteBlock",
                 "id": "grammar-focus-free-practice-success",
                 "title": "Free Practice success",
                 "titleColor": "#20A85B",
-                "icon": "chatDots"
+                "icon": "chatDots",
+                "text": "{{successCriteria}}"
               }
             ]
           },
-          "fields": {
-            "notes": "teacherNotes"
-          },
-          "instructions": "Teacher’s Notes must provide four concise Markdown texts: transition phrases, grammar-specific struggle tips, correction timing, and measurable free-practice success criteria."
+          "slots": {
+            "transitionPhrases": {
+              "rule": "Concise Markdown text for Teacher’s Notes: transition phrases the teacher can say between the tasks."
+            },
+            "struggleTips": {
+              "rule": "Concise Markdown text for Teacher’s Notes: grammar-specific tips if the student struggles."
+            },
+            "correctionTiming": {
+              "rule": "Concise Markdown text for Teacher’s Notes: correction timing, i.e. which mistakes to correct at once and which to leave for later."
+            },
+            "successCriteria": {
+              "rule": "Concise Markdown text for Teacher’s Notes: measurable free-practice success criteria."
+            }
+          }
         },
         {
           "id": "grammar-focus-choose-the-correct-options",
@@ -916,12 +937,16 @@
       "blocks": [
         {
           "id": "guided-speaking-teacher-note",
-          "kind": "generated",
-          "control": "teacherNoteText",
-          "fields": {
-            "text": "teacherNotes"
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "{{teacherNotes}}"
           },
-          "instructions": "Teacher Notes must be concise Markdown guidance covering how to start, support weaker learners, challenge stronger learners, what to watch for, what to do if the learner gets stuck, target vocabulary, correction timing, and measurable success.\nIn teacherNotes, the only allowed Markdown formatting is unordered lists (- item), ordered lists (1. item), bold (**text**), and italic (*text*). Put every list item on its own line.\nDo not use Markdown headings (#, ##, ###), HTML, blockquotes, code, links, tables, or any other formatting. If a list item needs a label, make the label bold instead of using a heading."
+          "slots": {
+            "teacherNotes": {
+              "rule": "Teacher Notes must be concise Markdown guidance covering how to start, support weaker learners, challenge stronger learners, what to watch for, what to do if the learner gets stuck, target vocabulary, correction timing, and measurable success.\nIn teacherNotes, the only allowed Markdown formatting is unordered lists (- item), ordered lists (1. item), bold (**text**), and italic (*text*). Put every list item on its own line.\nDo not use Markdown headings (#, ##, ###), HTML, blockquotes, code, links, tables, or any other formatting. If a list item needs a label, make the label bold instead of using a heading."
+            }
+          }
         },
         {
           "id": "guided-speaking-read-instructions",
@@ -1005,29 +1030,22 @@
       "blocks": [
         {
           "id": "wrap-up-teacher-note",
-          "kind": "generated",
-          "control": "teacherNoteSections",
-          "params": {
-            "format": "list",
-            "sections": [
-              {
-                "key": "signsOfSuccess",
-                "title": "Signs of success"
-              },
-              {
-                "key": "struggleSupport",
-                "title": "If the student struggles"
-              },
-              {
-                "key": "positiveEnding",
-                "title": "Positive ending"
-              }
-            ]
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "- **Signs of success:** {{signsOfSuccess}}\n- **If the student struggles:** {{struggleSupport}}\n- **Positive ending:** {{positiveEnding}}"
           },
-          "fields": {
-            "notes": "teacherNotes"
-          },
-          "instructions": "Teacher’s Notes must contain three concise parts: measurable signs of success, specific support if the learner struggles, and a ready-to-say positive ending."
+          "slots": {
+            "signsOfSuccess": {
+              "rule": "One concise line for Teacher’s Notes: measurable signs of success."
+            },
+            "struggleSupport": {
+              "rule": "One concise line for Teacher’s Notes: specific support if the learner struggles."
+            },
+            "positiveEnding": {
+              "rule": "One concise line for Teacher’s Notes: a ready-to-say positive ending."
+            }
+          }
         },
         {
           "id": "wrap-up-three-two-one",

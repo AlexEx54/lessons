@@ -11,6 +11,8 @@ const { applyStage, byId, stageContent, stageRequest, templateTwoPlan, templateT
 const vocabularyItems = TRAVEL_TERMS.map(term => ({ term, definition: 'meaning' }));
 const variables = { targetVocabulary: vocabularyItems };
 const generated = () => structuredClone(GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS);
+// The AI fields of the Teacher’s Notes, one per sub-block.
+const NOTE_FIELDS = ['transitionPhrases', 'struggleTips', 'correctionTiming', 'successCriteria'];
 const build = (answer, random) => stageContent('grammar-focus', answer, { variables, random });
 
 test('Template 2 Grammar Focus fills the synthetic structure and keeps other stages', t => {
@@ -28,7 +30,7 @@ test('Template 2 Grammar Focus fills the synthetic structure and keeps other sta
 
   const note = byId(content, 'grammar-focus-teacher-note');
   assert.deepEqual(note.blocks, byId(syntheticContent, 'grammar-focus-teacher-note').blocks.map((block, index) => ({
-    ...block, text: Object.values(GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS.teacherNotes)[index],
+    ...block, text: GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS[NOTE_FIELDS[index]],
   })));
   const choices = byId(content, 'grammar-focus-choose-the-correct-options');
   assert.match(choices.text, /^\*\*1\.\*\* Last summer, we \[\[choice-1\]\] a long journey by train\./);
@@ -60,7 +62,7 @@ test('Template 2 Grammar Focus fails only on unsolvable tasks', t => {
     g => { g.correctionItems[0].corrections = ['**']; },
     g => { g.matchingItems[1].right = g.matchingItems[0].right; },
     g => { g.task2Items[0].before = 'Yesterday, I [[x]] '; },
-    g => { g.teacherNotes.struggleTips = ' '; },
+    g => { g.struggleTips = ' '; },
   ]) {
     const invalid = generated();
     mutate(invalid);
@@ -107,7 +109,7 @@ test('Template 2 Grammar Focus prompt receives grammar and vocabulary', () => {
   assert.match(messages[0].content, /measurable success criteria for Tasks 1–4/);
   assert.doesNotMatch(messages[0].content, /miniSituation|\{\{gap\}\} markers in reading order/);
   assert.equal(messages[1].content, `Lesson topic: Travel\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(TRAVEL_TERMS)}`);
-  assert.deepEqual(schema.properties.teacherNotes.required, ['transitionPhrases', 'struggleTips', 'correctionTiming', 'successCriteria']);
+  assert.deepEqual(schema.required.slice(0, 4), NOTE_FIELDS);
 });
 
 test('Template 2 recovery keeps Grammar Focus and drops an interrupted one', t => {
@@ -119,7 +121,7 @@ test('Template 2 recovery keeps Grammar Focus and drops an interrupted one', t =
   const recovered = recoverLessonGeneration(output, skeleton, templateTwoPlan());
   assert.equal(recovered.validOutput, output);
   assert.deepEqual(recovered.recoveredSections['grammar-focus'], GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS);
-  const interrupted = recoverLessonGeneration(`${beforeFocus}\n\n=== Grammar Focus ===\n{"teacherNotes":`, skeleton, templateTwoPlan());
+  const interrupted = recoverLessonGeneration(`${beforeFocus}\n\n=== Grammar Focus ===\n{"transitionPhrases":`, skeleton, templateTwoPlan());
   assert.equal(interrupted.complete, false);
   assert.equal(interrupted.validOutput, beforeFocus);
 });

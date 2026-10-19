@@ -46,11 +46,9 @@ const GENERATED_LEAD_IN = Object.freeze({
 });
 
 const GENERATED_WRAP_UP = Object.freeze({
-  teacherNotes: Object.freeze({
-    signsOfSuccess: 'The learner names three travel phrases and uses the Past Simple accurately in two clear sentences.',
-    struggleSupport: 'Review three useful travel phrases and give one Past Simple model before the learner tries again.',
-    positiveEnding: 'Say: “Great work! You can describe a past journey and explain your travel choices clearly.”',
-  }),
+  signsOfSuccess: 'The learner names three travel phrases and uses the Past Simple accurately in two clear sentences.',
+  struggleSupport: 'Review three useful travel phrases and give one Past Simple model before the learner tries again.',
+  positiveEnding: 'Say: “Great work! You can describe a past journey and explain your travel choices clearly.”',
   threePrompt: 'Name three words or phrases you remember about travel choices.',
   twoPrompt: 'Create two sentences about a past journey using the Past Simple.',
   twoCues: Object.freeze([

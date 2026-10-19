@@ -613,7 +613,8 @@ test('answer names the target stage holds are renamed, fields for the AI in thei
   Edits.moveToStage(one, 'lead-in-teacher-note', 'warm-up', controls);
   Edits.moveToStage(one, 'wrap-up-possible-language', 'warm-up', controls);
   const [note, language] = stage(one, 'warm-up').blocks.slice(-2);
-  assert.deepEqual(note.fields, { text: 'teacherNotes2' });
+  assert.deepEqual(Object.keys(note.slots), ['aiField1']);
+  assert.equal(note.component.text, '{{aiField1}}');
   assert.deepEqual(language.fields, { items: 'possibleLanguage2' });
   assert.deepEqual(validateTemplate(one, CONTROL_CATALOG).errors, []);
 

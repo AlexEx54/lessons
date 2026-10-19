@@ -598,45 +598,58 @@
       "blocks": [
         {
           "id": "grammar-focus-teacher-note",
-          "kind": "generated",
-          "control": "teacherNoteSections",
-          "params": {
-            "format": "blocks",
-            "sections": [
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "blocks": [
               {
-                "key": "transitionPhrases",
+                "type": "teacherNoteBlock",
                 "id": "grammar-focus-transition-phrases",
                 "title": "Transition phrases",
                 "titleColor": "#6545F5",
-                "icon": "chatDots"
+                "icon": "chatDots",
+                "text": "{{transitionPhrases}}"
               },
               {
-                "key": "struggleTips",
+                "type": "teacherNoteBlock",
                 "id": "grammar-focus-struggle-tips",
                 "title": "Tips if the student struggles",
                 "titleColor": "#2F80ED",
-                "icon": "chat"
+                "icon": "chat",
+                "text": "{{struggleTips}}"
               },
               {
-                "key": "correctionTiming",
+                "type": "teacherNoteBlock",
                 "id": "grammar-focus-correction-timing",
                 "title": "Correct now / later",
                 "titleColor": "#E0812D",
-                "icon": "chat"
+                "icon": "chat",
+                "text": "{{correctionTiming}}"
               },
               {
-                "key": "successCriteria",
+                "type": "teacherNoteBlock",
                 "id": "grammar-focus-free-practice-success",
                 "title": "Success criteria",
                 "titleColor": "#20A85B",
-                "icon": "chatDots"
+                "icon": "chatDots",
+                "text": "{{successCriteria}}"
               }
             ]
           },
-          "fields": {
-            "notes": "teacherNotes"
-          },
-          "instructions": "Teacher’s Notes must provide four concise Markdown texts: transition phrases, grammar-specific struggle tips, correction timing, and measurable success criteria for Tasks 1–4 and the Extra Task."
+          "slots": {
+            "transitionPhrases": {
+              "rule": "Concise Markdown text for Teacher’s Notes: transition phrases the teacher can say between the tasks."
+            },
+            "struggleTips": {
+              "rule": "Concise Markdown text for Teacher’s Notes: grammar-specific tips if the student struggles."
+            },
+            "correctionTiming": {
+              "rule": "Concise Markdown text for Teacher’s Notes: correction timing, i.e. which mistakes to correct at once and which to leave for later."
+            },
+            "successCriteria": {
+              "rule": "Concise Markdown text for Teacher’s Notes: measurable success criteria for Tasks 1–4 and the Extra Task."
+            }
+          }
         },
         {
           "id": "grammar-focus-choose-the-correct-options",
@@ -923,29 +936,22 @@
       "blocks": [
         {
           "id": "wrap-up-teacher-note",
-          "kind": "generated",
-          "control": "teacherNoteSections",
-          "params": {
-            "format": "list",
-            "sections": [
-              {
-                "key": "signsOfSuccess",
-                "title": "Signs of success"
-              },
-              {
-                "key": "struggleSupport",
-                "title": "If the student struggles"
-              },
-              {
-                "key": "positiveEnding",
-                "title": "Positive ending"
-              }
-            ]
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "- **Signs of success:** {{signsOfSuccess}}\n- **If the student struggles:** {{struggleSupport}}\n- **Positive ending:** {{positiveEnding}}"
           },
-          "fields": {
-            "notes": "teacherNotes"
-          },
-          "instructions": "Teacher’s Notes must contain three concise parts: measurable signs of success, specific support if the learner struggles, and a ready-to-say positive ending."
+          "slots": {
+            "signsOfSuccess": {
+              "rule": "One concise line for Teacher’s Notes: measurable signs of success."
+            },
+            "struggleSupport": {
+              "rule": "One concise line for Teacher’s Notes: specific support if the learner struggles."
+            },
+            "positiveEnding": {
+              "rule": "One concise line for Teacher’s Notes: a ready-to-say positive ending."
+            }
+          }
         },
         {
           "id": "wrap-up-three-two-one",

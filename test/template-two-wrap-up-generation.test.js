@@ -17,8 +17,8 @@ test('Template 2 Wrap-Up is the last generated step and receives grammar and voc
   assert.equal(TEMPLATE_TWO.steps.at(-1).key, 'wrap-up');
   const { messages, schema } = stageRequest('wrap-up', { variables });
   assert.equal(messages[1].content, `Lesson topic: Travel\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(TRAVEL_TERMS)}`);
-  assert.match(messages[0].content, /Teacher’s Notes must contain three concise parts/);
-  assert.deepEqual(schema.required, ['teacherNotes', 'threePrompt', 'twoPrompt', 'twoCues', 'onePrompt', 'possibleLanguage']);
+  assert.match(messages[0].content, /positiveEnding: One concise line for Teacher’s Notes: a ready-to-say positive ending\./);
+  assert.deepEqual(schema.required, ['signsOfSuccess', 'struggleSupport', 'positiveEnding', 'threePrompt', 'twoPrompt', 'twoCues', 'onePrompt', 'possibleLanguage']);
 });
 
 test('Template 2 Wrap-Up fills the synthetic structure and keeps other stages', () => {
@@ -35,15 +35,10 @@ test('Template 2 Wrap-Up fills the synthetic structure and keeps other stages', 
   assert.equal(content[3].text, 'Last summer I went to ... / I travelled by ... / I didn’t take my ...');
 });
 
-test('Template 2 Wrap-Up rejects Russian in the 3–2–1 task and only warns about it in teacher notes', t => {
-  const warn = t.mock.method(console, 'warn', () => {});
+test('Template 2 Wrap-Up rejects Russian in the 3–2–1 task', () => {
   const russianTask = structuredClone(GENERATED_TEMPLATE_TWO_WRAP_UP);
   russianTask.twoCues[0] = 'Расскажи о поездке.';
   assert.throws(() => stageContent('wrap-up', russianTask, { variables }), /нужен текст только на английском/);
-  const russianNote = structuredClone(GENERATED_TEMPLATE_TWO_WRAP_UP);
-  russianNote.teacherNotes.positiveEnding = 'Молодец!';
-  stageContent('wrap-up', russianNote, { variables });
-  assert.match(warn.mock.calls[0].arguments[0], /кириллицу в английском тексте: Молодец!/);
 });
 
 test('Template 2 recovery completes with Wrap-Up and drops an interrupted one', t => {
@@ -59,7 +54,7 @@ test('Template 2 recovery completes with Wrap-Up and drops an interrupted one', 
   const complete = recoverLessonGeneration(`${beforeWrapUp}\n\n=== Wrap-Up ===\n${JSON.stringify(GENERATED_TEMPLATE_TWO_WRAP_UP)}`, skeleton, templateTwoPlan());
   assert.equal(complete.complete, true);
   assert.deepEqual(complete.recoveredSections['wrap-up'], GENERATED_TEMPLATE_TWO_WRAP_UP);
-  const interrupted = recoverLessonGeneration(`${beforeWrapUp}\n\n=== Wrap-Up ===\n{"teacherNotes":`, skeleton, templateTwoPlan());
+  const interrupted = recoverLessonGeneration(`${beforeWrapUp}\n\n=== Wrap-Up ===\n{"signsOfSuccess":`, skeleton, templateTwoPlan());
   assert.equal(interrupted.complete, false);
   assert.equal(interrupted.validOutput, beforeWrapUp);
 });

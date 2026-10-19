@@ -79,11 +79,9 @@ const LEAD_IN = {
 };
 
 const WRAP_UP = {
-  teacherNotes: {
-    signsOfSuccess: 'The learner recalls travel phrases and uses the Past Simple accurately.',
-    struggleSupport: 'Review key phrases and give one Past Simple model sentence.',
-    positiveEnding: 'Say: “Well done! You can talk about past travel choices clearly.”',
-  },
+  signsOfSuccess: 'The learner recalls travel phrases and uses the Past Simple accurately.',
+  struggleSupport: 'Review key phrases and give one Past Simple model sentence.',
+  positiveEnding: 'Say: “Well done! You can talk about past travel choices clearly.”',
   threePrompt: 'Name three words or phrases you remember about travel choices.',
   twoPrompt: 'Create two Past Simple sentences about a journey.',
   twoCues: [
@@ -733,7 +731,7 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
     'teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard', 'sentenceCorrection', 'markdownCard',
     'sentenceMatching', 'gapFill', 'markdownCard', 'cardRow',
   ]);
-  assert.equal(focus[0].blocks[0].text, GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS.teacherNotes.transitionPhrases);
+  assert.equal(focus[0].blocks[0].text, GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS.transitionPhrases);
   assert.equal(focus[8].gaps[0].answer, 'Yesterday I bought a ticket');
   const communication = ready.content.stages.find(stage => stage.id === 'guided-speaking').content;
   assert.deepEqual(communication.map(component => component.type), ['teacherNote', 'taskPrompt', 'guidedCommunicationCards']);
