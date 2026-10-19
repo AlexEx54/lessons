@@ -65,6 +65,7 @@
 
   function setClassMode(mode) {
     classMode = mode;
+    classError.textContent = '';
     classModeTabs.querySelectorAll('[data-mode]').forEach(tab => {
       const active = tab.dataset.mode === mode;
       tab.setAttribute('aria-selected', String(active));
@@ -118,6 +119,7 @@
 
   function selectClass(classId, shouldFocus = false) {
     selectedClassId = classId;
+    classError.textContent = '';
     classList.querySelectorAll('.class-option').forEach(option => {
       const isSelected = option.dataset.classId === classId;
       option.setAttribute('aria-checked', String(isSelected));
@@ -167,7 +169,6 @@
     if (savingClass) return;
     modalReturnFocus = document.activeElement;
     onCreated = createdCallback;
-    window.AppShell.closeNavigation({ restoreFocus: false });
     classModal.classList.add('class-modal--visible');
     classModal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
@@ -251,7 +252,6 @@
       temporaryInput.remove();
     }
     copyClassLinkButton.querySelector('span').textContent = 'Ссылка скопирована';
-    window.AppShell.showToast('Ссылка на класс скопирована.');
     window.setTimeout(() => {
       copyClassLinkButton.querySelector('span').textContent = 'Скопировать ссылку';
     }, 2200);
@@ -436,7 +436,10 @@
   classModal.querySelectorAll('[data-close-class-modal]').forEach(button => {
     button.addEventListener('click', closeClassModal);
   });
-  classNameInput.addEventListener('input', updateClassLink);
+  classNameInput.addEventListener('input', () => {
+    classError.textContent = '';
+    updateClassLink();
+  });
   classSearch.addEventListener('input', renderClassList);
   classListRetry.addEventListener('click', loadClasses);
   classModeTabs.addEventListener('click', event => {
@@ -464,14 +467,15 @@
   });
   classNextButton.addEventListener('click', () => {
     if (!classesLoaded) return;
+    classError.textContent = '';
     if (classMode === 'new' && !classNameInput.value.trim()) {
+      classError.textContent = 'Введите название класса.';
       classNameInput.focus();
-      window.AppShell.showToast('Введите название класса');
       return;
     }
     if (classMode === 'existing' && !selectedClass()) {
+      classError.textContent = 'Выберите класс.';
       focusClassStep();
-      window.AppShell.showToast('Выберите класс');
       return;
     }
     setClassStep(2);
