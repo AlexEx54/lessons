@@ -36,7 +36,7 @@ test('reset each stage persists cleared component state, preserves other stages/
     save(seeded);
     const action = { type: 'reset-stage', stageId: stage.id, expectedVersion: seeded.version };
     assert.throws(() => applyAction({ ...access, role: 'student' }, action, db), { statusCode: 403 });
-    assert.throws(() => applyAction(access, { ...action, stageId: 'missing' }, db), { statusCode: 409 });
+    assert.throws(() => applyAction(access, { ...action, stageId: 'missing' }, db), { statusCode: 400 });
     assert.throws(() => applyAction(access, { ...action, expectedVersion: seeded.version - 1 }, db), { statusCode: 409 });
     assert.deepEqual(persisted(), seeded);
     const expected = structuredClone(seeded);

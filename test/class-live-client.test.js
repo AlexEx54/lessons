@@ -13,6 +13,7 @@ async function fixture(role = 'student', quiz = null, globals = {}) {
   const lesson = { content: { stages: [
     { id: 'warm-up', content: [{ type: 'thisOrThat', id: 'choice' }] },
     { id: 'lead-in', content: role === 'teacher' ? [{ type: 'markdownCard', id: 'answers', studentVisibility: 'controlled' }] : [] },
+    { id: 'target-vocabulary', title: 'Target Vocabulary', content: [] },
   ] } };
   if (quiz) lesson.content.stages[0] = { id: 'reading', content: [quiz] };
   const availableStageIds = [quiz ? 'reading' : 'warm-up', 'lead-in'];
@@ -191,6 +192,47 @@ test('teacher stage navigation waits for confirmation and snapshot restores the 
   assert.equal(f.settings.state.activeIndex, 1);
   socket.close();
   assert.equal(f.settings.canSelect(0), false);
+});
+
+test('student browses stages locally, keeps their stage on teacher answers and returns to the teacher', async () => {
+  const f = await fixture(), socket = f.sockets[0];
+  const follow = f.document.getElementById('lesson-follow');
+  socket.receive({ type: 'snapshot', state: f.initial });
+  socket.receive({ type: 'presence', peerPresent: true });
+  f.document.getElementById('next-stage').click();
+  assert.equal(f.settings.state.activeIndex, 1);
+  assert.equal(socket.sent.length, 0);
+  assert.equal(follow.hidden, false);
+  socket.receive({ type: 'action', actorRole: 'teacher', state: { ...f.initial, version: 1 } });
+  assert.equal(f.settings.state.activeIndex, 1);
+  f.document.getElementById('lesson-follow-return').click();
+  assert.equal(f.settings.state.activeIndex, 0);
+  assert.equal(follow.hidden, true);
+  f.document.getElementById('next-stage').click();
+  socket.receive({ type: 'presence', peerPresent: false });
+  assert.equal(follow.hidden, true);
+  socket.receive({ type: 'action', actorRole: 'teacher', state: { ...f.initial, version: 2, activeStageId: 'target-vocabulary' } });
+  assert.equal(f.settings.state.activeIndex, 2);
+  assert.equal(f.document.getElementById('lesson-toast').textContent, 'Учитель перешёл на этап «Target Vocabulary».');
+});
+
+test('student follows a fresh pointer to the teacher stage but not a replayed one', async () => {
+  const f = await fixture(), socket = f.sockets[0];
+  socket.receive({ type: 'snapshot', state: f.initial });
+  f.document.getElementById('next-stage').click();
+  const pointer = { type: 'pointer', stageId: 'warm-up', target: { componentId: 'choice', part: null }, revision: 1 };
+  socket.receive({ ...pointer, replay: true });
+  assert.equal(f.settings.state.activeIndex, 1);
+  socket.receive({ ...pointer, revision: 2 });
+  assert.equal(f.settings.state.activeIndex, 0);
+});
+
+test('student answers carry the stage they are looking at', async () => {
+  const f = await fixture(), socket = f.sockets[0];
+  socket.receive({ type: 'snapshot', state: { ...f.initial, activeStageId: 'lead-in' } });
+  f.document.getElementById('previous-stage').click();
+  f.settings.componentOptions({ type: 'thisOrThat', id: 'choice' }).onAction({ type: 'select-option', componentId: 'choice', itemId: 'pair', optionId: 'a' });
+  assert.equal(socket.sent[0].stageId, 'warm-up');
 });
 
 test('student mounts revealed content, removes hidden content and restores it after reconnect', async () => {

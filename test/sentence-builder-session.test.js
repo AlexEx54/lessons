@@ -29,8 +29,8 @@ test('sentence builder shares progress, persists completion after reopen and res
   const task = projected(student);
   assert.equal(JSON.stringify(task).includes('acceptedOrders'), false);
   const action = (type, itemId = task.items[0].id) => ({ type, itemId, stageId: 'wrap-up', componentId: task.id, actionId: crypto.randomUUID(), expectedVersion: state.version });
-  assert.throws(() => applyAction(student, action('request-hint'), db), { statusCode: 409 });
-  select('wrap-up');
+  // The student answers on a stage the teacher has not opened.
+  assert.notEqual(state.activeStageId, 'wrap-up');
   state = applyAction(student, action('request-hint'), db);
   assert.equal(state.exercises[task.id].items[task.items[0].id].hintsUsed, 1);
   assert.throws(() => applyAction(student, { ...action('request-hint'), expectedVersion: state.version - 1 }, db), { statusCode: 409 });

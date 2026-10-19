@@ -26,7 +26,6 @@ test('correction answers persist across database reopen, stage switches and rese
   const task = content.stages[5].content[5];
   const action = { type: 'type-answer', stageId: 'grammar-focus', componentId: task.id,
     itemId: task.items[0].id, value: task.items[0].answers[0] };
-  assert.throws(() => applyAction(student, { ...action, expectedVersion: state.version }, db), { statusCode: 409 });
   select('grammar-focus');
   assert.throws(() => applyAction(access, { ...action, expectedVersion: state.version }, db), { statusCode: 403 });
   state = applyAction(student, { ...action, expectedVersion: state.version }, db);

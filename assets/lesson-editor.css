@@ -194,6 +194,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 @keyframes lesson-connection-reveal { from { opacity: 0; } }
 .lesson-content:has(.lesson-connection:not([hidden])) .lesson-content__inner { opacity: .35; pointer-events: none; }
 .lesson-content:has(.lesson-connection[data-state='lost']:not([hidden])) .lesson-content__inner { transition-delay: 10s; }
+.lesson-follow { position: sticky; top: 104px; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 14px; width: min(100%, 980px); margin: 0 auto 24px; padding: 9px 9px 9px 17px; border: 1px solid #d9d0ff; border-radius: 10px; color: var(--ink); background: var(--purple-soft); box-shadow: 0 8px 24px rgba(20, 20, 45, .08); font-size: 14px; line-height: 1.45; }
+.lesson-follow button { flex: none; padding: 7px 14px; border: 0; border-radius: 8px; color: #fff; background: var(--purple); font: inherit; font-weight: 650; cursor: pointer; }
 .lesson-toast { position: fixed; right: 24px; bottom: 24px; z-index: 40; max-width: 340px; padding: 13px 17px; border-radius: 9px; color: #fff; background: #1b1c33; box-shadow: 0 12px 32px rgba(20, 20, 45, .2); opacity: 0; transform: translateY(12px); pointer-events: none; transition: 180ms ease; font-size: 13px; }
 .lesson-toast--visible { opacity: 1; transform: translateY(0); }
 
@@ -204,7 +206,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
   .lesson-layout { min-height: calc(100vh - 142px - var(--image-generation-banner-height)); }
   .lesson-plan { top: 0; height: 100vh; }
   .show-plan { position: absolute; top: 16px; z-index: 16; }
-  .lesson-connection { top: 16px; }
+  .lesson-connection, .lesson-follow { top: 16px; }
 }
 
 @media (max-width: 700px) {
@@ -218,7 +220,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
   .lesson-layout { grid-template-columns: 1fr; }
   .lesson-plan { position: fixed; inset: 0 auto 0 0; z-index: 30; width: min(86vw, 300px); height: 100vh; box-shadow: 16px 0 38px rgba(28, 24, 58, .14); }
   .lesson-content { padding: 28px 16px 60px; }
-  .lesson-connection { width: auto; margin-left: 32px; }
+  .lesson-connection, .lesson-follow { width: auto; margin-left: 32px; }
   .empty-stage { min-height: 330px; padding: 48px 22px 32px; }
   .stage-pagination { grid-template-columns: 1fr 1fr; }
   .stage-pagination button { width: 100%; }

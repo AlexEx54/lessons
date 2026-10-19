@@ -8,10 +8,14 @@
   let elapsedSeconds = 0;
   let confirmed, inFlight = false, pending = [], reconnectDelay = 500;
   const viewState = { lesson: null, activeIndex: 0 };
+  // The student may look at a stage other than the teacher's shared `activeStageId`.
+  const viewedStageId = () => viewState.lesson?.stages[viewState.activeIndex]?.id;
+  const stageIndex = stageId => viewState.lesson.stages.findIndex(stage => stage.id === stageId);
   let availableStageIds = [];
   let peerPresent = false;
+  // Playback is synchronised only on the teacher's stage; elsewhere the video plays locally.
   function sendMedia(message) {
-    if (connected && socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ ...message, stageId: confirmed.activeStageId }));
+    if (connected && socket?.readyState === WebSocket.OPEN && viewedStageId() === confirmed.activeStageId) socket.send(JSON.stringify({ ...message, stageId: confirmed.activeStageId }));
   }
   let feedback = false;
   let pointerComponentIds = [];
@@ -44,6 +48,8 @@
     if (!connected || !confirmed || pending.length) return;
     enqueue({ type: 'reset-stage', stageId: confirmed.activeStageId });
   });
+  const follow = byId('lesson-follow');
+  byId('lesson-follow-return').addEventListener('click', () => showTeacherStage());
   const timerButton = byId('lesson-timer');
   timerButton.hidden = role !== 'teacher';
   document.querySelector('.teacher-version').textContent = role === 'teacher' ? 'Teacher version' : 'Student version';
@@ -73,21 +79,28 @@
   function session(state = confirmed) { return { role, connected, peerPresent, sendMedia, state, send: enqueue, pendingActions: pending, feedback }; }
   function enqueue(action) {
     if (!connected) { paint(); return; }
-    pending.push({ ...action, stageId: action.stageId || confirmed.activeStageId });
+    pending.push({ ...action, stageId: action.stageId || viewedStageId() });
     paint();
     flush();
   }
   const view = window.LessonView.create({
     state: viewState,
     initialStageId: () => confirmed?.activeStageId,
-    canSelect: index => role === 'teacher' && connected && availableStageIds.includes(viewState.lesson?.stages[index]?.id),
+    canSelect: index => connected && availableStageIds.includes(viewState.lesson?.stages[index]?.id),
+    // The student browses locally; the teacher's choice becomes shared only after the server confirms it.
     beforeSelect: index => {
+      if (role !== 'teacher') return true;
       const stageId = viewState.lesson.stages[index].id;
       if (stageId !== confirmed.activeStageId) enqueue({ type: 'select-stage', stageId });
       return false;
     },
     componentOptions: component => adapters.options(component, session()),
+    onSelect: () => paint(),
   });
+  function showTeacherStage() {
+    view.selectStage(stageIndex(confirmed.activeStageId), true);
+    paint();
+  }
   if (role === 'teacher') timerButton.addEventListener('click', () => {
     if (lessonTimer) {
       window.clearInterval(lessonTimer);
@@ -107,7 +120,7 @@
     const state = structuredClone(confirmed);
     for (const action of pending) {
       const component = componentFor(action);
-      if (component && action.stageId === confirmed.activeStageId) adapters.preview(component, state, action);
+      if (component && action.stageId === viewedStageId()) adapters.preview(component, state, action);
     }
     const stage = viewState.lesson.stages[viewState.activeIndex];
     for (const component of stage?.content || []) {
@@ -115,19 +128,28 @@
       if (node) adapters.update(node, component, session(state));
     }
     view.refreshNavigation();
-    pointer?.update({ connected, stageId: confirmed.activeStageId, componentIds: pointerComponentIds });
+    pointer?.update({ connected, stageId: viewedStageId(), componentIds: pointerComponentIds });
+    // Without the teacher (e.g. homework) there is no one to return to.
+    follow.hidden = role !== 'student' || !connected || !peerPresent || viewedStageId() === confirmed.activeStageId;
+    byId('lesson-follow-text').textContent = `Учитель на этапе «${viewState.lesson.stages[stageIndex(confirmed.activeStageId)].title}»`;
   }
   function receiveState(payload) {
     feedback = payload.type === 'action';
     const previousStage = viewState.lesson?.stages[viewState.activeIndex];
+    const previousTeacherStageId = confirmed?.activeStageId;
     confirmed = payload.state;
     pointerComponentIds = payload.pointerComponentIds || [];
     availableStageIds = payload.availableStageIds;
     viewState.lesson = payload.lesson.content;
-    const index = viewState.lesson.stages.findIndex(stage => stage.id === confirmed.activeStageId);
+    // The student stays on the stage they opened until the teacher moves to another one.
+    const followTeacher = role === 'teacher' || previousTeacherStageId !== confirmed.activeStageId;
+    const index = stageIndex(followTeacher ? confirmed.activeStageId : previousStage.id);
     const stage = viewState.lesson.stages[index];
     if (index < 0) throw new Error('Активная стадия не найдена.');
-    if (previousStage?.id !== stage.id) view.selectStage(index, true);
+    if (previousStage.id !== stage.id) {
+      view.selectStage(index, true);
+      if (role === 'student' && previousStage.id !== previousTeacherStageId) notify(`Учитель перешёл на этап «${stage.title}».`);
+    }
     else if (payload.resetStageId === stage.id) view.renderStageContent(stage);
     else if (JSON.stringify(previousStage.content) !== JSON.stringify(stage.content)) view.renderStageContent(stage, true);
     paint();
@@ -151,11 +173,16 @@
       if (socket !== current) return;
       const message = JSON.parse(event.data);
       if (['media-command', 'media-align', 'media-status'].includes(message.type)) {
-        if (message.stageId === confirmed?.activeStageId) view.mounted.get(message.componentId)?.receiveMedia?.(message);
+        if (message.stageId === viewedStageId()) view.mounted.get(message.componentId)?.receiveMedia?.(message);
         return;
       }
       if (message.type === 'media-error') { notify(message.error); return; }
-      if (message.type === 'pointer') { pointer?.receive(message); return; }
+      if (message.type === 'pointer') {
+        // The teacher points only at their own stage, so a fresh pointer brings the student there first.
+        if (role === 'student' && message.target && !message.replay && message.stageId !== viewedStageId()) showTeacherStage();
+        pointer?.receive(message);
+        return;
+      }
       if (message.type === 'pointer-error') { notify(message.error); return; }
       if (message.type === 'reaction') { reactions?.receive(message); return; }
       if (message.type === 'presence') {

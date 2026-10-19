@@ -172,6 +172,7 @@
       byId('stage-progress').textContent = `${index + 1} из ${lesson.stages.length}`;
       refreshNavigation();
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (!force) settings.onSelect?.(index);
     }
 
     function refreshNavigation() {
