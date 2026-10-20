@@ -779,5 +779,12 @@ launch-конфиг `mockups-step3` (порт 8788). Макет собран и�
   Убраны «Ответы из блоков», заголовки разделов и части источников:
   `Edits.sourceOptions` → `{ block, chosen }`, `Edits.setSource(block, id)`;
   новые `Edits.setAnswerKey`, `setAnswerKeySetting`, `setAnswerKeyPartTitle`.
-- **К-3** — у оставшихся собираемых блоков ровно один источник: `from` — id
-  блока, без `singleSource`, частей и заголовков источников.
+- **К-3** ✓ — у собираемых блоков ровно один источник: `from` — id блока
+  (строка), список валидатор не принимает; `from` у контрола без
+  `acceptsSource` — ошибка. `singleSource` удалён, `acceptsSource(control)`
+  получает только контрол источника, `build({ source })` — `{ block, component,
+  data }` или null. В редакторе `Edits.blockLinks` отдаёт `source` (`{ block,
+  inStage }` или null), `plannedLinks` — `from` (id или null). Блок, чей
+  источник удаляется, удаляется вместе с ним, поэтому в плане удаления больше
+  нет `sources`. Повтор генерации черновика, созданного до К-1, не работает:
+  в его снимке шаблона старый контрол `answerKey` и `from` списком.

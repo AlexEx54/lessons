@@ -124,7 +124,7 @@ test('controls are described for the editor with labelled parameters and chrome'
   const byType = type => controls.find(control => control.type === type);
   assert.deepEqual(byType('vocabularyList').outputs.vocabulary.features, { distractor: 'distractors', imagePrompt: 'imagePrompts' });
   assert.deepEqual(byType('matchPictures').inputs.vocabulary.requires, ['imagePrompt']);
-  assert.deepEqual(byType('repeatAudio').sources, { accepts: ['audioScript'], single: true, label: 'аудио' });
+  assert.deepEqual(byType('repeatAudio').sources, { accepts: ['audioScript'], label: 'аудио' });
   assert.equal(byType('contextDropdown').sources, undefined);
   // Tasks that can have an answer key, a key in two parts with its part titles.
   assert.deepEqual(byType('contextDropdown').answerKey, {});

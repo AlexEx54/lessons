@@ -238,8 +238,8 @@
       .map(({ order, ...source }) => source);
   }
 
-  // Blocks of the stage a block built from other blocks takes as sources (`sources` of
-  // its control description), in stage order.
+  // Blocks of the stage a block built from another block may take as its source
+  // (`sources` of its control description), in stage order.
   function stageSources(stage, sources) {
     return flattenBlocks(stage.blocks)
       .filter(block => block.kind !== 'static' && sources.accepts.includes(block.control))
@@ -256,7 +256,7 @@
       const sources = inputSources(definition, stage, entry.kind, input, controls);
       inputs[port] = sources.find(source => source.missing.length === 0) || sources[0] || null;
     }
-    const from = entry.sources ? stageSources(stage, entry.sources).slice(-1) : [];
+    const from = entry.sources ? stageSources(stage, entry.sources).at(-1) ?? null : null;
     return { inputs, from };
   }
 
@@ -294,7 +294,7 @@
       const passed = contextLines(stage).some(line => line.source === 'var' && line.name === source.variable);
       if (!source.sameStage && !passed) addedLines.push(addContextLine(stage, 'var', source.variable));
     }
-    if (links.from.length > 0) block.from = links.from;
+    if (links.from) block.from = links.from;
     const variables = new Set(variableProducers(definition).keys());
     const ports = Object.keys(entry.outputs || {});
     if (ports.length > 0) {
@@ -312,8 +312,8 @@
   // while the template has problems too. An input reads `variable` from the block `from`;
   // both are null while it is not connected, and `from` is null for a variable nobody
   // gives away. An output's readers are the blocks that read its variable and the stages
-  // whose context passes it. A block built from other blocks lists them as `sources`, each
-  // block once, in `from` order; `inStage` is false for an id its stage lacks.
+  // whose context passes it. A block built from another block has its `source`, null
+  // while there is none; `inStage` is false for an id its stage lacks.
   function blockLinks(definition, block, controls) {
     const control = controls.get(block.control);
     const producers = variableProducers(definition);
@@ -343,9 +343,9 @@
     }
     if (!control?.sources) return { inputs, exports };
     const stageBlocks = flattenBlocks(definition.stages.find(stage => flattenBlocks(stage.blocks).includes(block))?.blocks || []);
-    const sources = [...new Set(sourceList(block.from).map(sourceBlock))]
-      .map(id => ({ block: id, inStage: stageBlocks.some(other => other.id === id && other !== block) }));
-    return { inputs, exports, sources };
+    const source = block.from === undefined ? null
+      : { block: block.from, inStage: stageBlocks.some(other => other.id === block.from && other !== block) };
+    return { inputs, exports, source };
   }
 
   // Connects the block's `port` to `variable`, or disconnects it when that is null. A
@@ -380,14 +380,12 @@
 
   // `<block>.items[0].answer` → `<block>`.
   const slotSourceBlock = source => /^[a-z][a-z0-9-]*/.exec(String(source))?.[0];
-  const sourceBlock = source => (typeof source === 'string' ? source : source?.block);
-  const sourceList = from => (from === undefined ? [] : [].concat(from));
 
   // What a block built from another block may be built from: every block of the stage
-  // its control takes, in stage order, then a source in `from` that is none of them.
+  // its control takes, in stage order, then its `from` when that is none of them.
   // `chosen` marks the block's own source.
   function sourceOptions(stage, block, controls) {
-    const current = sourceList(block.from).map(sourceBlock)[0];
+    const current = block.from;
     const accepts = controls.get(block.control)?.sources?.accepts || [];
     const ids = flattenBlocks(stage.blocks)
       .filter(candidate => candidate !== block && candidate.kind !== 'static' && accepts.includes(candidate.control))
@@ -397,7 +395,7 @@
   }
 
   function setSource(block, id) {
-    block.from = [id];
+    block.from = id;
   }
 
   // A task's answer key is on or off; turned on, it starts with the defaults.
@@ -427,7 +425,7 @@
   // until nothing else breaks:
   //   - a required input reading a gone variable takes its block too; an optional one is
   //     unbound;
-  //   - a block built from deleted blocks loses those sources, and goes once none is left;
+  //   - a block built from a deleted block goes;
   //   - a static block whose slot reads a deleted block goes.
   // Then emptied rows and stages go, and context lines lose the gone variables.
   // `controls` maps a control type to `{ inputs: { <port>: { required } } }`.
@@ -454,9 +452,8 @@
       if (block.kind === 'static') {
         return Object.values(block.slots || {}).some(slot => deleted.has(slotSourceBlock(slot?.from)));
       }
-      const sources = sourceList(block.from).map(sourceBlock);
       return Object.entries(block.inputs || {}).some(([port, variable]) => gone.has(variable) && isRequired(block, port))
-        || (sources.length > 0 && sources.every(id => deleted.has(id)));
+        || deleted.has(block.from);
     };
     let grown = true;
     while (grown) {
@@ -485,9 +482,6 @@
       unbound: kept.flatMap(({ block, stage }) => Object.entries(block.inputs || {})
         .filter(([, variable]) => gone.has(variable))
         .map(([port, variable]) => ({ block: block.id, stage: stage.id, port, variable }))),
-      sources: kept.flatMap(({ block, stage }) => sourceList(block.from).map(sourceBlock)
-        .filter(id => deleted.has(id))
-        .map(source => ({ block: block.id, stage: stage.id, source }))),
       context: keptStages.flatMap(stage => contextLines(stage)
         .filter(line => line.source === 'var' && gone.has(line.name))
         .map(line => ({ stage: stage.id, label: line.label }))),
@@ -514,10 +508,6 @@
       const block = blocks.get(id);
       delete block.inputs[port];
       if (Object.keys(block.inputs).length === 0) delete block.inputs;
-    }
-    for (const { block: id } of plan.sources) {
-      const block = blocks.get(id);
-      if (Array.isArray(block.from)) block.from = block.from.filter(source => !deleted.has(sourceBlock(source)));
     }
     for (const stage of definition.stages) {
       const labels = new Set(plan.context.filter(line => line.stage === stage.id).map(line => line.label));
@@ -560,13 +550,13 @@
     const blockers = [];
 
     const builtFrom = blocks.flatMap(block => [
-      ...sourceList(block.from).map(sourceBlock),
+      ...(block.from === undefined ? [] : [block.from]),
       ...Object.values(block.slots || {}).map(slot => slot?.from).filter(Boolean).map(slotSourceBlock),
     ]).filter(source => !ids.has(source));
     if (builtFrom.length > 0) blockers.push({ kind: 'builtFrom', blocks: [...new Set(builtFrom)] });
     const usedBy = flattenBlocks(home.blocks)
       .filter(block => !ids.has(block.id))
-      .filter(block => sourceList(block.from).some(source => ids.has(sourceBlock(source)))
+      .filter(block => ids.has(block.from)
         || Object.values(block.slots || {}).some(slot => ids.has(slotSourceBlock(slot?.from))))
       .map(block => block.id);
     if (usedBy.length > 0) blockers.push({ kind: 'usedBy', blocks: usedBy });

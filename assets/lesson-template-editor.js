@@ -236,7 +236,7 @@
       if (editable()) chip.setAttribute('aria-haspopup', 'dialog');
       return chip;
     }).filter(Boolean);
-    const sources = links.sources ? sourceChips(block, stage, links.sources) : [];
+    const sources = links.source !== undefined ? sourceChips(block, stage, links.source) : [];
     const exports = Object.values(links.exports).map(output => button(
       'template-chip template-chip--output',
       `${capitalize(typeLabel(output.type))} → ${readersText(output.readers)}`,
@@ -250,7 +250,7 @@
 
   // A block built from another block of its stage: a chip for its source. In a copy the
   // chip opens the choice of the source.
-  function sourceChips(block, stage, sources) {
+  function sourceChips(block, stage, source) {
     const { label } = state.controls.get(block.control).sources;
     const chip = (text, missing, onSystem) => {
       const className = `template-chip template-chip--input${missing ? ' template-chip--missing' : ''}`;
@@ -266,12 +266,9 @@
       if (editable()) element.setAttribute('aria-haspopup', 'dialog');
       return element;
     };
-    if (sources.length === 0) return editable() ? [chip('не подключено', true)] : [];
-    return sources
-      .filter(source => editable() || source.inStage)
-      .map(source => (source.inStage
-        ? chip(placedName(source.block, stage.id), false, () => selectBlock(source.block, { scroll: true }))
-        : chip(source.block, true)));
+    if (!source) return editable() ? [chip('не подключено', true)] : [];
+    if (source.inStage) return [chip(placedName(source.block, stage.id), false, () => selectBlock(source.block, { scroll: true }))];
+    return editable() ? [chip(source.block, true)] : [];
   }
 
   // Where the block's `port` may read from: blocks of its stage and earlier ones that give
@@ -1115,7 +1112,7 @@
         link.from ? linkButton(`← ${placedName(link.from.block, stage.id)}`, link.from.block) : el('small', '', 'не подключено'),
       ));
     }
-    if (links.sources) rows.push(...fromSourceField(block));
+    if (links.source !== undefined) rows.push(...fromSourceField(block));
     for (const output of Object.values(links.exports)) {
       const readers = el('div', 'template-readers');
       for (const reader of output.readers.blocks) readers.append(linkButton(placedName(reader.block, stage.id), reader.block));
@@ -2123,10 +2120,8 @@
       ['Опустеют и удалятся этапы', plan.stages
         .filter(id => id !== plan.target.stage)
         .map(id => `«${stageTitle(stageById(id))}»`)],
-      ['Изменятся', [
-        ...plan.unbound.map(entry => `${blockLine(entry.block, stageId)}: больше не берёт ${portType(entry)}`),
-        ...plan.sources.map(entry => `${blockLine(entry.block, stageId)}: больше не собирается из «${blockName(state.blocks.get(entry.source).block)}»`),
-      ]],
+      ['Изменятся', plan.unbound
+        .map(entry => `${blockLine(entry.block, stageId)}: больше не берёт ${portType(entry)}`)],
       ['Уйдут строки контекста', plan.context
         .map(line => `«${line.label}» — этап «${stageTitle(stageById(line.stage))}»`)],
     ].filter(([, items]) => items.length > 0);
@@ -2232,10 +2227,9 @@
     }
     if (entry.sources) {
       const { accepts, label } = entry.sources;
-      const names = planned.from.map(id => blockName(state.blocks.get(id).block));
-      if (names.length > 0) {
-        const shown = names.length > 2 ? `${names.slice(0, 2).join(', ')} и ещё ${names.length - 2}` : names.join(', ');
-        rows.push({ label: `Берёт: ${label}`, value: quoted(names), chip: `${capitalize(label)} ← ${shown}` });
+      if (planned.from) {
+        const name = blockName(state.blocks.get(planned.from).block);
+        rows.push({ label: `Берёт: ${label}`, value: quoted([name]), chip: `${capitalize(label)} ← ${name}` });
       } else {
         rows.push({
           label: `Берёт: ${label}`,

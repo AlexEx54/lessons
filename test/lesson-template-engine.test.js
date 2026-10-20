@@ -96,11 +96,11 @@ const CONTROLS = [
     chrome: ['title'],
     acceptsSource: control => (control.type === 'guessGame' ? null : `у ${control.type} нет проверок.`),
     sourceLabel: 'проверки',
-    build: ({ sources }, { id, chrome }) => ({
+    build: ({ source }, { id, chrome }) => ({
       type: 'markdownCard',
       id,
       title: chrome.title || 'Checks',
-      text: sources.flatMap(source => source.component.items).join(' / '),
+      text: source.component.items.join(' / '),
     }),
   },
   {
@@ -147,7 +147,7 @@ function definition() {
             slots: { firstCheck: { from: 'guess-game.items[0]' }, success: { rule: 'One measurable sentence.' } } },
           { id: 'guess-game', kind: 'generated', control: 'guessGame', params: { checks: 2 }, chrome: { title: 'Fact or Myth?' },
             exports: { guesses: 'guesses' }, answerKey: { title: 'Answers' } },
-          { id: 'guess-checks', kind: 'derived', control: 'checksCard', from: ['guess-game'] },
+          { id: 'guess-checks', kind: 'derived', control: 'checksCard', from: 'guess-game' },
         ],
       },
       {
@@ -409,9 +409,11 @@ test('validation reports block-level mistakes', () => {
     block(template, 'guess', 'guess-game').chrome.accentColor = '#fff';
     block(template, 'guess', 'guess-note').component.text += ' {{unknown}}';
     block(template, 'guess', 'guess-note').slots.unused = { rule: 'Never used.' };
-    guess.blocks.push({ id: 'guess-checks-2', kind: 'derived', control: 'checksCard', from: ['vocabulary-list'] });
+    guess.blocks.push({ id: 'guess-checks-2', kind: 'derived', control: 'checksCard', from: 'vocabulary-list' });
     guess.blocks.push({ id: 'guess-starters', kind: 'generated', control: 'bullets', answerKey: {} });
-    guess.blocks.push({ id: 'guess-starters-checks', kind: 'derived', control: 'checksCard', from: ['guess-starters'] });
+    guess.blocks.push({ id: 'guess-starters-checks', kind: 'derived', control: 'checksCard', from: 'guess-starters' });
+    guess.blocks.push({ id: 'guess-checks-4', kind: 'derived', control: 'checksCard', from: ['guess-game'] });
+    guess.blocks.push({ id: 'guess-recap', kind: 'derived', control: 'meaningsQuiz', from: 'guess-game' });
     guess.blocks.push({ id: 'guess-mystery', kind: 'generated', control: 'mystery' });
     guess.blocks.push({ id: 'guess-checks-3', kind: 'derived', control: 'checksCard' });
     guess.blocks.push({ id: 'guess-game', kind: 'static', component: { type: 'teacherNote' } });
@@ -428,6 +430,8 @@ test('validation reports block-level mistakes', () => {
   assert.match(messages, /Блок guess-starters, ключ ответов: bullets не даёт ключ ответов\./);
   assert.match(messages, /неизвестный контрол mystery/);
   assert.match(messages, /Блок guess-checks-3 не собирается ни из одного блока этапа/);
+  assert.match(messages, /Источник блока guess-checks-4 должен быть id блока/);
+  assert.match(messages, /Блок guess-recap не собирается из других блоков: from ему не нужен/);
   assert.match(messages, /Блок guess-game повторяется/);
   assert.match(messages, /Блок guess-empty-note: содержимое не подходит компоненту: TeacherNote requires text/);
   assert.match(messages, /Компонент oddOneOut не может быть статичным блоком \(guess-quiz\)/);
@@ -504,8 +508,6 @@ test('the catalog rejects incomplete controls', () => {
   assert.throws(withFeatures({ sparkle: 'distractors' }), /у типа vocabulary нет возможности sparkle/);
   assert.throws(withFeatures({ distractor: 'count' }), /возможность distractor должна включаться флагом/);
   const checksCard = CONTROLS.find(control => control.type === 'checksCard');
-  assert.throws(() => createControlCatalog([{ ...checksCard, singleSource: 'yes' }]), /singleSource бывает только true/);
-  assert.throws(() => createControlCatalog([{ ...checksCard, acceptsSource: undefined, singleSource: true }]), /только вместе с acceptsSource/);
   assert.throws(() => createControlCatalog([{ ...checksCard, sourceLabel: undefined }]), /acceptsSource и sourceLabel задаются только вместе/);
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], sourceLabel: 'ответы' }]), /acceptsSource и sourceLabel задаются только вместе/);
   const withParts = (control, answerKeyParts) => () => createControlCatalog([{ ...control, answerKeyParts }]);

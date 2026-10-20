@@ -227,17 +227,15 @@ test('a repeated audio takes the nearest audio of its stage', () => {
   const definition = templateTwo();
   addBlock(definition, 'wrap-up', 'audioScript');
   const audio = addBlock(definition, 'wrap-up', 'audioScript').block;
-  assert.deepEqual(addBlock(definition, 'wrap-up', 'repeatAudio').block.from, [audio.id]);
+  const again = addBlock(definition, 'wrap-up', 'repeatAudio').block;
+  assert.equal(again.from, audio.id);
+  assert.deepEqual(Edits.blockLinks(definition, again, controls).source, { block: audio.id, inStage: true });
   assert.deepEqual(problems(definition), []);
 
   const lonely = addBlock(definition, 'watch-and-interact', 'repeatAudio').block;
   assert.equal(lonely.from, undefined);
-  const twice = addBlock(definition, 'wrap-up', 'repeatAudio').block;
-  twice.from = ['wrap-up-audio-script', audio.id];
-  assert.deepEqual(problems(definition), [
-    'Блок watch-and-interact-repeat-audio не собирается ни из одного блока этапа.',
-    'Блок wrap-up-repeat-audio-2 собирается ровно из одного блока, а указано 2.',
-  ]);
+  assert.equal(Edits.blockLinks(definition, lonely, controls).source, null);
+  assert.deepEqual(problems(definition), ['Блок watch-and-interact-repeat-audio не собирается ни из одного блока этапа.']);
 });
 
 const block = (definition, id) => definition.stages.flatMap(item => Edits.flattenBlocks(item.blocks)).find(item => item.id === id);
@@ -336,11 +334,11 @@ test('a block built from one block takes another source of its stage instead', (
     { block: audio.id, chosen: false },
   ]);
   Edits.setSource(again, audio.id);
-  assert.deepEqual(again.from, [audio.id]);
+  assert.equal(again.from, audio.id);
   assert.deepEqual(problems(definition), []);
 
   // A source the stage lacks stays among the options, after the stage's own.
-  again.from = ['reading-text'];
+  again.from = 'reading-text';
   assert.deepEqual(Edits.sourceOptions(listening, again, controls).map(option => [option.block, option.chosen]), [
     ['listening-audio', false], [audio.id, false], ['reading-text', true],
   ]);
@@ -395,6 +393,11 @@ test('a deleted block takes required readers, sources and slots with it; optiona
   assert.deepEqual(vocabulary.blocks.find(block => block.id === 'target-vocabulary-stories').inputs, { guesses: 'leadInGuesses' });
   assert.equal(Object.hasOwn(vocabulary.blocks.find(block => block.id === 'target-vocabulary-personalized-questions'), 'inputs'), false);
   assert.deepEqual(Object.keys(stage(definition, 'wrap-up').context), ['Lesson topic', 'Grammar topic']);
+
+  // A block built from a deleted one has nothing to be built from and goes too.
+  const one = templateOne();
+  const audio = Edits.deletionPlan(one, { block: 'listening-audio' }, controls);
+  assert.deepEqual(blockIds(audio), ['listening-audio', 'listening-audio-again']);
 });
 
 test('a stage emptied by the cascade goes too; nothing is changed before applyDeletion', () => {
