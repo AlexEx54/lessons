@@ -10,7 +10,7 @@ const test = require('node:test');
 const { openDatabase } = require('../lib/db.js');
 const { listNotifications } = require('../lib/notification-store.js');
 const { createSession } = require('../lib/session-store.js');
-const { listSupportMessages, postTeacherMessage } = require('../lib/support-store.js');
+const { listSupportMessages, listSupportThreads, postSupportReply, postTeacherMessage } = require('../lib/support-store.js');
 const { createUser, publicUser } = require('../lib/user-store.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -80,6 +80,57 @@ test('reading from a position continues in order instead of jumping to the lates
   assert.deepEqual(read(ids[200]), ids.slice(201));
 });
 
+test('a support reply lands in the teacher thread, rings their bell and settles the question for every admin', () => {
+  const database = openDatabase(':memory:');
+  const teacher = addUser(database, 'anna@example.com', 'Анна');
+  const admin = addUser(database, 'admin@example.com', 'Админ', 'admin');
+  const colleague = addUser(database, 'second@example.com', 'Второй админ', 'admin');
+  postTeacherMessage(teacher, { clientId: randomUUID(), text: 'Как добавить ученика?' }, database);
+  assert.equal(listNotifications(colleague.id, database).unreadCount, 1);
+
+  const clientId = randomUUID();
+  const { message, created } = postSupportReply(admin, teacher.id, { clientId, text: 'Откройте «Классы»  и нажмите «Добавить».' }, database);
+  assert.equal(created, true);
+  assert.equal(message.sender, 'support');
+  assert.equal(listSupportMessages(teacher.id, {}, database).at(-1).id, message.id);
+  assert.equal(database.prepare('SELECT author_id FROM support_messages WHERE id = ?').get(message.id).author_id, admin.id);
+  assert.equal(postSupportReply(admin, teacher.id, { clientId, text: 'Повтор' }, database).created, false);
+
+  const { notifications, unreadCount } = listNotifications(teacher.id, database);
+  assert.equal(unreadCount, 1);
+  assert.equal(notifications[0].type, 'support_reply');
+  assert.equal(notifications[0].subjectKey, `support:${teacher.id}`);
+  assert.deepEqual(notifications[0].payload, { preview: 'Откройте «Классы» и нажмите «Добавить».' });
+  assert.equal(listNotifications(admin.id, database).unreadCount, 0);
+  assert.equal(listNotifications(colleague.id, database).unreadCount, 0);
+
+  assert.throws(() => postSupportReply(admin, randomUUID(), { clientId: randomUUID(), text: 'Кому?' }, database), { statusCode: 404 });
+});
+
+test('the inbox lists one row per teacher, those waiting for an answer first', () => {
+  const database = openDatabase(':memory:');
+  const anna = addUser(database, 'anna@example.com', 'Анна');
+  const boris = addUser(database, 'boris@example.com', '');
+  const vera = addUser(database, 'vera@example.com', 'Вера');
+  const admin = addUser(database, 'admin@example.com', 'Админ', 'admin');
+  addUser(database, 'silent@example.com', 'Молчит');
+  const write = (teacher, text) => postTeacherMessage(teacher, { clientId: randomUUID(), text }, database);
+  write(anna, 'Первый вопрос');
+  write(boris, 'Вопрос Бориса');
+  write(vera, 'Вопрос Веры');
+  write(anna, 'Второй вопрос');
+  postSupportReply(admin, vera.id, { clientId: randomUUID(), text: 'Готово' }, database);
+
+  const threads = listSupportThreads(database);
+  assert.deepEqual(threads.map(thread => [thread.teacherName, thread.preview, thread.waiting]), [
+    ['Анна', 'Второй вопрос', true],
+    ['boris@example.com', 'Вопрос Бориса', true],
+    ['Вера', 'Готово', false],
+  ]);
+  assert.equal(threads[0].teacherId, anna.id);
+  assert.equal(threads[0].teacherEmail, 'anna@example.com');
+});
+
 test('empty, oversized and unidentified messages are rejected', () => {
   const database = openDatabase(':memory:');
   const teacher = addUser(database, 'anna@example.com', 'Анна');
@@ -128,7 +179,7 @@ test('the support API keeps each teacher to their own thread', async t => {
     ...options,
     headers: { Cookie: `teach_session=${token}`, 'Content-Type': 'application/json', ...options.headers },
   });
-  const post = body => call('/api/support/messages', { method: 'POST', body: JSON.stringify(body) });
+  const post = (body, pathname = '/api/support/messages') => call(pathname, { method: 'POST', body: JSON.stringify(body) });
 
   assert.equal((await fetch(`${baseUrl}/api/support/messages`)).status, 401);
   assert.deepEqual(await (await call('/api/support/messages')).json(), { messages: [] });
@@ -146,4 +197,37 @@ test('the support API keeps each teacher to their own thread', async t => {
   const { messages } = await (await call('/api/support/messages')).json();
   assert.deepEqual(messages, [message]);
   assert.deepEqual(await (await call(`/api/support/messages?after=${message.id}`)).json(), { messages: [] });
+
+  assert.equal((await call('/api/support/threads')).status, 403);
+  assert.equal((await call(`/api/support/threads/${boris.id}/messages`)).status, 403);
+  assert.equal((await post({ clientId: randomUUID(), text: 'Ответ' }, `/api/support/threads/${boris.id}/messages`)).status, 403);
+});
+
+test('admins see the inbox and answer a teacher in their thread', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'teach-platform-support-'));
+  const database = openDatabase(path.join(directory, 'app.sqlite'));
+  const anna = addUser(database, 'anna@example.com', 'Анна');
+  const admin = addUser(database, 'admin@example.com', 'Админ', 'admin');
+  const question = postTeacherMessage(publicUser(anna), { clientId: randomUUID(), text: 'Где расписание?' }, database).message;
+  const { token } = createSession(admin.id, database);
+  database.close();
+  const baseUrl = await startServer(t, directory);
+  const call = (pathname, options = {}) => fetch(`${baseUrl}${pathname}`, {
+    ...options,
+    headers: { Cookie: `teach_session=${token}`, 'Content-Type': 'application/json' },
+  });
+  const thread = `/api/support/threads/${anna.id}/messages`;
+
+  const { threads } = await (await call('/api/support/threads')).json();
+  assert.deepEqual(threads.map(item => [item.teacherId, item.waiting]), [[anna.id, true]]);
+  assert.deepEqual((await (await call(thread)).json()).messages, [question]);
+  assert.equal((await call(`${thread}?after=x`)).status, 400);
+
+  const replied = await call(thread, { method: 'POST', body: JSON.stringify({ clientId: randomUUID(), text: 'Слева в меню.' }) });
+  assert.equal(replied.status, 201);
+  const { message } = await replied.json();
+  assert.equal(message.sender, 'support');
+  assert.deepEqual((await (await call(`${thread}?after=${question.id}`)).json()).messages, [message]);
+  assert.equal((await (await call('/api/support/threads')).json()).threads[0].waiting, false);
+  assert.equal((await call(`/api/support/threads/${randomUUID()}/messages`, { method: 'POST', body: JSON.stringify({ clientId: randomUUID(), text: 'Кому?' }) })).status, 404);
 });

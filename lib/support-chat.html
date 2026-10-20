@@ -1,20 +1,25 @@
-<section class="support-chat" id="support-chat" role="dialog" aria-labelledby="support-chat-title" hidden>
+<section class="support-chat" id="support-chat" role="dialog" aria-labelledby="support-chat-title" data-thread-key="{{SUPPORT_THREAD_KEY}}" hidden>
     <header class="support-chat__header">
-      <img class="support-chat__mark" src="/assets/images/easyclass-mark-cropped.png" alt="" width="34" height="28" />
+      <button class="support-chat__icon-button" type="button" aria-label="К обращениям" data-support-chat-back hidden>
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>
+      </button>
+      <img class="support-chat__mark" src="/assets/images/easyclass-mark-cropped.png" alt="" width="34" height="28" data-support-chat-mark />
       <div>
-        <h2 id="support-chat-title">Поддержка EasyClass</h2>
-        <small>Обычно отвечаем в течение часа</small>
+        <h2 id="support-chat-title" data-support-chat-title>Поддержка EasyClass</h2>
+        <small data-support-chat-subtitle>Обычно отвечаем в течение часа</small>
       </div>
-      <button class="support-chat__close" type="button" aria-label="Закрыть чат" data-support-chat-close>
+      <button class="support-chat__icon-button" type="button" aria-label="Закрыть чат" data-support-chat-close>
         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
       </button>
     </header>
     <div class="support-chat__scroll" data-support-chat-scroll>
       <ol class="support-chat__messages" data-support-chat-messages aria-live="polite">
-        <li class="support-message support-message--support">
+        <li class="support-message support-message--other" data-support-chat-welcome>
           <p>Здравствуйте! 👋 Это поддержка EasyClass. Если есть вопросы или пожелания, будем рады помочь. Обычно отвечаем в течение часа.</p>
         </li>
       </ol>
+      <ul class="support-threads" data-support-chat-threads hidden></ul>
+      <p class="support-threads__empty" data-support-chat-threads-empty hidden>Пока никто не писал в поддержку.</p>
     </div>
     <form class="support-chat__form" data-support-chat-form>
       <textarea name="text" rows="1" maxlength="2000" placeholder="Напишите сообщение…" aria-label="Сообщение в поддержку" required></textarea>
@@ -22,7 +27,7 @@
         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
       </button>
     </form>
-    <footer class="support-chat__footer">
+    <footer class="support-chat__footer" data-support-chat-footer>
       <span>Удобнее в мессенджере? <a href="{{SUPPORT_URL}}" target="_blank" rel="noopener">Напишите в Telegram</a></span>
       <a href="mailto:support@easyclass-edu.ru">support@easyclass-edu.ru</a>
     </footer>

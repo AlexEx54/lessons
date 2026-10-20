@@ -69,7 +69,7 @@ test('a guest support card opens the Telegram support group', async () => {
 
 test('a signed-in support card opens the support chat, which keeps Telegram and email as fallbacks', async () => {
   const html = await renderAppPage('library', {
-    user: { displayName: 'Анна', email: 'anna@example.com', role: 'teacher' },
+    user: { id: 'teacher-1', displayName: 'Анна', email: 'anna@example.com', role: 'teacher' },
   });
   const chat = html.match(/<section class="support-chat"[\s\S]*?<\/section>/)[0];
 
@@ -78,6 +78,7 @@ test('a signed-in support card opens the support chat, which keeps Telegram and 
   assert.match(chat, /maxlength="2000"/);
   assert.match(chat, /href="https:\/\/t\.me\/\+albE0gXCUfY1YmJi" target="_blank" rel="noopener"/);
   assert.match(chat, /href="mailto:support@easyclass-edu\.ru"/);
+  assert.match(chat, /data-thread-key="support:teacher-1"/);
   assert.match(html, /src="\/assets\/notifications\.js" defer><\/script>\n  <script src="\/assets\/support-chat\.js"/);
 });
 

@@ -43,7 +43,7 @@ const { createSession, deleteSession } = require('./lib/session-store.js');
 const { MAX_DISPLAY_NAME_LENGTH, findOrCreateYandexUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
 const { avatarFilePath, removeAvatar, replaceAvatar, updateProfile } = require('./lib/profile-store.js');
 const { listNotifications, markNotificationRead } = require('./lib/notification-store.js');
-const { listSupportMessages, postTeacherMessage } = require('./lib/support-store.js');
+const { listSupportMessages, listSupportThreads, postSupportReply, postTeacherMessage } = require('./lib/support-store.js');
 const { fetchYandexProfile, yandexAuthorizeUrl, yandexConfig } = require('./lib/yandex-auth.js');
 const { INVITE_TOKEN_PATTERN } = require('./lib/invite-token.js');
 const {
@@ -598,6 +598,32 @@ function loginRedirect(pathname) {
 // The library is the landing's main showcase, so guests get its registration window instead of the bare login page.
 function registrationRedirect(pathname) {
   return `/?auth=register&next=${encodeURIComponent(pathname)}`;
+}
+
+// Answers with the thread from the client's cursor, or rejects a malformed one.
+function sendSupportHistory(res, requestUrl, teacherId) {
+  const after = Number(requestUrl.searchParams.get('after') || 0);
+  if (!Number.isSafeInteger(after) || after < 0) {
+    json(res, 400, { error: 'Некорректная позиция истории.' });
+    return;
+  }
+  json(res, 200, { messages: listSupportMessages(teacherId, { after }, database) });
+}
+
+// `post` stores the parsed body; a repeated send answers 200 with the message already stored.
+async function saveSupportMessage(req, res, post) {
+  const input = await readJsonBody(req).catch(() => null);
+  if (!input) {
+    json(res, 400, { error: 'Некорректное сообщение.' });
+    return;
+  }
+  try {
+    const { message, created } = post(input);
+    json(res, created ? 201 : 200, { message });
+  } catch (error) {
+    if (!error.statusCode) console.error('Cannot save support message:', error);
+    json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось отправить сообщение.' });
+  }
 }
 
 function rejectEarlyResend(res, pending) {
@@ -1459,12 +1485,7 @@ async function handleRequest(req, res) {
   if (req.method === 'GET' && pathname === '/api/support/messages') {
     const user = requireTeacherAuth(req, res);
     if (!user) return;
-    const after = Number(requestUrl.searchParams.get('after') || 0);
-    if (!Number.isSafeInteger(after) || after < 0) {
-      json(res, 400, { error: 'Некорректная позиция истории.' });
-      return;
-    }
-    json(res, 200, { messages: listSupportMessages(user.id, { after }, database) });
+    sendSupportHistory(res, requestUrl, user.id);
     return;
   }
 
@@ -1475,18 +1496,23 @@ async function handleRequest(req, res) {
       json(res, 429, { error: 'Слишком много сообщений. Попробуйте через несколько минут.' });
       return;
     }
-    const input = await readJsonBody(req).catch(() => null);
-    if (!input) {
-      json(res, 400, { error: 'Некорректное сообщение.' });
-      return;
-    }
-    try {
-      const { message, created } = postTeacherMessage(user, input, database);
-      json(res, created ? 201 : 200, { message });
-    } catch (error) {
-      if (!error.statusCode) console.error('Cannot save support message:', error);
-      json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось отправить сообщение.' });
-    }
+    await saveSupportMessage(req, res, input => postTeacherMessage(user, input, database));
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/support/threads') {
+    if (!requireAdminAuth(req, res)) return;
+    json(res, 200, { threads: listSupportThreads(database) });
+    return;
+  }
+
+  const supportThread = pathname.match(/^\/api\/support\/threads\/([a-f0-9-]{36})\/messages$/i);
+  if (supportThread && ['GET', 'POST'].includes(req.method)) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    const teacherId = supportThread[1];
+    if (req.method === 'GET') sendSupportHistory(res, requestUrl, teacherId);
+    else await saveSupportMessage(req, res, input => postSupportReply(user, teacherId, input, database));
     return;
   }
 

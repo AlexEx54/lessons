@@ -15,7 +15,8 @@
   box-shadow: 0 24px 60px rgba(51, 36, 92, 0.22);
 }
 
-.support-chat[hidden] { display: none; }
+.support-chat[hidden],
+.support-chat [hidden] { display: none; }
 
 .support-chat__header {
   display: grid;
@@ -37,7 +38,7 @@
   font-size: 12px;
 }
 
-.support-chat__close {
+.support-chat__icon-button {
   display: grid;
   place-items: center;
   width: 36px;
@@ -46,9 +47,9 @@
   color: var(--muted);
 }
 
-.support-chat__close:hover { background: rgba(96, 54, 247, 0.08); }
+.support-chat__icon-button:hover { background: rgba(96, 54, 247, 0.08); }
 
-.support-chat__close svg,
+.support-chat__icon-button svg,
 .support-chat__send svg {
   width: 20px;
   height: 20px;
@@ -91,17 +92,17 @@
   overflow-wrap: anywhere;
 }
 
-.support-message--support { align-self: flex-start; }
+.support-message--other { align-self: flex-start; }
 
-.support-message--support p {
+.support-message--other p {
   border: 1px solid var(--line);
   border-bottom-left-radius: 5px;
   background: #fff;
 }
 
-.support-message--teacher { align-self: flex-end; }
+.support-message--own { align-self: flex-end; }
 
-.support-message--teacher p {
+.support-message--own p {
   border-bottom-right-radius: 5px;
   color: #fff;
   background: var(--purple);
@@ -116,7 +117,7 @@
 }
 
 .support-message__meta:empty { display: none; }
-.support-message--teacher .support-message__meta { text-align: right; }
+.support-message--own .support-message__meta { text-align: right; }
 .support-message--pending p { opacity: 0.7; }
 .support-message--failed p { background: #a7a2c4; }
 .support-message--failed .support-message__meta { color: #c62f4b; }
@@ -125,6 +126,66 @@
   color: var(--purple);
   font-weight: 700;
   text-decoration: underline;
+}
+
+.support-threads {
+  display: grid;
+  gap: 4px;
+  margin: -8px -6px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.support-thread {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 10px;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 12px;
+  text-align: left;
+}
+
+.support-thread:hover { background: rgba(96, 54, 247, 0.07); }
+
+.support-thread strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-thread time {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.support-thread span {
+  grid-column: 1 / -1;
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.support-thread__badge {
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--purple);
+  background: rgba(96, 54, 247, 0.1);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.support-threads__empty {
+  margin: 24px 0;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
 }
 
 .support-chat__form {
