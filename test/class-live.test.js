@@ -106,6 +106,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   const initialWrapUp = studentPayload.lesson.content.stages.find(stage => stage.id === 'wrap-up');
   assert.deepEqual(initialWrapUp.content.map(component => component.type), ['threeTwoOne', 'selfAssessment', 'markdownCard']);
   assert.ok(!JSON.stringify(studentPayload).includes('teacherNote'));
+  assert.equal(studentPayload.classPath, lesson.classInvitePath);
   function assertGuidedStudent(payload) {
     assert.ok(payload.availableStageIds.includes('guided-speaking'));
     const guided = payload.lesson.content.stages.find(stage => stage.id === 'guided-speaking');
@@ -117,6 +118,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   }
   assertGuidedStudent(studentPayload);
   const teacherPayload = await (await get(`/api/sessions/${lesson.id}/live?role=teacher`, teacherCookie)).json();
+  assert.equal(teacherPayload.classPath, undefined);
   assert.deepEqual(Object.keys(teacherPayload.lesson.content.stages.find(stage => stage.id === 'guided-speaking')
     .content.find(item => item.type === 'guidedRoleCards').presentation.roles), ['student', 'teacher']);
   const initialListening = studentPayload.lesson.content.stages.find(stage => stage.id === 'listening');

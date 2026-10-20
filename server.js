@@ -24,7 +24,7 @@ const {
 const { DEFAULT_DB_PATH, getDatabase } = require('./lib/db.js');
 const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, findLibraryAsset } = require('./lib/library-store.js');
 const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, findClassSessionAsset } = require('./lib/class-store.js');
-const { joinClass, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
+const { joinClass, classOverview, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
 const { createClassLiveSignaling } = require('./lib/class-live-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { sendRegistrationCode } = require('./lib/mailer.js');
@@ -133,6 +133,7 @@ const generationSubscribers = new Map();
 let videoCallSignaling = null;
 
 const CLASS_INVITE_PAGE = new RegExp(`^/join/(${INVITE_TOKEN_PATTERN})(?:/([a-f0-9-]{36}))?/?$`, 'i');
+const CLASS_OVERVIEW_API = new RegExp(`^/api/join/(${INVITE_TOKEN_PATTERN})$`, 'i');
 const GUEST_CALL_PAGE = new RegExp(`^/call/(${INVITE_TOKEN_PATTERN})/?$`, 'i');
 const LEGAL_PAGES = new Set(['/terms', '/privacy', '/consent']);
 
@@ -1636,6 +1637,13 @@ async function handleRequest(req, res) {
   const studentPage = pathname.match(/^\/sessions\/([a-f0-9-]{36})\/student\/?$/i);
   const liveDetail = pathname.match(/^\/api\/sessions\/([a-f0-9-]{36})\/live$/i);
   const classInvite = pathname.match(CLASS_INVITE_PAGE);
+  const classOverviewApi = pathname.match(CLASS_OVERVIEW_API);
+  // The invite token alone grants the class, as the class link does, so the overview needs no guest cookie.
+  if (req.method === 'GET' && classOverviewApi) {
+    try { json(res, 200, classOverview(classOverviewApi[1], database)); }
+    catch (error) { json(res, error.statusCode || 500, { error: error.message }); }
+    return;
+  }
   if (req.method === 'GET' && classInvite) {
     try {
       const joined = joinClass(req, classInvite[1], database, classInvite[2]);

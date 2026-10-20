@@ -10,7 +10,7 @@ const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
 const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, findClassSessionAsset } = require('../lib/class-store.js');
-const { joinClass } = require('../lib/class-live-store.js');
+const { joinClass, classOverview } = require('../lib/class-live-store.js');
 function fixture(t, dbPath = ':memory:') {
   const db = openDatabase(dbPath);
   t.after(() => db.close());
@@ -139,6 +139,28 @@ test('the class link opens the running session, otherwise the nearest upcoming o
   assert.throws(() => joinClass({ headers: {} }, token, db, plan().id), { statusCode: 404 });
   assert.throws(() => joinClass({ headers: {} }, 'missing', db), { statusCode: 404 });
 });
+test('the class home lists upcoming sessions nearest first and past ones newest first', t => {
+  const { db, teacher, plan } = fixture(t);
+  const first = plan();
+  const token = tokenOf(first);
+  const add = minutes => {
+    const session = plan({ className: undefined, classId: first.class_id });
+    db.prepare('UPDATE class_sessions SET scheduled_at = ? WHERE id = ?').run(new Date(Date.now() + minutes * 60000).toISOString(), session.id);
+    return session;
+  };
+  db.prepare('DELETE FROM class_sessions WHERE id = ?').run(first.id);
+  assert.deepEqual(classOverview(token, db), { className: 'Анна', current: null, upcoming: [], past: [] });
+  const lastWeek = add(-7 * 24 * 60), running = add(-10), nextWeek = add(7 * 24 * 60), tomorrow = add(24 * 60), cancelled = add(60);
+  updateClassSession(cancelled.id, { status: 'cancelled' }, teacher.id, db);
+  const overview = classOverview(token, db);
+  assert.deepEqual(overview.upcoming.map(item => item.id), [tomorrow.id, nextWeek.id]);
+  assert.deepEqual(overview.past.map(item => item.id), [running.id, lastWeek.id]);
+  assert.deepEqual(overview.current, overview.past[0]);
+  assert.deepEqual(Object.keys(overview.current).sort(), ['cover', 'duration', 'id', 'level', 'path', 'scheduledAt', 'title']);
+  assert.equal(overview.current.path, `/sessions/${running.id}/student`);
+  assert.equal(overview.current.cover, running.cover);
+  assert.throws(() => classOverview('missing', db), { statusCode: 404 });
+});
 test('session API creates once, renders schedule and teacher lesson, protects all routes and supports snapshot audio ranges', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'classes-http-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -172,7 +194,8 @@ test('session API creates once, renders schedule and teacher lesson, protects al
   const repeated = await (await request('/api/sessions', cookie, 'POST', input)).json();
   assert.equal(repeated.session.id, session.id);
   const next = await request('/api/sessions', cookie, 'POST', { ...input, className: undefined, classId: session.class_id, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-08T10:00:00.000Z' });
-  assert.equal((await next.json()).session.classInvitePath, session.classInvitePath);
+  const nextSession = (await next.json()).session;
+  assert.equal(nextSession.classInvitePath, session.classInvitePath);
   assert.equal((await (await request('/api/sessions')).json()).sessions.length, 2);
   assert.deepEqual((await (await request('/api/classes')).json()).classes.map(item => item.invitePath), [session.classInvitePath]);
   assert.equal((await (await request('/api/home-content')).json()).hasClasses, true);
@@ -183,11 +206,18 @@ test('session API creates once, renders schedule and teacher lesson, protects al
   assert.equal((await request(session.path, null)).status, 302);
   assert.equal((await request(session.path, otherCookie)).status, 404);
   assert.equal((await request(`/api/sessions/${session.id}`, otherCookie)).status, 404);
+  let guest;
   for (const link of [session.classInvitePath, session.sessionInvitePath]) {
-    const invite = await request(link, null);
+    const invite = await request(link, guest);
     assert.equal(invite.status, 302);
     assert.equal(invite.headers.get('location'), `${session.path}/student`);
+    guest ??= invite.headers.get('set-cookie').split(';')[0];
   }
+  const overview = await request(`/api${session.classInvitePath}`, null);
+  assert.equal(overview.status, 200);
+  assert.deepEqual((await overview.json()).upcoming.map(item => item.id), [session.id, nextSession.id]);
+  assert.equal((await request(`/api/join/missing-${'0'.repeat(48)}`, null)).status, 404);
+  assert.equal((await request(session.cover, guest)).status, 200);
   assert.equal((await request(`${session.classInvitePath}/${plan().id}`, null)).status, 404);
   const media = session.content.stages[0].content[0].audioSrc;
   db.prepare("UPDATE library_lessons SET is_published = 0 WHERE id = 'superhero'").run();
