@@ -61,18 +61,31 @@
           <img class="brand__mark" src="/assets/images/easyclass-mark-cropped.png" alt="" width="20" height="17" />
           <span>Easy<span>Class</span></span>
         </a>
-        <div class="mobile-profile-wrap">
-          <button class="mobile-avatar" id="mobile-profile-button" type="button" aria-label="Открыть профиль" aria-haspopup="menu" aria-expanded="false">
-            <img src="{{USER_AVATAR_URL}}" alt="" width="42" height="42" data-user-avatar />
-          </button>
-          <div class="mobile-profile-menu" id="mobile-profile-menu" role="menu" hidden>
-            <div class="mobile-profile-menu__identity">
-              <strong data-user-name>{{USER_DISPLAY_NAME}}</strong>
-              <small>{{USER_EMAIL}}</small>
-            </div>
-            <a class="profile-menu__login" href="/login" role="menuitem">Войти</a>
+        <div class="mobile-header__actions">
+          <div class="notifications-wrap" data-notifications>
+            <button class="notification-button" id="mobile-notifications-button" type="button" aria-label="Уведомления" aria-controls="mobile-notifications-panel" aria-expanded="false">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4"/></svg>
+              <span class="notification-button__badge" data-notifications-badge hidden></span>
+            </button>
+            <section class="notifications-panel" id="mobile-notifications-panel" aria-labelledby="mobile-notifications-title" hidden>
+              <h2 id="mobile-notifications-title">Уведомления</h2>
+              <ul class="notifications-list" data-notifications-list></ul>
+              <p class="notifications-panel__empty" data-notifications-empty>Пока уведомлений нет</p>
+            </section>
+          </div>
+          <div class="mobile-profile-wrap">
+            <button class="mobile-avatar" id="mobile-profile-button" type="button" aria-label="Открыть профиль" aria-haspopup="menu" aria-expanded="false">
+              <img src="{{USER_AVATAR_URL}}" alt="" width="42" height="42" data-user-avatar />
+            </button>
+            <div class="mobile-profile-menu" id="mobile-profile-menu" role="menu" hidden>
+              <div class="mobile-profile-menu__identity">
+                <strong data-user-name>{{USER_DISPLAY_NAME}}</strong>
+                <small>{{USER_EMAIL}}</small>
+              </div>
+              <a class="profile-menu__login" href="/login" role="menuitem">Войти</a>
 {{MOBILE_TEACHER_MENU_ITEMS}}
-            <button class="profile-menu__logout" id="mobile-logout-button" type="button" role="menuitem">Выйти</button>
+              <button class="profile-menu__logout" id="mobile-logout-button" type="button" role="menuitem">Выйти</button>
+            </div>
           </div>
         </div>
       </header>
@@ -83,13 +96,15 @@
           <p>{{PAGE_SUBTITLE}}</p>
         </div>
         <div class="account-actions">
-          <div class="notifications-wrap">
+          <div class="notifications-wrap" data-notifications>
           <button class="notification-button" id="notifications-button" type="button" aria-label="Уведомления" aria-controls="notifications-panel" aria-expanded="false">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4"/></svg>
+            <span class="notification-button__badge" data-notifications-badge hidden></span>
           </button>
           <section class="notifications-panel" id="notifications-panel" aria-labelledby="notifications-title" hidden>
             <h2 id="notifications-title">Уведомления</h2>
-            <p class="notifications-panel__empty">Пока уведомлений нет</p>
+            <ul class="notifications-list" data-notifications-list></ul>
+            <p class="notifications-panel__empty" data-notifications-empty>Пока уведомлений нет</p>
           </section>
           </div>
           <div class="profile-menu-wrap">

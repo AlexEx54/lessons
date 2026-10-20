@@ -14,10 +14,13 @@
   const mobileProfileMenu = document.getElementById('mobile-profile-menu');
   const notificationsButton = document.getElementById('notifications-button');
   const notificationsPanel = document.getElementById('notifications-panel');
+  const mobileNotificationsButton = document.getElementById('mobile-notifications-button');
+  const mobileNotificationsPanel = document.getElementById('mobile-notifications-panel');
   const headerMenus = [
     [profileButton, profileMenu],
     [mobileProfileButton, mobileProfileMenu],
     [notificationsButton, notificationsPanel],
+    [mobileNotificationsButton, mobileNotificationsPanel],
   ].filter(([button, menu]) => button && menu);
   const logoutButton = document.getElementById('logout-button');
   const mobileLogoutButton = document.getElementById('mobile-logout-button');
@@ -411,6 +414,6 @@
     if (!headerMenus.some(([, menu]) => menu.contains(event.target))) closeHeaderMenus();
     if (!event.target.closest('[data-new-lesson-select]')) closeNewLessonSelect();
   });
-  window.AppShell = Object.freeze({ closeNavigation, showToast });
+  window.AppShell = Object.freeze({ closeHeaderMenus, closeNavigation, showToast });
   syncViewportState();
 })();

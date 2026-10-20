@@ -49,6 +49,18 @@ test('teacher reaches video calls from the sidebar and both profile menus and ge
   assert.match(html, /src="\/assets\/video-call-presence\.js"/);
 });
 
+test('signed-in teacher gets the notifications bell in the desktop and mobile headers', async () => {
+  const html = await renderAppPage('home', {
+    user: { displayName: 'Анна', email: 'anna@example.com', role: 'teacher' },
+  });
+
+  assert.equal((html.match(/<div class="notifications-wrap" data-notifications>/g) || []).length, 2);
+  assert.match(html, /<div class="mobile-header__actions">\s*<div class="notifications-wrap" data-notifications>\s*<button class="notification-button" id="mobile-notifications-button"/);
+  assert.match(html, /id="notifications-button"[^>]*aria-controls="notifications-panel"/);
+  assert.match(html, /src="\/assets\/notifications\.js"/);
+  assert.doesNotMatch(await renderAppPage('library'), /src="\/assets\/notifications\.js"/);
+});
+
 test('support card opens the Telegram support group', async () => {
   const html = await renderAppPage('library');
   assert.match(html, /<a class="support-card" href="https:\/\/t\.me\/\+albE0gXCUfY1YmJi" target="_blank" rel="noopener">/);
@@ -91,7 +103,7 @@ test('schedule loads its scripts in order and shares the class modal and slot pi
   });
   const scripts = [...html.matchAll(/<script src="([^"]+)" defer><\/script>/g)].map(match => match[1]);
 
-  assert.deepEqual(scripts.slice(-6), ['/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js', '/assets/video-call-presence.js', '/assets/schedule.js']);
+  assert.deepEqual(scripts.slice(-7), ['/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js', '/assets/video-call-presence.js', '/assets/notifications.js', '/assets/schedule.js']);
   assert.match(html, /href="\/assets\/class-modal\.css"/);
   assert.match(html, /href="\/assets\/week-grid\.css"[\s\S]*href="\/assets\/schedule\.css"/);
   assert.equal((html.match(/id="class-modal"/g) || []).length, 1);

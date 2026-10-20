@@ -243,6 +243,7 @@ p { margin: 0; }
 }
 
 .notification-button {
+  position: relative;
   display: grid;
   place-items: center;
   width: 46px;
@@ -861,6 +862,33 @@ p { margin: 0; }
     background: var(--ink);
   }
 
+  .mobile-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mobile-header .notification-button {
+    width: 42px;
+    height: 42px;
+  }
+
+  .mobile-header .notification-button svg {
+    width: 25px;
+    height: 25px;
+  }
+
+  /* The bell sits near the screen edge, so its panel spans the viewport instead of centring on it. */
+  .mobile-header .notifications-panel {
+    position: fixed;
+    z-index: 40;
+    top: 72px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+    transform: none;
+  }
+
   .mobile-avatar {
     width: 42px;
     height: 42px;
@@ -1046,6 +1074,93 @@ p { margin: 0; }
   padding: 20px 0 8px;
   color: #746a8b;
   text-align: center;
+}
+
+.notifications-panel__empty[hidden] {
+  display: none;
+}
+
+.notification-button__badge {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 20px;
+  color: #fff;
+  background: #ff342e;
+  box-shadow: 0 0 0 2px #f5f4ff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.notification-button__badge[hidden] {
+  display: none;
+}
+
+.notifications-list {
+  display: grid;
+  gap: 2px;
+  max-height: min(420px, 60vh);
+  margin: 0 -8px;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.notifications-item {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 12px 10px 22px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #352b54;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notifications-item:hover {
+  background: #f4f0ff;
+}
+
+.notifications-item--unread {
+  position: relative;
+}
+
+.notifications-item--unread::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff342e;
+}
+
+.notifications-item strong {
+  font-size: 14px;
+}
+
+.notifications-item span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #5b5174;
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.notifications-item time {
+  color: #8d84a3;
+  font-size: 12px;
 }
 
 .profile-menu {

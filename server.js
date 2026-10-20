@@ -42,6 +42,7 @@ const {
 const { createSession, deleteSession } = require('./lib/session-store.js');
 const { MAX_DISPLAY_NAME_LENGTH, findOrCreateYandexUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
 const { avatarFilePath, removeAvatar, replaceAvatar, updateProfile } = require('./lib/profile-store.js');
+const { listNotifications, markNotificationRead } = require('./lib/notification-store.js');
 const { fetchYandexProfile, yandexAuthorizeUrl, yandexConfig } = require('./lib/yandex-auth.js');
 const { INVITE_TOKEN_PATTERN } = require('./lib/invite-token.js');
 const {
@@ -1429,6 +1430,26 @@ async function handleRequest(req, res) {
       if (!error.statusCode) console.error('Cannot update avatar:', error);
       json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось сохранить аватарку.' });
     }
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/notifications') {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    json(res, 200, listNotifications(user.id, database));
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/notifications/read') {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    const { subjectKey } = await readJsonBody(req).catch(() => ({}));
+    if (typeof subjectKey !== 'string' || !subjectKey) {
+      json(res, 400, { error: 'Не указано уведомление.' });
+      return;
+    }
+    markNotificationRead(user.id, subjectKey, database);
+    json(res, 200, listNotifications(user.id, database));
     return;
   }
 
