@@ -43,6 +43,7 @@ const { createSession, deleteSession } = require('./lib/session-store.js');
 const { MAX_DISPLAY_NAME_LENGTH, findOrCreateYandexUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
 const { avatarFilePath, removeAvatar, replaceAvatar, updateProfile } = require('./lib/profile-store.js');
 const { listNotifications, markNotificationRead } = require('./lib/notification-store.js');
+const { listSupportMessages, postTeacherMessage } = require('./lib/support-store.js');
 const { fetchYandexProfile, yandexAuthorizeUrl, yandexConfig } = require('./lib/yandex-auth.js');
 const { INVITE_TOKEN_PATTERN } = require('./lib/invite-token.js');
 const {
@@ -161,6 +162,8 @@ const REGISTRATION_CODE_ERRORS = Object.freeze({
 });
 // Caps code emails per client IP, so the form cannot be used to mail many strangers.
 const registrationMailLimiter = createRateLimiter({ limit: 10, windowMs: 60 * 60 * 1000 });
+// Generous for a real conversation, but stops a script from flooding every admin's bell.
+const supportMessageLimiter = createRateLimiter({ limit: 20, windowMs: 10 * 60 * 1000 });
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_DRAFT_AUDIO_BYTES = 20 * 1024 * 1024;
 const IMAGE_TYPES = Object.freeze({
@@ -1450,6 +1453,40 @@ async function handleRequest(req, res) {
     }
     markNotificationRead(user.id, subjectKey, database);
     json(res, 200, listNotifications(user.id, database));
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/support/messages') {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    const after = Number(requestUrl.searchParams.get('after') || 0);
+    if (!Number.isSafeInteger(after) || after < 0) {
+      json(res, 400, { error: 'Некорректная позиция истории.' });
+      return;
+    }
+    json(res, 200, { messages: listSupportMessages(user.id, { after }, database) });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/support/messages') {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    if (!supportMessageLimiter.take(user.id)) {
+      json(res, 429, { error: 'Слишком много сообщений. Попробуйте через несколько минут.' });
+      return;
+    }
+    const input = await readJsonBody(req).catch(() => null);
+    if (!input) {
+      json(res, 400, { error: 'Некорректное сообщение.' });
+      return;
+    }
+    try {
+      const { message, created } = postTeacherMessage(user, input, database);
+      json(res, created ? 201 : 200, { message });
+    } catch (error) {
+      if (!error.statusCode) console.error('Cannot save support message:', error);
+      json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось отправить сообщение.' });
+    }
     return;
   }
 

@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="{{PAGE_STYLESHEET}}" />
   <link rel="stylesheet" href="/assets/app-shell.css" />
   <link rel="stylesheet" href="/assets/lesson-publication.css" />
+  <link rel="stylesheet" href="/assets/support-chat.css" />
 </head>
 <body data-page="{{PAGE_ID}}" data-auth-state="{{AUTH_STATE}}" data-user-role="{{USER_ROLE}}">
   <div class="app-shell">
@@ -46,10 +47,7 @@
         </a>
       </nav>
 
-      <a class="support-card" href="{{SUPPORT_URL}}" target="_blank" rel="noopener">
-        <span class="support-card__icon" aria-hidden="true">?</span>
-        <span><strong>Нужна помощь?</strong><small>Напишите нам в поддержку</small></span>
-      </a>
+{{SUPPORT_CARD}}
     </aside>
 
     <main class="content {{CONTENT_CLASS}}">
@@ -128,6 +126,7 @@
 
 {{NEW_LESSON_MODAL}}
 {{CLASS_MODAL}}
+{{SUPPORT_CHAT}}
   <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   <script src="/assets/app-shell.js" defer></script>
   <script src="/assets/lesson-publication.js" defer></script>

@@ -61,9 +61,24 @@ test('signed-in teacher gets the notifications bell in the desktop and mobile he
   assert.doesNotMatch(await renderAppPage('library'), /src="\/assets\/notifications\.js"/);
 });
 
-test('support card opens the Telegram support group', async () => {
+test('a guest support card opens the Telegram support group', async () => {
   const html = await renderAppPage('library');
   assert.match(html, /<a class="support-card" href="https:\/\/t\.me\/\+albE0gXCUfY1YmJi" target="_blank" rel="noopener">/);
+  assert.doesNotMatch(html, /id="support-chat"|support-chat\.js/);
+});
+
+test('a signed-in support card opens the support chat, which keeps Telegram and email as fallbacks', async () => {
+  const html = await renderAppPage('library', {
+    user: { displayName: 'Анна', email: 'anna@example.com', role: 'teacher' },
+  });
+  const chat = html.match(/<section class="support-chat"[\s\S]*?<\/section>/)[0];
+
+  assert.match(html, /<button class="support-card" type="button" aria-controls="support-chat" aria-expanded="false" data-support-chat-open>/);
+  assert.match(chat, /Здравствуйте! 👋 Это поддержка EasyClass\. Если есть вопросы или пожелания, будем рады помочь\. Обычно отвечаем в течение часа\./);
+  assert.match(chat, /maxlength="2000"/);
+  assert.match(chat, /href="https:\/\/t\.me\/\+albE0gXCUfY1YmJi" target="_blank" rel="noopener"/);
+  assert.match(chat, /href="mailto:support@easyclass-edu\.ru"/);
+  assert.match(html, /src="\/assets\/notifications\.js" defer><\/script>\n  <script src="\/assets\/support-chat\.js"/);
 });
 
 test('admin sees lesson creation and drafts links in both profile menus', async () => {
@@ -103,7 +118,7 @@ test('schedule loads its scripts in order and shares the class modal and slot pi
   });
   const scripts = [...html.matchAll(/<script src="([^"]+)" defer><\/script>/g)].map(match => match[1]);
 
-  assert.deepEqual(scripts.slice(-7), ['/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js', '/assets/video-call-presence.js', '/assets/notifications.js', '/assets/schedule.js']);
+  assert.deepEqual(scripts.slice(-8), ['/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js', '/assets/video-call-presence.js', '/assets/notifications.js', '/assets/support-chat.js', '/assets/schedule.js']);
   assert.match(html, /href="\/assets\/class-modal\.css"/);
   assert.match(html, /href="\/assets\/week-grid\.css"[\s\S]*href="\/assets\/schedule\.css"/);
   assert.equal((html.match(/id="class-modal"/g) || []).length, 1);

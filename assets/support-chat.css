@@ -1,0 +1,203 @@
+/* Opens beside the sidebar, next to the "Нужна помощь?" card; full screen on phones. */
+.support-chat {
+  position: fixed;
+  bottom: 26px;
+  left: 276px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  width: 380px;
+  height: min(580px, calc(100vh - 52px));
+  overflow: hidden;
+  border: 1px solid rgba(63, 46, 110, 0.12);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(51, 36, 92, 0.22);
+}
+
+.support-chat[hidden] { display: none; }
+
+.support-chat__header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 14px 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, #faf9ff, #f1edff);
+}
+
+.support-chat__header h2 {
+  margin: 0 0 3px;
+  font-size: 16px;
+}
+
+.support-chat__header small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.support-chat__close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--muted);
+}
+
+.support-chat__close:hover { background: rgba(96, 54, 247, 0.08); }
+
+.support-chat__close svg,
+.support-chat__send svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.support-chat__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 16px 10px;
+  background: #fbfaff;
+}
+
+.support-chat__messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.support-message {
+  max-width: 85%;
+}
+
+.support-message p {
+  margin: 0;
+  padding: 10px 13px;
+  border-radius: 15px;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.support-message--support { align-self: flex-start; }
+
+.support-message--support p {
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 5px;
+  background: #fff;
+}
+
+.support-message--teacher { align-self: flex-end; }
+
+.support-message--teacher p {
+  border-bottom-right-radius: 5px;
+  color: #fff;
+  background: var(--purple);
+}
+
+.support-message__meta {
+  display: block;
+  margin-top: 4px;
+  padding-inline: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.support-message__meta:empty { display: none; }
+.support-message--teacher .support-message__meta { text-align: right; }
+.support-message--pending p { opacity: 0.7; }
+.support-message--failed p { background: #a7a2c4; }
+.support-message--failed .support-message__meta { color: #c62f4b; }
+
+.support-message__meta button {
+  color: var(--purple);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.support-chat__form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 12px 10px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.support-chat__form textarea {
+  flex: 1;
+  min-height: 42px;
+  max-height: 132px;
+  padding: 10px 12px;
+  border: 1px solid var(--control-line);
+  border-radius: 12px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  resize: none;
+}
+
+.support-chat__form textarea:focus {
+  border-color: var(--purple);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(96, 54, 247, 0.14);
+}
+
+.support-chat__send {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: #fff;
+  background: var(--purple);
+}
+
+.support-chat__send:hover { background: var(--purple-dark); }
+
+.support-chat__footer {
+  display: grid;
+  gap: 3px;
+  padding: 0 16px 14px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.support-chat__footer a {
+  color: var(--purple);
+  font-weight: 600;
+}
+
+@media (max-width: 1180px) {
+  .support-chat { left: 256px; }
+}
+
+@media (max-width: 860px) {
+  .support-chat {
+    inset: 0;
+    width: auto;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .support-chat__header { padding-top: max(16px, env(safe-area-inset-top)); }
+  .support-chat__footer { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+  /* iOS zooms into inputs with text smaller than 16px. */
+  .support-chat__form textarea { font-size: 16px; }
+  body.support-chat-open { overflow: hidden; }
+}
