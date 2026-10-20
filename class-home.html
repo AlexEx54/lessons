@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f4f2ff" />
+  <title>Ваш класс — EasyClass</title>
+  <link rel="stylesheet" href="/assets/login.css" />
+  <link rel="stylesheet" href="/assets/class-home.css" />
+  <script src="/assets/class-home.js" defer></script>
+</head>
+<body>
+  <main class="login-page">
+    <a class="login-brand" href="/" aria-label="EasyClass — главная">
+      <img src="/assets/images/easyclass-mark-cropped.png" alt="" width="44" height="36" />
+      <span>Easy<strong>Class</strong></span>
+    </a>
+
+    <p class="class-home__loading" id="class-home-loading">Загружаем занятия…</p>
+
+    <section class="login-card class-home" id="class-home" aria-labelledby="class-home-title" hidden>
+      <p class="login-card__eyebrow" id="class-home-class">Ваш класс</p>
+      <div id="class-home-current" hidden>
+        <img class="class-home__cover" id="class-home-cover" alt="" hidden />
+        <p class="class-home__when" id="class-home-when"></p>
+        <h1 id="class-home-title"></h1>
+        <p class="class-home__meta" id="class-home-meta"></p>
+      </div>
+      <div id="class-home-empty" hidden>
+        <h1 id="class-home-empty-title">Следующее занятие пока не назначено</h1>
+        <p class="login-card__intro">Когда преподаватель запланирует занятие, оно появится здесь.</p>
+      </div>
+      <div class="class-home__actions">
+        <a class="class-home__enter" id="class-home-enter" hidden>Перейти к занятию</a>
+        <a class="class-home__all" id="class-home-all" hidden>Все занятия</a>
+      </div>
+    </section>
+
+    <section class="login-card class-sessions" id="class-sessions" aria-labelledby="class-sessions-title" hidden>
+      <a class="class-sessions__back" id="class-sessions-back">← На главную</a>
+      <p class="login-card__eyebrow" id="class-sessions-class"></p>
+      <h1 id="class-sessions-title">Занятия</h1>
+      <div class="class-sessions__tabs" role="tablist" aria-label="Занятия">
+        <button id="class-sessions-tab-upcoming" type="button" role="tab" aria-controls="class-sessions-list" data-tab="upcoming">Предстоящие <span></span></button>
+        <button id="class-sessions-tab-past" type="button" role="tab" aria-controls="class-sessions-list" data-tab="past">Прошедшие <span></span></button>
+      </div>
+      <ul class="class-sessions__list" id="class-sessions-list" role="tabpanel"></ul>
+      <p class="class-sessions__empty" id="class-sessions-empty" hidden></p>
+    </section>
+
+    <section class="login-card" id="class-home-error" aria-labelledby="class-home-error-title" hidden>
+      <h1 id="class-home-error-title">Не удалось открыть класс</h1>
+      <p class="login-card__intro" id="class-home-error-message"></p>
+    </section>
+  </main>
+</body>
+</html>

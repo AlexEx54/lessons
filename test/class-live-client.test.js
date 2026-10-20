@@ -55,10 +55,22 @@ async function fixture(role = 'student', quiz = null, globals = {}) {
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/class-component-adapters.js'), 'utf8'), { window });
   const createView = window.LessonView.create;
   window.LessonView.create = value => { settings = value; return createView(value); };
-  vm.runInNewContext(source, { window, document, WebSocket: Socket, structuredClone, fetch: async () => ({ ok: true, json: async () => ({ state: initial, lesson, availableStageIds }) }) });
+  vm.runInNewContext(source, { window, document, WebSocket: Socket, structuredClone, fetch: async () => ({ ok: true, json: async () => ({ state: initial, lesson, availableStageIds, ...(role === 'student' ? { classPath: '/join/anna-x' } : {}) }) }) });
   await new Promise(resolve => setImmediate(resolve));
-  return { settings, sockets, timers, intervals, frames, initial, lesson, document, isInteractive: () => interactive, status };
+  return { settings, sockets, timers, intervals, frames, initial, lesson, document, selectors, isInteractive: () => interactive, status };
 }
+test('student header leads to the class sessions and the teacher header to the schedule', async () => {
+  const student = await fixture('student');
+  const exit = student.selectors['.end-lesson'];
+  assert.equal(exit.hidden, false);
+  assert.equal(exit.href, '/join/anna-x/sessions');
+  assert.equal(exit.children[0].textContent, 'Все занятия');
+  assert.ok(exit.classList.contains('end-lesson--classes'));
+  assert.equal(student.selectors['.lesson-brand'].href, '/join/anna-x');
+  const teacher = await fixture('teacher');
+  assert.equal(teacher.selectors['.end-lesson'].href, '/schedule');
+  assert.equal(teacher.selectors['.end-lesson'].children[0].textContent, 'В расписание');
+});
 test('lesson timer is local to the teacher view and stays hidden from the student', async () => {
   const teacher = await fixture('teacher');
   const teacherTimer = teacher.document.getElementById('lesson-timer');

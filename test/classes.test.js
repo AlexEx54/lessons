@@ -114,13 +114,13 @@ test('clearing sessions removes every owner session with its media but keeps cla
   assert.equal(listClasses(teacher.id, db).length, 2);
   assert.equal(clearClassSessions(teacher.id, db), 0);
 });
-test('the class link opens the running session, otherwise the nearest upcoming one', t => {
+test('the class home offers the running session, otherwise the nearest upcoming one', t => {
   const { db, teacher, plan } = fixture(t);
   const first = plan();
   const token = tokenOf(first);
   const at = minutes => new Date(Date.now() + minutes * 60000).toISOString();
   const schedule = (session, minutes) => db.prepare('UPDATE class_sessions SET scheduled_at = ? WHERE id = ?').run(at(minutes), session.id);
-  const current = () => joinClass({ headers: {} }, token, db).sessionId;
+  const current = () => classOverview(token, db).current?.id ?? null;
   const add = minutes => { const session = plan({ className: undefined, classId: first.class_id }); schedule(session, minutes); return session; };
   schedule(first, -200);
   assert.equal(current(), null);
@@ -134,6 +134,7 @@ test('the class link opens the running session, otherwise the nearest upcoming o
   assert.equal(current(), running.id);
   schedule(running, -100);
   assert.equal(current(), tomorrow.id);
+  assert.equal(joinClass({ headers: {} }, token, db).sessionId, null);
   assert.equal(joinClass({ headers: {} }, token, db, nextWeek.id).sessionId, nextWeek.id);
   assert.throws(() => joinClass({ headers: {} }, token, db, backToBack.id), { statusCode: 404 });
   assert.throws(() => joinClass({ headers: {} }, token, db, plan().id), { statusCode: 404 });
@@ -206,13 +207,17 @@ test('session API creates once, renders schedule and teacher lesson, protects al
   assert.equal((await request(session.path, null)).status, 302);
   assert.equal((await request(session.path, otherCookie)).status, 404);
   assert.equal((await request(`/api/sessions/${session.id}`, otherCookie)).status, 404);
-  let guest;
-  for (const link of [session.classInvitePath, session.sessionInvitePath]) {
-    const invite = await request(link, guest);
-    assert.equal(invite.status, 302);
-    assert.equal(invite.headers.get('location'), `${session.path}/student`);
-    guest ??= invite.headers.get('set-cookie').split(';')[0];
-  }
+  const home = await request(session.classInvitePath, null);
+  assert.equal(home.status, 200);
+  assert.match(await home.text(), /src="\/assets\/class-home\.js"/);
+  const guest = home.headers.get('set-cookie').split(';')[0];
+  const list = await request(`${session.classInvitePath}/sessions`, guest);
+  assert.equal(list.status, 200);
+  assert.equal(list.headers.get('set-cookie'), null);
+  assert.match(await list.text(), /id="class-sessions"/);
+  const invite = await request(session.sessionInvitePath, guest);
+  assert.equal(invite.status, 302);
+  assert.equal(invite.headers.get('location'), `${session.path}/student`);
   const overview = await request(`/api${session.classInvitePath}`, null);
   assert.equal(overview.status, 200);
   assert.deepEqual((await overview.json()).upcoming.map(item => item.id), [session.id, nextSession.id]);
@@ -241,10 +246,10 @@ test('session API creates once, renders schedule and teacher lesson, protects al
   assert.deepEqual(await (await request('/api/sessions', cookie, 'DELETE')).json(), { deleted: 3 });
   assert.equal((await request(detail)).status, 404);
   assert.equal((await request(media)).status, 404);
-  const waiting = await request(session.classInvitePath, null);
-  assert.equal(waiting.status, 200);
-  assert.match(waiting.headers.get('set-cookie'), /^class_guest_/);
-  assert.match(await waiting.text(), /Следующее занятие пока не назначено/);
+  const emptyHome = await request(session.classInvitePath, null);
+  assert.equal(emptyHome.status, 200);
+  assert.match(emptyHome.headers.get('set-cookie'), /^class_guest_/);
+  assert.equal((await (await request(`/api${session.classInvitePath}`, null)).json()).current, null);
   assert.equal((await (await request('/api/classes')).json()).classes.length, 2);
 });
 

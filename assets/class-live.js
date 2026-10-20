@@ -56,6 +56,14 @@
   const exit = document.querySelector('.end-lesson');
   if (role === 'teacher') { exit.href = '/schedule'; exit.querySelector('span').textContent = 'В расписание'; }
   else { exit.hidden = true; document.querySelector('.lesson-brand').href = window.location.pathname; }
+  // The student leaves a session for the class home and its list of sessions.
+  function showClassLinks(classPath) {
+    document.querySelector('.lesson-brand').href = classPath;
+    exit.href = `${classPath}/sessions`;
+    exit.querySelector('span').textContent = 'Все занятия';
+    exit.classList.add('end-lesson--classes');
+    exit.hidden = false;
+  }
   function notify(message) {
     const toast = byId('lesson-toast');
     toast.textContent = message;
@@ -257,6 +265,7 @@
       confirmed = payload.state;
       pointerComponentIds = payload.pointerComponentIds || [];
       availableStageIds = payload.availableStageIds;
+      if (payload.classPath) showClassLinks(payload.classPath);
       view.render(payload.lesson.content);
       window.LessonNotes?.mount({ mode: 'class', id: sessionId, role });
       paint();

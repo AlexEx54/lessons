@@ -132,7 +132,8 @@ const generationControllers = new Map();
 const generationSubscribers = new Map();
 let videoCallSignaling = null;
 
-const CLASS_INVITE_PAGE = new RegExp(`^/join/(${INVITE_TOKEN_PATTERN})(?:/([a-f0-9-]{36}))?/?$`, 'i');
+// `/join/:token` and `/join/:token/sessions` are the class home; `/join/:token/:sessionId` enters that session.
+const CLASS_INVITE_PAGE = new RegExp(`^/join/(${INVITE_TOKEN_PATTERN})(?:/([a-f0-9-]{36})|/sessions)?/?$`, 'i');
 const CLASS_OVERVIEW_API = new RegExp(`^/api/join/(${INVITE_TOKEN_PATTERN})$`, 'i');
 const GUEST_CALL_PAGE = new RegExp(`^/call/(${INVITE_TOKEN_PATTERN})/?$`, 'i');
 const LEGAL_PAGES = new Set(['/terms', '/privacy', '/consent']);
@@ -1649,7 +1650,7 @@ async function handleRequest(req, res) {
       const joined = joinClass(req, classInvite[1], database, classInvite[2]);
       if (joined.cookie) res.setHeader('Set-Cookie', joined.cookie);
       if (joined.sessionId) redirect(res, `/sessions/${joined.sessionId}/student`);
-      else serveStatic('/class-waiting.html', res);
+      else serveStatic('/class-home.html', res);
     } catch (error) { json(res, error.statusCode || 500, { error: error.message }); }
     return;
   }

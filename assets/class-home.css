@@ -1,0 +1,72 @@
+/* The class home reuses the login card; this file adds the session card, the buttons and the session list. */
+.class-home__loading { margin: 0; color: #716889; font-weight: 600; }
+.class-home h1, .class-sessions h1, #class-home-error h1 { white-space: normal; }
+.class-home .login-card__intro { margin-bottom: 0; }
+
+.class-home__cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin: 6px 0 22px;
+  border-radius: 18px;
+  background: #ece6fb;
+  object-fit: cover;
+}
+.class-home__when { margin: 0 0 8px; color: #7955dc; font-size: 14px; font-weight: 750; }
+.class-home__meta { margin: 10px 0 0; color: #716889; }
+
+.class-home__actions { display: grid; gap: 12px; margin-top: 30px; }
+.class-home__actions a[hidden] { display: none; }
+.class-home__enter, .class-home__all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 20px;
+  border-radius: 14px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+}
+.class-home__enter { min-height: 60px; background: #7650dc; color: #fff; font-size: 18px; box-shadow: 0 12px 28px rgba(118, 80, 220, 0.28); }
+.class-home__enter:hover { background: #6842ce; }
+.class-home__all { border: 1px solid #d9d2e9; background: #fff; color: #5b3fc0; }
+.class-home__all:hover { border-color: #b9a8ee; background: #f7f4ff; }
+
+.class-sessions { width: min(100%, 600px); }
+.class-sessions__back { display: inline-block; margin-bottom: 18px; color: #7955dc; font-weight: 700; text-decoration: none; }
+.class-sessions__back:hover { text-decoration: underline; }
+
+.class-sessions__tabs { display: flex; gap: 6px; margin: 22px 0 16px; padding: 4px; border-radius: 14px; background: #f1edfb; }
+.class-sessions__tabs button { flex: 1; min-height: 42px; border-radius: 11px; background: transparent; color: #716889; font-size: 15px; }
+.class-sessions__tabs button:hover { background: rgba(255, 255, 255, 0.6); }
+.class-sessions__tabs button[aria-selected="true"] { background: #fff; color: #352b54; box-shadow: 0 2px 8px rgba(65, 45, 116, 0.1); }
+.class-sessions__tabs span { color: #9a91b0; font-weight: 700; }
+
+.class-sessions__list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.class-sessions__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid #ebe6f6;
+  border-radius: 16px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+}
+.class-sessions__item:hover { border-color: #c9b9f3; background: #faf8ff; }
+.class-sessions__thumb { flex: none; width: 76px; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 11px; background: #ece6fb; }
+.class-sessions__thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.class-sessions__text { display: grid; flex: 1; gap: 3px; min-width: 0; }
+.class-sessions__text strong { overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.class-sessions__when { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: #7955dc; font-size: 13px; font-weight: 750; }
+.class-sessions__live { padding: 2px 8px; border-radius: 999px; background: #e3f7c4; color: #3d6a07; font-size: 12px; }
+.class-sessions__meta { color: #8a82a0; font-size: 13px; }
+.class-sessions__arrow { flex: none; color: #b3a9cc; font-size: 26px; line-height: 1; }
+.class-sessions__empty { margin: 8px 0 0; color: #716889; }
+
+@media (max-width: 520px) {
+  .class-sessions { padding: 26px 16px; }
+  .class-sessions__thumb { width: 60px; }
+}
