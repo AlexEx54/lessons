@@ -24,7 +24,7 @@ const CONTROLS = [
     exports: (component, { params }) => ({
       guesses: component.items.slice(-params.guesses).map((text, index) => ({ number: params.checks + index + 1, text })),
     }),
-    answerKey: component => [{ text: component.items.join(' / ') }],
+    answerKey: ({ component }) => ({ list: true, lines: component.items.map((text, index) => `${index + 1}. ${text}`) }),
     example: ({ params }) => ({
       checks: Array.from({ length: params.checks }, (_, index) => `Check ${index + 1}.`),
       guesses: Array.from({ length: params.guesses }, (_, index) => `Guess ${index + 1}.`),
@@ -91,16 +91,16 @@ const CONTROLS = [
     exports: component => ({ vocabulary: component.items }),
   },
   {
-    type: 'answerKey',
+    type: 'checksCard',
     kind: 'derived',
     chrome: ['title'],
-    acceptsSource: control => (control.answerKey ? null : `у ${control.type} нет ключа ответов.`),
-    sourceLabel: 'ответы',
+    acceptsSource: control => (control.type === 'guessGame' ? null : `у ${control.type} нет проверок.`),
+    sourceLabel: 'проверки',
     build: ({ sources }, { id, chrome }) => ({
       type: 'markdownCard',
       id,
-      title: chrome.title || 'Answer key',
-      text: sources.flatMap(source => source.control.answerKey(source.component)).map(part => part.text).join('\n'),
+      title: chrome.title || 'Checks',
+      text: sources.flatMap(source => source.component.items).join(' / '),
     }),
   },
   {
@@ -146,8 +146,8 @@ function definition() {
           { id: 'guess-note', kind: 'static', component: { type: 'teacherNote', text: 'Say "{{firstCheck}}" first. Success: {{success}}' },
             slots: { firstCheck: { from: 'guess-game.items[0]' }, success: { rule: 'One measurable sentence.' } } },
           { id: 'guess-game', kind: 'generated', control: 'guessGame', params: { checks: 2 }, chrome: { title: 'Fact or Myth?' },
-            exports: { guesses: 'guesses' } },
-          { id: 'guess-key', kind: 'derived', control: 'answerKey', from: ['guess-game'] },
+            exports: { guesses: 'guesses' }, answerKey: { title: 'Answers' } },
+          { id: 'guess-checks', kind: 'derived', control: 'checksCard', from: ['guess-game'] },
         ],
       },
       {
@@ -263,9 +263,14 @@ test('apply builds stages in display order, fills slots and passes variables on'
   const state = runAll(plan, { guess: GUESS_ANSWER, vocabulary: VOCABULARY_ANSWER });
   const [, recap, guess, vocabulary] = state.lesson.stages;
 
-  assert.deepEqual(guess.content.map(component => component.id), ['guess-note', 'guess-game', 'guess-key']);
+  assert.deepEqual(guess.content.map(component => component.id), ['guess-note', 'guess-game', 'guess-game-answer-key', 'guess-checks']);
   assert.equal(guess.content[0].text, 'Say "Cats can swim." first. Success: The student explains two answers.');
-  assert.equal(guess.content[2].text, 'Cats can swim. / Dogs fly. / Somebody in our stories has a red hat.');
+  assert.deepEqual(guess.content[2], {
+    type: 'markdownCard', id: 'guess-game-answer-key', title: 'Answers',
+    text: '1. Cats can swim.\n2. Dogs fly.\n3. Somebody in our stories has a red hat.',
+    icon: 'check', accentColor: '#20A85B', studentVisibility: 'teacherOnly',
+  });
+  assert.equal(guess.content[3].text, 'Cats can swim. / Dogs fly. / Somebody in our stories has a red hat.');
 
   assert.deepEqual(vocabulary.content.map(component => component.id), ['vocabulary-stories', 'vocabulary-list', 'vocabulary-support']);
   assert.deepEqual(vocabulary.content[0].guesses, [3]);
@@ -404,11 +409,11 @@ test('validation reports block-level mistakes', () => {
     block(template, 'guess', 'guess-game').chrome.accentColor = '#fff';
     block(template, 'guess', 'guess-note').component.text += ' {{unknown}}';
     block(template, 'guess', 'guess-note').slots.unused = { rule: 'Never used.' };
-    guess.blocks.push({ id: 'guess-key-2', kind: 'derived', control: 'answerKey', from: ['vocabulary-list'] });
-    guess.blocks.push({ id: 'guess-starters', kind: 'generated', control: 'bullets' });
-    guess.blocks.push({ id: 'guess-starters-key', kind: 'derived', control: 'answerKey', from: ['guess-starters'] });
+    guess.blocks.push({ id: 'guess-checks-2', kind: 'derived', control: 'checksCard', from: ['vocabulary-list'] });
+    guess.blocks.push({ id: 'guess-starters', kind: 'generated', control: 'bullets', answerKey: {} });
+    guess.blocks.push({ id: 'guess-starters-checks', kind: 'derived', control: 'checksCard', from: ['guess-starters'] });
     guess.blocks.push({ id: 'guess-mystery', kind: 'generated', control: 'mystery' });
-    guess.blocks.push({ id: 'guess-key-3', kind: 'derived', control: 'answerKey' });
+    guess.blocks.push({ id: 'guess-checks-3', kind: 'derived', control: 'checksCard' });
     guess.blocks.push({ id: 'guess-game', kind: 'static', component: { type: 'teacherNote' } });
     guess.blocks.push({ id: 'guess-empty-note', kind: 'static', component: { type: 'teacherNote', text: ' ' } });
     guess.blocks.push({ id: 'guess-quiz', kind: 'static', component: { type: 'oddOneOut', items: [] } });
@@ -419,12 +424,33 @@ test('validation reports block-level mistakes', () => {
   assert.match(messages, /слот \{\{unknown\}\} не описан/);
   assert.match(messages, /Слот unused блока guess-note не используется/);
   assert.match(messages, /собирается из vocabulary-list, а такого блока нет в этапе guess/);
-  assert.match(messages, /у bullets нет ключа ответов/);
+  assert.match(messages, /у bullets нет проверок/);
+  assert.match(messages, /Блок guess-starters, ключ ответов: bullets не даёт ключ ответов\./);
   assert.match(messages, /неизвестный контрол mystery/);
-  assert.match(messages, /Блок guess-key-3 не собирается ни из одного блока этапа/);
+  assert.match(messages, /Блок guess-checks-3 не собирается ни из одного блока этапа/);
   assert.match(messages, /Блок guess-game повторяется/);
   assert.match(messages, /Блок guess-empty-note: содержимое не подходит компоненту: TeacherNote requires text/);
   assert.match(messages, /Компонент oddOneOut не может быть статичным блоком \(guess-quiz\)/);
+});
+
+test('answer key problems name the setting that is wrong', () => {
+  const broken = definition();
+  block(broken, 'guess', 'guess-game').answerKey = { title: ' ', layout: 'grid', colour: 'red', partTitles: { answers: 'A' } };
+  block(broken, 'guess', 'guess-checks').answerKey = {};
+  stage(broken, 'guess').blocks.push({ id: 'guess-game-answer-key', kind: 'static', component: { type: 'teacherNote', text: 'Taken.' } });
+  block(broken, 'vocabulary', 'vocabulary-support').blocks.push({ id: 'vocabulary-game', kind: 'generated', control: 'guessGame', answerKey: {} });
+  const problems = validateTemplate(broken, catalog).errors
+    .filter(error => /ключ/.test(error.message))
+    .map(({ block: id, answerKey, detail, message }) => [id, answerKey, detail ?? message]);
+  assert.deepEqual(problems, [
+    ['guess-game', 'title', 'Заголовок: нужен непустой текст'],
+    ['guess-game', 'layout', 'Расположение: нужно одно из: Колонками, Друг под другом'],
+    ['guess-game', 'colour', 'colour: такой настройки у ключа нет'],
+    ['guess-game', 'partTitles', 'заголовки частей задаются только у ключа из нескольких частей'],
+    ['guess-checks', null, 'checksCard не даёт ключ ответов'],
+    ['vocabulary-game', undefined, 'Задание vocabulary-game с ключом ответов нельзя ставить в ряд.'],
+    ['guess-game', undefined, 'Id guess-game-answer-key занят: так называется ключ ответов блока guess-game.'],
+  ]);
 });
 
 test('slot problems name the slot and say what is wrong under its field', () => {
@@ -477,17 +503,20 @@ test('the catalog rejects incomplete controls', () => {
   }]);
   assert.throws(withFeatures({ sparkle: 'distractors' }), /у типа vocabulary нет возможности sparkle/);
   assert.throws(withFeatures({ distractor: 'count' }), /возможность distractor должна включаться флагом/);
-  const answerKey = CONTROLS.find(control => control.type === 'answerKey');
-  assert.throws(() => createControlCatalog([{ ...answerKey, singleSource: 'yes' }]), /singleSource бывает только true/);
-  assert.throws(() => createControlCatalog([{ ...answerKey, acceptsSource: undefined, singleSource: true }]), /только вместе с acceptsSource/);
-  assert.throws(() => createControlCatalog([{ ...answerKey, sourceLabel: undefined }]), /acceptsSource и sourceLabel задаются только вместе/);
+  const checksCard = CONTROLS.find(control => control.type === 'checksCard');
+  assert.throws(() => createControlCatalog([{ ...checksCard, singleSource: 'yes' }]), /singleSource бывает только true/);
+  assert.throws(() => createControlCatalog([{ ...checksCard, acceptsSource: undefined, singleSource: true }]), /только вместе с acceptsSource/);
+  assert.throws(() => createControlCatalog([{ ...checksCard, sourceLabel: undefined }]), /acceptsSource и sourceLabel задаются только вместе/);
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], sourceLabel: 'ответы' }]), /acceptsSource и sourceLabel задаются только вместе/);
   const withParts = (control, answerKeyParts) => () => createControlCatalog([{ ...control, answerKeyParts }]);
   const keyed = CONTROLS.find(control => typeof control.answerKey === 'function');
-  assert.throws(withParts(keyed, { answers: 'Ответы' }), /подписи хотя бы двух частей/);
-  assert.throws(withParts(keyed, { answers: 'Ответы', explanations: '' }), /подписи хотя бы двух частей/);
-  assert.throws(withParts(answerKey, { answers: 'Ответы', explanations: 'Пояснения' }), /только вместе с answerKey/);
-  assert.doesNotThrow(withParts(keyed, { answers: 'Ответы', explanations: 'Пояснения' }));
+  const answers = { label: 'Ответы', title: 'Answers' };
+  const explanations = { label: 'Пояснения', title: 'Short explanations' };
+  assert.throws(withParts(keyed, { answers }), /подпись и заголовок хотя бы двух частей/);
+  assert.throws(withParts(keyed, { answers, explanations: { label: 'Пояснения' } }), /подпись и заголовок хотя бы двух частей/);
+  assert.throws(withParts(keyed, { answers, explanations: 'Пояснения' }), /подпись и заголовок хотя бы двух частей/);
+  assert.throws(withParts(checksCard, { answers, explanations }), /только вместе с answerKey/);
+  assert.doesNotThrow(withParts(keyed, { answers, explanations }));
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], group: 'misc' }]), /неизвестная группа misc/);
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], description: ' ' }]), /описание должно быть непустой строкой/);
 });

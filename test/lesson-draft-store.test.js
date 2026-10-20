@@ -38,6 +38,9 @@ const {
   updateThisOrThatImage,
 } = require('../lib/lesson-draft-store.js');
 const { createUser } = require('../lib/user-store.js');
+const { createExampleLesson } = require('../lib/lesson-generation-plan.js');
+const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
+const TEMPLATE_TWO = require('../lib/templates/template-2.json');
 
 function admin(database, suffix) {
   return createUser({
@@ -744,6 +747,39 @@ test('checkbox choice content and order can be updated only in an owned review d
     id: duplicate.id, ownerAdminId: owner.id, componentId: 'same-checkbox',
     title: 'Quiz', instruction: 'Choose.', items: [items[1]],
   }, database), /несколько/);
+  database.close();
+});
+
+test('Task 2 keeps its key section in step, in the shared key of older drafts too', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'task-two-owner');
+  const lessons = {
+    'grammar-presentation-check-the-rule-answer-key': ['answers', createExampleLesson(TEMPLATE_TWO, 'Travel', { random: () => 0.5 })],
+    // Made before answer keys moved into their tasks.
+    'grammar-presentation-answer-key': ['task-two-answers', syntheticLesson('template-2')],
+  };
+  for (const [keyId, [sectionId, lesson]] of Object.entries(lessons)) {
+    const pending = createLessonDraft({ ownerAdminId: owner.id, topic: keyId, template: 'template-2' }, database);
+    const ready = completeLessonDraft(pending.id, owner.id, lesson, database);
+    const stage = draft => draft.content.stages.find(candidate => candidate.id === 'grammar-presentation').content;
+    const task = stage(ready).find(component => component.id === 'grammar-presentation-check-the-rule');
+    const [item] = task.items;
+    const options = [...item.options.filter(option => item.answers.includes(option)), ...item.options.filter(option => !item.answers.includes(option))];
+    const updated = updateCheckboxChoice({
+      id: ready.id, ownerAdminId: owner.id, componentId: task.id, title: task.title, instruction: task.instruction,
+      items: [{ ...item, options }],
+    }, database);
+    const key = stage(updated).find(component => component.id === keyId);
+    const numbers = item.answers.map((_, index) => index + 1).join(', ');
+    assert.equal(key.sections.find(section => section.id === sectionId).text, `Correct sentences: ${numbers}.`, keyId);
+
+    const edit = sections => () => updateMarkdownCard({ id: ready.id, ownerAdminId: owner.id, componentId: keyId, title: key.title, sections }, database);
+    assert.throws(edit(key.sections.map(section => (section.id === sectionId ? { ...section, text: 'Correct sentences: 1.' } : section))), /ключ Task 2 обновляется автоматически/);
+    assert.throws(edit(key.sections.filter(section => section.id !== sectionId)), /ключ Task 2 обновляется автоматически/);
+    const other = key.sections.find(section => section.id !== sectionId);
+    const saved = edit(key.sections.map(section => (section === other ? { ...section, text: 'Edited.' } : section)))();
+    assert.equal(stage(saved).find(component => component.id === keyId).sections.find(section => section.id === other.id).text, 'Edited.');
+  }
   database.close();
 });
 

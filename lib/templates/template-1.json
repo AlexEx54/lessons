@@ -287,16 +287,8 @@
             "title": "Task 2 · Vocabulary in Context — Dropdown",
             "instruction": "Fill in the blanks with the correct words from the dropdown lists."
           },
-          "instructions": "contextText is a topic-related story."
-        },
-        {
-          "id": "target-vocabulary-context-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "from": [
-            "target-vocabulary-context-dropdown"
-          ],
-          "chrome": {
+          "instructions": "contextText is a topic-related story.",
+          "answerKey": {
             "title": "Answer Key"
           }
         },
@@ -428,7 +420,11 @@
             "title": "Task 1. Reading for Gist",
             "instruction": "Choose the best answer."
           },
-          "instructions": "gistQuestions ask about the main idea of the text."
+          "instructions": "gistQuestions ask about the main idea of the text.",
+          "answerKey": {
+            "title": "Answer Key",
+            "format": "paragraphs"
+          }
         },
         {
           "id": "reading-detail-quiz",
@@ -445,27 +441,10 @@
             "title": "Task 2. Reading for Detail",
             "instruction": "Read the questions and choose A, B or C."
           },
-          "instructions": "The answers to detailQuestions are stated or clearly supported by the text."
-        },
-        {
-          "id": "reading-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "params": {
+          "instructions": "The answers to detailQuestions are stated or clearly supported by the text.",
+          "answerKey": {
+            "title": "Answer Key",
             "format": "paragraphs"
-          },
-          "from": [
-            {
-              "block": "reading-gist-quiz",
-              "title": "Task 1:"
-            },
-            {
-              "block": "reading-detail-quiz",
-              "title": "Task 2:"
-            }
-          ],
-          "chrome": {
-            "title": "Answer Key"
           }
         }
       ]
@@ -515,7 +494,11 @@
             "title": "Task 1. Listening for Gist",
             "instruction": "Choose the correct options."
           },
-          "instructions": "The first gist question must have exactly one correct answer. The second gist question must have exactly two correct answers."
+          "instructions": "The first gist question must have exactly one correct answer. The second gist question must have exactly two correct answers.",
+          "answerKey": {
+            "title": "Answer Key",
+            "format": "paragraphs"
+          }
         },
         {
           "id": "listening-audio-again",
@@ -540,27 +523,10 @@
           "chrome": {
             "title": "Task 2. Listening for Detail",
             "instruction": "Choose the correct options."
-          }
-        },
-        {
-          "id": "listening-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "params": {
-            "format": "paragraphs"
           },
-          "from": [
-            {
-              "block": "listening-gist-quiz",
-              "title": "Task 1:"
-            },
-            {
-              "block": "listening-detail-quiz",
-              "title": "Task 2:"
-            }
-          ],
-          "chrome": {
-            "title": "Answer Key"
+          "answerKey": {
+            "title": "Answer Key",
+            "format": "paragraphs"
           }
         }
       ]
@@ -635,6 +601,9 @@
           "chrome": {
             "title": "Complete the Rule",
             "instruction": "Drag the correct words into the gaps."
+          },
+          "answerKey": {
+            "title": "Answer key"
           }
         },
         {
@@ -672,35 +641,11 @@
             "title": "Task 2. Check the Rule",
             "instruction": "Choose the correct option from each drop-down list."
           },
-          "instructions": "Use varied, plausible distractors and vary the correct-answer position across the five option lists."
-        },
-        {
-          "id": "grammar-presentation-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "chrome": {
+          "instructions": "Use varied, plausible distractors and vary the correct-answer position across the five option lists.",
+          "answerKey": {
             "title": "Answer key",
             "layout": "columns"
-          },
-          "from": [
-            {
-              "block": "grammar-presentation-complete-the-rule",
-              "title": "Task 1 Rule",
-              "id": "task-one-answers"
-            },
-            {
-              "block": "grammar-presentation-check-the-rule",
-              "part": "answers",
-              "title": "Task 2",
-              "id": "task-two-answers"
-            },
-            {
-              "block": "grammar-presentation-check-the-rule",
-              "part": "explanations",
-              "title": "Short explanations:",
-              "id": "short-explanations"
-            }
-          ]
+          }
         }
       ]
     },
@@ -787,30 +732,11 @@
             "instruction": "Read each sentence and choose the correct grammar option.",
             "accentColor": "#6545F5"
           },
-          "instructions": "Vary the position of correct options and include affirmative, negative, and question forms whenever the grammar topic supports them."
-        },
-        {
-          "id": "grammar-focus-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "chrome": {
+          "instructions": "Vary the position of correct options and include affirmative, negative, and question forms whenever the grammar topic supports them.",
+          "answerKey": {
             "title": "Answer Key & Explanations",
             "layout": "columns"
-          },
-          "from": [
-            {
-              "block": "grammar-focus-choose-the-correct-options",
-              "part": "answers",
-              "title": "Answers",
-              "id": "answers"
-            },
-            {
-              "block": "grammar-focus-choose-the-correct-options",
-              "part": "explanations",
-              "title": "Short explanations",
-              "id": "short-explanations"
-            }
-          ]
+          }
         },
         {
           "id": "grammar-focus-complete-the-gaps",
@@ -829,15 +755,8 @@
             "title": "**Task 2. Complete the gaps with the correct form of the verbs.**",
             "instruction": "Read the dialogue and type the correct form of the verbs.",
             "accentColor": "#6545F5"
-          }
-        },
-        {
-          "id": "grammar-focus-complete-the-gaps-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "from": [
-            "grammar-focus-complete-the-gaps"
-          ]
+          },
+          "answerKey": {}
         },
         {
           "id": "grammar-focus-mini-situation",

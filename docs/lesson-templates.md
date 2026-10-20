@@ -14,7 +14,7 @@
 
 Контрол и компонент — разные вещи. Один компонент может обслуживаться
 несколькими контролами. Например, `markdownCard` собирают `vocabularyList`,
-`listCard` и `answerKey`, и у каждого из них свои данные.
+`listCard` и `roleDialogue`, и у каждого из них свои данные.
 
 ## 2. Блок
 
@@ -27,7 +27,7 @@
   собирает из них компонент. «Обвес» компонента (заголовок, инструкция, цвета,
   видимость) задаётся в шаблоне в `chrome` и нейросети не передаётся.
 - **`derived`** — компонент, который строится из других блоков или переменных без
-  нейросети. Примеры: Answer Key, Vocabulary meanings quiz.
+  нейросети. Примеры: повтор аудио, Vocabulary meanings quiz.
 - **`row`** — контейнер `cardRow` с вложенными блоками.
 
 Static-блок может содержать **слоты**: `{{name}}` в любом текстовом поле и описание
@@ -50,6 +50,10 @@ Wrap-Up). Заголовки, иконки и цвета подблоков ос
 
 `id` блока совпадает с `id` компонента в уроке и уникален в пределах шаблона.
 
+У задания может быть **ключ ответов** (`answerKey` в блоке, раздел 7): карточка
+только для учителя `<id задания>-answer-key` сразу после задания. Отдельным
+блоком ключ не бывает, поэтому переносится и удаляется вместе с заданием.
+
 ## 3. Связи по данным
 
 ### Порты и переменные
@@ -63,7 +67,7 @@ storyCards        in:  highlight       : vocabulary   (необязателен)
                   in:  guesses         : statements   (необязателен)
 storyGuessKey     in:  guesses         : statements
 contextDropdown   in:  vocabulary      : vocabulary
-answerKey         from: блоки-источники (особый случай, см. раздел 7)
+repeatAudio       from: блок audioScript того же этапа
 ```
 
 Шаблон связывает порты через **переменные урока**:
@@ -261,7 +265,8 @@ OpenRouter, метаданные урока (обложка) и описание
       "params": { "checkStatements": 3, "guessStatements": 2 },
       "chrome": { "title": "Read the sentences. Is it a FACT or MYTH?", "instruction": "Choose Fact or Myth for each sentence.", "guessNote": "Students guess now and check later in the stories." },
       "exports": { "guessStatements": "leadInGuesses" },
-      "instructions": "checkStatements: statements about the lesson topic in general…\nguessStatements: statements about one concrete detail of the people in the stories…\nStyle examples from other lessons…"
+      "instructions": "checkStatements: statements about the lesson topic in general…\nguessStatements: statements about one concrete detail of the people in the stories…\nStyle examples from other lessons…",
+      "answerKey": { "title": "Answer Keys" }
     },
     {
       "id": "lead-in-speaking-support", "kind": "generated", "control": "listCard",
@@ -269,8 +274,7 @@ OpenRouter, метаданные урока (обложка) и описание
       "fields": { "items": "speakingSupport" },
       "chrome": { "title": "Speaking Support", "icon": "chat", "accentColor": "#E5AD16", "studentVisibility": "always" },
       "instructions": "speakingSupport: unfinished sentence starters, ending with \"…\", that help the student justify an answer about this topic."
-    },
-    { "id": "lead-in-fact-or-myth-answer-key", "kind": "derived", "control": "answerKey", "from": ["lead-in-fact-or-myth"], "chrome": { "title": "Answer Keys" } }
+    }
   ]
 }
 ```
@@ -283,9 +287,9 @@ OpenRouter, метаданные урока (обложка) и описание
   Dropdown, Drag, Extra Task и личные вопросы берут его из того же этапа;
   `storyGuessKey` собирается из историй и догадок Lead-In.
 - **Watch & interact** — только статичные блоки, нейросеть не вызывается.
-- **Grammar Presentation** и **Grammar Focus** — общий ключ ответов
-  `answerKey` с несколькими источниками и частями (`answers`, `explanations`).
-  Заметка Grammar Focus — четыре подблока, текст каждого — слот `rule`.
+- **Grammar Presentation** и **Grammar Focus** — ключ после каждого задания; у
+  Check the Rule и Choose the Correct Options он из двух частей: ответы и
+  пояснения. Заметка Grammar Focus — четыре подблока, текст каждого — слот `rule`.
 - **Guided Communication** — success criteria — слот `rule` в статичной заметке.
 - **Wrap-Up** — заметка списком из трёх слотов `rule`, 3–2–1 и
   `listCard` со строкой через « / ».
@@ -329,7 +333,6 @@ warm-up, watch-and-interact — без связей
 | `wordBankSupport` | markdownCard | vocabulary (выбор N слов) |
 | `communicationCards` | guidedCommunicationCards | vocabulary (выбор N слов) |
 | `threeTwoOne` | threeTwoOne | |
-| `answerKey` *derived* | markdownCard (разделы или `format: paragraphs`) | блоки с `answerKey()` |
 
 Шаблону 1 нужны ещё 17:
 
@@ -356,16 +359,18 @@ warm-up, watch-and-interact — без связей
 Общие для обоих шаблонов: `vocabularyList` (у шаблона 1 с параметром
 `imagePrompts`, словарь тогда несёт картинки), `contextDropdown`,
 `personalizedQuestions`, `listCard`, `numberedPanel`, `ruleGaps`, `quickRule`,
-`choiceSentences`, `wordBankSupport`, `threeTwoOne`, `answerKey`. Всего 41
-контрол.
+`choiceSentences`, `wordBankSupport`, `threeTwoOne`. Всего 40 контролов.
 
 **Ключ ответов.** Контрол задания отдаёт `answerKey()` → `{ lines, list }`:
-строки ключа и признак, что это пункты Markdown-списка. Если частей ключа
-несколько (ответы и пояснения), контрол перечисляет их в `answerKeyParts`, а
-источник в шаблоне выбирает часть: `{ "block": "…", "part": "explanations",
-"title": "Short explanations:", "id": "short-explanations" }`. Один источник без
-заголовка даёт обычную карточку: список или ответы в две колонки. Несколько
-источников дают по разделу на каждый.
+строки ключа и признак, что это пункты Markdown-списка. Блок задания включает
+ключ полем `answerKey` (`{}` — всё по умолчанию): `title`, `format`
+(`sections` или `paragraphs`), `layout` и `partTitles`. Если частей ключа
+несколько (ответы и пояснения), контрол перечисляет их в `answerKeyParts` с
+подписью для редактора и заголовком раздела по умолчанию, а ключ показывает все
+части; `partTitles` меняет их заголовки. Ключ из одной части — обычная
+карточка: список или ответы в две колонки. Собирает карточку
+`lib/lesson-templates/answer-key.js`. Задание с ключом не ставится в ряд, а id
+ключа не может занимать другой блок.
 
 «Выбор N слов из словаря» (`wordBankSupport`, `communicationCards`) — общее
 поведение входа `vocabulary`. Нейросеть копирует термины, контрол приводит их к

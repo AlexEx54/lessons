@@ -328,22 +328,22 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
   assert.equal(ready.content.stages[2].content[2].items.length, 10);
   assert.match(ready.content.stages[2].content[0].blocks[0].text, /Используйте эти онлайн-словари/);
   assert.deepEqual(ready.content.stages[3].content.map(component => component.type), [
-    'teacherNote', 'textReading', 'multipleChoice', 'multipleChoice', 'markdownCard',
+    'teacherNote', 'textReading', 'multipleChoice', 'markdownCard', 'multipleChoice', 'markdownCard',
   ]);
   assert.equal(ready.content.stages[3].content[1].title, GENERATED_READING.title);
-  assert.equal(ready.content.stages[3].content[3].items.length, 5);
+  assert.equal(ready.content.stages[3].content[4].items.length, 5);
   assert.deepEqual(ready.content.stages[4].content.map(component => component.type), [
-    'teacherNote', 'audioPlayer', 'checkboxChoice', 'audioPlayer', 'multipleChoice', 'markdownCard',
+    'teacherNote', 'audioPlayer', 'checkboxChoice', 'markdownCard', 'audioPlayer', 'multipleChoice', 'markdownCard',
   ]);
   assert.equal(ready.content.stages[4].content[1].script, GENERATED_LISTENING.script);
-  assert.equal(ready.content.stages[4].content[3].script, GENERATED_LISTENING.script);
+  assert.equal(ready.content.stages[4].content[4].script, GENERATED_LISTENING.script);
   assert.equal(ready.content.stages[4].content[2].items.length, 2);
-  assert.equal(ready.content.stages[4].content[4].items.length, 5);
+  assert.equal(ready.content.stages[4].content[5].items.length, 5);
   assert.deepEqual(ready.content.stages[5].content.map(component => component.type), [
-    'teacherNote', 'textPanel', 'textPanel', 'dragWordsInText', 'markdownCard',
+    'teacherNote', 'textPanel', 'textPanel', 'dragWordsInText', 'markdownCard', 'markdownCard',
     'dropdownChoice', 'markdownCard',
   ]);
-  assert.equal(ready.content.stages[5].content[5].choices.length, 5);
+  assert.equal(ready.content.stages[5].content[6].choices.length, 5);
   assert.deepEqual(ready.content.stages[6].content.map(component => component.type), [
     'teacherNote', 'dropdownChoice', 'markdownCard', 'gapFill', 'markdownCard',
     'miniSituation', 'cardRow',
@@ -752,9 +752,9 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
     body: JSON.stringify({ title: changed.title, instruction: changed.instruction, items: changed.items }),
   });
   assert.equal(edit.status, 200);
-  const previousKey = grammarComponent(ready, 'grammar-presentation-answer-key');
-  const key = grammarComponent((await edit.json()).draft, 'grammar-presentation-answer-key');
+  const previousKey = grammarComponent(ready, 'grammar-presentation-check-the-rule-answer-key');
+  const key = grammarComponent((await edit.json()).draft, 'grammar-presentation-check-the-rule-answer-key');
   assert.deepEqual(key.sections, previousKey.sections.map(section => (
-    section.id === 'task-two-answers' ? { ...section, text: 'Correct sentences: 1, 2, 3, 4.' } : section
+    section.id === 'answers' ? { ...section, text: 'Correct sentences: 1, 2, 3, 4.' } : section
   )));
 });

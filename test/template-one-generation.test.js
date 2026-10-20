@@ -65,22 +65,26 @@ test('Template 1 builds every stage from model answers without warnings', t => {
     'target-vocabulary': [
       'target-vocabulary-teacher-note', 'target-vocabulary-card', 'target-vocabulary-match-words',
       'target-vocabulary-extra-explanation-card', 'target-vocabulary-context-dropdown',
-      'target-vocabulary-context-answer-key', 'target-vocabulary-fill-in-blanks',
+      'target-vocabulary-context-dropdown-answer-key', 'target-vocabulary-fill-in-blanks',
       'target-vocabulary-personalized-questions', 'target-vocabulary-sentence-starters-card',
       'target-vocabulary-describe-and-guess',
     ],
-    reading: ['reading-teacher-note', 'reading-text', 'reading-gist-quiz', 'reading-detail-quiz', 'reading-answer-key'],
+    reading: [
+      'reading-teacher-note', 'reading-text', 'reading-gist-quiz', 'reading-gist-quiz-answer-key',
+      'reading-detail-quiz', 'reading-detail-quiz-answer-key',
+    ],
     listening: [
-      'listening-teacher-note', 'listening-audio', 'listening-gist-quiz', 'listening-audio-again',
-      'listening-detail-quiz', 'listening-answer-key',
+      'listening-teacher-note', 'listening-audio', 'listening-gist-quiz', 'listening-gist-quiz-answer-key',
+      'listening-audio-again', 'listening-detail-quiz', 'listening-detail-quiz-answer-key',
     ],
     'grammar-presentation': [
       'grammar-presentation-teacher-note', 'grammar-presentation-notice-rule', 'grammar-presentation-concept-checking',
-      'grammar-presentation-complete-the-rule', 'grammar-presentation-quick-rule', 'grammar-presentation-check-the-rule',
-      'grammar-presentation-answer-key',
+      'grammar-presentation-complete-the-rule', 'grammar-presentation-complete-the-rule-answer-key',
+      'grammar-presentation-quick-rule', 'grammar-presentation-check-the-rule', 'grammar-presentation-check-the-rule-answer-key',
     ],
     'grammar-focus': [
-      'grammar-focus-teacher-note', 'grammar-focus-choose-the-correct-options', 'grammar-focus-answer-key',
+      'grammar-focus-teacher-note', 'grammar-focus-choose-the-correct-options',
+      'grammar-focus-choose-the-correct-options-answer-key',
       'grammar-focus-complete-the-gaps', 'grammar-focus-complete-the-gaps-answer-key', 'grammar-focus-mini-situation',
       'grammar-focus-practice-support-row',
     ],

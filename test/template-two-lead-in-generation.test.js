@@ -19,7 +19,7 @@ const GENERATED = {
 const buildLeadIn = generated => stageContent('lead-in', generated);
 
 test('generated Template 2 Lead-In builds the note, Fact or Myth, support, and answer key', () => {
-  const [note, exercise, support, key] = buildLeadIn(GENERATED);
+  const [note, exercise, key, support] = buildLeadIn(GENERATED);
   assert.equal(note.id, 'lead-in-teacher-note');
   assert.match(note.text, /^\*\*Say:\*\* "Now let's play a game called '\*\*Fact or Myth\?\*\*'/);
   assert.match(note.text, /the words \*\*Fact\*\* \(100% true\) and \*\*Myth\*\* \(false \/ not true\)/);

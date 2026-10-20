@@ -17,17 +17,22 @@ test('Template 2 generates discovery and checkbox grammar while preserving stati
   const { lesson } = applyStage('grammar-presentation', generated, { variables, random: () => 0 });
   assert.deepEqual(byId(lesson.stages, 'watch-and-interact'), byId(synthetic.stages, 'watch-and-interact'));
   const content = byId(lesson.stages, 'grammar-presentation').content;
-  assert.deepEqual(content.map(c => c.type), ['teacherNote', 'textPanel', 'textPanel', 'dragWordsInText', 'markdownCard', 'checkboxChoice', 'markdownCard']);
+  assert.deepEqual(content.map(c => c.type), [
+    'teacherNote', 'textPanel', 'textPanel', 'dragWordsInText', 'markdownCard', 'markdownCard', 'checkboxChoice', 'markdownCard',
+  ]);
   assert.deepEqual(byId(content, 'grammar-presentation-teacher-note'), byId(byId(synthetic.stages, 'grammar-presentation').content, 'grammar-presentation-teacher-note'));
   const task = byId(content, 'grammar-presentation-check-the-rule');
   // The application shuffles the sentences instead of trusting the model's order.
   assert.deepEqual(task.items[0].options, [1, 2, 3, 4, 5, 6, 7, 0].map(index => generated.checkItems[index].sentence));
   assert.equal(task.items[0].answers.length, 4);
-  const key = byId(content, 'grammar-presentation-answer-key');
-  assert.equal(key.studentVisibility, 'teacherOnly');
-  assert.match(byId(key.sections, 'task-one-answers').text, /^1 /);
-  assert.equal(byId(key.sections, 'task-two-answers').text, 'Correct sentences: 2, 3, 6, 8.');
-  assert.match(byId(key.sections, 'short-explanations').text, /^- \*We did not caught the train\.\* — After did not, use catch/);
+  // Each task's key follows it.
+  const ruleKey = byId(content, 'grammar-presentation-complete-the-rule-answer-key');
+  assert.equal(ruleKey.studentVisibility, 'teacherOnly');
+  assert.match(ruleKey.sections[0].text, /^1 /);
+  const key = byId(content, 'grammar-presentation-check-the-rule-answer-key');
+  assert.deepEqual(key.sections.map(section => section.title), ['Answers', 'Short explanations']);
+  assert.equal(byId(key.sections, 'answers').text, 'Correct sentences: 2, 3, 6, 8.');
+  assert.match(byId(key.sections, 'explanations').text, /^- \*We did not caught the train\.\* — After did not, use catch/);
 });
 
 test('Template 2 grammar validates counts, booleans, explanations, duplicates and shared discovery rules', () => {

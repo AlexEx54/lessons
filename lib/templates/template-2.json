@@ -58,16 +58,8 @@
             "title": "Find the Odd One Out!",
             "instruction": "Look at the four words in each row. Find the odd word and explain your choice."
           },
-          "instructions": "Use a different kind of category in each row, for example part of speech, meaning group, function, or place. Keep the difficulty growing slightly from row 1 to row 4.\nEvery word must be directly connected to the provided topic, so that the rows together introduce it.\nPlace the odd word in a different position in different rows.\nexplanation is for the teacher: one short English sentence that names why the odd word is different and what the other three have in common, for example “It is an adjective; the other words can be verbs.”"
-        },
-        {
-          "id": "warm-up-odd-one-out-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "from": [
-            "warm-up-odd-one-out"
-          ],
-          "chrome": {
+          "instructions": "Use a different kind of category in each row, for example part of speech, meaning group, function, or place. Keep the difficulty growing slightly from row 1 to row 4.\nEvery word must be directly connected to the provided topic, so that the rows together introduce it.\nPlace the odd word in a different position in different rows.\nexplanation is for the teacher: one short English sentence that names why the odd word is different and what the other three have in common, for example “It is an adjective; the other words can be verbs.”",
+          "answerKey": {
             "title": "Answer Keys"
           }
         }
@@ -109,7 +101,10 @@
           "exports": {
             "guessStatements": "leadInGuesses"
           },
-          "instructions": "checkStatements: statements about the lesson topic in general that the student can judge from everyday knowledge and explain. Include at least one fact and at least one myth. Use only common, uncontroversial knowledge: no exact dates, numbers, records, and nothing that is true only in some places or is a matter of opinion. Present Simple is fine here.\nguessStatements: statements about one concrete detail of the people in the stories. Start each with \"Somebody in our stories\". Use the target grammar. Choose details that are easy to show in a short story: appearance, things they have, actions, places, or feelings. The student cannot know the answer and must guess.\nStyle examples from other lessons. Never copy them; adapt the idea to the given topic and grammar:\n- Superheroes, have got: check \"All superheroes have got a cape.\" (myth); guess \"Somebody in our stories has got green hair.\"; support \"Spider-Man hasn’t got…\"\n- Summer time, Past Simple: check \"You can get a sunburn on a cloudy day.\" (fact); guess \"Somebody in our stories went camping last summer.\"; support \"In summer, people usually…\""
+          "instructions": "checkStatements: statements about the lesson topic in general that the student can judge from everyday knowledge and explain. Include at least one fact and at least one myth. Use only common, uncontroversial knowledge: no exact dates, numbers, records, and nothing that is true only in some places or is a matter of opinion. Present Simple is fine here.\nguessStatements: statements about one concrete detail of the people in the stories. Start each with \"Somebody in our stories\". Use the target grammar. Choose details that are easy to show in a short story: appearance, things they have, actions, places, or feelings. The student cannot know the answer and must guess.\nStyle examples from other lessons. Never copy them; adapt the idea to the given topic and grammar:\n- Superheroes, have got: check \"All superheroes have got a cape.\" (myth); guess \"Somebody in our stories has got green hair.\"; support \"Spider-Man hasn’t got…\"\n- Summer time, Past Simple: check \"You can get a sunburn on a cloudy day.\" (fact); guess \"Somebody in our stories went camping last summer.\"; support \"In summer, people usually…\"",
+          "answerKey": {
+            "title": "Answer Keys"
+          }
         },
         {
           "id": "lead-in-speaking-support",
@@ -133,17 +128,6 @@
             "studentVisibility": "always"
           },
           "instructions": "speakingSupport: unfinished sentence starters, ending with \"…\", that help the student justify an answer about this topic."
-        },
-        {
-          "id": "lead-in-fact-or-myth-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "from": [
-            "lead-in-fact-or-myth"
-          ],
-          "chrome": {
-            "title": "Answer Keys"
-          }
         }
       ]
     },
@@ -514,6 +498,9 @@
           "chrome": {
             "title": "Complete the Rule",
             "instruction": "Drag the correct words into the gaps."
+          },
+          "answerKey": {
+            "title": "Answer key"
           }
         },
         {
@@ -551,35 +538,11 @@
             "title": "Task 2. Tick the sentences that are correct.",
             "instruction": "Read the sentences and tick the grammatically correct ones.",
             "question": "Which four sentences are grammatically correct?"
-          }
-        },
-        {
-          "id": "grammar-presentation-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "chrome": {
+          },
+          "answerKey": {
             "title": "Answer key",
             "layout": "columns"
-          },
-          "from": [
-            {
-              "block": "grammar-presentation-complete-the-rule",
-              "title": "Task 1 Rule",
-              "id": "task-one-answers"
-            },
-            {
-              "block": "grammar-presentation-check-the-rule",
-              "part": "answers",
-              "title": "Task 2",
-              "id": "task-two-answers"
-            },
-            {
-              "block": "grammar-presentation-check-the-rule",
-              "part": "explanations",
-              "title": "Short explanations:",
-              "id": "short-explanations"
-            }
-          ]
+          }
         }
       ]
     },
@@ -667,30 +630,11 @@
             "instruction": "Read each sentence and choose the correct grammar option.",
             "accentColor": "#6545F5"
           },
-          "instructions": "Vary the position of correct options and include affirmative, negative, and question forms whenever the grammar topic supports them."
-        },
-        {
-          "id": "grammar-focus-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "chrome": {
+          "instructions": "Vary the position of correct options and include affirmative, negative, and question forms whenever the grammar topic supports them.",
+          "answerKey": {
             "title": "Answer Key & Explanations",
             "layout": "columns"
-          },
-          "from": [
-            {
-              "block": "grammar-focus-choose-the-correct-options",
-              "part": "answers",
-              "title": "Answers",
-              "id": "answers"
-            },
-            {
-              "block": "grammar-focus-choose-the-correct-options",
-              "part": "explanations",
-              "title": "Short explanations",
-              "id": "short-explanations"
-            }
-          ]
+          }
         },
         {
           "id": "grammar-focus-complete-the-gaps",
@@ -707,15 +651,8 @@
             "instruction": "Read each sentence and type the correct form of the verb.",
             "accentColor": "#2F80ED"
           },
-          "instructions": "task2Items are separate sentences, not a dialogue."
-        },
-        {
-          "id": "grammar-focus-complete-the-gaps-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "from": [
-            "grammar-focus-complete-the-gaps"
-          ]
+          "instructions": "task2Items are separate sentences, not a dialogue.",
+          "answerKey": {}
         },
         {
           "id": "grammar-focus-correct-the-mistakes",
@@ -731,15 +668,8 @@
             "title": "Task 3. Correct the mistakes.",
             "instruction": "There is one mistake in each sentence. Rewrite it correctly.",
             "accentColor": "#6545F5"
-          }
-        },
-        {
-          "id": "grammar-focus-correct-the-mistakes-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "from": [
-            "grammar-focus-correct-the-mistakes"
-          ]
+          },
+          "answerKey": {}
         },
         {
           "id": "grammar-focus-match-sentence-halves",
@@ -772,15 +702,8 @@
             "studentVisibility": "controlled",
             "fieldSize": "wide"
           },
-          "instructions": "Choose sentences that have one clear, unambiguous English translation."
-        },
-        {
-          "id": "grammar-focus-translate-sentences-answer-key",
-          "kind": "derived",
-          "control": "answerKey",
-          "from": [
-            "grammar-focus-translate-sentences"
-          ]
+          "instructions": "Choose sentences that have one clear, unambiguous English translation.",
+          "answerKey": {}
         },
         {
           "id": "grammar-focus-practice-support-row",

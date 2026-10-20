@@ -223,26 +223,19 @@ test('without a source an input stays unbound; a source without a required featu
   ]);
 });
 
-test('an answer key takes every block of the stage with answers; a repeated audio takes the nearest audio', () => {
+test('a repeated audio takes the nearest audio of its stage', () => {
   const definition = templateTwo();
-  const key = addBlock(definition, 'grammar-focus', 'answerKey').block;
-  assert.deepEqual(key.from, [
-    'grammar-focus-choose-the-correct-options',
-    'grammar-focus-complete-the-gaps',
-    'grammar-focus-correct-the-mistakes',
-    'grammar-focus-translate-sentences',
-  ]);
   addBlock(definition, 'wrap-up', 'audioScript');
   const audio = addBlock(definition, 'wrap-up', 'audioScript').block;
   assert.deepEqual(addBlock(definition, 'wrap-up', 'repeatAudio').block.from, [audio.id]);
   assert.deepEqual(problems(definition), []);
 
-  const lonely = addBlock(definition, 'watch-and-interact', 'answerKey').block;
+  const lonely = addBlock(definition, 'watch-and-interact', 'repeatAudio').block;
   assert.equal(lonely.from, undefined);
   const twice = addBlock(definition, 'wrap-up', 'repeatAudio').block;
   twice.from = ['wrap-up-audio-script', audio.id];
   assert.deepEqual(problems(definition), [
-    'Блок watch-and-interact-answer-key не собирается ни из одного блока этапа.',
+    'Блок watch-and-interact-repeat-audio не собирается ни из одного блока этапа.',
     'Блок wrap-up-repeat-audio-2 собирается ровно из одного блока, а указано 2.',
   ]);
 });
@@ -333,77 +326,6 @@ test('a source of the stage itself needs no line; an optional input may be left 
 const templateOne = () => structuredClone(findSystemTemplate('template-1').definition);
 const blockIds = plan => plan.blocks.map(entry => entry.block);
 
-test('an answer key may take every block of its stage with answers, a key in two parts part by part', () => {
-  const definition = templateOne();
-  const presentation = stage(definition, 'grammar-presentation');
-  const key = block(definition, 'grammar-presentation-answer-key');
-  assert.deepEqual(Edits.sourceOptions(presentation, key, controls), [
-    { block: 'grammar-presentation-complete-the-rule', index: 0 },
-    { block: 'grammar-presentation-check-the-rule', part: 'answers', index: 1 },
-    { block: 'grammar-presentation-check-the-rule', part: 'explanations', index: 2 },
-  ]);
-  assert.deepEqual(Edits.blockLinks(definition, key, controls).sources, [
-    { block: 'grammar-presentation-complete-the-rule', inStage: true },
-    { block: 'grammar-presentation-check-the-rule', inStage: true },
-  ]);
-
-  // An entry without a part is the first part; one the stage lacks comes after the rows.
-  const focus = stage(definition, 'grammar-focus');
-  const gapsKey = block(definition, 'grammar-focus-complete-the-gaps-answer-key');
-  gapsKey.from = ['grammar-focus-choose-the-correct-options', 'reading-gist-quiz'];
-  assert.deepEqual(Edits.sourceOptions(focus, gapsKey, controls), [
-    { block: 'grammar-focus-choose-the-correct-options', part: 'answers', index: 0 },
-    { block: 'grammar-focus-choose-the-correct-options', part: 'explanations', index: -1 },
-    { block: 'grammar-focus-complete-the-gaps', index: -1 },
-    { block: 'reading-gist-quiz', index: 1 },
-  ]);
-  assert.deepEqual(Edits.blockLinks(definition, gapsKey, controls).sources, [
-    { block: 'grammar-focus-choose-the-correct-options', inStage: true },
-    { block: 'reading-gist-quiz', inStage: false },
-  ]);
-  assert.equal(Object.hasOwn(Edits.blockLinks(definition, block(definition, 'grammar-focus-complete-the-gaps'), controls), 'sources'), false);
-});
-
-test('chosen sources keep their order, titles and ids; a new one takes its block’s place in the stage', () => {
-  const definition = templateOne();
-  const presentation = stage(definition, 'grammar-presentation');
-  const key = block(definition, 'grammar-presentation-answer-key');
-  const [rule, answers, explanations] = structuredClone(key.from);
-
-  Edits.setSources(presentation, key, [{ block: rule.block }, { block: answers.block, part: 'explanations' }], controls);
-  assert.deepEqual(key.from, [rule, explanations]);
-  Edits.setSources(presentation, key, [{ block: rule.block }, { block: answers.block, part: 'explanations' }, { block: answers.block, part: 'answers' }], controls);
-  assert.deepEqual(key.from, [rule, { block: answers.block, part: 'answers' }, explanations]);
-
-  // The answers of a block above go first, of one below last.
-  const tasks = stage(definition, 'reading');
-  const readingKey = block(definition, 'reading-answer-key');
-  Edits.setSources(tasks, readingKey, [{ block: 'reading-detail-quiz' }], controls);
-  assert.deepEqual(readingKey.from, [{ block: 'reading-detail-quiz', title: 'Task 2:' }]);
-  Edits.setSources(tasks, readingKey, [{ block: 'reading-detail-quiz' }, { block: 'reading-gist-quiz' }], controls);
-  assert.deepEqual(readingKey.from, ['reading-gist-quiz', { block: 'reading-detail-quiz', title: 'Task 2:' }]);
-  assert.deepEqual(problems(definition), []);
-
-  // The last one may go: the server reports the key.
-  Edits.setSources(tasks, readingKey, [], controls);
-  assert.equal(Object.hasOwn(readingKey, 'from'), false);
-  assert.deepEqual(problems(definition), ['Блок reading-answer-key не собирается ни из одного блока этапа.']);
-});
-
-test('a section title is set or dropped; an entry left with its block alone becomes the id', () => {
-  const definition = templateOne();
-  const key = block(definition, 'grammar-focus-complete-the-gaps-answer-key');
-  Edits.setSourceTitle(key, 0, '  Task 2  ');
-  assert.deepEqual(key.from, [{ block: 'grammar-focus-complete-the-gaps', title: 'Task 2' }]);
-  Edits.setSourceTitle(key, 0, ' ');
-  assert.deepEqual(key.from, ['grammar-focus-complete-the-gaps']);
-
-  const presentation = block(definition, 'grammar-presentation-answer-key');
-  Edits.setSourceTitle(presentation, 1, '');
-  assert.deepEqual(presentation.from[1], { block: 'grammar-presentation-check-the-rule', part: 'answers', id: 'task-two-answers' });
-  assert.deepEqual(problems(definition), []);
-});
-
 test('a block built from one block takes another source of its stage instead', () => {
   const definition = templateOne();
   const listening = stage(definition, 'listening');
@@ -449,7 +371,7 @@ test('a stage emptied by the cascade goes too; nothing is changed before applyDe
   const before = JSON.stringify(definition);
   const plan = Edits.deletionPlan(definition, { block: 'warm-up-odd-one-out' }, controls);
   // The teacher note reads its example word from the exercise through a slot.
-  assert.deepEqual(blockIds(plan), ['warm-up-teacher-note', 'warm-up-odd-one-out', 'warm-up-odd-one-out-answer-key']);
+  assert.deepEqual(blockIds(plan), ['warm-up-teacher-note', 'warm-up-odd-one-out']);
   assert.deepEqual(plan.stages, ['warm-up']);
   assert.equal(JSON.stringify(definition), before);
   Edits.applyDeletion(definition, plan);
@@ -463,22 +385,6 @@ test('a deleted stage clears what other stages read from it', () => {
   assert.deepEqual(blockIds(plan).filter(id => !id.startsWith('lead-in-')), ['target-vocabulary-guess-answers']);
   assert.deepEqual(plan.unbound.map(entry => `${entry.block}.${entry.port}`), ['target-vocabulary-stories.guesses']);
   assert.deepEqual(plan.context, [{ stage: 'target-vocabulary', label: 'Guess statements from the Lead-In' }]);
-});
-
-test('a block built from several sources only loses the deleted one', () => {
-  const definition = templateTwo();
-  const plan = Edits.deletionPlan(definition, { block: 'grammar-presentation-complete-the-rule' }, controls);
-  assert.deepEqual(blockIds(plan), ['grammar-presentation-complete-the-rule']);
-  assert.deepEqual(plan.sources.map(entry => `${entry.block} ← ${entry.source}`), [
-    'grammar-presentation-answer-key ← grammar-presentation-complete-the-rule',
-  ]);
-  Edits.applyDeletion(definition, plan);
-  const answerKey = stage(definition, 'grammar-presentation').blocks.find(block => block.id === 'grammar-presentation-answer-key');
-  assert.deepEqual(answerKey.from.map(source => source.id), ['task-two-answers', 'short-explanations']);
-
-  // Both parts of this answer key come from one exercise: the key goes with it.
-  const focus = Edits.deletionPlan(definition, { block: 'grammar-focus-choose-the-correct-options' }, controls);
-  assert.deepEqual(blockIds(focus), ['grammar-focus-choose-the-correct-options', 'grammar-focus-answer-key']);
 });
 
 test('a row keeps two parts, turns into its last part and goes as a whole', () => {
@@ -502,7 +408,7 @@ test('the last stage cannot go, by itself or by a cascade', () => {
   definition.stages = [stage(definition, 'warm-up')];
   assert.equal(Edits.deletionPlan(definition, { stage: 'warm-up' }, controls).emptiesTemplate, true);
   assert.equal(Edits.deletionPlan(definition, { block: 'warm-up-odd-one-out' }, controls).emptiesTemplate, true);
-  assert.equal(Edits.deletionPlan(definition, { block: 'warm-up-odd-one-out-answer-key' }, controls).emptiesTemplate, false);
+  assert.equal(Edits.deletionPlan(definition, { block: 'warm-up-teacher-note' }, controls).emptiesTemplate, false);
 });
 
 test('deleting any block or stage of a system template leaves a valid template', () => {
@@ -530,12 +436,12 @@ const stageBlockIds = (definition, id) => stage(definition, id).blocks.map(block
 
 test('a block built from blocks of its stage, or a source of one, stays in its stage', () => {
   const definition = templateTwo();
-  assert.deepEqual(Edits.moveBlockers(definition, 'warm-up-odd-one-out-answer-key', 'wrap-up', controls), [
-    { kind: 'builtFrom', blocks: ['warm-up-odd-one-out'] },
+  assert.deepEqual(Edits.moveBlockers(definition, 'target-vocabulary-guess-answers', 'wrap-up', controls), [
+    { kind: 'builtFrom', blocks: ['target-vocabulary-stories'] },
   ]);
   // The teacher note reads its example word from the exercise through a slot.
   assert.deepEqual(Edits.moveBlockers(definition, 'warm-up-odd-one-out', 'wrap-up', controls), [
-    { kind: 'usedBy', blocks: ['warm-up-teacher-note', 'warm-up-odd-one-out-answer-key'] },
+    { kind: 'usedBy', blocks: ['warm-up-teacher-note'] },
   ]);
   assert.deepEqual(blockersOf(definition, 'warm-up-teacher-note', 'lead-in'), ['builtFrom']);
 });

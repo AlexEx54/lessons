@@ -25,7 +25,9 @@ test('Template 2 Grammar Focus fills the synthetic structure and keeps other sta
   }
   const content = byId(lesson.stages, 'grammar-focus').content;
   const syntheticContent = byId(synthetic.stages, 'grammar-focus').content;
-  assert.deepEqual(content.map(component => component.id), syntheticContent.map(component => component.id));
+  // Lessons made before keys moved into their tasks had one shared key for the first task.
+  const ids = syntheticContent.map(component => component.id.replace('grammar-focus-answer-key', 'grammar-focus-choose-the-correct-options-answer-key'));
+  assert.deepEqual(content.map(component => component.id), ids);
   assert.deepEqual(content.map(component => component.type), syntheticContent.map(component => component.type));
 
   const note = byId(content, 'grammar-focus-teacher-note');
@@ -36,7 +38,7 @@ test('Template 2 Grammar Focus fills the synthetic structure and keeps other sta
   assert.match(choices.text, /^\*\*1\.\*\* Last summer, we \[\[choice-1\]\] a long journey by train\./);
   // The application shuffles the options instead of trusting the model's order.
   assert.deepEqual(choices.choices[0].options, ['make', 'making', 'made']);
-  assert.match(byId(content, 'grammar-focus-answer-key').sections[1].text, /^1\. Last summer shows/);
+  assert.match(byId(content, 'grammar-focus-choose-the-correct-options-answer-key').sections[1].text, /^1\. Last summer shows/);
   const gaps = byId(content, 'grammar-focus-complete-the-gaps');
   assert.deepEqual(gaps.gaps[2], { id: 'gap-3', answer: 'did not find', example: 'not find' });
   assert.match(byId(content, 'grammar-focus-complete-the-gaps-answer-key').sections[1].text, /^\*\*5\.\*\* missed/);

@@ -253,7 +253,8 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     }),
   });
   assert.equal(dropdownChoiceUpdate.status, 200);
-  const savedDropdownChoice = (await dropdownChoiceUpdate.json()).draft.content.stages[5].content[5];
+  const savedDropdownChoice = (await dropdownChoiceUpdate.json()).draft.content.stages[5].content
+    .find(component => component.id === 'grammar-presentation-check-the-rule');
   assert.equal(savedDropdownChoice.title, '**Updated dropdown**');
   assert.match(savedDropdownChoice.text, /^\*\*1\.\*\* One/);
   assert.equal(savedDropdownChoice.accentColor, '#17182D');
@@ -930,7 +931,8 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     }),
   });
   assert.equal(quickRuleUpdate.status, 200);
-  const savedQuickRule = (await quickRuleUpdate.json()).draft.content.stages[5].content[4];
+  const savedQuickRule = (await quickRuleUpdate.json()).draft.content.stages[5].content
+    .find(component => component.id === 'grammar-presentation-quick-rule');
   assert.deepEqual(savedQuickRule, {
     type: 'markdownCard', id: 'grammar-presentation-quick-rule', title: 'Quick Rule Updated',
     layout: 'columns',
