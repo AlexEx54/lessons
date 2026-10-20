@@ -17,7 +17,6 @@
   const INPUT_PLACEHOLDER_MAX_LENGTH = 60;
   const STAGE_TITLE_MAX_LENGTH = 80;
   const STAGE_SUBTITLE_MAX_LENGTH = 120;
-  const SOURCE_TITLE_MAX_LENGTH = 80;
   const PREVIEW_DELAY = 300;
   const DRAG_THRESHOLD = 7;
   const SCROLL_EDGE = 70;
@@ -42,6 +41,8 @@
     catalog: { entries: [], groups: [], group: 'all', query: '', selected: null },
     variableTypes: {},
     stageIcons: { icons: {}, aliases: {} },
+    // The settings of a task's answer key with their defaults.
+    answerKeyFields: {},
     preview: null,
     stageFacts: {},
     blockFacts: {},
@@ -183,6 +184,8 @@
   // A title as a note shows it: without the Markdown bold some titles carry.
   const plainTitle = block => blockTitle(block).replace(/\*\*/g, '');
 
+  // The card of a task's answer key, as lib/lesson-templates/answer-key.js names it.
+  const answerKeyId = id => `${id}-answer-key`;
   const kindBadge = kind => el('span', `template-kind template-kind--${kind}`, KIND_LABELS[kind]);
   const typeLabel = type => state.variableTypes[type] || type;
   // Links come from the working copy, so they show while the template has problems too.
@@ -245,10 +248,10 @@
     return [...inputs, ...sources, ...exports];
   }
 
-  // A block built from other blocks of its stage: a chip per source block. In a copy a
-  // chip opens the choice of the one source, or an answer key's sources in its panel.
+  // A block built from another block of its stage: a chip for its source. In a copy the
+  // chip opens the choice of the source.
   function sourceChips(block, stage, sources) {
-    const { label, single } = state.controls.get(block.control).sources;
+    const { label } = state.controls.get(block.control).sources;
     const chip = (text, missing, onSystem) => {
       const className = `template-chip template-chip--input${missing ? ' template-chip--missing' : ''}`;
       const element = button(className, `${capitalize(label)} ← ${text}`, event => {
@@ -258,10 +261,9 @@
           return;
         }
         selectBlock(block.id);
-        if (single) openFromPicker(element, block.id);
-        else focusAnswerSources();
+        openFromPicker(element, block.id);
       });
-      if (editable() && single) element.setAttribute('aria-haspopup', 'dialog');
+      if (editable()) element.setAttribute('aria-haspopup', 'dialog');
       return element;
     };
     if (sources.length === 0) return editable() ? [chip('не подключено', true)] : [];
@@ -362,14 +364,7 @@
       : `Подходящих блоков нет: добавьте в этот или более ранний этап блок, который отдаёт ${type}.`);
   }
 
-  // A source in `from` by name: its block, with the part of a key in two parts.
-  function fromSourceName(item, stage) {
-    const entry = state.blocks.get(item.block);
-    if (!entry) return item.block;
-    const name = placedName(item.block, stage.id);
-    if (item.part === undefined) return name;
-    return `${name} · ${state.controls.get(entry.block.control)?.answerKeyParts?.[item.part] ?? item.part}`;
-  }
+  const fromSourceName = (item, stage) => (state.blocks.get(item.block) ? placedName(item.block, stage.id) : item.block);
 
   // The block's title tells two blocks of one kind apart.
   function fromSourceNotes(item, stage) {
@@ -386,9 +381,9 @@
       : 'Подходящих блоков в этапе нет.';
   }
 
-  function setBlockSources(id, chosen) {
-    const { block, stage } = state.blocks.get(id);
-    change(() => Edits.setSources(stage, block, chosen, state.controls));
+  function setBlockSource(id, sourceId) {
+    const { block } = state.blocks.get(id);
+    change(() => Edits.setSource(block, sourceId));
   }
 
   // The one block a repeated audio, an example dialogue or a guess check is built from.
@@ -397,8 +392,8 @@
     const options = Edits.sourceOptions(stage, block, state.controls).map(option => ({
       title: el('b', '', fromSourceName(option, stage)),
       notes: fromSourceNotes(option, stage),
-      checked: option.index >= 0,
-      choose: () => setBlockSources(id, [option]),
+      checked: option.chosen,
+      choose: () => setBlockSource(id, option.block),
     }));
     openPicker(chip, `Откуда брать ${state.controls.get(block.control).sources.label}`, options, options.length > 0
       ? `Блоки этого этапа, из которых собирается «${blockName(block)}».`
@@ -561,7 +556,8 @@
 
   const reorderBlock = (from, to) => change(() => Edits.moveBlock(currentStage(), from, to));
 
-  function blockFrame(block, component) {
+  // `answerKey` is the card of a task's answer key: it stays with the task in its frame.
+  function blockFrame(block, component, answerKey) {
     const kept = staticFrames.get(block.id);
     if (block.kind === 'static' && kept?.component === block.component) {
       kept.frame.firstElementChild.replaceWith(blockBar(block));
@@ -570,7 +566,7 @@
     const frame = el('article', 'template-block');
     frame.dataset.blockId = block.id;
     frame.addEventListener('click', () => selectBlock(block.id));
-    frame.append(blockBar(block), block.kind === 'static' ? staticBody(block) : sampleBody(component));
+    frame.append(blockBar(block), block.kind === 'static' ? staticBody(block) : sampleBody(component, answerKey));
     return frame;
   }
 
@@ -604,13 +600,20 @@
   }
 
   // The sample lesson is shown, not taken: its exercises do not react to clicks.
-  function sampleBody(component) {
+  function sampleBody(component, answerKey) {
     const body = el('div', 'template-block__preview');
     body.inert = true;
     body.append(component
       ? window.LessonView.renderComponent(component)
       : el('p', 'template-block__empty', 'Пример появится, когда в шаблоне не останется проблем.'));
+    if (component && answerKey) body.append(answerKeyCard(answerKey));
     return body;
+  }
+
+  function answerKeyCard(component) {
+    const card = el('div', 'template-answer-key');
+    card.append(window.LessonView.renderComponent(component));
+    return card;
   }
 
   // A static block is drawn from the definition, its {{slots}} as they are, and a copy's
@@ -674,7 +677,7 @@
     renderStageHeading();
     keepingPanelInPlace(() => {
       const frames = stage.blocks.length > 0
-        ? stage.blocks.map(block => blockFrame(block, components.get(block.id)))
+        ? stage.blocks.map(block => blockFrame(block, components.get(block.id), components.get(answerKeyId(block.id))))
         : [emptyStageNote()];
       const previous = staticFrames;
       staticFrames = new Map(stage.blocks.flatMap((block, index) => (block.kind === 'static'
@@ -1029,15 +1032,18 @@
     }
   }
 
-  // Problems of the selected block's parameters, chrome and fields for the AI, each under
-  // its field.
+  // Problems of the selected block's parameters, chrome, answer key and fields for the AI,
+  // each under its field.
   function showFieldProblems() {
     const id = selectedBlockId();
-    for (const problem of panel.querySelectorAll('[data-param], [data-chrome], [data-slot]')) {
-      const { param, chrome, slot } = problem.dataset;
-      const error = state.preview.errors.find(item => item.block === id && (param
-        ? item.param === param
-        : (chrome ? item.chrome === chrome : item.slot === slot)));
+    const matches = ({ param, chrome, answerKey, part, slot }, item) => {
+      if (param) return item.param === param;
+      if (chrome) return item.chrome === chrome;
+      if (answerKey) return item.answerKey === answerKey && item.part === part;
+      return item.slot === slot;
+    };
+    for (const problem of panel.querySelectorAll('[data-param], [data-chrome], [data-answer-key], [data-slot]')) {
+      const error = state.preview.errors.find(item => item.block === id && matches(problem.dataset, item));
       problem.textContent = error ? capitalize(error.detail || error.message) : '';
       problem.hidden = !error;
       problem.parentElement.querySelector('.template-field__input')?.setAttribute('aria-invalid', String(Boolean(error)));
@@ -1074,7 +1080,7 @@
     const { stage } = state.blocks.get(block.id);
     const { label } = state.controls.get(block.control).sources;
     const options = Edits.sourceOptions(stage, block, state.controls);
-    const current = options.find(option => option.index >= 0);
+    const current = options.find(option => option.chosen);
     const linked = current && state.blocks.get(current.block)?.stage === stage ? current.block : null;
     if (!editable()) {
       return [settingRow(`Берёт: ${label}`, linked
@@ -1089,7 +1095,7 @@
     // Two blocks of one kind differ by their titles.
     const optionText = option => [fromSourceName(option, stage), ...fromSourceNotes(option, stage).map(note => `«${note}»`)].join(' ');
     select.append(...options.map((option, number) => new Option(optionText(option), String(number), false, option === current)));
-    select.addEventListener('change', () => setBlockSources(block.id, [options[Number(select.value)]]));
+    select.addEventListener('change', () => setBlockSource(block.id, options[Number(select.value)].block));
     const field = fieldGroup('label', `Берёт ${label} из`, select);
     if (options.length === 0) field.append(el('small', 'template-panel__hint', noSourcesText(block)));
     return linked ? [field, linkButton(`Перейти к «${blockName(state.blocks.get(linked).block)}» →`, linked)] : [field];
@@ -1109,7 +1115,7 @@
         link.from ? linkButton(`← ${placedName(link.from.block, stage.id)}`, link.from.block) : el('small', '', 'не подключено'),
       ));
     }
-    if (links.sources && state.controls.get(block.control).sources.single) rows.push(...fromSourceField(block));
+    if (links.sources) rows.push(...fromSourceField(block));
     for (const output of Object.values(links.exports)) {
       const readers = el('div', 'template-readers');
       for (const reader of output.readers.blocks) readers.append(linkButton(placedName(reader.block, stage.id), reader.block));
@@ -1123,71 +1129,65 @@
     return rows.length > 0 ? panelSection('Связи', ...rows) : null;
   }
 
-  // «Ответы из блоков»: an answer key's sources, a row per block of the stage with answers
-  // and per part of a key in two parts, with the title of its section. A system template
-  // lists the ones it takes.
-  function answerSourcesSection(block) {
-    const { stage } = state.blocks.get(block.id);
-    const options = Edits.sourceOptions(stage, block, state.controls);
-    const from = [].concat(block.from ?? []);
-    const entryTitle = option => (typeof from[option.index] === 'object' ? from[option.index].title ?? '' : '');
+  // «Ключ ответов» of a task: a teacher-only card right after it, built from its answers.
+  // A key in several parts shows them all, each under its title. A setting left at its
+  // default stays out of the definition.
+  function answerKeySection(block, parts) {
+    const key = block.answerKey;
+    const fields = state.answerKeyFields;
+    const names = ['title', 'format', ...(parts && key?.format !== 'paragraphs' ? ['layout'] : [])];
+    const valueOf = name => key[name] ?? fields[name].default;
+    const partTitle = part => key.partTitles?.[part] ?? parts[part].title;
     if (!editable()) {
-      const rows = options.filter(option => option.index >= 0).map(option => {
-        const row = el('div', 'template-readers');
-        row.append(state.blocks.get(option.block)?.stage === stage
-          ? linkButton(fromSourceName(option, stage), option.block)
-          : el('span', '', option.block));
-        if (entryTitle(option)) row.append(el('small', '', `Раздел «${entryTitle(option)}»`));
-        return row;
-      });
-      if (rows.length === 0) return panelSection('Ответы из блоков', el('small', '', 'не подключено'));
-      const list = el('div', 'template-sources');
-      list.append(...rows);
-      return panelSection('Ответы из блоков', list);
+      if (!key) return panelSection('Ключ ответов', el('small', '', 'нет'));
+      return panelSection(
+        'Ключ ответов',
+        ...names.map(name => settingRow(fields[name].label, chromeValue(fields[name], valueOf(name)))),
+        ...Object.keys(parts || {}).map(part => settingRow(`Заголовок: ${parts[part].label.toLowerCase()}`, partTitle(part))),
+      );
     }
 
-    const chosen = options.filter(option => option.index >= 0);
-    const rows = options.map((option, number) => {
-      const on = option.index >= 0;
-      const row = el('div', `template-source${on ? '' : ' template-source--off'}`);
-      const check = el('input');
-      Object.assign(check, { type: 'checkbox', checked: on, id: `answer-source-${number}` });
-      check.dataset.answerSource = number;
-      check.addEventListener('change', () => {
-        setBlockSources(block.id, check.checked ? [...chosen, option] : chosen.filter(item => item !== option));
-        panel.querySelector(`[data-answer-source="${number}"]`)?.focus();
-      });
-      const name = el('label', 'template-source__name', fromSourceName(option, stage));
-      name.htmlFor = check.id;
-      const title = textInput({
-        value: on ? entryTitle(option) : '',
-        maxLength: SOURCE_TITLE_MAX_LENGTH,
-        onInput: text => edit(() => Edits.setSourceTitle(block, option.index, text)),
-      });
-      title.placeholder = 'Заголовок раздела, например Task 2';
-      title.disabled = !on;
-      title.setAttribute('aria-label', `Заголовок раздела «${fromSourceName(option, stage)}»`);
-      row.append(check, name, ...fromSourceNotes(option, stage).map(note => el('small', '', note)), title);
-      return row;
-    });
-    const list = el('div', 'template-sources');
-    list.append(...rows);
-    const section = panelSection(
-      'Ответы из блоков',
-      el('p', 'template-panel__hint', options.length > 0
-        ? 'Блоки этого этапа, у которых есть ответы. Заголовок раздела виден в ключе.'
-        : 'В этапе нет блоков с ответами: добавьте задание из каталога.'),
-      ...(rows.length > 0 ? [list] : []),
-    );
-    section.dataset.answerSources = '';
-    return section;
-  }
+    const toggle = el('label', 'template-field template-field--flag');
+    const check = el('input');
+    Object.assign(check, { type: 'checkbox', checked: Boolean(key) });
+    check.addEventListener('change', () => change(() => Edits.setAnswerKey(block, check.checked)));
+    toggle.append(check, el('span', 'template-field__label', 'Ключ после задания'));
+    if (!key) return panelSection('Ключ ответов', toggle);
 
-  // An answer key's chip leads to its sources in the panel.
-  function focusAnswerSources() {
-    const section = panel.querySelector('[data-answer-sources]');
-    section?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    section?.querySelector('input:enabled')?.focus({ preventScroll: true });
+    const problem = (name, part) => {
+      const error = fieldError('', true);
+      error.dataset.answerKey = name;
+      if (part) error.dataset.part = part;
+      return error;
+    };
+    const setting = name => {
+      const field = fields[name];
+      if (field.type === 'text') {
+        const input = textInput({
+          value: key[name] ?? '',
+          maxLength: TITLE_MAX_LENGTH,
+          onInput: text => edit(() => Edits.setAnswerKeySetting(block, name, text.trim() || undefined)),
+        });
+        input.placeholder = field.default;
+        return fieldGroup('label', field.label, input, problem(name));
+      }
+      const select = el('select', 'template-field__input');
+      select.append(...Object.entries(field.options).map(([option, label]) => new Option(label, option, false, option === valueOf(name))));
+      // Only the format changes which settings the key has.
+      const apply = name === 'format' ? change : edit;
+      select.addEventListener('change', () => apply(() => Edits.setAnswerKeySetting(block, name, select.value === field.default ? undefined : select.value)));
+      return fieldGroup('label', field.label, select, problem(name));
+    };
+    const partField = part => {
+      const input = textInput({
+        value: key.partTitles?.[part] ?? '',
+        maxLength: TITLE_MAX_LENGTH,
+        onInput: text => edit(() => Edits.setAnswerKeyPartTitle(block, part, text)),
+      });
+      input.placeholder = parts[part].title;
+      return fieldGroup('label', `Заголовок: ${parts[part].label.toLowerCase()}`, input, problem('partTitles', part));
+    };
+    return panelSection('Ключ ответов', toggle, ...names.map(setting), ...Object.keys(parts || {}).map(partField));
   }
 
   // A block without instructions of its own uses the control's.
@@ -1227,7 +1227,6 @@
   function controlledBlockSections(block) {
     const control = state.controls.get(block.control);
     const sections = [];
-    if (control.sources && !control.sources.single) sections.push(answerSourcesSection(block));
     const params = Object.entries(control.params);
     if (params.length > 0) {
       sections.push(panelSection('Параметры', ...params.map(([key, spec]) => (editable()
@@ -1239,6 +1238,7 @@
         ? chromeField(block, field)
         : settingRow(field.label, chromeValue(field, block.chrome?.[field.key]))))));
     }
+    if (control.answerKey) sections.push(answerKeySection(block, control.answerKey.parts));
     sections.push(linksSection(block));
     if (block.kind === 'generated') sections.push(blockInstructionsSection(block));
     if (block.kind === 'generated' && state.blockFacts[block.id]) sections.push(rulesSection());
@@ -2187,10 +2187,9 @@
 
   // A control's example is built by the server once per type; a static block's is its sample.
   function catalogExample(entry) {
-    if (entry.kind === 'static') return Promise.resolve({ id: 'catalog-example', ...entry.sample });
+    if (entry.kind === 'static') return Promise.resolve({ component: { id: 'catalog-example', ...entry.sample } });
     if (!examples.has(entry.type)) {
       examples.set(entry.type, request('GET', `/api/template-controls/${encodeURIComponent(entry.type)}/example`)
-        .then(({ component }) => component)
         .catch(error => {
           examples.delete(entry.type);
           throw error;
@@ -2262,7 +2261,8 @@
     return chips;
   }
 
-  // Parameters a new block starts with; lists and special ones are left to its panel.
+  // Parameters a new block starts with; lists and special ones are left to its panel. A
+  // task starts with its answer key.
   function defaultsList(entry) {
     const items = Object.values(entry.params || {}).flatMap(spec => {
       if (spec.type === 'integer') return [`${spec.label} — ${spec.default}`];
@@ -2270,6 +2270,7 @@
       if (spec.type === 'flag') return [`${spec.label} — ${spec.default ? 'да' : 'нет'}`];
       return [];
     });
+    if (entry.answerKey) items.push('Ключ ответов после задания — да');
     if (items.length === 0) return null;
     const list = el('ul', 'template-setting__list');
     list.append(...items.map(item => el('li', '', item)));
@@ -2344,8 +2345,10 @@
       ...warnings,
       frame,
     );
-    catalogExample(entry).then(component => {
-      if (state.catalog.selected === entry) frame.replaceChildren(window.LessonView.renderComponent(component));
+    catalogExample(entry).then(({ component, answerKey }) => {
+      if (state.catalog.selected !== entry) return;
+      frame.replaceChildren(window.LessonView.renderComponent(component));
+      if (answerKey) frame.append(answerKeyCard(answerKey));
     }, () => {
       if (state.catalog.selected === entry) frame.replaceChildren(el('p', 'template-catalog__placeholder', 'Не удалось загрузить пример.'));
     });
@@ -2695,6 +2698,7 @@
         .filter(entry => groupOrder.includes(entry.group))
         .sort((a, b) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group));
       state.variableTypes = controls.variableTypes;
+      state.answerKeyFields = controls.answerKeyFields;
       state.stageIcons = controls.stageIcons;
       state.blocks = indexBlocks(template.definition);
       state.preview = await request('POST', '/api/lesson-templates/preview', {

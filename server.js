@@ -1864,8 +1864,8 @@ async function handleRequest(req, res) {
     const user = requireAdminAuth(req, res);
     if (!user) return;
     try {
-      const component = controlExample(templateControlExample[1]);
-      if (component) json(res, 200, { component });
+      const example = controlExample(templateControlExample[1]);
+      if (example) json(res, 200, example);
       else json(res, 404, { error: 'Такого блока нет в каталоге.' });
     } catch (error) {
       console.error('Cannot build control example:', error);

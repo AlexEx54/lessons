@@ -172,6 +172,8 @@
 .template-block__name { padding: 2px 4px; border-radius: 6px; background: none; font-size: 13px; font-weight: 700; }
 .template-block__name:hover { color: var(--purple); }
 .template-block__empty { margin: 0; padding: 18px; color: var(--muted); font-size: 13px; text-align: center; }
+/* A task's answer key under it, in its frame and in the catalog. */
+.template-answer-key { margin-top: 16px; }
 .template-empty-stage {
   display: grid;
   justify-items: center;
@@ -261,26 +263,6 @@
 .template-source-option--disabled:hover { background: none; }
 .template-source-picker__foot { margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.45; }
 
-/* An answer key's sources in its panel: a row per block of the stage with answers. */
-.template-sources { display: grid; gap: 8px; }
-.template-source {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  align-items: center;
-  padding: 10px;
-  gap: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #fff;
-  font-size: 12px;
-}
-.template-source input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--purple); }
-.template-source__name { font-weight: 650; cursor: pointer; }
-.template-source small,
-.template-source .template-field__input { grid-column: 2; }
-.template-source small { color: var(--muted); line-height: 1.45; }
-.template-source .template-field__input { padding: 6px 9px; font-size: 12px; }
-.template-source--off { color: var(--muted); background: #fbfbfd; }
 
 .template-panel { padding: 24px 20px 40px; border-left: 1px solid var(--line); background: #fbfaff; }
 .template-panel__empty { margin: 40px 10px; color: var(--muted); font-size: 13px; line-height: 1.5; text-align: center; }

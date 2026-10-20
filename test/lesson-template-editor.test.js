@@ -155,12 +155,14 @@ test('every block of the catalog has a group and a description; static ones come
 
 test('every control has a catalog sample built with its default parameters', () => {
   for (const control of CONTROL_CATALOG.values()) {
-    const component = controlExample(control.type);
+    const { component, answerKey } = controlExample(control.type);
     assert.equal(component?.id, 'catalog-example', control.type);
+    // A task comes from the catalog with its answer key.
+    assert.equal(answerKey?.id, typeof control.answerKey === 'function' ? 'catalog-example-answer-key' : undefined, control.type);
   }
   // Inputs read sample variables, and a block built from others gets a source it accepts.
-  assert.equal(controlExample('contextDropdown').choices.length, CONTROL_CATALOG.get('contextDropdown').params.gaps.default);
-  assert.equal(controlExample('repeatAudio').type, 'audioPlayer');
+  assert.equal(controlExample('contextDropdown').component.choices.length, CONTROL_CATALOG.get('contextDropdown').params.gaps.default);
+  assert.equal(controlExample('repeatAudio').component.type, 'audioPlayer');
   assert.equal(controlExample('contextDropdown'), controlExample('contextDropdown'));
   assert.equal(controlExample('missing'), null);
 });

@@ -332,12 +332,43 @@ test('a block built from one block takes another source of its stage instead', (
   const again = block(definition, 'listening-audio-again');
   const audio = addBlock(definition, 'listening', 'audioScript').block;
   assert.deepEqual(Edits.sourceOptions(listening, again, controls), [
-    { block: 'listening-audio', index: 0 },
-    { block: audio.id, index: -1 },
+    { block: 'listening-audio', chosen: true },
+    { block: audio.id, chosen: false },
   ]);
-  Edits.setSources(listening, again, [{ block: audio.id }], controls);
+  Edits.setSource(again, audio.id);
   assert.deepEqual(again.from, [audio.id]);
   assert.deepEqual(problems(definition), []);
+
+  // A source the stage lacks stays among the options, after the stage's own.
+  again.from = ['reading-text'];
+  assert.deepEqual(Edits.sourceOptions(listening, again, controls).map(option => [option.block, option.chosen]), [
+    ['listening-audio', false], [audio.id, false], ['reading-text', true],
+  ]);
+});
+
+test('a task comes from the catalog with its answer key, which is set up and turned off in its block', () => {
+  const definition = templateTwo();
+  const task = addBlock(definition, 'grammar-focus', 'correctSentences').block;
+  assert.deepEqual(task.answerKey, {});
+  assert.equal(Object.hasOwn(addBlock(definition, 'grammar-focus', 'listCard').block, 'answerKey'), false);
+
+  Edits.setAnswerKeySetting(task, 'title', 'Answers');
+  Edits.setAnswerKeySetting(task, 'layout', 'stacked');
+  Edits.setAnswerKeyPartTitle(task, 'answers', '  Task 2  ');
+  Edits.setAnswerKeyPartTitle(task, 'explanations', 'Why');
+  assert.deepEqual(task.answerKey, { title: 'Answers', layout: 'stacked', partTitles: { answers: 'Task 2', explanations: 'Why' } });
+  assert.deepEqual(problems(definition), []);
+  // Back to the defaults, the settings leave the definition.
+  Edits.setAnswerKeySetting(task, 'layout', undefined);
+  Edits.setAnswerKeyPartTitle(task, 'answers', ' ');
+  Edits.setAnswerKeyPartTitle(task, 'explanations', '');
+  assert.deepEqual(task.answerKey, { title: 'Answers' });
+
+  // Off and on again, the key starts over.
+  Edits.setAnswerKey(task, false);
+  assert.equal(Object.hasOwn(task, 'answerKey'), false);
+  Edits.setAnswerKey(task, true);
+  assert.deepEqual(task.answerKey, {});
 });
 
 test('a deleted block takes required readers, sources and slots with it; optional inputs are unbound', () => {
