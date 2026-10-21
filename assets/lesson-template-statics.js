@@ -11,6 +11,7 @@
     taskPrompt: ['TaskPromptComponent', 'normalizeTaskPrompt', './components/task-prompt.js'],
     markdownCard: ['MarkdownCardComponent', 'normalizeMarkdownCard', './components/markdown-card.js'],
     textPanel: ['TextPanelComponent', 'normalizeTextPanel', './components/text-panel.js'],
+    illustratedTextPanel: ['IllustratedTextPanelComponent', 'normalizeIllustratedTextPanel', './components/text-panel.js'],
     multipleChoice: ['MultipleChoiceComponent', 'normalizeMultipleChoice', './components/multiple-choice.js'],
     videoPlayer: ['VideoPlayerComponent', 'normalizeVideoPlayer', './components/video-player.js'],
     howToPlay: ['HowToPlayComponent', 'normalizeHowToPlay', './components/how-to-play.js'],
@@ -56,6 +57,18 @@
       group: 'notes',
       description: 'Строка или абзац текста без рамки карточки.',
       sample: { type: 'textPanel', text: '**Read the instructions.**', backgroundColor: '#FFFFFF', accentColor: '#20243B', showBorder: false },
+    },
+    illustratedTextPanel: {
+      label: 'Панель с картинками',
+      group: 'notes',
+      description: 'Текст на цветном фоне с картинкой до него и после.',
+      sample: {
+        type: 'illustratedTextPanel',
+        text: '**@SkyRider:** I want to fly a plane one day!',
+        backgroundColor: '#252A38',
+        leadingPicture: { imagePrompt: 'Circular avatar of a smiling teenager in a pilot cap, educational illustration, no text.' },
+        trailingPicture: { imagePrompt: 'Small paper plane symbol, educational illustration, no text.' },
+      },
     },
     howToPlay: {
       label: 'Как играть',

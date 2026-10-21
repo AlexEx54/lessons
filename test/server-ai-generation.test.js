@@ -64,8 +64,8 @@ const LEAD_IN = {
     '**Say:** *We are going to talk about travel choices.*',
   ].join('\n'),
   message: '**@CityMia:** I am always on the go. Today I took the bus, but cycling looked more fun!',
-  leadingImagePrompt: 'Child-friendly circular city traveler avatar, educational illustration, no text.',
-  trailingImagePrompt: 'Child-friendly small bicycle symbol, educational illustration, no text.',
+  senderImagePrompt: 'Child-friendly circular city traveler avatar, educational illustration, no text.',
+  symbolImagePrompt: 'Child-friendly small bicycle symbol, educational illustration, no text.',
   questions: [
     'How did Mia travel today?',
     'Which type of transport looked more fun?',

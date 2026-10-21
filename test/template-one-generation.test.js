@@ -96,6 +96,19 @@ test('Template 1 builds every stage from model answers without warnings', t => {
   });
 });
 
+test('Template 1 Lead-In message fills its text and both picture prompts from slots', () => {
+  const { lesson } = buildStage('lead-in', structuredClone(GENERATED_LEAD_IN));
+  const panel = lesson.stages.find(stage => stage.id === 'lead-in').content.find(item => item.id === 'lead-in-gamer-message');
+  assert.deepEqual(panel, {
+    type: 'illustratedTextPanel',
+    id: 'lead-in-gamer-message',
+    text: GENERATED_LEAD_IN.message,
+    backgroundColor: '#252A38',
+    leadingPicture: { imagePrompt: GENERATED_LEAD_IN.senderImagePrompt },
+    trailingPicture: { imagePrompt: GENERATED_LEAD_IN.symbolImagePrompt },
+  });
+});
+
 test('each Template 1 prompt starts with the learner profile and receives only its inputs', () => {
   const preamble = learnerProfileInstructions({ ageGroup: '9-11', level: 'B1' });
   const inputs = TEMPLATE_ONE.resolveInputs({ topic: 'Space travel', warmUpTopic: 'Holidays in space', grammarTopic: 'Past Simple' });

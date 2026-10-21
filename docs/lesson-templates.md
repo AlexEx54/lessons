@@ -56,6 +56,10 @@ Wrap-Up). Заголовки, иконки и цвета подблоков ос
 Support, Challenge, Possible language, Speaking Support) — статичные
 `markdownCard` с одним слотом на весь список: число строк и вид списка задаёт
 правило слота, постоянное вступление стоит в тексте карточки перед слотом.
+Сообщение в Lead-In шаблона 1 — статичный `illustratedTextPanel`: слоты стоят и
+в тексте (`{{message}}`), и в промтах обеих картинок (`{{senderImagePrompt}}`,
+`{{symbolImagePrompt}}`). Картинок может быть одна или ни одной, а промт —
+постоянным текстом без слота.
 
 `id` блока совпадает с `id` компонента в уроке и уникален в пределах шаблона.
 
@@ -340,12 +344,11 @@ warm-up, watch-and-interact — без связей
 | `communicationCards` | guidedCommunicationCards | vocabulary (выбор N слов) |
 | `threeTwoOne` | threeTwoOne | |
 
-Шаблону 1 нужны ещё 15:
+Шаблону 1 нужны ещё 14:
 
 | Контрол | Компонент | Входы → выходы |
 |---|---|---|
 | `thisOrThat` | thisOrThat | |
-| `illustratedMessage` | illustratedTextPanel | |
 | `matchPictures` *derived* | matchWords | vocabulary (с картинками) |
 | `termExplanations` | markdownCard | vocabulary |
 | `fillInBlanks` | fillInBlanks | vocabulary |
@@ -363,7 +366,7 @@ warm-up, watch-and-interact — без связей
 Общие для обоих шаблонов: `vocabularyList` (у шаблона 1 с параметром
 `imagePrompts`, словарь тогда несёт картинки), `contextDropdown`,
 `personalizedQuestions`, `numberedPanel`, `ruleGaps`, `quickRule`,
-`choiceSentences`, `wordBankSupport`, `threeTwoOne`. Всего 37 контролов.
+`choiceSentences`, `wordBankSupport`, `threeTwoOne`. Всего 36 контролов.
 
 **Ключ ответов.** Контрол задания отдаёт `answerKey()` → `{ lines, list }`:
 строки ключа и признак, что это пункты Markdown-списка. Блок задания включает

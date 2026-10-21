@@ -31,8 +31,8 @@ const GENERATED_LEAD_IN = Object.freeze({
     '**Say:** *We are going to talk about space travel.*',
   ].join('\n'),
   message: '**@SpaceMax:** I low-key want to visit Mars. The trip is long, but seeing a new planet sounds amazing!',
-  leadingImagePrompt: 'Child-friendly circular astronaut avatar, educational illustration, no text.',
-  trailingImagePrompt: 'Child-friendly small planet symbol, educational illustration, no text.',
+  senderImagePrompt: 'Child-friendly circular astronaut avatar, educational illustration, no text.',
+  symbolImagePrompt: 'Child-friendly small planet symbol, educational illustration, no text.',
   questions: [
     'Which planet does Max want to visit?',
     'Why does the trip sound exciting to Max?',

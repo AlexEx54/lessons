@@ -133,15 +133,29 @@
         },
         {
           "id": "lead-in-gamer-message",
-          "kind": "generated",
-          "control": "illustratedMessage",
-          "fields": {
-            "text": "message"
+          "kind": "static",
+          "component": {
+            "type": "illustratedTextPanel",
+            "text": "{{message}}",
+            "backgroundColor": "#252A38",
+            "leadingPicture": {
+              "imagePrompt": "{{senderImagePrompt}}"
+            },
+            "trailingPicture": {
+              "imagePrompt": "{{symbolImagePrompt}}"
+            }
           },
-          "chrome": {
-            "backgroundColor": "#252A38"
-          },
-          "instructions": "The main message must be short, engaging, directly connected to the lesson topic, and lead naturally into it.\nUse natural English at the target CEFR level in the message, but include exactly one or two contemporary English phrases, idioms, or slang expressions. Those expressions must be the ones explained in teacherNotes.\nThe message may start with a short sender name or social-media handle and may use light Markdown, but it must remain easy to read."
+          "slots": {
+            "message": {
+              "rule": "The main message must be short, engaging, directly connected to the lesson topic, and lead naturally into it.\nUse natural English at the target CEFR level in the message, but include exactly one or two contemporary English phrases, idioms, or slang expressions. Those expressions must be the ones explained in teacherNotes.\nThe message may start with a short sender name or social-media handle and may use light Markdown, but it must remain easy to read."
+            },
+            "senderImagePrompt": {
+              "rule": "An image prompt for a small circular avatar of the message sender. A modern educational illustration suitable for teenagers, with no text. Avoid childish or preschool aesthetics."
+            },
+            "symbolImagePrompt": {
+              "rule": "An image prompt for a small thematic symbol related to the message. A modern educational illustration suitable for teenagers, with no text. Avoid childish or preschool aesthetics."
+            }
+          }
         },
         {
           "id": "lead-in-discussion-questions",
