@@ -43,7 +43,7 @@ const GENERATED_TEMPLATE_TWO_TARGET_VOCABULARY = {
     { question: 'Do you wear **sunglasses** in summer?', followUp: 'Why?' },
     { question: 'Have you ever had a **sunburn**?', followUp: 'What happened?' },
   ],
-  sentenceStarters: ['Last summer I ...', 'I usually ...', 'My favourite ...'],
+  sentenceStarters: '- **Last summer I ...**\n- **I usually ...**\n- **My favourite ...**',
 };
 
 const GENERATED_TEMPLATE_TWO_LEAD_IN = {
@@ -53,7 +53,7 @@ const GENERATED_TEMPLATE_TWO_LEAD_IN = {
     { text: 'Summer is the warmest season of the year.', answer: 'fact', explanation: 'Summer days are usually the hottest.' },
   ],
   guessStatements: GUESS_STATEMENTS,
-  speakingSupport: ['In summer, people usually…', 'Last summer I…'],
+  speakingSupport: 'In summer, people usually…\n\nLast summer I…',
 };
 
 const GENERATED_TEMPLATE_TWO_WARM_UP = {

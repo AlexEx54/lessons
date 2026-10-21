@@ -157,22 +157,20 @@
         },
         {
           "id": "lead-in-suggested-answers-card",
-          "kind": "generated",
-          "control": "listCard",
-          "params": {
-            "items": 3,
-            "format": "numbered"
-          },
-          "fields": {
-            "items": "suggestedAnswers"
-          },
-          "chrome": {
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
             "title": "Suggested answers",
+            "text": "{{suggestedAnswers}}",
             "icon": "check",
             "accentColor": "#1EAD58",
             "studentVisibility": "controlled"
           },
-          "instructions": "suggestedAnswers answer the questions in the same order. Answers 1 and 2 must answer from the message; answer 3 must be a plausible example personal answer, not “Personal answer”."
+          "slots": {
+            "suggestedAnswers": {
+              "rule": "Exactly three suggested answers as a Markdown numbered list (1. to 3.), one answer per line, answering the questions in the same order. Answers 1 and 2 must answer from the message; answer 3 must be a plausible example personal answer, not “Personal answer”. No heading or introduction."
+            }
+          }
         }
       ]
     },
@@ -343,24 +341,20 @@
         },
         {
           "id": "target-vocabulary-sentence-starters-card",
-          "kind": "generated",
-          "control": "listCard",
-          "params": {
-            "items": 3,
-            "format": "boldBullets",
-            "intro": "Use these starters if you need help answering.",
-            "plainText": true
-          },
-          "fields": {
-            "items": "sentenceStarters"
-          },
-          "chrome": {
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
             "title": "Support: Sentence Starters",
+            "text": "Use these starters if you need help answering.\n\n{{sentenceStarters}}",
             "icon": "chat",
             "accentColor": "#20A85B",
             "studentVisibility": "always"
           },
-          "instructions": "sentenceStarters: short, topic-relevant sentence starters. Each starter must include a vocabulary item from the personalizedQuestions, copied exactly, so the learner can reuse those words when answering."
+          "slots": {
+            "sentenceStarters": {
+              "rule": "Exactly three short, topic-relevant sentence starters as a Markdown bulleted list, one per line, each starter in bold: - **starter**. Each starter must include a vocabulary item from the personalizedQuestions, copied exactly, so the learner can reuse those words when answering. No other formatting, heading or introduction."
+            }
+          }
         },
         {
           "id": "target-vocabulary-describe-and-guess",
@@ -793,22 +787,20 @@
           "blocks": [
             {
               "id": "grammar-focus-writing-support",
-              "kind": "generated",
-              "control": "listCard",
-              "params": {
-                "items": 5,
-                "format": "numbered"
-              },
-              "fields": {
-                "items": "writingSupport"
-              },
-              "chrome": {
+              "kind": "static",
+              "component": {
+                "type": "markdownCard",
                 "title": "Writing Support",
+                "text": "{{writingSupport}}",
                 "icon": "pencil",
                 "accentColor": "#20A85B",
                 "studentVisibility": "always"
               },
-              "instructions": "writingSupport: short sentence starters that help the learner use the target grammar."
+              "slots": {
+                "writingSupport": {
+                  "rule": "Exactly five short sentence starters that help the learner use the target grammar, as a Markdown numbered list (1. to 5.), one per line. No heading or introduction."
+                }
+              }
             },
             {
               "id": "grammar-focus-support",
@@ -834,22 +826,20 @@
             },
             {
               "id": "grammar-focus-challenge",
-              "kind": "generated",
-              "control": "listCard",
-              "params": {
-                "items": 5,
-                "format": "bullets"
-              },
-              "fields": {
-                "items": "challengeItems"
-              },
-              "chrome": {
+              "kind": "static",
+              "component": {
+                "type": "markdownCard",
                 "title": "Challenge",
+                "text": "{{challengeItems}}",
                 "icon": "trophy",
                 "accentColor": "#6545F5",
                 "studentVisibility": "always"
               },
-              "instructions": "challengeItems: concise conditions, including a negative, a question, a reason, target vocabulary, and linked ideas when compatible with the grammar."
+              "slots": {
+                "challengeItems": {
+                  "rule": "Exactly five concise conditions as a Markdown bulleted list, one per line, including a negative, a question, a reason, target vocabulary, and linked ideas when compatible with the grammar. No heading or introduction."
+                }
+              }
             }
           ]
         }
@@ -1000,22 +990,20 @@
         },
         {
           "id": "wrap-up-possible-language",
-          "kind": "generated",
-          "control": "listCard",
-          "params": {
-            "items": 3,
-            "format": "slashSeparated"
-          },
-          "fields": {
-            "items": "possibleLanguage"
-          },
-          "chrome": {
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
             "title": "Possible language:",
+            "text": "{{possibleLanguage}}",
             "icon": "chat",
             "accentColor": "#6545F5",
             "studentVisibility": "always"
           },
-          "instructions": "possibleLanguage: short Possible language supports. Make them useful for answering the two and one steps, and naturally include the target grammar and relevant supplied vocabulary where possible."
+          "slots": {
+            "possibleLanguage": {
+              "rule": "Exactly three short Possible language supports on one line, separated by \" / \". Make them useful for answering the two and one steps, and naturally include the target grammar and relevant supplied vocabulary where possible. Plain text: no Markdown, list markers, heading or introduction."
+            }
+          }
         }
       ]
     }

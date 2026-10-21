@@ -128,7 +128,6 @@ test('Template 1 rejects model answers that would break a task', () => {
     ['warm-up', answer => { answer.choices = []; }, /нужно ровно 4 \(пар\), получено 0/],
     ['warm-up', answer => { answer.choices[0].options.pop(); }, /exactly two options/],
     ['lead-in', answer => { answer.questions.pop(); }, /нужно ровно 3 \(пунктов\), получено 2/],
-    ['lead-in', answer => { answer.suggestedAnswers.pop(); }, /«Suggested answers»: нужно ровно 3/],
     ['target-vocabulary', answer => { answer.vocabularyItems.pop(); }, /«Vocabulary»: нужно ровно 10 \(слов\)/],
     ['target-vocabulary', answer => { answer.describeAndGuessTerms[5] = answer.describeAndGuessTerms[0]; }, /не должны повторяться/],
     ['target-vocabulary', answer => { answer.vocabularyItems[0].imagePrompt = 'A traveler buying a ticket.'; }, /квадратными иллюстрациями без текста/],
@@ -157,7 +156,6 @@ test('Template 1 rejects model answers that would break a task', () => {
     ['guided-speaking', answer => { answer.usedVocabularyTerms = ['book a ticket', 'book a ticket']; }, /не должны повторяться/],
     ['wrap-up', answer => { answer.onePrompt = 'Расскажи о своей последней поездке.'; }, /только на английском/],
     ['wrap-up', answer => { answer.twoCues.pop(); }, /нужно ровно 2 \(подсказок для шага two\)/],
-    ['wrap-up', answer => { answer.possibleLanguage[0] = ''; }, /«Possible language:»: не заполнено: строка списка/],
   ]) {
     assert.throws(damaged(key, mutate), error, `${key}: ${error}`);
   }

@@ -39,10 +39,10 @@ const GENERATED_LEAD_IN = Object.freeze({
     'Would you like to travel to another planet? Why or why not?',
   ],
   suggestedAnswers: [
-    'Max wants to visit Mars.',
-    'He thinks seeing a new planet sounds amazing.',
-    'Yes, I would, because I want to see space.',
-  ],
+    '1. Max wants to visit Mars.',
+    '2. He thinks seeing a new planet sounds amazing.',
+    '3. Yes, I would, because I want to see space.',
+  ].join('\n'),
 });
 
 const GENERATED_WRAP_UP = Object.freeze({
@@ -56,11 +56,7 @@ const GENERATED_WRAP_UP = Object.freeze({
     'Explain one travel choice you made and why.',
   ]),
   onePrompt: 'Can you describe a past journey and explain which travel option was best for you?',
-  possibleLanguage: Object.freeze([
-    'I travelled to…',
-    'I booked a ticket because…',
-    'The best option was…',
-  ]),
+  possibleLanguage: 'I travelled to… / I booked a ticket because… / The best option was…',
 });
 
 // Target Vocabulary and Reading answers in the shape of the Template 1 controls, made from

@@ -14,7 +14,7 @@ const GENERATED = {
     { text: 'Summer is the warmest season of the year.', answer: 'fact', explanation: 'Summer days are usually the hottest.' },
   ],
   guessStatements: ['Somebody in our stories went camping last summer.', 'Somebody in our stories lost a hat at the beach.'],
-  speakingSupport: ['In summer, people usually…', 'Last summer I…'],
+  speakingSupport: 'In summer, people usually…\n\nLast summer I…',
 };
 const buildLeadIn = generated => stageContent('lead-in', generated);
 
@@ -64,17 +64,12 @@ test('generated Template 2 Lead-In rejects damaged content', () => {
     () => buildLeadIn({ ...GENERATED, checkStatements: GENERATED.checkStatements.slice(1) }),
     /нужно ровно 3 \(утверждений на проверку\)/,
   );
-  assert.throws(() => buildLeadIn({ ...GENERATED, speakingSupport: ['Only one…'] }), /«Speaking Support»: нужно ровно 2/);
   const wrongAnswer = structuredClone(GENERATED);
   wrongAnswer.checkStatements[1].answer = 'maybe';
   assert.throws(() => buildLeadIn(wrongAnswer), /Некорректный ответ в строке 2/);
   const markdownStatement = structuredClone(GENERATED);
   markdownStatement.guessStatements[1] = 'Somebody in our stories lost a **hat**.';
   assert.throws(() => buildLeadIn(markdownStatement), /без разметки/);
-  assert.throws(
-    () => buildLeadIn({ ...GENERATED, speakingSupport: ['# Heading', 'Last summer I…'] }),
-    /«Speaking Support»: нужен обычный текст без разметки/,
-  );
 });
 
 test('Template 2 Lead-In prompt uses the topic, grammar, a neutral guess format and the stories ahead', () => {

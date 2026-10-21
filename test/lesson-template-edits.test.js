@@ -348,7 +348,7 @@ test('a task comes from the catalog with its answer key, which is set up and tur
   const definition = templateTwo();
   const task = addBlock(definition, 'grammar-focus', 'correctSentences').block;
   assert.deepEqual(task.answerKey, {});
-  assert.equal(Object.hasOwn(addBlock(definition, 'grammar-focus', 'listCard').block, 'answerKey'), false);
+  assert.equal(Object.hasOwn(addBlock(definition, 'grammar-focus', 'quickRule').block, 'answerKey'), false);
 
   Edits.setAnswerKeySetting(task, 'title', 'Answers');
   Edits.setAnswerKeySetting(task, 'layout', 'stacked');
@@ -555,7 +555,10 @@ test('answer names the target stage holds are renamed, fields for the AI in thei
   const [note, language] = stage(one, 'warm-up').blocks.slice(-2);
   assert.deepEqual(Object.keys(note.slots), ['aiField1']);
   assert.equal(note.component.text, '{{aiField1}}');
-  assert.deepEqual(language.fields, { items: 'possibleLanguage2' });
+  assert.deepEqual(Object.keys(language.slots), ['aiField2']);
+  assert.equal(language.component.text, '{{aiField2}}');
+  Edits.moveToStage(one, 'listening-gist-quiz', 'reading', controls);
+  assert.deepEqual(stage(one, 'reading').blocks.at(-1).fields, { questions: 'gistQuestions2' });
   assert.deepEqual(validateTemplate(one, CONTROL_CATALOG).errors, []);
 
   const definition = templateTwo();

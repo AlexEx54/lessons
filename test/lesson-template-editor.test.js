@@ -123,16 +123,16 @@ test('controls are described for the editor with labelled parameters and chrome'
   // Tasks that can have an answer key, a key in two parts with its part titles.
   assert.deepEqual(byType('contextDropdown').answerKey, {});
   assert.deepEqual(byType('choiceSentences').answerKey.parts.explanations, { label: 'Пояснения', title: 'Short explanations' });
-  assert.equal(byType('listCard').answerKey, undefined);
+  assert.equal(byType('quickRule').answerKey, undefined);
   assert.deepEqual(Object.keys(describeControls().answerKeyFields), ['title', 'format', 'layout']);
-  const icon = controls.find(control => control.type === 'listCard').chrome.find(field => field.key === 'icon');
+  const icon = controls.find(control => control.type === 'quickRule').chrome.find(field => field.key === 'icon');
   assert.equal(icon.type, 'choice');
   assert.equal(icon.options.lifeRing, 'Спасательный круг');
 });
 
 test('every block of the catalog has a group and a description; static ones come with a sample', () => {
   const { controls, statics, groups } = describeControls();
-  assert.equal(controls.length + statics.length, 46);
+  assert.equal(controls.length + statics.length, 45);
   for (const block of [...controls, ...statics]) {
     assert.ok(groups.some(group => group.key === block.group), `${block.type}: группа ${block.group}`);
     assert.ok(block.description.trim().length > 0, block.type);

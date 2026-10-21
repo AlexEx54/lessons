@@ -49,21 +49,24 @@ const GENERATED_GRAMMAR_FOCUS = Object.freeze({
     imagePrompt: 'Child-friendly educational illustration of a happy young traveler arriving at an airport with a suitcase, no text.',
   },
   writingSupport: [
-    'Last weekend, I ...', 'First, I ...', 'At the airport, we ...',
-    'I did not ...', 'My favourite moment was ... because ...',
-  ],
+    '1. Last weekend, I ...',
+    '2. First, I ...',
+    '3. At the airport, we ...',
+    '4. I did not ...',
+    '5. My favourite moment was ... because ...',
+  ].join('\n'),
   supportWordBank: [
     'book a ticket', 'pack a suitcase', 'catch a flight', 'miss a flight',
     'go through security', 'show a passport', 'board a plane', 'take off',
   ],
   modelSentence: 'Last weekend, I booked a ticket and flew to London.',
   challengeItems: [
-    'Add one negative Past Simple sentence.',
-    'Ask one Past Simple question.',
-    'Give a reason with because.',
-    'Use at least three words from the word bank.',
-    'Link two ideas with but or so.',
-  ],
+    '- Add one negative Past Simple sentence.',
+    '- Ask one Past Simple question.',
+    '- Give a reason with because.',
+    '- Use at least three words from the word bank.',
+    '- Link two ideas with but or so.',
+  ].join('\n'),
 });
 
 module.exports = { GENERATED_GRAMMAR_FOCUS };

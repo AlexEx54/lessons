@@ -102,10 +102,10 @@ const GENERATED_TARGET_VOCABULARY = Object.freeze({
     followUp: 'Have you ever waited a long time for a bag?',
   }],
   sentenceStarters: [
-    'Before a flight, I usually ...',
-    'At the airport, I need to ...',
-    'One time I nearly ...',
-  ],
+    '- **Before a flight, I usually ...**',
+    '- **At the airport, I need to ...**',
+    '- **One time I nearly ...**',
+  ].join('\n'),
   describeAndGuessTerms: [
     'book a ticket', 'pack a suitcase', 'catch a flight',
     'go through security', 'board a plane', 'pick up luggage',

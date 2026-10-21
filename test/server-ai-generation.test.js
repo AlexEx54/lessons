@@ -72,10 +72,10 @@ const LEAD_IN = {
     'How do you usually travel around your city?',
   ],
   suggestedAnswers: [
-    'Mia took the bus.',
-    'Cycling looked more fun.',
-    'I usually take the bus because it is quick.',
-  ],
+    '1. Mia took the bus.',
+    '2. Cycling looked more fun.',
+    '3. I usually take the bus because it is quick.',
+  ].join('\n'),
 };
 
 const WRAP_UP = {
@@ -89,7 +89,7 @@ const WRAP_UP = {
     'Explain one travel choice you made and why.',
   ],
   onePrompt: 'Can you describe a past journey and explain your best travel choice?',
-  possibleLanguage: ['I travelled to…', 'I booked a ticket because…', 'The best option was…'],
+  possibleLanguage: 'I travelled to… / I booked a ticket because… / The best option was…',
 };
 
 async function listen(server) {
@@ -363,7 +363,7 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
     ready.content.stages[8].content[2].title,
     'Self-assessment: How do you feel about today’s lesson?',
   );
-  assert.equal(ready.content.stages[8].content[3].text, WRAP_UP.possibleLanguage.join(' / '));
+  assert.equal(ready.content.stages[8].content[3].text, WRAP_UP.possibleLanguage);
 
   assert.equal((await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/generation-stream`)).status, 401);
   const traceResponse = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/generation-stream`, {
@@ -450,7 +450,7 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
       assert.match(payload.messages[1].content, /Target Vocabulary/);
       assert.equal(payload.response_format.json_schema.name, 'easyclass_wrap_up');
       if (requestIndex === 9) {
-        const invalidWrapUp = { ...WRAP_UP, possibleLanguage: ['I travelled to…'] };
+        const invalidWrapUp = { ...WRAP_UP, twoCues: ['Say where you travelled.'] };
         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
         res.write(`data: ${JSON.stringify({ id: 'gen-invalid-wrap-up', choices: [{ delta: { content: JSON.stringify(invalidWrapUp) } }] })}\n\n`);
         res.write(`data: ${JSON.stringify({ id: 'gen-invalid-wrap-up', choices: [{ delta: {} }], usage: { cost: 0.014 } })}\n\n`);
@@ -522,7 +522,7 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
   assert.equal(failed.status, 'failed');
   assert.equal(failed.generation.status, 'failed');
   assert.ok(Math.abs(failed.generation.costUsd - 0.086) < 1e-12);
-  assert.match(failed.errorMessage, /Possible language/);
+  assert.match(failed.errorMessage, /подсказок для шага two/);
   assert.ok(failed.content.stages.every(stage => stage.content.length === 0));
   assert.equal(failed.imageGeneration, null);
 
@@ -542,7 +542,7 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
   assert.match(trace, /=== Guided Speaking ===/);
   assert.match(trace, /=== Wrap-Up ===/);
   assert.match(trace, /I travelled to/);
-  assert.match(trace, /Possible language/);
+  assert.match(trace, /подсказок для шага two/);
   assert.match(trace, /event: generation-error/);
 
   const retryResponse = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/retry`, {
@@ -582,7 +582,7 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
       { text: 'Planes fly above the clouds.', answer: 'fact', explanation: 'Planes usually fly very high.' },
     ],
     guessStatements: ['Somebody in our stories missed a train.', 'Somebody in our stories travelled by boat.'],
-    speakingSupport: ['I travelled by…', 'People usually…'],
+    speakingSupport: 'I travelled by…\n\nPeople usually…',
   };
   const terms = ['ticket', 'platform', 'luggage', 'delay', 'journey', 'passport', 'seat', 'timetable', 'map', 'bus stop'];
   const targetVocabulary = {
@@ -602,7 +602,7 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
     dragSentences: terms.slice(0, 6).map(term => `I need a [[${term}]].`),
     translationSentences: terms.map(answer => ({ before: 'I need', hint: `перевод ${answer}`, answer })),
     personalizedQuestions: terms.slice(0, 4).map(term => ({ question: `Do you like a **${term}**?`, followUp: 'Why?' })),
-    sentenceStarters: ['I usually ...', 'Last time I ...', 'I like ...'],
+    sentenceStarters: '- **I usually ...**\n- **Last time I ...**\n- **I like ...**',
   };
   const responses = [
     { schema: 'easyclass_lesson_metadata', user: 'Lesson topic: Travel choices', generated: LESSON_METADATA },

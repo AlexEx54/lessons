@@ -63,9 +63,10 @@
   let previewNumber = 0;
   let drag = null;
   let suppressClick = false;
-  // Frames of the current stage's static blocks with the component each was drawn from.
-  // A frame stays while its block keeps that component: redrawing the stage does not
-  // take it out of the page, so an editor open in it keeps its text, focus and caret.
+  // Frames of the current stage's static blocks with the component each was drawn from;
+  // a static part of a row has its card instead, marked `inRow`. A frame stays while its
+  // block keeps that component: redrawing the stage does not take it out of the page, so
+  // an editor open in it keeps its text, focus and caret.
   let staticFrames = new Map();
   // The text field of a static block last typed in, with the caret of a contenteditable
   // one: «Вставить поле для ИИ» puts the field there.
@@ -556,14 +557,22 @@
   // `answerKey` is the card of a task's answer key: it stays with the task in its frame.
   function blockFrame(block, component, answerKey) {
     const kept = staticFrames.get(block.id);
-    if (block.kind === 'static' && kept?.component === block.component) {
+    if (block.kind === 'static' && kept?.component === block.component && !kept.inRow) {
       kept.frame.firstElementChild.replaceWith(blockBar(block));
       return kept.frame;
     }
     const frame = el('article', 'template-block');
     frame.dataset.blockId = block.id;
-    frame.addEventListener('click', () => selectBlock(block.id));
-    frame.append(blockBar(block), block.kind === 'static' ? staticBody(block) : sampleBody(component, answerKey));
+    // A click on a part of a row selects the part.
+    frame.addEventListener('click', event => {
+      const part = block.kind === 'row' ? event.target.closest('.card-row > [data-component-id]') : null;
+      selectBlock(part ? part.dataset.componentId : block.id);
+    });
+    let body;
+    if (block.kind === 'static') body = staticBody(block);
+    else if (block.kind === 'row') body = rowBody(block, component);
+    else body = sampleBody(component, answerKey);
+    frame.append(blockBar(block), body);
     return frame;
   }
 
@@ -613,17 +622,44 @@
     return card;
   }
 
-  // A static block is drawn from the definition, its {{slots}} as they are, and a copy's
-  // one is edited in place with the editor of its component. A video has no editor here.
+  // A row lays its parts out as the lesson does: a static part is drawn and edited like a
+  // static block, a generated one shows its card from the sample lesson.
+  function rowBody(block, sample) {
+    const body = el('div', 'template-block__preview');
+    const samples = new Map((sample?.items || []).map(item => [item.id, item]));
+    const row = el('section', 'card-row');
+    for (const part of block.blocks) {
+      if (part.kind === 'static') {
+        const kept = staticFrames.get(part.id);
+        row.append(kept?.component === part.component && kept.inRow ? kept.frame : staticComponent(part));
+        continue;
+      }
+      const card = samples.has(part.id)
+        ? window.LessonView.renderComponent(samples.get(part.id))
+        : el('p', 'template-block__empty', 'Пример появится, когда в шаблоне не останется проблем.');
+      card.inert = true;
+      row.append(card);
+    }
+    body.append(row);
+    return body;
+  }
+
   function staticBody(block) {
     const body = el('div', 'template-block__preview');
+    body.append(staticComponent(block));
+    return body;
+  }
+
+  // A static block is drawn from the definition, its {{slots}} as they are, and a copy's
+  // one is edited in place with the editor of its component. A video has no editor here.
+  function staticComponent(block) {
     const component = { id: block.id, ...block.component };
     if (!editable() || component.type === 'videoPlayer') {
-      body.inert = true;
-      body.append(window.LessonView.renderComponent(component));
-      return body;
+      const node = window.LessonView.renderComponent(component);
+      node.inert = true;
+      return node;
     }
-    body.append(window.LessonView.renderComponent(component, {
+    return window.LessonView.renderComponent(component, {
       onSave: changes => saveStatic(block.id, changes),
       onDirtyChange: dirty => {
         if (dirty) {
@@ -637,8 +673,7 @@
       },
       onError: showToast,
       onMessage: showToast,
-    }));
-    return body;
+    });
   }
 
   // What a component editor saves goes into the working copy. The frame stays with the
@@ -677,9 +712,7 @@
         ? stage.blocks.map(block => blockFrame(block, components.get(block.id), components.get(answerKeyId(block.id))))
         : [emptyStageNote()];
       const previous = staticFrames;
-      staticFrames = new Map(stage.blocks.flatMap((block, index) => (block.kind === 'static'
-        ? [[block.id, { component: block.component, frame: frames[index] }]]
-        : [])));
+      staticFrames = new Map(stage.blocks.flatMap((block, index) => staticEntries(block, frames[index])));
       // An editor whose frame is gone took its unsaved changes with it.
       const open = state.openEdits.size;
       const gone = id => previous.get(id)?.frame !== staticFrames.get(id)?.frame;
@@ -696,6 +729,16 @@
     });
     byId('template-add-block').hidden = !editable() || stage.blocks.length === 0;
     window.history.replaceState(null, '', `#${encodeURIComponent(stage.id)}`);
+  }
+
+  function staticEntries(block, frame) {
+    if (block.kind === 'static') return [[block.id, { component: block.component, frame }]];
+    if (block.kind !== 'row') return [];
+    return block.blocks.filter(part => part.kind === 'static').map(part => [part.id, {
+      component: part.component,
+      frame: frame.querySelector(`.card-row > [data-component-id="${part.id}"]`),
+      inRow: true,
+    }]);
   }
 
   // A stage is left without blocks only while it is new: it cannot be saved like that.
@@ -875,11 +918,6 @@
       case 'choice': return spec.options[value] ?? String(value);
       case 'flag': return value ? 'да' : 'нет';
       case 'text': return value || '—';
-      case 'textList': {
-        const list = el('ul', 'template-setting__list');
-        list.append(...value.map(item => el('li', '', item)));
-        return list;
-      }
       default: return 'особая настройка';
     }
   }
@@ -938,14 +976,6 @@
       }
       case 'text':
         return fieldGroup('label', spec.label, textInput({ value, onInput: text => set(text.trim()) }), problem);
-      case 'textList':
-        input = textInput({
-          value: value.join('\n'),
-          multiline: true,
-          rows: Math.max(3, value.length + 1),
-          onInput: text => set(text.split('\n').map(line => line.trim()).filter(Boolean)),
-        });
-        return fieldGroup('label', spec.label, el('small', 'template-panel__hint', 'Каждый пункт — с новой строки.'), input, problem);
       default:
         return settingRow(spec.label, paramValue(spec, value));
     }

@@ -57,11 +57,16 @@ const GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS = Object.freeze({
     ['Где ты оставил багаж?', 'Where did you leave the luggage?'],
     ['Автобус пришёл вовремя.', 'The bus came on time'],
   ].map(([ru, en]) => ({ ru, en })),
-  writingSupport: ['Last weekend, I ...', 'First, we ...', 'I did not ...', 'Did you ...?', 'It was ... because ...'],
+  writingSupport: '1. Last weekend, I ...\n2. First, we ...\n3. I did not ...\n4. Did you ...?\n5. It was ... because ...',
   supportWordBank: TRAVEL_TERMS.slice(0, 8),
   modelSentence: 'Last weekend, I bought a ticket and travelled to the sea.',
-  challengeItems: ['Add a negative sentence.', 'Ask one question.', 'Give a reason with because.',
-    'Use three words from the word bank.', 'Link ideas with but or so.'],
+  challengeItems: [
+    '- Add a negative sentence.',
+    '- Ask one question.',
+    '- Give a reason with because.',
+    '- Use three words from the word bank.',
+    '- Link ideas with but or so.',
+  ].join('\n'),
 });
 
 module.exports = { GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS, TRAVEL_TERMS };

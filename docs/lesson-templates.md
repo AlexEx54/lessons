@@ -14,7 +14,7 @@
 
 Контрол и компонент — разные вещи. Один компонент может обслуживаться
 несколькими контролами. Например, `markdownCard` собирают `vocabularyList`,
-`listCard` и `roleDialogue`, и у каждого из них свои данные.
+`quickRule` и `roleDialogue`, и у каждого из них свои данные.
 
 ## 2. Блок
 
@@ -52,6 +52,10 @@ Wrap-Up). Заголовки, иконки и цвета подблоков ос
 `markdownCard` с текстом `{{yourTurnInstruction}}`) и вопросы после This or That
 (статичный `taskPrompt` со слотами `{{followUpQuestions}}` и
 `{{possibleLanguage}}` в основном тексте и в дополнительной секции).
+Карточки-списки обоих шаблонов (Suggested answers, Sentence Starters, Writing
+Support, Challenge, Possible language, Speaking Support) — статичные
+`markdownCard` с одним слотом на весь список: число строк и вид списка задаёт
+правило слота, постоянное вступление стоит в тексте карточки перед слотом.
 
 `id` блока совпадает с `id` компонента в уроке и уникален в пределах шаблона.
 
@@ -176,7 +180,7 @@ module.exports = {
 - `rules()` — неизменяемая техническая часть промпта. Количество элементов
   зависит от `params`, поэтому редактор не может сломать схему.
 - **Параметры** создаются помощниками из `template-controls/helpers.js`:
-  `integer`, `choice`, `flag`, `text` и `textList`. У каждого есть подпись
+  `integer`, `choice`, `flag` и `text`. У каждого есть подпись
   для редактора.
   `integer(…, { atMost: 'maxWords' })` связывает пару «от — до»: проверка
   шаблона не пропустит `minWords` больше `maxWords`.
@@ -187,8 +191,8 @@ module.exports = {
 - **Поля ответа.** Ответ нейросети на этап — плоский объект, как сейчас. Блок
   владеет полями, которые объявил контрол (`checkStatements`,
   `guessStatements`). Если в этапе два блока одного контрола, шаблон
-  переименовывает поля: `"fields": { "items": "speakingSupport" }`. Правила
-  ссылаются на поля через `f.items`, поэтому в промпте стоит итоговое имя.
+  переименовывает поля: `"fields": { "questions": "gistQuestions" }`. Правила
+  ссылаются на поля через `f.questions`, поэтому в промпте стоит итоговое имя.
   Имена полей и слотов в пределах этапа не должны совпадать. `schema` может не
   вернуть поле, которое не нужно: например, `guessChecks` у историй без входа
   `guesses`.
@@ -274,11 +278,9 @@ OpenRouter, метаданные урока (обложка) и описание
       "answerKey": { "title": "Answer Keys" }
     },
     {
-      "id": "lead-in-speaking-support", "kind": "generated", "control": "listCard",
-      "params": { "items": 2, "format": "paragraphs", "fixedBefore": ["I think it’s a fact / myth because…"], "plainText": true },
-      "fields": { "items": "speakingSupport" },
-      "chrome": { "title": "Speaking Support", "icon": "chat", "accentColor": "#E5AD16", "studentVisibility": "always" },
-      "instructions": "speakingSupport: unfinished sentence starters, ending with \"…\", that help the student justify an answer about this topic."
+      "id": "lead-in-speaking-support", "kind": "static",
+      "component": { "type": "markdownCard", "title": "Speaking Support", "text": "I think it’s a fact / myth because…\n\n{{speakingSupport}}", "icon": "chat", "accentColor": "#E5AD16", "studentVisibility": "always" },
+      "slots": { "speakingSupport": { "rule": "Exactly two unfinished sentence starters, ending with \"…\", that help the student justify an answer about this topic…" } }
     }
   ]
 }
@@ -296,8 +298,8 @@ OpenRouter, метаданные урока (обложка) и описание
   Check the Rule и Choose the Correct Options он из двух частей: ответы и
   пояснения. Заметка Grammar Focus — четыре подблока, текст каждого — слот `rule`.
 - **Guided Communication** — success criteria — слот `rule` в статичной заметке.
-- **Wrap-Up** — заметка списком из трёх слотов `rule`, 3–2–1 и
-  `listCard` со строкой через « / ».
+- **Wrap-Up** — заметка списком из трёх слотов `rule`, 3–2–1 и статичная
+  карточка Possible language, слот которой — строка через « / ».
 
 ### Граф связей шаблона 2
 
@@ -317,7 +319,6 @@ warm-up, watch-and-interact — без связей
 |---|---|---|
 | `oddOneOut` | oddOneOut | |
 | `factOrMyth` | factOrMyth | → statements |
-| `listCard` | markdownCard (список: paragraphs / bullets / boldBullets / numbered / slashSeparated) | |
 | `vocabularyList` | markdownCard | → vocabulary |
 | `storyCards` | storyCards | vocabulary?, statements? |
 | `storyGuessKey` *derived* | markdownCard | блок storyCards, statements |
@@ -361,8 +362,8 @@ warm-up, watch-and-interact — без связей
 
 Общие для обоих шаблонов: `vocabularyList` (у шаблона 1 с параметром
 `imagePrompts`, словарь тогда несёт картинки), `contextDropdown`,
-`personalizedQuestions`, `listCard`, `numberedPanel`, `ruleGaps`, `quickRule`,
-`choiceSentences`, `wordBankSupport`, `threeTwoOne`. Всего 40 контролов.
+`personalizedQuestions`, `numberedPanel`, `ruleGaps`, `quickRule`,
+`choiceSentences`, `wordBankSupport`, `threeTwoOne`. Всего 37 контролов.
 
 **Ключ ответов.** Контрол задания отдаёт `answerKey()` → `{ lines, list }`:
 строки ключа и признак, что это пункты Markdown-списка. Блок задания включает

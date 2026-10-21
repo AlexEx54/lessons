@@ -9,7 +9,7 @@ const GENERATED_TEMPLATE_TWO_WRAP_UP = Object.freeze({
   twoPrompt: 'Make two sentences about a journey in the Past Simple.',
   twoCues: ['Say how you travelled last time.', 'Say what you forgot or lost on a trip.'],
   onePrompt: 'Can you tell me about your best journey in three sentences?',
-  possibleLanguage: ['Last summer I went to ...', 'I travelled by ...', 'I didn’t take my ...'],
+  possibleLanguage: 'Last summer I went to ... / I travelled by ... / I didn’t take my ...',
 });
 
 module.exports = { GENERATED_TEMPLATE_TWO_WRAP_UP };
