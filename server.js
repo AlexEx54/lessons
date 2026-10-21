@@ -2467,6 +2467,9 @@ async function handleRequest(req, res) {
           title: body.title,
           text: body.text,
           sections: body.sections,
+          icon: body.icon,
+          accentColor: body.accentColor,
+          studentVisibility: body.studentVisibility,
         }, database);
       } else if (fillInBlanksRoute) {
         draft = updateFillInBlanks({

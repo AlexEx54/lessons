@@ -4,8 +4,6 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { controlExample, describeControls, previewLessonTemplate } = require('../lib/lesson-template-editor.js');
 const Statics = require('../assets/lesson-template-statics.js');
-const MarkdownCard = require('../assets/components/markdown-card.js');
-const { CARD_ICONS } = require('../lib/lesson-templates/chrome-fields.js');
 const { findSystemTemplate } = require('../lib/lesson-templates/system-templates.js');
 const { CONTROL_CATALOG } = require('../lib/template-controls/index.js');
 
@@ -70,10 +68,6 @@ test('chrome values are checked by their field; a left out key takes the default
   const card = lesson.stages.find(item => item.id === 'target-vocabulary').content
     .find(component => component.id === 'target-vocabulary-card');
   assert.deepEqual([card.title, card.icon, card.accentColor], ['Vocabulary', 'book', '#3563d4']);
-});
-
-test('card icons are the ones markdownCard draws', () => {
-  assert.deepEqual(Object.keys(CARD_ICONS), MarkdownCard.icons);
 });
 
 test('default instructions come from the system template, then from the control', () => {

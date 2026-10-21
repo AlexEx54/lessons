@@ -303,6 +303,20 @@ test('markdown card title and text can be updated without changing presentation 
     accentColor: '#1EAD58',
     studentVisibility: 'controlled',
   });
+  const restyled = updateMarkdownCard({
+    id: ready.id,
+    ownerAdminId: owner.id,
+    componentId: 'lead-in-answers',
+    title: 'Updated answers',
+    text: 'Text',
+    icon: 'trophy',
+    accentColor: '#6545f5',
+    studentVisibility: 'always',
+  }, database).content.stages[0].content[0];
+  assert.deepEqual([restyled.icon, restyled.accentColor, restyled.studentVisibility], ['trophy', '#6545F5', 'always']);
+  assert.throws(() => updateMarkdownCard({
+    id: ready.id, ownerAdminId: owner.id, componentId: 'lead-in-answers', title: 'Title', text: 'Text', icon: 'rocket',
+  }, database), /не могут быть пустыми или некорректными/);
   assert.throws(() => updateMarkdownCard({
     id: ready.id, ownerAdminId: owner.id, componentId: 'lead-in-answers', title: '', text: 'Text',
   }, database), /не могут быть пустыми/);

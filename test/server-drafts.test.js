@@ -900,9 +900,9 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     id: 'lead-in-suggested-answers-card',
     title: 'Updated answers',
     text: '1. **Updated answer**\n2. Personal answer.',
-    icon: 'check',
-    accentColor: '#1EAD58',
-    studentVisibility: 'controlled',
+    icon: 'book',
+    accentColor: '#000000',
+    studentVisibility: 'always',
   });
   assert.equal((await fetch(markdownCardEndpoint, {
     method: 'PATCH',
@@ -940,7 +940,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
       { id: 'get-used-to', title: 'GET USED TO', text: '- Updated adaptation rule' },
       { id: 'section-3', title: 'REMEMBER', text: '- A new section' },
     ],
-    icon: 'bulb', accentColor: '#6545F5', studentVisibility: 'always',
+    icon: 'check', accentColor: '#000000', studentVisibility: 'teacherOnly',
   });
   assert.equal((await fetch(quickRuleEndpoint, {
     method: 'PATCH',

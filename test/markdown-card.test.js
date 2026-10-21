@@ -117,8 +117,8 @@ test('markdown card renderer exposes configurable visuals, markdown editing, and
   assert.match(css, /--markdown-card-accent/);
   assert.match(css, /color-mix/);
   assert.match(css, /\.markdown-card__body li::marker/);
-  assert.match(source, /createIcon\(doc, current\.icon\)/);
-  assert.match(source, /current\.studentVisibility === 'controlled'/);
+  assert.match(source, /createIcon\(doc, look\.icon\)/);
+  assert.match(source, /studentVisibility !== 'controlled'/);
   assert.match(source, /onStudentVisibilityChange/);
   assert.match(source, /markdown\.editorToMarkdown/);
   assert.match(source, /insertOrderedList/);
@@ -167,6 +167,76 @@ test('live visibility updates reuse the same card and button without emitting ac
   assert.equal(card.querySelector('.markdown-card__visibility'), button);
   card.updateStudentVisibility(true);
   assert.deepEqual(changes, [false]);
+});
+
+// A card rendered with the minimal DOM; the stub markdown keeps text as it is.
+function renderInFakeDom(data, options) {
+  const vm = require('node:vm');
+  const { createDocument } = require('./helpers/lesson-dom.js');
+  const document = createDocument();
+  const createElement = document.createElement;
+  document.createElement = tag => Object.assign(createElement(tag), { focus() {} });
+  const window = {
+    document,
+    SafeMarkdown: {
+      renderMarkdownInto(node, text) { node.textContent = text; },
+      editorToMarkdown: node => node.textContent.trim(),
+    },
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/components/markdown-card.js'), 'utf8'), { window });
+  return window.MarkdownCardComponent.renderMarkdownCard(data, options);
+}
+
+const pressed = buttons => buttons.filter(button => button.getAttribute('aria-pressed') === 'true');
+
+test('card editor changes icon, accent color and student visibility', async () => {
+  const saved = [];
+  const card = renderInFakeDom({ ...example, accentColor: '#1EAD58', studentVisibility: 'always' }, {
+    onSave: async changes => { saved.push(changes); return changes; },
+  });
+  const style = card.querySelector('.markdown-card__style');
+  const visibility = card.querySelector('.markdown-card__visibility');
+  const colors = card.querySelectorAll('.markdown-card__color-choice');
+  assert.equal(style.hidden, true);
+  assert.equal(visibility.hidden, true);
+  // A color outside the palette stays offered, chosen.
+  assert.deepEqual(colors.map(button => button.dataset.color), ['#6545F5', '#20A85B', '#3563D4', '#E5AD16', '#1EAD58']);
+  assert.deepEqual(pressed(colors).map(button => button.dataset.color), ['#1EAD58']);
+
+  card.querySelector('.markdown-card__edit').click();
+  assert.equal(style.hidden, false);
+  card.querySelectorAll('.markdown-card__icon-choice').find(button => button.dataset.icon === 'trophy').click();
+  colors[0].click();
+  card.querySelectorAll('.markdown-card__visibility-choice').find(button => button.dataset.studentVisibility === 'controlled').click();
+  assert.equal(card.dataset.icon, 'trophy');
+  assert.equal(card.style['--markdown-card-accent'], '#6545F5');
+  assert.equal(visibility.hidden, true, 'visibility applies once the card is saved');
+  assert.match(card.className, /markdown-card--dirty/);
+
+  card.querySelector('.markdown-card__edit').click();
+  await new Promise(resolve => setImmediate(resolve));
+  // The changes come from the card's own realm.
+  assert.deepEqual(JSON.parse(JSON.stringify(saved)), [{
+    title: 'Vocabulary',
+    icon: 'trophy',
+    accentColor: '#6545F5',
+    studentVisibility: 'controlled',
+    text: '1. **to hang out** — spend free time together',
+  }]);
+  assert.equal(style.hidden, true);
+  assert.equal(visibility.hidden, false);
+  assert.equal(card.dataset.studentVisibility, 'controlled');
+});
+
+test('cancelled card edit restores its look', () => {
+  const card = renderInFakeDom(example, { onSave: async changes => changes });
+  card.querySelector('.markdown-card__edit').click();
+  card.querySelectorAll('.markdown-card__icon-choice').find(button => button.dataset.icon === 'key').click();
+  card.querySelector('.markdown-card__cancel').click();
+  assert.equal(card.dataset.icon, 'book');
+  assert.equal(card.style['--markdown-card-accent'], '#20A85B');
+  assert.deepEqual(pressed(card.querySelectorAll('.markdown-card__icon-choice')).map(button => button.dataset.icon), ['book']);
+  assert.doesNotMatch(card.className, /markdown-card--dirty/);
 });
 
 test('section pointer addresses agree across roles and survive section reordering', () => {

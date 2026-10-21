@@ -7,9 +7,21 @@
 
   const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const HEX_COLOR = /^#[0-9a-f]{6}$/i;
-  const ICONS = new Set(['book', 'check', 'chat', 'bulb', 'key', 'pencil', 'lifeRing', 'trophy']);
+  // Icons and student visibilities the card supports, with the names its editor shows.
+  const ICONS = Object.freeze({
+    book: 'Книга',
+    check: 'Галочка',
+    chat: 'Диалог',
+    bulb: 'Лампочка',
+    key: 'Ключ',
+    pencil: 'Карандаш',
+    lifeRing: 'Спасательный круг',
+    trophy: 'Кубок',
+  });
+  const VISIBILITIES = Object.freeze({ always: 'Всегда', controlled: 'По кнопке учителя', teacherOnly: 'Только учителю' });
+  // Accent colors the editor offers; a card's own color outside them is offered too.
+  const COLORS = Object.freeze([['#6545F5', 'Фиолетовый'], ['#20A85B', 'Зелёный'], ['#3563D4', 'Синий'], ['#E5AD16', 'Жёлтый']]);
   const LAYOUTS = new Set(['columns', 'stacked']);
-  const STUDENT_VISIBILITIES = new Set(['always', 'controlled', 'teacherOnly']);
   const HEADING_SIZES = new Set(['default', 'large']);
   const VIEWER_ROLES = new Set(['teacher', 'student']);
 
@@ -24,9 +36,9 @@
     const title = normalizeTitle(data.title);
     const accentColor = typeof data.accentColor === 'string' ? data.accentColor.trim().toUpperCase() : '';
     if (!title) throw new Error('MarkdownCard requires non-empty title and text values.');
-    if (!ICONS.has(data.icon)) throw new Error('MarkdownCard requires a supported icon.');
+    if (!Object.hasOwn(ICONS, data.icon)) throw new Error('MarkdownCard requires a supported icon.');
     if (!HEX_COLOR.test(accentColor)) throw new Error('MarkdownCard requires accentColor in #RRGGBB format.');
-    if (!STUDENT_VISIBILITIES.has(data.studentVisibility)) {
+    if (!Object.hasOwn(VISIBILITIES, data.studentVisibility)) {
       throw new Error('MarkdownCard requires a supported studentVisibility.');
     }
     if (data.headingSize != null && !HEADING_SIZES.has(data.headingSize)) {
@@ -76,7 +88,7 @@
 
   function shouldRenderMarkdownCard(studentVisibility, viewerRole, studentVisible) {
     const role = viewerRole || 'teacher';
-    if (!STUDENT_VISIBILITIES.has(studentVisibility)) {
+    if (!Object.hasOwn(VISIBILITIES, studentVisibility)) {
       throw new Error('MarkdownCard requires a supported studentVisibility.');
     }
     if (!VIEWER_ROLES.has(role)) throw new Error('MarkdownCard requires a supported viewer role.');
@@ -182,10 +194,7 @@
     card.className = 'markdown-card';
     card.dataset.componentId = current.id;
     card.dataset.variant = current.variant || 'default';
-    card.dataset.icon = current.icon;
-    card.dataset.studentVisibility = current.studentVisibility;
     card.dataset.headingSize = current.headingSize || 'default';
-    card.style.setProperty('--markdown-card-accent', current.accentColor);
 
     const header = doc.createElement('div');
     header.className = 'markdown-card__header';
@@ -193,7 +202,6 @@
     heading.className = 'markdown-card__heading';
     const icon = doc.createElement('span');
     icon.className = 'markdown-card__icon';
-    icon.append(createIcon(doc, current.icon));
     const title = doc.createElement('span');
     title.className = 'markdown-card__title';
     title.dataset.placeholder = 'Введите заголовок';
@@ -281,6 +289,84 @@
       formattingControls.push(button);
       toolbar.append(button);
     });
+
+    // Icon, accent color and student visibility, chosen while the card is edited.
+    const style = doc.createElement('div');
+    style.className = 'markdown-card__style';
+    style.hidden = true;
+    let look = null;
+
+    function choiceGroup(label, caption) {
+      const group = doc.createElement('div');
+      group.className = 'markdown-card__choices';
+      group.setAttribute('role', 'group');
+      group.setAttribute('aria-label', label);
+      if (caption) {
+        const text = doc.createElement('span');
+        text.className = 'markdown-card__choices-caption';
+        text.textContent = caption;
+        group.append(text);
+      }
+      style.append(group);
+      return group;
+    }
+
+    function choiceButton(group, className, label, change) {
+      const button = doc.createElement('button');
+      button.type = 'button';
+      button.className = className;
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      // The caret stays in the text while a choice is made.
+      button.addEventListener('mousedown', event => event.preventDefault());
+      button.addEventListener('click', () => {
+        if (!editing || saving) return;
+        paintLook({ ...look, ...change });
+        updateDirty();
+      });
+      group.append(button);
+      return button;
+    }
+
+    const iconGroup = choiceGroup('Иконка карточки');
+    const iconChoices = Object.entries(ICONS).map(([name, label]) => {
+      const button = choiceButton(iconGroup, 'markdown-card__icon-choice', label, { icon: name });
+      button.dataset.icon = name;
+      button.append(createIcon(doc, name));
+      return button;
+    });
+    const colorGroup = choiceGroup('Цвет карточки');
+    const colors = COLORS.some(([color]) => color === current.accentColor)
+      ? COLORS
+      : [...COLORS, [current.accentColor, 'Текущий цвет']];
+    const colorChoices = colors.map(([color, label]) => {
+      const button = choiceButton(colorGroup, 'markdown-card__color-choice', label, { accentColor: color });
+      button.dataset.color = color;
+      button.style.setProperty('--markdown-card-swatch', color);
+      return button;
+    });
+    const visibilityGroup = choiceGroup('Видно ученику', 'Ученику:');
+    const visibilityChoices = Object.entries(VISIBILITIES).map(([value, label]) => {
+      const button = choiceButton(visibilityGroup, 'markdown-card__visibility-choice', label, { studentVisibility: value });
+      button.dataset.studentVisibility = value;
+      button.textContent = label;
+      return button;
+    });
+    const styleChoices = [...iconChoices, ...colorChoices, ...visibilityChoices];
+
+    // The look being edited is drawn at once; visibility applies once the card is saved.
+    function paintLook(value) {
+      look = value;
+      card.dataset.icon = look.icon;
+      card.style.setProperty('--markdown-card-accent', look.accentColor);
+      icon.replaceChildren(createIcon(doc, look.icon));
+      iconChoices.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.icon === look.icon)));
+      colorChoices.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.color === look.accentColor)));
+      visibilityChoices.forEach(button => button.setAttribute(
+        'aria-pressed',
+        String(button.dataset.studentVisibility === look.studentVisibility),
+      ));
+    }
 
     const content = doc.createElement('div');
     content.dataset.placeholder = 'Введите текст';
@@ -418,7 +504,7 @@
     }
 
     function snapshot() {
-      const value = { title: normalizeTitle(title.textContent) };
+      const value = { title: normalizeTitle(title.textContent), ...look };
       if (Array.isArray(current.sections)) value.sections = sectionValues();
       else value.text = markdown.editorToMarkdown(content);
       return JSON.stringify(value);
@@ -433,6 +519,9 @@
 
     function paint(value) {
       current = normalizeMarkdownCard({ ...current, ...value });
+      paintLook({ icon: current.icon, accentColor: current.accentColor, studentVisibility: current.studentVisibility });
+      card.dataset.studentVisibility = current.studentVisibility;
+      visibilityButton.hidden = current.studentVisibility !== 'controlled';
       title.textContent = current.title;
       card.classList.toggle('markdown-card--sectioned', Array.isArray(current.sections));
       card.dataset.layout = current.layout || '';
@@ -444,7 +533,7 @@
         content.className = 'markdown-card__body';
         markdown.renderMarkdownInto(content, current.text, doc, 'markdown-card__spacer', { pointerPrefix: 'text' });
       }
-      if (current.studentVisibility === 'controlled') paintVisibility();
+      if (!visibilityButton.hidden) paintVisibility();
     }
 
     function clearValidation() {
@@ -480,6 +569,11 @@
       return valid;
     }
 
+    function lockControls(locked) {
+      [...formattingControls, ...styleChoices, addSectionButton, cancelButton, saveButton]
+        .forEach(control => { control.disabled = locked; });
+    }
+
     function leaveEditMode() {
       editing = false;
       saving = false;
@@ -492,13 +586,14 @@
       content.removeAttribute('aria-label');
       content.removeAttribute('aria-multiline');
       card.classList.remove('markdown-card--editing', 'markdown-card--saving');
+      style.hidden = true;
       toolbar.hidden = true;
       editorFooter.hidden = true;
       editButton.hidden = false;
       editButton.textContent = '✎';
       editButton.disabled = false;
       editButton.setAttribute('aria-label', 'Редактировать карточку');
-      [...formattingControls, addSectionButton, cancelButton, saveButton].forEach(control => { control.disabled = false; });
+      lockControls(false);
       clearValidation();
       setDirty(false);
     }
@@ -507,6 +602,7 @@
       if (editing) return;
       editing = true;
       card.classList.add('markdown-card--editing');
+      style.hidden = false;
       toolbar.hidden = false;
       title.contentEditable = 'true';
       title.setAttribute('role', 'textbox');
@@ -546,7 +642,7 @@
       saving = true;
       card.classList.add('markdown-card--saving');
       editButton.disabled = true;
-      [...formattingControls, addSectionButton, cancelButton, saveButton].forEach(control => { control.disabled = true; });
+      lockControls(true);
       try {
         const saved = await settings.onSave(next, current.id);
         paint(saved || next);
@@ -555,7 +651,7 @@
         saving = false;
         card.classList.remove('markdown-card--saving');
         editButton.disabled = false;
-        [...formattingControls, addSectionButton, cancelButton, saveButton].forEach(control => { control.disabled = false; });
+        lockControls(false);
         activeEditor?.focus();
       }
     }
@@ -588,14 +684,11 @@
 
     if (viewerRole === 'teacher') {
       if (typeof settings.onSave === 'function') actions.append(editButton);
-      if (current.studentVisibility === 'controlled') {
-        paintVisibility();
-        actions.append(visibilityButton);
-      }
+      actions.append(visibilityButton);
     }
     header.append(heading, actions);
     paint(current);
-    card.append(header, toolbar, content, editorFooter);
+    card.append(header, style, toolbar, content, editorFooter);
     card.updateStudentVisibility = value => {
       studentVisible = Boolean(value);
       paintVisibility();
@@ -604,7 +697,7 @@
     return card;
   }
 
-  const api = { icons: Object.freeze([...ICONS]), normalizeMarkdownCard, renderMarkdownCard, shouldRenderMarkdownCard };
+  const api = { ICONS, normalizeMarkdownCard, renderMarkdownCard, shouldRenderMarkdownCard };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.MarkdownCardComponent = api;
 })(typeof window !== 'undefined' ? window : globalThis);

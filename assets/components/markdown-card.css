@@ -50,7 +50,8 @@
 .markdown-card__visibility { min-height: 34px; padding: 0 10px; gap: 8px; font-size: 11px; }
 .markdown-card__visibility svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .markdown-card__edit { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; color: var(--markdown-card-accent); font-size: 17px; }
-.markdown-card__edit[hidden] { display: none; }
+.markdown-card__edit[hidden],
+.markdown-card__visibility[hidden] { display: none; }
 .markdown-card__visibility:hover,
 .markdown-card__edit:hover,
 .markdown-card__format:hover { background: var(--markdown-card-background); }
@@ -122,6 +123,49 @@
 .markdown-card__title-error,
 .markdown-card__section-error { width: 100%; margin: 3px 0 0 36px; color: #b52d40; font-size: 11px; font-weight: 650; }
 .markdown-card__section-error { margin-left: 0; }
+
+.markdown-card__style:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 11px 4px 0 36px;
+  gap: 8px 16px;
+}
+.markdown-card__choices { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.markdown-card__choices-caption { margin-right: 2px; color: #686f7f; font-size: 11px; font-weight: 700; }
+.markdown-card__icon-choice,
+.markdown-card__visibility-choice {
+  min-height: 28px;
+  padding: 0;
+  border: 1px solid var(--markdown-card-border);
+  border-radius: 6px;
+  color: #686f7f;
+  background: #fff;
+}
+.markdown-card__icon-choice { display: grid; place-items: center; width: 28px; }
+.markdown-card__icon-choice svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.markdown-card__icon-choice[data-icon="chat"] circle { fill: currentColor; stroke: none; }
+.markdown-card__visibility-choice { padding: 0 9px; font-size: 11px; font-weight: 700; }
+.markdown-card__icon-choice:hover,
+.markdown-card__visibility-choice:hover { background: var(--markdown-card-background); }
+.markdown-card__icon-choice[aria-pressed="true"],
+.markdown-card__visibility-choice[aria-pressed="true"] {
+  border-color: var(--markdown-card-accent);
+  color: var(--markdown-card-accent);
+  background: color-mix(in srgb, var(--markdown-card-accent) 9%, #fff);
+}
+.markdown-card__color-choice {
+  width: 24px;
+  height: 24px;
+  margin: 2px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--markdown-card-swatch);
+  box-shadow: 0 0 0 1px #dedbe8;
+}
+.markdown-card__color-choice[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--markdown-card-swatch); }
+.markdown-card__style button:disabled { opacity: .5; }
 
 .markdown-card__toolbar {
   display: flex;
@@ -210,6 +254,7 @@
     padding-top: 15px;
     border-top: 1px solid color-mix(in srgb, var(--markdown-card-accent) 24%, #dfe1e8);
   }
+  .markdown-card__style:not([hidden]),
   .markdown-card__toolbar { margin-left: 4px; }
   .markdown-card--sectioned.markdown-card--editing .markdown-card__sections { padding-left: 4px; }
   .markdown-card__editor-footer { align-items: stretch; flex-direction: column; margin-left: 4px; }
