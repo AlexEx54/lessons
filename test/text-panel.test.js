@@ -117,3 +117,79 @@ test('lesson editor loads text-panel as its own closed script tag', () => {
   assert.match(page, /<script src="\/assets\/components\/text-panel\.js" defer><\/script>/);
   assert.match(page, /<link rel="stylesheet" href="\/assets\/components\/text-panel\.css" \/>/);
 });
+
+// A panel rendered with the minimal DOM; the stub markdown keeps text as it is.
+function renderInFakeDom(data, options) {
+  const vm = require('node:vm');
+  const { createDocument } = require('./helpers/lesson-dom.js');
+  const document = createDocument();
+  const createElement = document.createElement;
+  document.createElement = tag => Object.assign(createElement(tag), { focus() {} });
+  const window = {
+    document,
+    SafeMarkdown: {
+      renderMarkdownInto(node, text) { node.textContent = text; },
+      editorToMarkdown: node => node.textContent.trim(),
+    },
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/components/text-panel.js'), 'utf8'), { window });
+  return window.IllustratedTextPanelComponent.renderIllustratedTextPanel(data, options);
+}
+
+test('with editImagePrompts the editor edits, removes and adds picture prompts', async () => {
+  const saved = [];
+  // Like the template editor, the saved panel leaves a removed picture out.
+  const withoutRemoved = changes => Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== null));
+  const panelNode = renderInFakeDom(illustratedPanel({ leadingPicture: { imagePrompt: '{{senderImagePrompt}}' } }), {
+    editImagePrompts: true,
+    onSave: async changes => { saved.push(changes); return { ...illustratedPanel(), ...withoutRemoved(changes) }; },
+  });
+  assert.equal(panelNode.querySelectorAll('.text-panel__prompt-field').length, 0, 'prompts show only while editing');
+
+  panelNode.querySelector('.text-panel__edit').click();
+  const sides = () => panelNode.querySelectorAll('.text-panel__picture--prompt');
+  const [leading, trailing] = sides();
+  const field = leading.querySelector('.text-panel__prompt-field');
+  assert.equal(field.value, '{{senderImagePrompt}}');
+  assert.equal(trailing.querySelector('.text-panel__prompt-field'), null);
+  assert.equal(trailing.querySelector('.text-panel__image-action').textContent, '+ Картинка');
+
+  field.value = ' {{senderImagePrompt}}, smiling ';
+  field.listeners.input.forEach(listener => listener({}));
+  assert.match(panelNode.className, /text-panel--dirty/);
+  trailing.querySelector('.text-panel__image-action').click();
+  const added = sides()[1].querySelector('.text-panel__prompt-field');
+  added.value = 'Paper plane';
+  added.listeners.input.forEach(listener => listener({}));
+
+  panelNode.querySelector('.text-panel__edit').click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(JSON.parse(JSON.stringify(saved)), [{
+    text: '**Alex:** Hello!',
+    backgroundColor: '#252A38',
+    leadingPicture: { imagePrompt: '{{senderImagePrompt}}, smiling' },
+    trailingPicture: { imagePrompt: 'Paper plane' },
+  }]);
+
+  panelNode.querySelector('.text-panel__edit').click();
+  sides()[0].querySelector('.text-panel__image-action--remove').click();
+  panelNode.querySelector('.text-panel__edit').click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(saved[1].leadingPicture, null);
+  assert.deepEqual(JSON.parse(JSON.stringify(saved[1].trailingPicture)), { imagePrompt: 'Paper plane' });
+
+  panelNode.querySelector('.text-panel__edit').click();
+  assert.equal(sides()[0].querySelector('.text-panel__image-action').textContent, '+ Картинка', 'the removed picture stays removed');
+});
+
+test('without editImagePrompts the editor sends no picture fields', async () => {
+  const saved = [];
+  const panelNode = renderInFakeDom(illustratedPanel({ leadingPicture: { imagePrompt: 'Avatar' } }), {
+    onSave: async changes => { saved.push(changes); return { ...illustratedPanel({ leadingPicture: { imagePrompt: 'Avatar' } }), ...changes }; },
+  });
+  panelNode.querySelector('.text-panel__edit').click();
+  assert.equal(panelNode.querySelectorAll('.text-panel__prompt-field').length, 0);
+  panelNode.querySelector('.text-panel__edit').click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(Object.keys(saved[0]), ['text', 'backgroundColor']);
+});

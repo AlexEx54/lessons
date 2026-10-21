@@ -652,6 +652,7 @@
 
   // A static block is drawn from the definition, its {{slots}} as they are, and a copy's
   // one is edited in place with the editor of its component. A video has no editor here.
+  // A template holds no uploaded pictures, only their prompts, and edits those.
   function staticComponent(block) {
     const component = { id: block.id, ...block.component };
     if (!editable() || component.type === 'videoPlayer') {
@@ -660,6 +661,7 @@
       return node;
     }
     return window.LessonView.renderComponent(component, {
+      editImagePrompts: true,
       onSave: changes => saveStatic(block.id, changes),
       onDirtyChange: dirty => {
         if (dirty) {

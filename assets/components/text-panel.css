@@ -48,6 +48,8 @@
 .text-panel--editing .text-panel__picture:not(.text-panel__picture--placeholder) .text-panel__image-actions { display: grid; }
 .text-panel__image-action { min-height: 25px; padding: 0 7px; border-radius: 6px; color: #4432a2; background: #fff; font-size: 9px; font-weight: 750; }
 .text-panel__image-action--remove { color: #cf3342; }
+.text-panel__picture--prompt { align-self: center; display: grid; justify-items: start; gap: 6px; flex-basis: 180px; width: auto; max-width: 180px; }
+.text-panel__prompt-field { box-sizing: border-box; width: 100%; min-height: 96px; padding: 7px 9px; border: 1px dashed color-mix(in srgb, currentColor 48%, transparent); border-radius: 12px; color: inherit; background: color-mix(in srgb, currentColor 8%, transparent); font: inherit; font-size: 11px; line-height: 1.4; resize: vertical; }
 .text-panel__edit { position: absolute; top: -14px; right: 10px; z-index: 5; display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid #ded9f7; border-radius: 8px; color: #6545f5; background: #fff; font-weight: 800; box-shadow: 0 5px 16px rgba(63, 46, 132, .12); }
 .text-panel__controls { display: flex; align-items: center; gap: 7px; margin: -7px 36px 15px 0; padding-bottom: 12px; border-bottom: 1px solid color-mix(in srgb, currentColor 22%, transparent); }
 .text-panel__color-label { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; }

@@ -122,6 +122,12 @@
     let imageBusy = false;
     let initialSnapshot = '';
     let activeEditor = null;
+    // The template editor edits the picture prompts in place: their text with {{fields}}
+    // and whether each picture is there at all. While editing, a side holds its prompt,
+    // or null for no picture.
+    const editPrompts = illustrated && settings.editImagePrompts === true;
+    let draftPrompts = null;
+    const promptFields = {};
 
     const panel = doc.createElement('section');
     panel.className = `text-panel text-panel--${illustrated ? 'illustrated' : 'plain'}`;
@@ -224,16 +230,26 @@
       if (typeof settings.onMessage === 'function') settings.onMessage(message);
     }
 
-    function snapshot() {
-      const value = {
+    function editedChanges() {
+      const changes = {
         text: markdown.editorToMarkdown(body),
         backgroundColor: colorText.value.trim().toUpperCase(),
       };
       if (!illustrated) {
-        value.accentColor = accentText.value.trim().toUpperCase();
-        value.showBorder = borderToggle.checked;
+        changes.accentColor = accentText.value.trim().toUpperCase();
+        changes.showBorder = borderToggle.checked;
       }
-      return JSON.stringify(value);
+      if (editPrompts) {
+        for (const side of SIDES) {
+          const prompt = draftPrompts[side];
+          changes[`${side}Picture`] = prompt === null ? null : { imagePrompt: prompt.trim() };
+        }
+      }
+      return changes;
+    }
+
+    function snapshot() {
+      return JSON.stringify(editedChanges());
     }
 
     function setDirty(dirty) {
@@ -329,7 +345,48 @@
       return actions;
     }
 
+    function setPrompt(side, prompt) {
+      draftPrompts = { ...draftPrompts, [side]: prompt };
+      renderLayout();
+      updateDirty();
+      if (prompt !== null) promptFields[side].focus();
+    }
+
+    function promptElement(side) {
+      const media = doc.createElement('div');
+      media.className = `text-panel__picture text-panel__picture--${side} text-panel__picture--prompt`;
+      media.dataset.side = side;
+      const toggle = doc.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'text-panel__image-action';
+      const prompt = draftPrompts[side];
+      if (prompt === null) {
+        toggle.textContent = '+ Картинка';
+        toggle.addEventListener('click', () => setPrompt(side, ''));
+        media.append(toggle);
+        return media;
+      }
+      const field = doc.createElement('textarea');
+      field.className = 'text-panel__prompt-field';
+      field.value = prompt;
+      field.rows = 4;
+      field.placeholder = 'Промт картинки';
+      field.setAttribute('aria-label', side === 'leading' ? 'Промт картинки слева' : 'Промт картинки справа');
+      field.addEventListener('input', () => {
+        draftPrompts[side] = field.value;
+        updateDirty();
+      });
+      field.addEventListener('keydown', cancelOnEscape);
+      promptFields[side] = field;
+      toggle.classList.add('text-panel__image-action--remove');
+      toggle.textContent = 'Убрать';
+      toggle.addEventListener('click', () => setPrompt(side, null));
+      media.append(field, toggle);
+      return media;
+    }
+
     function pictureElement(side, picture) {
+      if (editPrompts && editing) return promptElement(side);
       const canUpload = typeof settings.onUpload === 'function';
       const mode = pictureRenderMode(picture, editing, canUpload);
       if (mode === 'hidden') return null;
@@ -389,6 +446,7 @@
     function leaveEditMode() {
       editing = false;
       saving = false;
+      draftPrompts = null;
       body.contentEditable = 'false';
       body.removeAttribute('role');
       body.removeAttribute('aria-label');
@@ -410,6 +468,12 @@
       body.setAttribute('aria-label', 'Текст панели');
       body.setAttribute('aria-multiline', 'true');
       activeEditor = body;
+      if (editPrompts) {
+        draftPrompts = {
+          leading: current.leadingPicture?.imagePrompt ?? null,
+          trailing: current.trailingPicture?.imagePrompt ?? null,
+        };
+      }
       initialSnapshot = snapshot();
       editButton.textContent = '✓';
       editButton.setAttribute('aria-label', 'Сохранить текстовую панель');
@@ -427,18 +491,13 @@
 
     async function saveEditing() {
       if (!editing || saving) return;
-      const changes = {
-        text: markdown.editorToMarkdown(body),
-        backgroundColor: colorText.value.trim().toUpperCase(),
-      };
-      if (!illustrated) {
-        changes.accentColor = accentText.value.trim().toUpperCase();
-        changes.showBorder = borderToggle.checked;
-      }
+      const changes = editedChanges();
       try {
         normalize({ ...current, ...changes });
       } catch (_error) {
-        notify('Введите текст, корректные HEX-цвета и настройку рамки.');
+        notify(editPrompts
+          ? 'Введите текст, промты картинок и корректный HEX-цвет.'
+          : 'Введите текст, корректные HEX-цвета и настройку рамки.');
         return;
       }
       saving = true;
@@ -447,7 +506,8 @@
       formattingControls.forEach(control => { control.disabled = true; });
       try {
         const saved = await settings.onSave(changes, current.id);
-        paint(saved || changes);
+        // A removed picture is null in the changes and missing from the saved panel.
+        paint({ ...changes, ...saved });
         leaveEditMode();
       } catch (_error) {
         saving = false;
@@ -457,15 +517,17 @@
       }
     }
 
-    editButton.addEventListener('click', () => editing ? saveEditing() : enterEditMode());
-    body.addEventListener('input', updateDirty);
-    body.addEventListener('focus', () => { activeEditor = body; });
-    body.addEventListener('keydown', (event) => {
+    function cancelOnEscape(event) {
       if (event.key === 'Escape') {
         event.preventDefault();
         cancelEditing();
       }
-    });
+    }
+
+    editButton.addEventListener('click', () => editing ? saveEditing() : enterEditMode());
+    body.addEventListener('input', updateDirty);
+    body.addEventListener('focus', () => { activeEditor = body; });
+    body.addEventListener('keydown', cancelOnEscape);
     body.addEventListener('paste', (event) => {
       if (!editing) return;
       event.preventDefault();
