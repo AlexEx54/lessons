@@ -132,7 +132,7 @@ test('controls are described for the editor with labelled parameters and chrome'
 
 test('every block of the catalog has a group and a description; static ones come with a sample', () => {
   const { controls, statics, groups } = describeControls();
-  assert.equal(controls.length + statics.length, 48);
+  assert.equal(controls.length + statics.length, 47);
   for (const block of [...controls, ...statics]) {
     assert.ok(groups.some(group => group.key === block.group), `${block.type}: группа ${block.group}`);
     assert.ok(block.description.trim().length > 0, block.type);

@@ -48,16 +48,19 @@
         },
         {
           "id": "warm-up-your-turn-card",
-          "kind": "generated",
-          "control": "textCard",
-          "fields": {
-            "text": "yourTurnInstruction"
-          },
-          "chrome": {
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
             "title": "Your turn!",
+            "text": "{{yourTurnInstruction}}",
             "icon": "chat",
             "accentColor": "#1EAD58",
             "studentVisibility": "always"
+          },
+          "slots": {
+            "yourTurnInstruction": {
+              "rule": "One short imperative sentence for the learner in natural English at the target CEFR level: tell them to choose one option in each This or That pair and explain their choice. At most 15 words, plain text, no Markdown."
+            }
           }
         },
         {

@@ -48,6 +48,8 @@ Static-блок может содержать **слоты**: `{{name}}` в лю
 подблоков слот стоит в тексте каждого подблока (четыре подблока Grammar Focus);
 у списка — в каждой строке (`- **Signs of success:** {{signsOfSuccess}}` в
 Wrap-Up). Заголовки, иконки и цвета подблоков остаются статичными.
+Так же устроена карточка «Your turn!» в Warm-Up шаблона 1: статичный
+`markdownCard` с текстом `{{yourTurnInstruction}}`.
 
 `id` блока совпадает с `id` компонента в уроке и уникален в пределах шаблона.
 
@@ -335,11 +337,10 @@ warm-up, watch-and-interact — без связей
 | `communicationCards` | guidedCommunicationCards | vocabulary (выбор N слов) |
 | `threeTwoOne` | threeTwoOne | |
 
-Шаблону 1 нужны ещё 17:
+Шаблону 1 нужны ещё 16:
 
 | Контрол | Компонент | Входы → выходы |
 |---|---|---|
-| `textCard` | markdownCard | |
 | `thisOrThat` | thisOrThat | |
 | `followUpQuestions` | taskPrompt | |
 | `illustratedMessage` | illustratedTextPanel | |
