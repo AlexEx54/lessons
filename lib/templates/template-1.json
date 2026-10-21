@@ -73,15 +73,24 @@
         },
         {
           "id": "warm-up-follow-up-prompt",
-          "kind": "generated",
-          "control": "followUpQuestions",
-          "fields": {
-            "questions": "followUpQuestions",
-            "language": "possibleLanguage"
-          },
-          "chrome": {
+          "kind": "static",
+          "component": {
+            "type": "taskPrompt",
+            "variant": "followUp",
             "title": "Follow-up questions:",
-            "supportTitle": "Possible language:"
+            "text": "{{followUpQuestions}}",
+            "support": {
+              "title": "Possible language:",
+              "text": "{{possibleLanguage}}"
+            }
+          },
+          "slots": {
+            "followUpQuestions": {
+              "rule": "Two or three follow-up questions for the learner about their This or That choices, in natural English at the target CEFR level, as a Markdown bulleted list with one question per line. Questions only: no heading or introduction."
+            },
+            "possibleLanguage": {
+              "rule": "Three to five short sentence starters the learner can use to answer the follow-up questions, in natural English at the target CEFR level, as a Markdown bulleted list; end each starter with “…” where the learner continues. No heading or introduction."
+            }
           }
         }
       ]
