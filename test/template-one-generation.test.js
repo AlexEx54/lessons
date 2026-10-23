@@ -140,7 +140,6 @@ test('Template 1 rejects model answers that would break a task', () => {
   for (const [key, mutate, error] of [
     ['warm-up', answer => { answer.choices = []; }, /нужно ровно 4 \(пар\), получено 0/],
     ['warm-up', answer => { answer.choices[0].options.pop(); }, /exactly two options/],
-    ['lead-in', answer => { answer.questions.pop(); }, /нужно ровно 3 \(пунктов\), получено 2/],
     ['target-vocabulary', answer => { answer.vocabularyItems.pop(); }, /«Vocabulary»: нужно ровно 10 \(слов\)/],
     ['target-vocabulary', answer => { answer.describeAndGuessTerms[5] = answer.describeAndGuessTerms[0]; }, /не должны повторяться/],
     ['target-vocabulary', answer => { answer.vocabularyItems[0].imagePrompt = 'A traveler buying a ticket.'; }, /квадратными иллюстрациями без текста/],
@@ -154,8 +153,6 @@ test('Template 1 rejects model answers that would break a task', () => {
     ['reading', answer => { answer.textImagePrompt = 'Students arrive at an airport.'; }, /иллюстрацию без текста/],
     ['listening', answer => { answer.gistQuestions.pop(); }, /Listening for Gist»: нужно ровно 2/],
     ['listening', answer => { answer.detailQuestions.pop(); }, /Listening for Detail»: нужно ровно 5/],
-    ['grammar-presentation', answer => { answer.examples.pop(); }, /«Notice the Rule»: нужно ровно 5/],
-    ['grammar-presentation', answer => { answer.conceptCheckingQuestions.pop(); }, /«Concept-checking questions:»: нужно ровно 4/],
     ['grammar-presentation', answer => { answer.ruleItems[1].answer = answer.ruleItems[0].answer; }, /ответы не должны повторяться/],
     ['grammar-presentation', answer => { answer.ruleDistractors[0] = answer.ruleItems[0].answer; }, /ответы и дистракторы не должны повторяться/],
     ['grammar-presentation', answer => { answer.checkItems[0].answer = 'flew'; }, /Check the Rule»: ответ в предложении 1 должен точно совпадать/],

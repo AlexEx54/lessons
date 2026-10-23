@@ -67,10 +67,10 @@ const LEAD_IN = {
   senderImagePrompt: 'Child-friendly circular city traveler avatar, educational illustration, no text.',
   symbolImagePrompt: 'Child-friendly small bicycle symbol, educational illustration, no text.',
   questions: [
-    'How did Mia travel today?',
-    'Which type of transport looked more fun?',
-    'How do you usually travel around your city?',
-  ],
+    '1. How did Mia travel today?',
+    '2. Which type of transport looked more fun?',
+    '3. How do you usually travel around your city?',
+  ].join('\n'),
   suggestedAnswers: [
     '1. Mia took the bus.',
     '2. Cycling looked more fun.',

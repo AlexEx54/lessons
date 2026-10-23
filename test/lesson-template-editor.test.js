@@ -50,19 +50,16 @@ test('chrome values are checked by their field; a left out key takes the default
   const block = id => stage(definition, id === 'target-vocabulary-card' ? 'target-vocabulary' : 'grammar-presentation')
     .blocks.find(candidate => candidate.id === id);
   block('target-vocabulary-card').chrome = { title: ' ', icon: 'rocket', accentColor: 'green', studentVisibility: 'sometimes' };
-  block('grammar-presentation-concept-checking').chrome.showBorder = 'yes';
   const { errors } = previewLessonTemplate({ definition, systemTemplateId: 'template-2' });
   assert.deepEqual(errors.map(({ block: id, chrome, detail }) => [id, chrome, detail]), [
     ['target-vocabulary-card', 'title', 'нужен непустой текст'],
     ['target-vocabulary-card', 'icon', 'нужно одно из: Книга, Галочка, Диалог, Лампочка, Ключ, Карандаш, Спасательный круг, Кубок'],
     ['target-vocabulary-card', 'accentColor', 'нужен цвет вида #RRGGBB'],
     ['target-vocabulary-card', 'studentVisibility', 'нужно одно из: Всегда, По кнопке учителя, Только учителю'],
-    ['grammar-presentation-concept-checking', 'showBorder', 'нужно да или нет'],
   ]);
   assert.equal(errors[0].message, 'Блок target-vocabulary-card, «Заголовок»: нужен непустой текст.');
 
   block('target-vocabulary-card').chrome = { accentColor: '#3563d4' };
-  delete block('grammar-presentation-concept-checking').chrome.showBorder;
   const { errors: none, lesson } = previewLessonTemplate({ definition, systemTemplateId: 'template-2' });
   assert.deepEqual(none, []);
   const card = lesson.stages.find(item => item.id === 'target-vocabulary').content
@@ -132,7 +129,7 @@ test('controls are described for the editor with labelled parameters and chrome'
 
 test('every block of the catalog has a group and a description; static ones come with a sample', () => {
   const { controls, statics, groups } = describeControls();
-  assert.equal(controls.length + statics.length, 45);
+  assert.equal(controls.length + statics.length, 44);
   for (const block of [...controls, ...statics]) {
     assert.ok(groups.some(group => group.key === block.group), `${block.type}: группа ${block.group}`);
     assert.ok(block.description.trim().length > 0, block.type);

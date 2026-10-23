@@ -42,8 +42,6 @@ test('Template 2 grammar validates counts, booleans, explanations, duplicates an
     g => { g.checkItems[0].isCorrect = 'true'; },
     g => { g.checkItems[1].sentence = g.checkItems[0].sentence; },
     g => { g.checkItems[1].explanation = ''; },
-    g => g.examples.pop(),
-    g => { g.examples[0] = g.examples[0].replace(/\*\*/g, ''); },
     g => { g.ruleDistractors[0] = g.ruleItems[0].answer; },
   ]) {
     const invalid = structuredClone(generated);
@@ -89,5 +87,5 @@ test('Template 2 plan sends the stage prompt with structured output and validate
   });
   const result = await plan.generate('grammar-presentation', state, connection(generated));
   assert.deepEqual(result.generated, generated);
-  await assert.rejects(plan.generate('grammar-presentation', state, connection({ ...generated, examples: [] })), /нужно ровно 5/);
+  await assert.rejects(plan.generate('grammar-presentation', state, connection({ ...generated, checkItems: [] })), /нужно ровно 8/);
 });

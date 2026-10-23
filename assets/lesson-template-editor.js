@@ -935,7 +935,6 @@
         return node;
       }
       case 'choice': return field.options[value] ?? String(value);
-      case 'flag': return value ? 'да' : 'нет';
       case 'custom': return 'задано в шаблоне';
       default: return String(value);
     }
@@ -993,19 +992,14 @@
     else delete block.chrome;
   }
 
-  // Choices and flags start with «по умолчанию»: a flag cannot be a checkbox, since its
-  // default is unknown here.
+  // Choices start with «по умолчанию».
   function chromeSelect(field, value, set) {
-    const options = field.type === 'flag' ? { true: 'да', false: 'нет' } : field.options;
     const select = el('select', 'template-field__input');
     select.append(
       new Option('по умолчанию', ''),
-      ...Object.entries(options).map(([option, label]) => new Option(label, option, false, String(value) === option)),
+      ...Object.entries(field.options).map(([option, label]) => new Option(label, option, false, value === option)),
     );
-    select.addEventListener('change', () => {
-      if (select.value === '') set(undefined);
-      else set(field.type === 'flag' ? select.value === 'true' : select.value);
-    });
+    select.addEventListener('change', () => set(select.value === '' ? undefined : select.value));
     return select;
   }
 
@@ -1054,7 +1048,6 @@
       case 'color':
         return fieldGroup('div', field.label, colorInput(field.label, value, set), problem);
       case 'choice':
-      case 'flag':
         return fieldGroup('label', field.label, chromeSelect(field, value, set), problem);
       default:
         return settingRow(field.label, chromeValue(field, value));

@@ -159,15 +159,17 @@
         },
         {
           "id": "lead-in-discussion-questions",
-          "kind": "generated",
-          "control": "numberedPanel",
-          "params": {
-            "items": 3
+          "kind": "static",
+          "component": {
+            "type": "textPanel",
+            "text": "{{questions}}",
+            "backgroundColor": "#FFFFFF"
           },
-          "fields": {
-            "items": "questions"
-          },
-          "instructions": "questions are student-facing, in natural English at the target CEFR level.\nQuestions 1 and 2 must check comprehension of facts or meaning in the message and be answerable from the message itself.\nQuestion 3 must be personalized: connect the message to the learner’s own experience or opinion."
+          "slots": {
+            "questions": {
+              "rule": "Exactly three student-facing questions about the message as a Markdown numbered list (1. to 3.), one question per line, in natural English at the target CEFR level. Questions 1 and 2 must check comprehension of facts or meaning in the message and be answerable from the message itself. Question 3 must be personalized: connect the message to the learner’s own experience or opinion. No heading or introduction."
+            }
+          }
         },
         {
           "id": "lead-in-suggested-answers-card",
@@ -572,39 +574,35 @@
         },
         {
           "id": "grammar-presentation-notice-rule",
-          "kind": "generated",
-          "control": "numberedPanel",
-          "params": {
-            "items": 5,
-            "boldTargetGrammar": true
-          },
-          "fields": {
-            "items": "examples"
-          },
-          "chrome": {
-            "heading": "Notice the Rule",
-            "subheading": "Look at the examples. What grammar structure is used here?",
+          "kind": "static",
+          "component": {
+            "type": "textPanel",
+            "text": "{l}**Notice the Rule**{/l}\n\n{muted}{s}Look at the examples. What grammar structure is used here?{/s}{/muted}\n\n{{examples}}",
+            "backgroundColor": "#FFFFFF",
             "accentColor": "#6545F5",
             "showBorder": false
           },
-          "instructions": "examples: short example sentences."
+          "slots": {
+            "examples": {
+              "rule": "Exactly five short example sentences as a Markdown numbered list (1. to 5.), one sentence per line. In every sentence, wrap the target grammar form in exactly one pair of **bold** Markdown markers. No heading or introduction."
+            }
+          }
         },
         {
           "id": "grammar-presentation-concept-checking",
-          "kind": "generated",
-          "control": "numberedPanel",
-          "params": {
-            "items": 4
-          },
-          "fields": {
-            "items": "conceptCheckingQuestions"
-          },
-          "chrome": {
-            "heading": "Concept-checking questions:",
+          "kind": "static",
+          "component": {
+            "type": "textPanel",
+            "text": "{l}**Concept-checking questions:**{/l}\n\n{{conceptCheckingQuestions}}",
+            "backgroundColor": "#FFFFFF",
             "accentColor": "#20A85B",
             "showBorder": true
           },
-          "instructions": "conceptCheckingQuestions: keep them concise and guide the learner to discover meaning, use, and form from the examples."
+          "slots": {
+            "conceptCheckingQuestions": {
+              "rule": "Exactly four concept-checking questions as a Markdown numbered list (1. to 4.), one question per line. Keep them concise and guide the learner to discover meaning, use, and form from the examples. No heading or introduction."
+            }
+          }
         },
         {
           "id": "grammar-presentation-complete-the-rule",

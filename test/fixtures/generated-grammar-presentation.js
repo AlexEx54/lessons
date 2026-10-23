@@ -2,18 +2,18 @@
 
 const GENERATED_GRAMMAR_PRESENTATION = Object.freeze({
   examples: [
-    'I **visited** London last summer.',
-    'We **travelled** by train yesterday.',
-    'Mia **did not miss** her flight.',
-    '**Did you buy** a ticket online?',
-    'The plane **left** at nine o’clock.',
-  ],
+    '1. I **visited** London last summer.',
+    '2. We **travelled** by train yesterday.',
+    '3. Mia **did not miss** her flight.',
+    '4. **Did you buy** a ticket online?',
+    '5. The plane **left** at nine o’clock.',
+  ].join('\n'),
   conceptCheckingQuestions: [
-    'Did these actions happen in the past?',
-    'Are the actions finished now?',
-    'Do regular verbs usually end in -ed?',
-    'Do we use the past form after did?',
-  ],
+    '1. Did these actions happen in the past?',
+    '2. Are the actions finished now?',
+    '3. Do regular verbs usually end in -ed?',
+    '4. Do we use the past form after did?',
+  ].join('\n'),
   ruleItems: [{
     before: 'We use the Past Simple for finished actions in the ',
     answer: 'past',

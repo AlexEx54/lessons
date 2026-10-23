@@ -60,6 +60,10 @@ Support, Challenge, Possible language, Speaking Support) — статичные
 в тексте (`{{message}}`), и в промтах обеих картинок (`{{senderImagePrompt}}`,
 `{{symbolImagePrompt}}`). Картинок может быть одна или ни одной, а промт —
 постоянным текстом без слота.
+Нумерованные панели (вопросы к сообщению в Lead-In шаблона 1, Notice the Rule и
+Concept-checking questions в Grammar Presentation обоих шаблонов) — статичные
+`textPanel`: заголовок и подзаголовок стоят в тексте постоянно, список — один
+слот, число пунктов и выделение грамматики жирным задаёт правило слота.
 
 `id` блока совпадает с `id` компонента в уроке и уникален в пределах шаблона.
 
@@ -331,7 +335,6 @@ warm-up, watch-and-interact — без связей
 | `dragSentences` | dragWordsInText | vocabulary |
 | `translationHints` | gapFill | vocabulary |
 | `personalizedQuestions` | personalizedQuestions | vocabulary? |
-| `numberedPanel` | textPanel | |
 | `ruleGaps` | dragWordsInText | |
 | `quickRule` | markdownCard (sections) | |
 | `correctSentences` | checkboxChoice | |
@@ -365,8 +368,8 @@ warm-up, watch-and-interact — без связей
 
 Общие для обоих шаблонов: `vocabularyList` (у шаблона 1 с параметром
 `imagePrompts`, словарь тогда несёт картинки), `contextDropdown`,
-`personalizedQuestions`, `numberedPanel`, `ruleGaps`, `quickRule`,
-`choiceSentences`, `wordBankSupport`, `threeTwoOne`. Всего 36 контролов.
+`personalizedQuestions`, `ruleGaps`, `quickRule`, `choiceSentences`,
+`wordBankSupport`, `threeTwoOne`. Всего 35 контролов.
 
 **Ключ ответов.** Контрол задания отдаёт `answerKey()` → `{ lines, list }`:
 строки ключа и признак, что это пункты Markdown-списка. Блок задания включает

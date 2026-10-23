@@ -34,10 +34,10 @@ const GENERATED_LEAD_IN = Object.freeze({
   senderImagePrompt: 'Child-friendly circular astronaut avatar, educational illustration, no text.',
   symbolImagePrompt: 'Child-friendly small planet symbol, educational illustration, no text.',
   questions: [
-    'Which planet does Max want to visit?',
-    'Why does the trip sound exciting to Max?',
-    'Would you like to travel to another planet? Why or why not?',
-  ],
+    '1. Which planet does Max want to visit?',
+    '2. Why does the trip sound exciting to Max?',
+    '3. Would you like to travel to another planet? Why or why not?',
+  ].join('\n'),
   suggestedAnswers: [
     '1. Max wants to visit Mars.',
     '2. He thinks seeing a new planet sounds amazing.',
