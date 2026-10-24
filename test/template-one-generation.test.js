@@ -117,7 +117,7 @@ test('each Template 1 prompt starts with the learner profile and receives only i
   const grammar = 'Grammar topic: Past Simple';
   const vocabulary = `Target Vocabulary: ${JSON.stringify(TERMS)}`;
   const expected = {
-    'warm-up': ['Lesson topic: Holidays in space'],
+    'warm-up': ['Warm-Up topic: Holidays in space'],
     'lead-in': [lesson],
     'target-vocabulary': [lesson],
     reading: [lesson, grammar, vocabulary],

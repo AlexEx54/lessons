@@ -200,7 +200,7 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
       if (requestIndex === 0) {
         assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices');
       } else if (requestIndex === 1) {
-        assert.equal(payload.messages[1].content, 'Lesson topic: City transport');
+        assert.equal(payload.messages[1].content, 'Warm-Up topic: City transport');
       } else if (requestIndex < 4) {
         assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices');
       } else if (requestIndex < 6) {
@@ -414,7 +414,7 @@ test('retry reuses validated sections and regenerates only an invalid Wrap-Up', 
         if (requestIndex === 0) {
           assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices');
         } else if (requestIndex === 1) {
-          assert.equal(payload.messages[1].content, 'Lesson topic: Warm-up transport');
+          assert.equal(payload.messages[1].content, 'Warm-Up topic: Warm-up transport');
         } else if (requestIndex < 4) {
           assert.equal(payload.messages[1].content, 'Lesson topic: Travel choices');
         } else if (requestIndex < 6) {

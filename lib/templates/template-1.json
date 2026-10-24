@@ -29,9 +29,9 @@
       "durationMinutes": 5,
       "icon": "sparkles",
       "context": {
-        "Lesson topic": "$input.warmUpTopic"
+        "Warm-Up topic": "$input.warmUpTopic"
       },
-      "instructions": "Generate only the variable content for a five-minute Warm-Up in the existing This or That template.\nAll student-facing copy, captions, questions, and possible language must be in natural English at the target CEFR level. Image prompts must be in English.\nKeep every activity directly connected to the provided topic.",
+      "instructions": "This is a five-minute Warm-Up built around a This or That activity.\nKeep every activity directly connected to the provided Warm-Up topic.\nThis or That captions must be in natural English at the target CEFR level. Image prompts must be in English.",
       "blocks": [
         {
           "id": "warm-up-teacher-note",
@@ -42,7 +42,7 @@
           },
           "slots": {
             "teacherNotes": {
-              "rule": "Write teacherNotes as exactly three Markdown bullet points followed by a separate Say paragraph, in this order:\n1. In English, briefly explain the purpose of the lead-in question, then provide the exact question for the learner in natural English at the target CEFR level; it must summarize the main Warm-Up topic and guide the learner toward the task.\n2. In English, explain whether the learner should answer with one word or short phrases.\n3. In English, state what kind of answer the teacher should accept.\nAfter the three bullet points, add a blank line and then give the teacher a ready-to-say opening phrase in natural English at the target CEFR level using exactly this Markdown format: **Say:** *English opening phrase*.\nThe Say paragraph must not be a bullet point; only the English opening phrase after **Say:** must be italic.\nThe opening phrase must start the Warm-Up without presenting its topic as the topic of the whole lesson. Do not use phrases such as “Today we will talk about...”."
+              "rule": "Write teacherNotes as exactly three Markdown bullet points followed by a separate Say paragraph, in this order:\n1. In English, briefly explain the purpose of the opening question, then provide the exact question for the learner in natural English at the target CEFR level; it must summarize the main Warm-Up topic and guide the learner toward the task.\n2. In English, explain whether the learner should answer with one word or short phrases.\n3. In English, state what kind of answer the teacher should accept.\nAfter the three bullet points, add a blank line and then give the teacher a ready-to-say opening phrase in natural English at the target CEFR level using exactly this Markdown format: **Say:** *English opening phrase*.\nThe Say paragraph must not be a bullet point; only the English opening phrase after **Say:** must be italic.\nThe opening phrase must start the Warm-Up without presenting its topic as the topic of the whole lesson. Do not use phrases such as “Today we will talk about...”."
             }
           }
         },
