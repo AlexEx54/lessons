@@ -104,7 +104,7 @@
       "context": {
         "Lesson topic": "$input.topic"
       },
-      "instructions": "Generate only the variable content for a five-minute Lead-In in the existing template.\nAll generated copy, including teacherNotes, student-facing copy, and image prompts, must be in English.",
+      "instructions": "This is a five-minute Lead-In: the learner reads a short message, answers questions about it, and then guesses the lesson topic.\nImage prompts must be in English.",
       "blocks": [
         {
           "id": "lead-in-teacher-note",
@@ -115,7 +115,7 @@
           },
           "slots": {
             "teacherNotes": {
-              "rule": "Write teacherNotes as one Markdown string, following this exact content order:\n1. Start with this exact instruction: Read the text together with the learner and invite them to answer the questions.\n2. List the one or two modern English phrases, idioms, or slang expressions from the message that the teacher should explain, and briefly explain their meaning in English.\n3. Tell the teacher in English that if the learner gives a one-word or very short answer to question 3, they must encourage the learner to develop their point of view; include a ready-to-say natural English follow-up question such as “Why do you think so?”.\n4. Tell the teacher in English to ask after all three answers whether the learner can guess the lesson topic; include a ready-to-say natural English question at the target CEFR level.\n5. Finish with a ready-to-say natural English lesson preview at the target CEFR level in the exact Markdown format **Say:** *English lesson preview*.\nThe lesson preview must start with “We are going to...” and may mention only topic, vocabulary, or grammar goals explicitly present in the supplied Lesson topic. Never invent a grammar or vocabulary goal."
+              "rule": "Write teacherNotes as one Markdown string, following this exact content order:\n1. Start with this exact instruction: Read the message together with the learner and invite them to answer the questions.\n2. List the one or two modern English phrases, idioms, or slang expressions from the message that the teacher should explain, and briefly explain their meaning in English.\n3. Tell the teacher in English that if the learner gives a one-word or very short answer to question 3, they must encourage the learner to develop their point of view; include a ready-to-say natural English follow-up question such as “Why do you think so?”.\n4. Tell the teacher in English to ask after all three answers whether the learner can guess the lesson topic; include a ready-to-say natural English question at the target CEFR level.\n5. Finish with a ready-to-say natural English lesson preview at the target CEFR level in the exact Markdown format **Say:** *English lesson preview*.\nThe lesson preview must start with “We are going to...” and may mention only topic, vocabulary, or grammar goals explicitly present in the supplied Lesson topic. Never invent a grammar or vocabulary goal."
             }
           }
         },
@@ -147,7 +147,7 @@
           },
           "slots": {
             "message": {
-              "rule": "The main message must be short, engaging, directly connected to the lesson topic, and lead naturally into it.\nUse natural English at the target CEFR level in the message, but include exactly one or two contemporary English phrases, idioms, or slang expressions. Those expressions must be the ones explained in teacherNotes.\nThe message may start with a short sender name or social-media handle and may use light Markdown, but it must remain easy to read."
+              "rule": "The main message must be short, engaging, directly connected to the lesson topic, and lead naturally into it.\nHint at the lesson topic without naming it directly, so the learner can guess it.\nUse natural English at the target CEFR level in the message, but include exactly one or two contemporary English phrases, idioms, or slang expressions. Those expressions must be the ones explained in teacherNotes.\nThe message may start with a short sender name or social-media handle and may use light Markdown, but it must remain easy to read."
             },
             "senderImagePrompt": {
               "rule": "An image prompt for a small circular avatar of the message sender. A modern educational illustration suitable for teenagers, with no text. Avoid childish or preschool aesthetics."
