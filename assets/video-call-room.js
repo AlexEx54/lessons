@@ -14,6 +14,8 @@
   const callEndedText = role === 'teacher' ? 'Вы завершили видеозвонок.' : 'Преподаватель завершил видеозвонок.';
   // TURN credentials live at least five minutes, and a participant may wait much longer.
   const ICE_REFRESH_MS = 4 * 60 * 1000;
+  const STALLED_CONNECTION_MS = 15_000;
+  const MAX_CONNECTION_RESTARTS = 2;
   const elements = {
     brand: document.getElementById('room-brand'),
     connection: document.getElementById('room-connection'),
@@ -693,7 +695,22 @@
     if (connection === peerConnection) sendDiagnostic('peer-connection-snapshot', details);
   }
 
-  async function createPeerConnection() {
+  // Teacher-side watchdog: ICE checks that have not started by now never start,
+  // so both sides begin a new connection the way a page reload would.
+  async function restartStalledConnection(connection) {
+    await reportConnectionSnapshot(connection, 'stalled');
+    if (polite || connection !== peerConnection || connection.iceConnectionState !== 'new'
+      || connection.restartAttempt >= MAX_CONNECTION_RESTARTS) return;
+    const attempt = connection.restartAttempt + 1;
+    sendDiagnostic('connection-restart', { state: `attempt-${attempt}` });
+    send({ type: 'restart-connection' });
+    closePeerConnection();
+    await createPeerConnection(attempt);
+    // closePeerConnection() forgot the peer's media state, so both sides exchange it again.
+    sendMediaState();
+  }
+
+  async function createPeerConnection(restartAttempt = 0) {
     if (peerConnection) return peerConnection;
     gatheredCandidateTypes.clear();
     const createdAt = performance.now();
@@ -710,10 +727,10 @@
     }
     peerConnection = connection;
     peerGeneration += 1;
-    Object.assign(connection, { diagnosticCreatedAt: createdAt, diagnosticSetupPending: true,
+    Object.assign(connection, { restartAttempt, diagnosticCreatedAt: createdAt, diagnosticSetupPending: true,
       diagnosticCandidates: { local: 0, remote: 0, remoteErrors: 0 } });
     sendDiagnostic('peer-connection-setup', { state: 'created' });
-    connection.diagnosticSnapshotTimer = window.setTimeout(() => reportConnectionSnapshot(connection, 'stalled'), 15_000);
+    connection.diagnosticSnapshotTimer = window.setTimeout(() => restartStalledConnection(connection), STALLED_CONNECTION_MS);
     mediaStatsTimer = window.setInterval(() => reportMediaStats(connection), 30_000);
     makingOffer = false;
     ignoreOffer = false;
@@ -811,10 +828,15 @@
         makingOffer = false;
       }
     };
-    // Chromium may dispatch negotiationneeded while replaceTrack() yields. Register
-    // every handler before adding transceivers so the initial offer cannot be lost.
-    audioTransceiver = connection.addTransceiver('audio', { direction: 'sendrecv' });
-    videoTransceiver = connection.addTransceiver('video', { direction: 'sendrecv' });
+    // Only the teacher offers. When the guest's own offer collided with the teacher's,
+    // Chromium sometimes left the guest's ICE transport without candidates after the
+    // rollback. The guest sends on the offered transceivers (adoptOfferedTransceivers).
+    if (!polite) {
+      // Chromium may dispatch negotiationneeded while replaceTrack() yields. Register
+      // every handler before adding transceivers so the initial offer cannot be lost.
+      audioTransceiver = connection.addTransceiver('audio', { direction: 'sendrecv' });
+      videoTransceiver = connection.addTransceiver('video', { direction: 'sendrecv' });
+    }
     try {
       await applyOutboundAudioTrack();
       await applyOutboundVideoTrack();
@@ -823,6 +845,20 @@
     }
     if (connection === peerConnection) sendDiagnostic('peer-connection-setup', { state: 'complete' });
     return connection;
+  }
+
+  // The guest has no transceivers of its own. Sending must be enabled before the
+  // answer, otherwise the answer would declare the guest receive-only.
+  function adoptOfferedTransceivers(connection) {
+    if (audioTransceiver || videoTransceiver) return false;
+    for (const transceiver of connection.getTransceivers()) {
+      const kind = transceiver.receiver.track.kind;
+      if (kind === 'audio' && !audioTransceiver) audioTransceiver = transceiver;
+      else if (kind === 'video' && !videoTransceiver) videoTransceiver = transceiver;
+      else continue;
+      transceiver.direction = 'sendrecv';
+    }
+    return true;
   }
 
   async function handleSignal(message) {
@@ -842,11 +878,17 @@
         await connection.setRemoteDescription(message.description);
         isSettingRemoteAnswerPending = false;
         if (message.description.type === 'offer') {
+          const adopted = polite && connection === peerConnection && adoptOfferedTransceivers(connection);
           await connection.setLocalDescription();
           if (connection === peerConnection) sendDiagnostic('negotiation', {
             state: `local-${connection.localDescription.type}`, trigger: 'remote-offer',
           });
           send({ type: 'signal', description: connection.localDescription });
+          // Tracks go out after the answer so replaceTrack() does not overlap the negotiation.
+          if (adopted && connection === peerConnection) {
+            await applyOutboundAudioTrack();
+            await applyOutboundVideoTrack();
+          }
         }
       } else if (message.candidate) {
         try {
@@ -945,6 +987,11 @@
           closePeerConnection();
           setConnection(`${peerTitle} вышел`);
           elements.remotePlaceholderText.textContent = `${waitingStatus} — звонок возобновится автоматически.`;
+        } else if (message.type === 'restart-connection' && polite) {
+          sendDiagnostic('signaling-event', { state: 'restart-connection' });
+          // The teacher's new offer follows on the same socket and creates the new connection.
+          closePeerConnection();
+          sendMediaState();
         } else if (message.type === 'signal') {
           await handleSignal(message);
         } else if (message.type === 'media-state') {

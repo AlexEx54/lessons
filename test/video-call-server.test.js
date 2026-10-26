@@ -241,6 +241,10 @@ test('a permanent room lets the student wait for the teacher, survives ending a 
     type: 'media-state', audio: true, video: false, recording: true, from: 'teacher',
   });
 
+  const relayedRestart = nextMessage(guestSocket, 'restart-connection');
+  teacherSocket.send(JSON.stringify({ type: 'restart-connection' }));
+  assert.deepEqual(await relayedRestart, { type: 'restart-connection', from: 'teacher' });
+
   const liveChat = nextMessage(guestSocket, 'chat-message');
   const chatResponse = await fetch(`${baseUrl}/api/video-calls/${created.id}/chat`, {
     method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' },
