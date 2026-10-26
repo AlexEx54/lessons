@@ -307,3 +307,26 @@ test('socket reconnect reports the previous close after reopening and ignores st
   sockets[0].handlers.close({ code: 4001, wasClean: true });
   assert.equal(context.lastSocketClose, null);
 });
+
+test('a room taken over by another tab ends here instead of reconnecting', () => {
+  const sockets = [], finished = [];
+  let reconnects = 0;
+  const context = vm.createContext({
+    socket: null, socketAttempt: 0, lastSocketClose: null, reconnectAttempts: 0, reconnectTimer: null,
+    leaving: false, window: { clearTimeout() {} }, closePeerConnection() {}, websocketUrl: () => 'ws://example.test',
+    setConnection() {}, scheduleReconnect: () => { reconnects++; },
+    finishCall: (message, title) => finished.push({ message, title }),
+    WebSocket: class {
+      constructor() { this.handlers = {}; sockets.push(this); }
+      addEventListener(type, handler) { this.handlers[type] = handler; }
+    },
+  });
+  const start = roomScript.indexOf('  function connectSocket()');
+  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  async function toggleKind(', start)), context);
+  context.connectSocket();
+  sockets[0].handlers.close({ code: 4001, wasClean: true });
+  assert.equal(reconnects, 0);
+  assert.equal(finished.length, 1);
+  assert.match(finished[0].message, /другой вкладке/);
+  assert.equal(finished[0].title, 'Звонок открыт в другом месте');
+});

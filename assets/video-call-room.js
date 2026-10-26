@@ -46,6 +46,7 @@
     leave: document.getElementById('leave-call'),
     leaveLabel: document.getElementById('leave-label'),
     ended: document.getElementById('room-ended'),
+    endedTitle: document.getElementById('room-ended-title'),
     endedMessage: document.getElementById('room-ended-message'),
     rejoinLink: document.getElementById('room-rejoin-link'),
     exitLink: document.getElementById('room-exit-link'),
@@ -971,6 +972,12 @@
         finishCall(callEndedText);
         return;
       }
+      // Another tab took the room over; reconnecting would take it back and loop forever.
+      if (event.code === 4001) {
+        finishCall('Звонок продолжается в другой вкладке или на другом устройстве. '
+          + 'Чтобы вернуть его сюда, нажмите «Подключиться снова».', 'Звонок открыт в другом месте');
+        return;
+      }
       scheduleReconnect();
     });
     socket.addEventListener('error', () => setConnection('Ошибка соединения', 'error'));
@@ -1179,7 +1186,7 @@
     closePeerConnection();
   }
 
-  async function finishCall(message = 'Спасибо за занятие!') {
+  async function finishCall(message = 'Спасибо за занятие!', title = 'Звонок завершён') {
     if (leaving) return;
     leaving = true;
     await stopRecording();
@@ -1188,6 +1195,7 @@
     elements.prejoin.hidden = true;
     elements.stage.hidden = true;
     elements.ended.hidden = false;
+    elements.endedTitle.textContent = title;
     elements.endedMessage.textContent = message;
     // The link is permanent, so a fresh page load joins the same room again.
     elements.rejoinLink.hidden = !room;

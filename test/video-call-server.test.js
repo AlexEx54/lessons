@@ -296,6 +296,8 @@ test('a permanent room lets the student wait for the teacher, survives ending a 
   const malformedClosed = new Promise(resolve => malformedGuest.once('close', resolve));
   malformedGuest._socket.write(Buffer.from([0x89, 0x00]));
   await malformedClosed;
+  const malformedLog = await waitForLog(row => row.state === 'close' && row.cause === 'socket-error');
+  assert.match(malformedLog.errorText, /MASK/);
   assert.equal((await fetch(`${baseUrl}/api/public/video-calls/${guestToken}`)).status, 200);
 
   const nextDayGuest = connectGuest();
