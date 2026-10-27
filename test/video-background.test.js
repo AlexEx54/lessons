@@ -52,7 +52,7 @@ test('desktop background processing uses the higher-resolution square model and 
 test('screen sharing and camera effects use the same outbound video selector', () => {
   assert.match(roomScript, /const next = outboundVideoTrack\(\)/);
   assert.match(roomScript, /if \(screenTrack\) return screenTrack/);
-  assert.match(roomScript, /await startBackgroundEffect\(\)/);
+  assert.match(roomScript, /void applyBackgroundEffect\(\)/);
 });
 
 test('remote visibility recovers from camera-off for camera and screen without another playing event', () => {
@@ -93,13 +93,13 @@ test('video replacement records success and rejection with the actual sender tra
   const events = [];
   const sender = { track: previous, async replaceTrack(value) { this.track = value; } };
   const context = vm.createContext({ videoTransceiver: { sender }, outboundVideoTrack: () => next,
-    peerGeneration: 1, replacementSequence: 0, screenTrack: null, effectTrack: next,
+    peerGeneration: 1, replacementSequence: 0, screenTrack: null, activeEffect: { session: { track: next } },
     diagnosticTrackId: track => track === previous ? 1 : 2,
     videoTrackDetails: track => ({ trackState: track.readyState }),
     sendDiagnostic: (event, details) => events.push({ event, ...details }),
   });
   const start = roomScript.indexOf('  async function applyOutboundVideoTrack(');
-  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  function effectMode(', start)), context);
+  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  function effectDiagnosticDetails(', start)), context);
   await context.applyOutboundVideoTrack();
   assert.deepEqual(events.map(event => event.state), ['start', 'success']);
   assert.equal(events[1].trackState, 'live');
@@ -119,6 +119,119 @@ function effectFunction(name) {
   const end = script.indexOf('\n  function ', start + 1);
   return script.slice(start, end);
 }
+
+const flush = () => new Promise(resolve => setImmediate(resolve));
+
+// Runs the room's effect state machine with fake pipelines whose first frame the test controls.
+function effectRoom() {
+  const camera = { id: 'camera', enabled: true };
+  const sessions = [], sent = [], statuses = [], stored = [], events = [];
+  const context = vm.createContext({
+    selectedBackground: 'none', backgroundEffectGeneration: 0, activeEffect: null, pendingEffect: null,
+    screenTrack: null, mediaState: { video: true }, localStream: { getVideoTracks: () => [camera] },
+    SEGMENTER_MODEL: { id: 'square' }, EFFECT_FRAME_INTERVAL_MS: 1000 / 24, MOBILE_DEVICE: false,
+    BACKGROUND_IDS: new Set(['none', 'blur', 'study-light']), document: { hidden: false }, console: { error() {} },
+    backgroundEffectsSupported: () => true, backgroundOption: () => ({}),
+    sendDiagnostic: (event, details) => events.push({ event, ...details }),
+    writeStoredBackground: value => stored.push(value), updateBackgroundControls() {}, updateLocalPreview() {},
+    setBackgroundStatus: (text, state = '') => statuses.push({ text, state }),
+  });
+  const start = roomScript.indexOf('  function cancelPendingEffect(');
+  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  function track(kind)', start)), context);
+  context.applyOutboundVideoTrack = async () => { sent.push(context.outboundVideoTrack()); };
+  context.loadBackgroundPipeline = async () => ({
+    createBackgroundPipeline({ onFailure }) {
+      let finish, fail;
+      const session = {
+        track: { id: `effect-${sessions.length}`, enabled: false }, details: { transport: 'worker-track' },
+        stopped: false, onFailure, visibility() {},
+        ready: new Promise((resolve, reject) => { finish = () => resolve(session); fail = reject; }),
+        finish: () => finish(), fail: error => fail(error),
+        stop() { this.stopped = true; fail(new DOMException('Effect stopped', 'AbortError')); },
+      };
+      sessions.push(session);
+      return session;
+    },
+  });
+  return { context, camera, sessions, sent, statuses, stored, events };
+}
+
+async function withActiveBlur(room) {
+  const selection = room.context.selectVideoBackground('blur');
+  await flush();
+  room.sessions[0].finish();
+  await selection;
+}
+
+test('a background prepares while the camera keeps going and replaces it after the first frame', async () => {
+  const { context, camera, sessions, sent } = effectRoom();
+  const selection = context.selectVideoBackground('blur');
+  await flush();
+  assert.equal(sessions.length, 1);
+  assert.equal(context.outboundVideoTrack(), camera);
+  assert.deepEqual(sent, []);
+  sessions[0].finish();
+  await selection;
+  assert.deepEqual(sent, [sessions[0].track]);
+  assert.equal(sessions[0].track.enabled, true);
+});
+
+test('switching effects keeps the old one until the new one is sent and ignores repeated clicks', async () => {
+  const room = effectRoom();
+  const { context, sessions, sent } = room;
+  await withActiveBlur(room);
+  const selection = context.selectVideoBackground('study-light');
+  await flush();
+  await context.selectVideoBackground('study-light');
+  assert.equal(sessions.length, 2);
+  assert.equal(context.outboundVideoTrack(), sessions[0].track);
+  assert.equal(sessions[0].stopped, false);
+  sessions[1].finish();
+  await selection;
+  assert.equal(sent.at(-1), sessions[1].track);
+  assert.equal(sessions[0].stopped, true);
+  await context.selectVideoBackground('study-light');
+  assert.equal(sessions.length, 2);
+});
+
+test('choosing the shown background again cancels the one that is preparing', async () => {
+  const room = effectRoom();
+  const { context, sessions, statuses } = room;
+  await withActiveBlur(room);
+  const selection = context.selectVideoBackground('study-light');
+  await flush();
+  await context.selectVideoBackground('blur');
+  await selection;
+  assert.equal(sessions[1].stopped, true);
+  assert.equal(sessions[0].stopped, false);
+  assert.equal(context.outboundVideoTrack(), sessions[0].track);
+  assert.deepEqual(statuses.at(-1), { text: 'Эффект включён', state: 'ready' });
+});
+
+test('a failed start keeps the current video and reverts the choice without storing it', async () => {
+  const { context, camera, sessions, statuses, stored, events } = effectRoom();
+  const selection = context.selectVideoBackground('blur');
+  await flush();
+  sessions[0].fail(new Error('GPU unavailable'));
+  await selection;
+  assert.equal(context.outboundVideoTrack(), camera);
+  assert.equal(context.selectedBackground, 'none');
+  assert.equal(statuses.at(-1).state, 'error');
+  assert.deepEqual(stored, ['blur']);
+  assert.equal(events.find(event => event.event === 'background-effect-failure').mode, 'blur');
+});
+
+test('a running effect that breaks falls back to the camera', async () => {
+  const room = effectRoom();
+  const { context, camera, sessions, sent } = room;
+  await withActiveBlur(room);
+  sessions[0].onFailure(new Error('GPU context lost'));
+  await flush();
+  assert.equal(sessions[0].stopped, true);
+  assert.equal(context.activeEffect, null);
+  assert.equal(context.selectedBackground, 'none');
+  assert.equal(sent.at(-1), camera);
+});
 
 test('frame admission retains cadence and never catches up in a burst', async () => {
   const { createFrameGate } = await import('../assets/video-background-renderer.mjs');
@@ -279,7 +392,7 @@ test('socket reconnect reports the previous close after reopening and ignores st
   const sockets = [], events = [];
   const context = vm.createContext({
     socket: null, socketAttempt: 0, lastSocketClose: null, reconnectAttempts: 0, reconnectTimer: null,
-    leaving: false, effectTrack: null, iceServers: [], navigator: { onLine: true },
+    leaving: false, activeEffect: null, iceServers: [], navigator: { onLine: true },
     performance: { getEntriesByType: () => [{ type: 'reload' }] },
     window: { clearTimeout() {} }, closePeerConnection() {}, websocketUrl: () => 'ws://example.test',
     setConnection() {}, sendMediaState() {}, scheduleReconnect() {},

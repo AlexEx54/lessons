@@ -182,9 +182,10 @@
   let videoTransceiver = null;
   let selectedBackground = readStoredBackground();
   let backgroundEffectGeneration = 0;
-  let effectSession = null;
-  let effectTrack = null;
-  let effectStartController = null;
+  // { background, generation, session }: the active effect's track goes to the peer, while a pending
+  // one is still preparing and the previous output (camera or older effect) keeps going.
+  let activeEffect = null;
+  let pendingEffect = null;
   let joined = false;
   let mediaPrepared = false;
   let leaving = false;
@@ -207,7 +208,8 @@
     updateRemoteVideoVisibility('playing');
   });
   document.addEventListener('visibilitychange', () => {
-    effectSession?.visibility(document.hidden);
+    activeEffect?.session.visibility(document.hidden);
+    pendingEffect?.session?.visibility(document.hidden);
     reportMediaStats(peerConnection, 'visibility');
   });
 
@@ -283,12 +285,19 @@
     return Boolean(window.WebAssembly && window.Worker);
   }
 
+  function cancelPendingEffect() {
+    pendingEffect?.session?.stop();
+    pendingEffect = null;
+  }
+
   function stopBackgroundEffect() {
-    effectStartController?.abort();
-    effectStartController = null;
-    effectSession?.stop();
-    effectSession = null;
-    effectTrack = null;
+    cancelPendingEffect();
+    activeEffect?.session.stop();
+    activeEffect = null;
+  }
+
+  function shownBackground() {
+    return activeEffect?.background || 'none';
   }
 
   function cameraTrack() {
@@ -298,7 +307,7 @@
   function outboundVideoTrack() {
     if (screenTrack) return screenTrack;
     if (!mediaState.video || !cameraTrack()?.enabled) return null;
-    return selectedBackground === 'none' ? cameraTrack() : effectTrack;
+    return activeEffect?.session.track || cameraTrack();
   }
 
   async function applyOutboundVideoTrack() {
@@ -307,7 +316,7 @@
     const next = outboundVideoTrack();
     const operation = ++replacementSequence;
     const details = { peerGeneration, operation, previousTrack: diagnosticTrackId(sender.track),
-      nextTrack: diagnosticTrackId(next), source: !next ? 'none' : next === screenTrack ? 'screen' : next === effectTrack ? 'effect' : 'camera' };
+      nextTrack: diagnosticTrackId(next), source: !next ? 'none' : next === screenTrack ? 'screen' : next === activeEffect?.session.track ? 'effect' : 'camera' };
     sendDiagnostic('video-track-replace', { ...details, state: 'start' });
     try {
       await sender.replaceTrack(next);
@@ -319,72 +328,93 @@
     }
   }
 
-  function effectMode() {
-    return selectedBackground === 'blur' ? 'blur' : 'replacement';
+  function effectDiagnosticDetails(effect, extra = {}) {
+    const background = effect?.background || selectedBackground;
+    return { pipelineVersion: 3, effectGeneration: effect?.generation ?? backgroundEffectGeneration,
+      mode: background === 'blur' ? 'blur' : 'replacement', model: SEGMENTER_MODEL.id,
+      ...effect?.session?.details, ...extra };
   }
 
-  function effectDiagnosticDetails(extra = {}) {
-    return { pipelineVersion: 3, effectGeneration: backgroundEffectGeneration, mode: effectMode(), model: SEGMENTER_MODEL.id,
-      ...effectSession?.details, ...extra };
+  function showEffectStatus() {
+    if (!activeEffect) setBackgroundStatus('');
+    else setBackgroundStatus(activeEffect.session.details.transport === 'canvas-worker'
+      ? 'Эффект включён — совместимый режим' : 'Эффект включён', 'ready');
   }
 
-  function handleEffectFailure(error) {
+  // A failed start keeps the previous output; a failed running effect falls back to the camera.
+  function handleEffectFailure(error, broken = pendingEffect || activeEffect) {
     if (error?.name === 'AbortError') return;
     console.error('Video background processing failed:', error);
-    sendDiagnostic('background-effect-failure', effectDiagnosticDetails({ state: 'failed',
+    sendDiagnostic('background-effect-failure', effectDiagnosticDetails(broken, { state: 'failed',
       errorText: `${error?.name || 'Error'}: ${error?.message || 'Background processing failed'}` }));
-    backgroundEffectGeneration += 1;
-    stopBackgroundEffect();
-    setBackgroundStatus('Эффект недоступен — видео приостановлено. Выберите фон повторно или «Без фона».', 'error');
+    if (broken === activeEffect) activeEffect = null;
+    else pendingEffect = null;
+    broken?.session?.stop();
+    // A newer choice that is still preparing stays selected; otherwise the picker shows what is sent.
+    if (!pendingEffect) {
+      selectedBackground = shownBackground();
+      updateBackgroundControls();
+      setBackgroundStatus('Не удалось включить фон. Попробуйте выбрать его ещё раз.', 'error');
+    }
     void applyOutboundVideoTrack().catch(error => console.error('Video replacement failed:', error));
     updateLocalPreview();
   }
 
+  function loadBackgroundPipeline() {
+    return import('/assets/video-background-pipeline.mjs');
+  }
+
   async function startBackgroundEffect() {
-    const generation = ++backgroundEffectGeneration;
-    stopBackgroundEffect();
-    const controller = new AbortController();
-    effectStartController = controller;
+    const background = selectedBackground;
+    // Repeated clicks on the background that is preparing or shown do not restart it.
+    if (pendingEffect?.background === background) return;
+    cancelPendingEffect();
+    if (shownBackground() === background) { showEffectStatus(); return; }
+    if (background === 'none' || !mediaState.video || !cameraTrack()?.enabled || screenTrack) return;
+    if (!backgroundEffectsSupported()) throw new Error('Браузер не поддерживает обработку видеофона.');
+    const pending = { background, generation: ++backgroundEffectGeneration, session: null };
+    pendingEffect = pending;
+    const current = () => pendingEffect === pending;
+    setBackgroundStatus('Готовим эффект…');
+    const { createBackgroundPipeline } = await loadBackgroundPipeline();
+    if (!current()) return;
+    pending.session = createBackgroundPipeline({
+      camera: cameraTrack(),
+      config: { model: SEGMENTER_MODEL, mode: background,
+        backgroundUrl: backgroundOption(background).src, targetFps: 1000 / EFFECT_FRAME_INTERVAL_MS,
+        maxWidth: MOBILE_DEVICE ? 640 : 960, hidden: document.hidden },
+      onDiagnostic: (event, details) => {
+        if (current() || activeEffect === pending) sendDiagnostic(event, { ...details, effectGeneration: pending.generation });
+      },
+      onFailure: error => {
+        if (activeEffect === pending) handleEffectFailure(error, pending);
+      },
+    });
+    try { await pending.session.ready; }
+    catch (error) {
+      if (current()) throw error;
+      return;
+    }
+    if (!current()) return;
+    pendingEffect = null;
+    const previous = activeEffect;
+    activeEffect = pending;
+    pending.session.track.enabled = mediaState.video;
     try {
       await applyOutboundVideoTrack();
-      updateLocalPreview();
-      if (controller.signal.aborted || generation !== backgroundEffectGeneration) return;
-      if (selectedBackground === 'none' || !mediaState.video || !cameraTrack()?.enabled || screenTrack) return;
-      if (!backgroundEffectsSupported()) throw new Error('Браузер не поддерживает обработку видеофона.');
-      setBackgroundStatus('Готовим эффект…');
-      const { createBackgroundPipeline } = await import('/assets/video-background-pipeline.mjs');
-      if (controller.signal.aborted || generation !== backgroundEffectGeneration) return;
-      const session = createBackgroundPipeline({
-        camera: cameraTrack(),
-        config: { model: SEGMENTER_MODEL, mode: selectedBackground,
-          backgroundUrl: backgroundOption().src, targetFps: 1000 / EFFECT_FRAME_INTERVAL_MS,
-          maxWidth: MOBILE_DEVICE ? 640 : 960, hidden: document.hidden },
-        onDiagnostic: (event, details) => {
-          if (generation === backgroundEffectGeneration && !controller.signal.aborted) sendDiagnostic(event, { ...details, effectGeneration: generation });
-        },
-        onFailure: error => {
-          if (generation === backgroundEffectGeneration && !controller.signal.aborted) handleEffectFailure(error);
-        },
-      });
-      effectSession = session;
-      try { await session.ready; }
-      catch (error) {
-        session.stop();
-        if (generation === backgroundEffectGeneration && !controller.signal.aborted) throw error;
-        return;
-      }
-      if (generation !== backgroundEffectGeneration || controller.signal.aborted) { session.stop(); return; }
-      effectTrack = session.track;
-      effectTrack.enabled = mediaState.video;
-      await applyOutboundVideoTrack();
-      if (generation !== backgroundEffectGeneration || controller.signal.aborted) return;
-      updateLocalPreview();
-      sendDiagnostic('background-effect-ready', effectDiagnosticDetails({ state: 'ready' }));
-      setBackgroundStatus(session.details.transport === 'canvas-worker'
-        ? 'Эффект включён — совместимый режим' : 'Эффект включён', 'ready');
-    } catch (error) {
-      if (generation === backgroundEffectGeneration && !controller.signal.aborted) throw error;
+    } finally {
+      // The older effect stops only once the sender no longer uses its track.
+      previous?.session.stop();
     }
+    if (activeEffect !== pending) return;
+    updateLocalPreview();
+    sendDiagnostic('background-effect-ready', effectDiagnosticDetails(pending, { state: 'ready' }));
+    showEffectStatus();
+  }
+
+  // The current output keeps going while an effect prepares, so callers need not wait for it.
+  function applyBackgroundEffect() {
+    return startBackgroundEffect().catch(error => handleEffectFailure(error));
   }
 
   async function selectVideoBackground(value, { persist = true } = {}) {
@@ -394,7 +424,6 @@
     if (persist) writeStoredBackground(value);
     updateBackgroundControls();
     if (value === 'none') {
-      backgroundEffectGeneration += 1;
       stopBackgroundEffect();
       setBackgroundStatus('');
       await applyOutboundVideoTrack();
@@ -409,11 +438,7 @@
       setBackgroundStatus('Фон включится после демонстрации экрана');
       return;
     }
-    try {
-      await startBackgroundEffect();
-    } catch (error) {
-      handleEffectFailure(error);
-    }
+    await applyBackgroundEffect();
   }
 
   function track(kind) {
@@ -451,10 +476,7 @@
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     const newTrack = kind === 'audio' ? stream.getAudioTracks()[0] : stream.getVideoTracks()[0];
     if (!newTrack) throw new Error(`Браузер не предоставил ${kind === 'audio' ? 'микрофон' : 'камеру'}.`);
-    if (kind === 'video') {
-      backgroundEffectGeneration += 1;
-      stopBackgroundEffect();
-    }
+    if (kind === 'video') stopBackgroundEffect();
     localStream.getTracks().filter(item => item.kind === kind).forEach(item => {
       localStream.removeTrack(item);
       item.stop();
@@ -488,13 +510,7 @@
       showPrejoinError('Камера или микрофон недоступны. Можно войти без них и включить позже.');
     }
     updateButtons();
-    if (mediaState.video && cameraTrack()?.enabled && selectedBackground !== 'none') {
-      try {
-        await startBackgroundEffect();
-      } catch (error) {
-        handleEffectFailure(error);
-      }
-    }
+    if (mediaState.video && cameraTrack()?.enabled && selectedBackground !== 'none') void applyBackgroundEffect();
   }
 
   function send(message) {
@@ -951,8 +967,8 @@
             ? (turnHasCredentials ? 'turn-auth' : 'turn-no-auth')
             : 'stun-only'),
       });
-      if (effectTrack) {
-        sendDiagnostic('background-effect-ready', effectDiagnosticDetails({ state: 'ready' }));
+      if (activeEffect) {
+        sendDiagnostic('background-effect-ready', effectDiagnosticDetails(activeEffect, { state: 'ready' }));
       }
       sendMediaState();
     });
@@ -1037,7 +1053,6 @@
       current.enabled = false;
       mediaState[key] = false;
       if (kind === 'video') {
-        backgroundEffectGeneration += 1;
         stopBackgroundEffect();
         await applyOutboundVideoTrack();
         if (selectedBackground !== 'none') setBackgroundStatus('Включите камеру, чтобы применить эффект');
@@ -1053,12 +1068,8 @@
         showPrejoinError(`Не удалось включить ${kind === 'audio' ? 'микрофон' : 'камеру'}. Проверьте разрешения браузера.`);
       }
       if (kind === 'video' && mediaState.video) {
-        try {
-          if (selectedBackground !== 'none' && !screenTrack) await startBackgroundEffect();
-          else await applyOutboundVideoTrack();
-        } catch (error) {
-          handleEffectFailure(error);
-        }
+        await applyOutboundVideoTrack().catch(error => console.error('Video replacement failed:', error));
+        if (selectedBackground !== 'none' && !screenTrack) void applyBackgroundEffect();
       }
     }
     updateButtons();
@@ -1152,15 +1163,8 @@
     }
     updateScreenAudioStatus();
     mediaState.screen = false;
-    if (selectedBackground !== 'none' && mediaState.video && cameraTrack()?.enabled) {
-      try {
-        await startBackgroundEffect();
-      } catch (error) {
-        handleEffectFailure(error);
-      }
-    } else {
-      await applyOutboundVideoTrack();
-    }
+    await applyOutboundVideoTrack();
+    if (selectedBackground !== 'none' && mediaState.video && cameraTrack()?.enabled) void applyBackgroundEffect();
     updateButtons();
     sendMediaState();
   }
@@ -1202,7 +1206,6 @@
       await startScreenAudio();
       if (leaving || !screenTrack) return;
       updateScreenAudioStatus();
-      backgroundEffectGeneration += 1;
       stopBackgroundEffect();
       await applyOutboundVideoTrack();
       mediaState.screen = true;
@@ -1220,7 +1223,6 @@
 
   function stopMedia() {
     window.clearTimeout(reconnectTimer);
-    backgroundEffectGeneration += 1;
     stopBackgroundEffect();
     displayStream?.getTracks().forEach(item => {
       item.onended = item.onmute = item.onunmute = null;
