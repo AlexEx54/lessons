@@ -76,6 +76,14 @@ test('video call diagnostics retain bounded background-effect measurements', () 
   }), { event: 'background-effect-stats' });
 });
 
+test('background preparation stages keep their state and time since start', () => {
+  assert.deepEqual(sanitizeVideoCallDiagnostic({
+    event: 'background-effect-stage', state: 'background-image', sinceStartMs: 4300, transport: 'worker-track',
+  }), { event: 'background-effect-stage', state: 'background-image', sinceStartMs: 4300, transport: 'worker-track' });
+  assert.deepEqual(sanitizeVideoCallDiagnostic({ event: 'background-effect-stage', sinceStartMs: 700_000 }),
+    { event: 'background-effect-stage' });
+});
+
 test('background timing diagnostics accept known numeric fields and reject invalid values', () => {
   const fields = {
     pipelineVersion: 2, targetFps: 24, blurWidth: 240, blurHeight: 135,

@@ -32,6 +32,13 @@
           <p>Камера выключена</p>
         </div>
         <span class="prejoin__label">Вы</span>
+        <div class="effect-progress" role="status" hidden>
+          <span class="effect-progress__indicator" aria-hidden="true"></span>
+          <span class="effect-progress__text"><span class="effect-progress__title"></span><span class="effect-progress__stage"></span></span>
+          <button type="button" data-effect-action="cancel">Отменить</button>
+          <button type="button" data-effect-action="retry" hidden>Повторить</button>
+          <button class="effect-progress__close" type="button" data-effect-action="close" aria-label="Скрыть сообщение" hidden>×</button>
+        </div>
       </div>
       <div class="prejoin__content">
         <p class="prejoin__eyebrow">Личная комната</p>
@@ -78,6 +85,13 @@
           </div>
           <div class="video-tile__label"><span>Вы</span></div>
         </article>
+        <div class="effect-progress" role="status" hidden>
+          <span class="effect-progress__indicator" aria-hidden="true"></span>
+          <span class="effect-progress__text"><span class="effect-progress__title"></span><span class="effect-progress__stage"></span></span>
+          <button type="button" data-effect-action="cancel">Отменить</button>
+          <button type="button" data-effect-action="retry" hidden>Повторить</button>
+          <button class="effect-progress__close" type="button" data-effect-action="close" aria-label="Скрыть сообщение" hidden>×</button>
+        </div>
       </div>
 
       <p id="screen-audio-status" class="screen-audio-status" role="status" hidden></p>

@@ -125,7 +125,7 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
 // Runs the room's effect state machine with fake pipelines whose first frame the test controls.
 function effectRoom() {
   const camera = { id: 'camera', enabled: true };
-  const sessions = [], sent = [], statuses = [], stored = [], events = [];
+  const sessions = [], sent = [], statuses = [], stored = [], events = [], progress = [];
   const context = vm.createContext({
     selectedBackground: 'none', backgroundEffectGeneration: 0, activeEffect: null, pendingEffect: null,
     screenTrack: null, mediaState: { video: true }, localStream: { getVideoTracks: () => [camera] },
@@ -135,16 +135,18 @@ function effectRoom() {
     sendDiagnostic: (event, details) => events.push({ event, ...details }),
     writeStoredBackground: value => stored.push(value), updateBackgroundControls() {}, updateLocalPreview() {},
     setBackgroundStatus: (text, state = '') => statuses.push({ text, state }),
+    // Copies leave the vm realm so deepEqual can compare them with plain objects.
+    renderEffectProgress: value => progress.push(value && { ...value }),
   });
   const start = roomScript.indexOf('  function cancelPendingEffect(');
   vm.runInContext(roomScript.slice(start, roomScript.indexOf('  function track(kind)', start)), context);
   context.applyOutboundVideoTrack = async () => { sent.push(context.outboundVideoTrack()); };
   context.loadBackgroundPipeline = async () => ({
-    createBackgroundPipeline({ onFailure }) {
+    createBackgroundPipeline({ onStage, onFailure }) {
       let finish, fail;
       const session = {
         track: { id: `effect-${sessions.length}`, enabled: false }, details: { transport: 'worker-track' },
-        stopped: false, onFailure, visibility() {},
+        stopped: false, onStage, onFailure, visibility() {},
         ready: new Promise((resolve, reject) => { finish = () => resolve(session); fail = reject; }),
         finish: () => finish(), fail: error => fail(error),
         stop() { this.stopped = true; fail(new DOMException('Effect stopped', 'AbortError')); },
@@ -153,7 +155,7 @@ function effectRoom() {
       return session;
     },
   });
-  return { context, camera, sessions, sent, statuses, stored, events };
+  return { context, camera, sessions, sent, statuses, stored, events, progress };
 }
 
 async function withActiveBlur(room) {
@@ -164,16 +166,19 @@ async function withActiveBlur(room) {
 }
 
 test('a background prepares while the camera keeps going and replaces it after the first frame', async () => {
-  const { context, camera, sessions, sent } = effectRoom();
+  const { context, camera, sessions, sent, progress } = effectRoom();
   const selection = context.selectVideoBackground('blur');
   await flush();
   assert.equal(sessions.length, 1);
   assert.equal(context.outboundVideoTrack(), camera);
   assert.deepEqual(sent, []);
+  sessions[0].onStage('segmenter');
+  assert.deepEqual(progress.at(-1), { stage: 'segmenter' });
   sessions[0].finish();
   await selection;
   assert.deepEqual(sent, [sessions[0].track]);
   assert.equal(sessions[0].track.enabled, true);
+  assert.equal(progress.at(-1), null);
 });
 
 test('switching effects keeps the old one until the new one is sent and ignores repeated clicks', async () => {
@@ -202,6 +207,8 @@ test('choosing the shown background again cancels the one that is preparing', as
   await flush();
   await context.selectVideoBackground('blur');
   await selection;
+  sessions[1].onStage('wasm');
+  assert.equal(room.progress.at(-1), null);
   assert.equal(sessions[1].stopped, true);
   assert.equal(sessions[0].stopped, false);
   assert.equal(context.outboundVideoTrack(), sessions[0].track);
@@ -209,14 +216,14 @@ test('choosing the shown background again cancels the one that is preparing', as
 });
 
 test('a failed start keeps the current video and reverts the choice without storing it', async () => {
-  const { context, camera, sessions, statuses, stored, events } = effectRoom();
+  const { context, camera, sessions, stored, events, progress } = effectRoom();
   const selection = context.selectVideoBackground('blur');
   await flush();
   sessions[0].fail(new Error('GPU unavailable'));
   await selection;
   assert.equal(context.outboundVideoTrack(), camera);
   assert.equal(context.selectedBackground, 'none');
-  assert.equal(statuses.at(-1).state, 'error');
+  assert.deepEqual(progress.at(-1), { failed: 'blur' });
   assert.deepEqual(stored, ['blur']);
   assert.equal(events.find(event => event.event === 'background-effect-failure').mode, 'blur');
 });
@@ -231,6 +238,86 @@ test('a running effect that breaks falls back to the camera', async () => {
   assert.equal(context.activeEffect, null);
   assert.equal(context.selectedBackground, 'none');
   assert.equal(sent.at(-1), camera);
+  assert.deepEqual(room.progress.at(-1), { failed: 'blur' });
+});
+
+test('a background chosen while the previous one is being sent keeps its notice', async () => {
+  const { context, sessions, progress } = effectRoom();
+  let release;
+  context.applyOutboundVideoTrack = () => new Promise(resolve => { release = resolve; });
+  const first = context.selectVideoBackground('blur');
+  await flush();
+  sessions[0].finish();
+  await flush();
+  const second = context.selectVideoBackground('study-light');
+  await flush();
+  release();
+  await first;
+  assert.deepEqual(progress.at(-1), { stage: 'worker' });
+  sessions[1].finish();
+  await flush();
+  release();
+  await second;
+  assert.equal(progress.at(-1), null);
+});
+
+test('a failed swap breaks only its own effect and keeps a newer one preparing', async () => {
+  const { context, camera, sessions, progress } = effectRoom();
+  let reject;
+  const apply = context.applyOutboundVideoTrack;
+  context.applyOutboundVideoTrack = () => new Promise((_resolve, fail) => { reject = fail; });
+  const first = context.selectVideoBackground('blur');
+  await flush();
+  sessions[0].finish();
+  await flush();
+  context.applyOutboundVideoTrack = apply;
+  void context.selectVideoBackground('study-light');
+  await flush();
+  reject(new Error('replaceTrack failed'));
+  await first;
+  assert.equal(sessions[0].stopped, true);
+  assert.equal(sessions[1].stopped, false);
+  assert.equal(context.selectedBackground, 'study-light');
+  assert.equal(context.outboundVideoTrack(), camera);
+  assert.deepEqual(progress.at(-1), { stage: 'worker' });
+});
+
+test('the preparation notice names the stage and offers a retry after a failure', () => {
+  const parts = Object.fromEntries(['.effect-progress__title', '.effect-progress__stage', '[data-effect-action="cancel"]',
+    '[data-effect-action="retry"]', '[data-effect-action="close"]'].map(selector => [selector, { hidden: false }]));
+  const notice = { hidden: true, dataset: {}, querySelector: selector => parts[selector] };
+  const context = vm.createContext({ document: { querySelectorAll: () => [notice] } });
+  const start = roomScript.indexOf('  const EFFECT_STAGES = {');
+  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  function backgroundOption(', start)), context);
+  context.renderEffectProgress({ stage: 'segmenter' });
+  assert.equal(notice.hidden, false);
+  assert.equal(notice.dataset.state, 'loading');
+  assert.equal(parts['.effect-progress__title'].textContent, 'Готовим фон');
+  assert.equal(parts['.effect-progress__stage'].textContent, 'Настраиваем модель…');
+  assert.deepEqual(['cancel', 'retry', 'close'].map(action => parts[`[data-effect-action="${action}"]`].hidden), [false, true, true]);
+  context.renderEffectProgress({ failed: 'blur' });
+  assert.equal(notice.dataset.state, 'error');
+  assert.equal(parts['.effect-progress__title'].textContent, 'Не удалось включить фон');
+  assert.equal(parts['.effect-progress__stage'].textContent, '');
+  assert.deepEqual(['cancel', 'retry', 'close'].map(action => parts[`[data-effect-action="${action}"]`].hidden), [true, false, false]);
+  context.renderEffectProgress(null);
+  assert.equal(notice.hidden, true);
+});
+
+test('notice buttons cancel to the shown background, retry the failed one or hide the notice', () => {
+  const buttons = ['cancel', 'retry', 'close'].map(action => ({ dataset: { effectAction: action },
+    addEventListener(_type, handler) { this.click = handler; } }));
+  const selections = [], progress = [];
+  const context = vm.createContext({
+    document: { querySelectorAll: () => buttons }, shownBackground: () => 'blur',
+    effectProgress: { failed: 'study-light' }, selectVideoBackground: async value => selections.push(value),
+    renderEffectProgress: value => progress.push(value),
+  });
+  const start = roomScript.indexOf("  document.querySelectorAll('[data-effect-action]')");
+  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  elements.toggleScreen.addEventListener(', start)), context);
+  buttons.forEach(button => button.click());
+  assert.deepEqual(selections, ['blur', 'study-light']);
+  assert.deepEqual(progress, [null]);
 });
 
 test('frame admission retains cadence and never catches up in a burst', async () => {

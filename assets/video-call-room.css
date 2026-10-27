@@ -102,6 +102,19 @@ main { min-height: calc(100vh - 76px); padding: 12px 26px 26px; }
 .background-picker--call .background-picker__status { display: block; margin-top: 9px; }
 .background-picker__close { display: grid; width: 27px; height: 27px; padding: 0; place-items: center; border-radius: 7px; color: #c9c5d5; background: #312d43; font-size: 19px; line-height: 1; }
 .background-picker__close:hover { background: #413c56; }
+.effect-progress { position: absolute; top: 14px; right: 12px; left: 12px; z-index: 6; display: flex; align-items: center; gap: 10px; width: fit-content; margin: 0 auto; padding: 7px 7px 7px 14px; border: 1px solid rgba(255,255,255,.12); border-radius: 16px; background: rgba(35,32,49,.94); box-shadow: 0 12px 34px rgba(0,0,0,.38); font-size: 12px; font-weight: 700; }
+.effect-progress__indicator { flex-shrink: 0; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.2); border-top-color: #b6a5ff; border-radius: 50%; animation: effect-progress-spin .8s linear infinite; }
+.effect-progress[data-state="error"] .effect-progress__indicator { width: 8px; height: 8px; border: 0; background: #ff8a94; animation: none; }
+.effect-progress__text { display: grid; min-width: 0; white-space: nowrap; }
+.effect-progress__stage { overflow: hidden; color: var(--muted); font-size: 11px; font-weight: 600; text-overflow: ellipsis; }
+.effect-progress__stage:empty { display: none; }
+.effect-progress button { flex-shrink: 0; padding: 7px 12px; border-radius: 999px; background: #3d3654; font-size: 11px; font-weight: 800; }
+.effect-progress button:hover { background: #4b4365; }
+.effect-progress .effect-progress__close { width: 28px; height: 28px; padding: 0; color: #c9c5d5; font-size: 17px; line-height: 1; }
+@keyframes effect-progress-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .effect-progress__indicator { animation: none; border-color: #b6a5ff; }
+}
 
 .room-ended { display: grid; min-height: calc(100vh - 130px); place-content: center; justify-items: center; text-align: center; }
 .room-ended > span { display: grid; width: 72px; height: 72px; margin-bottom: 22px; place-items: center; border-radius: 50%; color: #171520; background: #58dda0; font-size: 31px; font-weight: 800; }
@@ -129,6 +142,8 @@ main { min-height: calc(100vh - 76px); padding: 12px 26px 26px; }
   .call-control { width: 52px; min-height: 57px; }
   .call-control--leave { width: 58px; margin-left: 0; }
   .background-picker--call { bottom: 84px; }
+  .effect-progress { top: 10px; gap: 8px; padding-left: 12px; font-size: 11px; }
+  .effect-progress__stage { font-size: 10px; }
 }
 
 .screen-audio-status { margin: 0; padding: 8px 16px; text-align: center; font-size: 13px; color: var(--muted); }

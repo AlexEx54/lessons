@@ -277,6 +277,32 @@
     });
   }
 
+  const EFFECT_STAGES = {
+    worker: 'Запускаем обработку',
+    wasm: 'Загружаем модель',
+    segmenter: 'Настраиваем модель',
+    'background-image': 'Загружаем фон',
+    'first-frame': 'Обрабатываем первый кадр',
+  };
+  let effectProgress = null;
+
+  // progress: null hides the notice, { stage } shows preparation, { failed: background } offers a retry.
+  function renderEffectProgress(progress) {
+    effectProgress = progress;
+    document.querySelectorAll('.effect-progress').forEach(notice => {
+      notice.hidden = !progress;
+      if (!progress) return;
+      const failed = Boolean(progress.failed);
+      notice.dataset.state = failed ? 'error' : 'loading';
+      notice.querySelector('.effect-progress__title').textContent = failed ? 'Не удалось включить фон' : 'Готовим фон';
+      notice.querySelector('.effect-progress__stage').textContent = failed
+        ? '' : `${EFFECT_STAGES[progress.stage] || EFFECT_STAGES.worker}…`;
+      notice.querySelector('[data-effect-action="cancel"]').hidden = failed;
+      notice.querySelector('[data-effect-action="retry"]').hidden = !failed;
+      notice.querySelector('[data-effect-action="close"]').hidden = !failed;
+    });
+  }
+
   function backgroundOption(value = selectedBackground) {
     return BACKGROUND_OPTIONS.find(option => option.id === value) || BACKGROUND_OPTIONS[0];
   }
@@ -288,6 +314,7 @@
   function cancelPendingEffect() {
     pendingEffect?.session?.stop();
     pendingEffect = null;
+    renderEffectProgress(null);
   }
 
   function stopBackgroundEffect() {
@@ -347,6 +374,7 @@
     console.error('Video background processing failed:', error);
     sendDiagnostic('background-effect-failure', effectDiagnosticDetails(broken, { state: 'failed',
       errorText: `${error?.name || 'Error'}: ${error?.message || 'Background processing failed'}` }));
+    const failed = broken?.background || selectedBackground;
     if (broken === activeEffect) activeEffect = null;
     else pendingEffect = null;
     broken?.session?.stop();
@@ -354,7 +382,8 @@
     if (!pendingEffect) {
       selectedBackground = shownBackground();
       updateBackgroundControls();
-      setBackgroundStatus('Не удалось включить фон. Попробуйте выбрать его ещё раз.', 'error');
+      setBackgroundStatus('');
+      renderEffectProgress({ failed });
     }
     void applyOutboundVideoTrack().catch(error => console.error('Video replacement failed:', error));
     updateLocalPreview();
@@ -375,7 +404,8 @@
     const pending = { background, generation: ++backgroundEffectGeneration, session: null };
     pendingEffect = pending;
     const current = () => pendingEffect === pending;
-    setBackgroundStatus('Готовим эффект…');
+    setBackgroundStatus('');
+    renderEffectProgress({ stage: 'worker' });
     const { createBackgroundPipeline } = await loadBackgroundPipeline();
     if (!current()) return;
     pending.session = createBackgroundPipeline({
@@ -383,6 +413,9 @@
       config: { model: SEGMENTER_MODEL, mode: background,
         backgroundUrl: backgroundOption(background).src, targetFps: 1000 / EFFECT_FRAME_INTERVAL_MS,
         maxWidth: MOBILE_DEVICE ? 640 : 960, hidden: document.hidden },
+      onStage: stage => {
+        if (current()) renderEffectProgress({ stage });
+      },
       onDiagnostic: (event, details) => {
         if (current() || activeEffect === pending) sendDiagnostic(event, { ...details, effectGeneration: pending.generation });
       },
@@ -400,8 +433,15 @@
     const previous = activeEffect;
     activeEffect = pending;
     pending.session.track.enabled = mediaState.video;
+    // Preparation ends here, before the await: a choice made during the swap owns the notice and status.
+    renderEffectProgress(null);
+    showEffectStatus();
     try {
       await applyOutboundVideoTrack();
+    } catch (error) {
+      // This effect broke, not a newer choice that may be preparing meanwhile.
+      if (activeEffect === pending) handleEffectFailure(error, pending);
+      return;
     } finally {
       // The older effect stops only once the sender no longer uses its track.
       previous?.session.stop();
@@ -409,7 +449,6 @@
     if (activeEffect !== pending) return;
     updateLocalPreview();
     sendDiagnostic('background-effect-ready', effectDiagnosticDetails(pending, { state: 'ready' }));
-    showEffectStatus();
   }
 
   // The current output keeps going while an effect prepares, so callers need not wait for it.
@@ -1342,6 +1381,13 @@
     setBackgroundPanelOpen(elements.toggleBackground.getAttribute('aria-expanded') !== 'true');
   });
   elements.closeBackgroundPanel.addEventListener('click', () => setBackgroundPanelOpen(false));
+  document.querySelectorAll('[data-effect-action]').forEach(button => button.addEventListener('click', () => {
+    const action = button.dataset.effectAction;
+    // Cancelling re-selects what is already shown, so the stored choice matches the picture.
+    if (action === 'cancel') void selectVideoBackground(shownBackground());
+    else if (action === 'retry') void selectVideoBackground(effectProgress.failed);
+    else renderEffectProgress(null);
+  }));
   elements.toggleScreen.addEventListener('click', toggleScreenShare);
   elements.leave.addEventListener('click', leaveCall);
   elements.join.addEventListener('click', joinCall);

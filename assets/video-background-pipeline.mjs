@@ -6,7 +6,7 @@ export function chooseTransport(workerCapabilities, scope = globalThis) {
   return 'canvas-worker';
 }
 
-export function createBackgroundPipeline({ camera, config, onDiagnostic, onFailure }) {
+export function createBackgroundPipeline({ camera, config, onStage = () => {}, onDiagnostic, onFailure }) {
   const worker = new Worker(new URL('./video-background-worker.js', import.meta.url));
   let stopped = false, settled = false, initialized = false;
   let source, output, video, canvas, context, readable, writable;
@@ -14,7 +14,9 @@ export function createBackgroundPipeline({ camera, config, onDiagnostic, onFailu
     mode: config.mode === 'blur' ? 'blur' : 'replacement', targetFps: config.targetFps }, destroyTimer;
   let resolveReady, rejectReady;
   const ready = new Promise((resolve, reject) => { resolveReady = resolve; rejectReady = reject; });
-  const report = (event, extra = {}) => onDiagnostic(event, { pipelineVersion: 3, transport, ...details, ...extra });
+  const startedAt = performance.now();
+  const report = (event, extra = {}) => onDiagnostic(event, { pipelineVersion: 3, transport, ...details,
+    sinceStartMs: Math.round(performance.now() - startedAt), ...extra });
   const timeout = setTimeout(() => fail(new Error('Не удалось получить обработанный кадр за 30 секунд')), 30_000);
   const session = {
     ready,
@@ -112,6 +114,7 @@ export function createBackgroundPipeline({ camera, config, onDiagnostic, onFailu
         finally { data.frame.close(); }
         worker.postMessage({ type: 'ack' });
         break;
+      case 'stage': onStage(data.stage); report('background-effect-stage', { state: data.stage }); break;
       case 'stats': report('background-effect-stats', data.details); break;
       case 'health': report('background-effect-health', data.details); break;
       case 'diagnostic': report('background-effect-health', data); break;
