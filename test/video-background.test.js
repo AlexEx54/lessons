@@ -480,6 +480,7 @@ test('socket reconnect reports the previous close after reopening and ignores st
   const context = vm.createContext({
     socket: null, socketAttempt: 0, lastSocketClose: null, reconnectAttempts: 0, reconnectTimer: null,
     leaving: false, activeEffect: null, iceServers: [], navigator: { onLine: true },
+    mediaPreparation: { state: 'pending' },
     performance: { getEntriesByType: () => [{ type: 'reload' }] },
     window: { clearTimeout() {} }, closePeerConnection() {}, websocketUrl: () => 'ws://example.test',
     setConnection() {}, sendMediaState() {}, scheduleReconnect() {},
@@ -495,6 +496,7 @@ test('socket reconnect reports the previous close after reopening and ignores st
   sockets[0].handlers.open();
   assert.equal(events[0].state, 'initial');
   assert.equal(events[0].navigationType, 'reload');
+  assert.equal(events[0].mediaPreparation, 'pending');
   sockets[0].handlers.close({ code: 1006, wasClean: false });
   context.connectSocket();
   sockets[1].handlers.open();

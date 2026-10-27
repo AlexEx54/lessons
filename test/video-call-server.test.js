@@ -84,6 +84,15 @@ test('background preparation stages keep their state and time since start', () =
     { event: 'background-effect-stage' });
 });
 
+test('media preparation diagnostics keep the browser answer, its wait and known error names', () => {
+  assert.deepEqual(sanitizeVideoCallDiagnostic({
+    event: 'media-prepared', state: 'failed', mediaWaitMs: 1840, errorName: 'NotReadableError',
+  }), { event: 'media-prepared', state: 'failed', mediaWaitMs: 1840, errorName: 'NotReadableError' });
+  assert.deepEqual(sanitizeVideoCallDiagnostic({
+    event: 'socket-open', mediaPreparation: 'pending', mediaWaitMs: -1, errorName: 'Camera of Jane',
+  }), { event: 'socket-open', mediaPreparation: 'pending' });
+});
+
 test('background timing diagnostics accept known numeric fields and reject invalid values', () => {
   const fields = {
     pipelineVersion: 2, targetFps: 24, blurWidth: 240, blurHeight: 135,

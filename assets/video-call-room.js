@@ -187,7 +187,8 @@
   let activeEffect = null;
   let pendingEffect = null;
   let joined = false;
-  let mediaPrepared = false;
+  // 'idle' → 'pending' while the browser asks for camera and microphone → 'granted', 'failed' or 'unsupported'.
+  const mediaPreparation = { state: 'idle', waitMs: undefined, errorName: undefined };
   let leaving = false;
   let reconnectAttempts = 0;
   let reconnectTimer = null;
@@ -495,8 +496,10 @@
   }
 
   function updateButtons() {
-    const micEnabled = Boolean(track('audio')?.enabled) && mediaState.audio;
-    const cameraEnabled = Boolean(track('video')?.enabled) && mediaState.video;
+    // While the browser asks there are no tracks yet, so the buttons show the chosen state.
+    const pending = mediaPreparation.state === 'pending';
+    const micEnabled = mediaState.audio && (pending || Boolean(track('audio')?.enabled));
+    const cameraEnabled = mediaState.video && (pending || Boolean(track('video')?.enabled));
     elements.prejoinMic.setAttribute('aria-pressed', String(micEnabled));
     elements.prejoinMic.textContent = micEnabled ? 'Микрофон включён' : 'Микрофон выключен';
     elements.prejoinCamera.setAttribute('aria-pressed', String(cameraEnabled));
@@ -530,25 +533,49 @@
 
   async function prepareMedia() {
     if (!navigator.mediaDevices?.getUserMedia) {
+      mediaPreparation.state = 'unsupported';
       showPrejoinError('Этот браузер не поддерживает доступ к камере и микрофону.');
       mediaState.audio = false;
       mediaState.video = false;
       updateButtons();
       return;
     }
+    mediaPreparation.state = 'pending';
+    const startedAt = performance.now();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true },
         video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
       });
+      // Clicks made while the browser was asking only changed mediaState.
+      stream.getAudioTracks().forEach(item => { item.enabled = mediaState.audio; });
+      stream.getVideoTracks().forEach(item => { item.enabled = mediaState.video; });
       localStream = stream;
+      mediaPreparation.state = 'granted';
       showPrejoinError('');
-    } catch (_error) {
+    } catch (error) {
+      mediaPreparation.errorName = error?.name;
+      mediaPreparation.state = 'failed';
       mediaState.audio = false;
       mediaState.video = false;
       showPrejoinError('Камера или микрофон недоступны. Можно войти без них и включить позже.');
     }
+    mediaPreparation.waitMs = Math.round(performance.now() - startedAt);
+    // Reaches the server only when the call was joined before the browser answered.
+    sendDiagnostic('media-prepared', { state: mediaPreparation.state, mediaWaitMs: mediaPreparation.waitMs,
+      errorName: mediaPreparation.errorName });
     updateButtons();
+    if (joined) {
+      // The peer connection may already exist with empty senders and the peer was told the camera is off.
+      connectMixerMicrophone();
+      try {
+        await applyOutboundAudioTrack();
+        await applyOutboundVideoTrack();
+      } catch (error) {
+        console.error('Track replacement failed:', error);
+      }
+      sendMediaState();
+    }
     if (mediaState.video && cameraTrack()?.enabled && selectedBackground !== 'none') void applyBackgroundEffect();
   }
 
@@ -992,7 +1019,8 @@
       if (socket !== currentSocket) return;
       sendDiagnostic('socket-open', { state: lastSocketClose ? 'reconnected' : 'initial',
         socketAttempt, navigationType: performance.getEntriesByType('navigation')[0]?.type || 'unknown',
-        online: navigator.onLine, ...lastSocketClose });
+        online: navigator.onLine, mediaPreparation: mediaPreparation.state, mediaWaitMs: mediaPreparation.waitMs,
+        errorName: mediaPreparation.errorName, ...lastSocketClose });
       lastSocketClose = null;
       reconnectAttempts = 0;
       const configuredUrls = iceServers.map(server => server.urls).filter(Boolean);
@@ -1087,6 +1115,12 @@
 
   async function toggleKind(kind) {
     const key = kind === 'audio' ? 'audio' : 'video';
+    if (mediaPreparation.state === 'pending') {
+      // Requesting another track now would open a second camera that prepareMedia then discards.
+      mediaState[key] = !mediaState[key];
+      updateButtons();
+      return;
+    }
     let current = track(kind);
     if (mediaState[key] && current?.enabled) {
       current.enabled = false;
@@ -1316,7 +1350,9 @@
     if (!room || joined) return;
     elements.join.disabled = true;
     elements.join.textContent = 'Подключаемся…';
-    if (!mediaPrepared) { mediaPrepared = true; await prepareMedia(); }
+    // Only the chat link reaches the join without media. A pending prompt is not awaited: it may never
+    // settle, and prepareMedia sends the tracks once the browser answers.
+    if (mediaPreparation.state === 'idle') await prepareMedia();
     joined = true;
     elements.prejoin.hidden = true;
     elements.stage.hidden = false;
@@ -1362,7 +1398,6 @@
         window.CallChat.open();
         return;
       }
-      mediaPrepared = true;
       await prepareMedia();
     } catch (error) {
       elements.prejoin.hidden = true;
