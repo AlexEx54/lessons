@@ -79,6 +79,9 @@ main { min-height: calc(100vh - 76px); padding: 12px 26px 26px; }
 .prejoin__join { min-height: 48px; margin-top: 20px; border-radius: 11px; background: var(--purple); font-size: 13px; font-weight: 800; box-shadow: 0 11px 28px rgba(94,65,218,.3); }
 .prejoin__join:hover { background: #6b4bea; }
 .prejoin__join:disabled { opacity: .55; cursor: wait; }
+.invite-copy { min-height: 40px; padding: 0 16px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; color: #d9d2ff; background: #2a2640; font-size: 12px; font-weight: 700; }
+.invite-copy:hover { background: #353050; }
+.invite-copy--prejoin { min-height: 44px; margin-top: 10px; }
 
 .call-stage { position: relative; width: min(1480px, 100%); height: calc(100vh - 114px); min-height: 520px; margin: 0 auto; }
 .call-layout { position: relative; width: 100%; height: calc(100% - 92px); }

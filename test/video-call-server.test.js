@@ -228,6 +228,14 @@ test('a permanent room lets the student wait for the teacher, survives ending a 
   assert.deepEqual(await publicRoom.json(), { call: { id: created.id }, iceServers: [{ urls: ['stun:stun.example.test:3478'] }] });
   assert.equal((await fetch(`${baseUrl}${created.guestPath}`)).status, 200);
   assert.equal((await fetch(`${baseUrl}/call/not-valid`)).status, 404);
+  const teacherRoom = await fetch(`${baseUrl}/video-calls/${created.id}`, { headers: { Cookie: cookie } });
+  assert.equal(teacherRoom.status, 200);
+  assert.match(await teacherRoom.text(), /id="prejoin"/);
+  // A student who got the teacher's own address learns to ask for the invite instead of seeing JSON.
+  const teacherRoomAsGuest = await fetch(`${baseUrl}/video-calls/${created.id}`);
+  assert.equal(teacherRoomAsGuest.status, 401);
+  assert.match(teacherRoomAsGuest.headers.get('content-type'), /text\/html/);
+  assert.match(await teacherRoomAsGuest.text(), /Это ссылка преподавателя/);
   assert.equal((await fetch(`${baseUrl}/api/public/video-calls/not-valid`)).status, 404);
 
   // The link is permanent, so the student may come before the teacher and wait.

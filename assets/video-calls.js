@@ -44,22 +44,7 @@
     return payload;
   }
 
-  async function copyText(text) {
-    if (navigator.clipboard?.writeText && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      return;
-    }
-    const input = document.createElement('textarea');
-    input.value = text;
-    input.setAttribute('readonly', '');
-    input.style.position = 'fixed';
-    input.style.opacity = '0';
-    document.body.append(input);
-    input.select();
-    const copied = document.execCommand('copy');
-    input.remove();
-    if (!copied) throw new Error('Браузер не разрешил скопировать ссылку.');
-  }
+  const { copyText } = window.CopyText;
 
   function inviteUrl(call) {
     return new URL(call.guestPath, window.location.origin).href;

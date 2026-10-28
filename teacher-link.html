@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f4f2ff" />
+  <meta name="robots" content="noindex" />
+  <title>Ссылка преподавателя — EasyClass</title>
+  <link rel="stylesheet" href="/assets/teacher-link.css" />
+</head>
+<body>
+  <main class="notice-page">
+    <a class="notice-brand" href="/" aria-label="EasyClass — главная">
+      <img src="/assets/images/easyclass-mark-cropped.png" alt="" width="44" height="36" />
+      <span>Easy<strong>Class</strong></span>
+    </a>
+
+    <section class="notice-card" aria-labelledby="notice-title">
+      <p class="notice-card__eyebrow">Видеозвонок</p>
+      <h1 id="notice-title">Это ссылка преподавателя</h1>
+      <p>По ней в комнату входит только сам преподаватель.</p>
+      <div class="notice-card__hint">
+        <strong>Вы ученик?</strong>
+        <p>Попросите у преподавателя ссылку для ученика. Она выглядит так:</p>
+        <code id="invite-example">www.easyclass-edu.ru/call/…</code>
+      </div>
+      <a class="notice-card__login" id="teacher-login" href="/login">Я преподаватель — войти</a>
+    </section>
+  </main>
+  <script>
+    // The mirror serves the app on another host, and after login the teacher returns to this room.
+    document.getElementById('invite-example').textContent = `${location.host}/call/…`;
+    document.getElementById('teacher-login').href = `/login?next=${encodeURIComponent(location.pathname)}`;
+  </script>
+</body>
+</html>

@@ -61,6 +61,7 @@
         </section>
         <p class="prejoin__error" id="prejoin-error" role="alert" hidden></p>
         <button class="prejoin__join" id="join-call" type="button">Войти в звонок</button>
+        <button class="invite-copy invite-copy--prejoin" id="prejoin-invite" type="button" hidden>Скопировать ссылку для ученика</button>
       </div>
     </section>
 
@@ -71,6 +72,7 @@
           <div class="video-placeholder" id="remote-placeholder">
             <span aria-hidden="true">…</span>
             <p id="remote-placeholder-text">Подключаемся к комнате…</p>
+            <button class="invite-copy" id="remote-invite" type="button" hidden>Скопировать ссылку для ученика</button>
           </div>
           <div class="video-tile__label">
             <span id="remote-name">Участник</span>
@@ -142,6 +144,7 @@
     </section>
   </main>
 
+  <script src="/assets/copy-text.js" defer></script>
   <script src="/assets/call-chat-links.js" defer></script>
   <script src="/assets/video-call-chat.js" defer></script>
   <script src="/assets/call-recorder.js" defer></script>

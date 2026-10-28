@@ -35,6 +35,8 @@
     remoteVideo: document.getElementById('remote-video'),
     remotePlaceholder: document.getElementById('remote-placeholder'),
     remotePlaceholderText: document.getElementById('remote-placeholder-text'),
+    prejoinInvite: document.getElementById('prejoin-invite'),
+    remoteInvite: document.getElementById('remote-invite'),
     remoteName: document.getElementById('remote-name'),
     remoteMuted: document.getElementById('remote-muted'),
     toggleMic: document.getElementById('toggle-mic'),
@@ -1051,6 +1053,7 @@
           sendDiagnostic('signaling-event', {
             state: message.peerPresent ? 'connected-with-peer' : 'connected-waiting',
           });
+          showRemoteInvite(!message.peerPresent);
           if (message.peerPresent) {
             setConnection(`${peerTitle} подключается…`);
             await createPeerConnection();
@@ -1063,6 +1066,7 @@
           // The peer has a new RTCPeerConnection, even if its old socket has
           // not timed out yet and no peer-left event was delivered.
           closePeerConnection();
+          showRemoteInvite(false);
           setConnection(`${peerTitle} подключается…`);
           await createPeerConnection();
           sendMediaState();
@@ -1070,6 +1074,7 @@
           closePeerConnection();
           setConnection(`${peerTitle} вышел`);
           elements.remotePlaceholderText.textContent = `${waitingStatus} — звонок возобновится автоматически.`;
+          showRemoteInvite(true);
         } else if (message.type === 'restart-connection' && polite) {
           sendDiagnostic('signaling-event', { state: 'restart-connection' });
           // The teacher's new offer follows on the same socket and creates the new connection.
@@ -1360,6 +1365,26 @@
     connectSocket();
   }
 
+  // The room address opens only for its teacher, so the student's invite is offered right here.
+  function showRemoteInvite(peerAbsent) {
+    elements.remoteInvite.hidden = !peerAbsent || !room.guestPath;
+  }
+
+  function setupInviteButton(button) {
+    const label = button.textContent;
+    let resetTimer = null;
+    button.addEventListener('click', async () => {
+      try {
+        await window.CopyText.copyText(new URL(room.guestPath, location.origin).href);
+        button.textContent = 'Ссылка скопирована';
+      } catch (_error) {
+        button.textContent = 'Не удалось скопировать ссылку';
+      }
+      window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(() => { button.textContent = label; }, 2500);
+    });
+  }
+
   function setBackgroundPanelOpen(open) {
     elements.callBackgroundPanel.hidden = !open;
     elements.toggleBackground.setAttribute('aria-expanded', String(open));
@@ -1386,6 +1411,7 @@
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Комната недоступна.');
       room = payload.call;
+      elements.prejoinInvite.hidden = !room.guestPath;
       if (room.name) {
         elements.remoteName.textContent = room.name;
         document.title = `${room.name} — видеозвонок EasyClass`;
@@ -1426,6 +1452,8 @@
   elements.toggleScreen.addEventListener('click', toggleScreenShare);
   elements.leave.addEventListener('click', leaveCall);
   elements.join.addEventListener('click', joinCall);
+  setupInviteButton(elements.prejoinInvite);
+  setupInviteButton(elements.remoteInvite);
   window.addEventListener('pagehide', event => {
     if (!leaving) {
       sendDiagnostic('page-lifecycle', { state: 'pagehide', persisted: event.persisted });

@@ -450,7 +450,7 @@ function safePathname(inputPath) {
   return normalized;
 }
 
-function serveStatic(reqPath, res) {
+function serveStatic(reqPath, res, statusCode = 200) {
   const target = reqPath === '/' ? 'index.html' : safePathname(reqPath.slice(1));
   const absolute = path.join(ROOT, target);
 
@@ -465,7 +465,7 @@ function serveStatic(reqPath, res) {
       return;
     }
 
-    res.writeHead(200, {
+    res.writeHead(statusCode, {
       'Content-Type': getContentType(absolute),
       'Cache-Control': target.startsWith('assets/vendor/mediapipe-1.0.1/')
         ? 'public, max-age=31536000, immutable'
@@ -1549,8 +1549,12 @@ async function handleRequest(req, res) {
 
   const teacherVideoCallPage = pathname.match(/^\/video-calls\/([^/]+)$/);
   if (req.method === 'GET' && teacherVideoCallPage) {
-    const user = requireTeacherAuth(req, res);
-    if (!user) return;
+    const user = getAuthenticatedUser(req, database);
+    // Teachers sometimes send this address instead of the invite, so the student gets an explanation.
+    if (!user) {
+      serveStatic('/teacher-link.html', res, 401);
+      return;
+    }
     let callId = '';
     try { callId = decodeURIComponent(teacherVideoCallPage[1]); } catch (_error) { /* handled below */ }
     const call = findOwnedVideoCall(callId, user.id, database);
