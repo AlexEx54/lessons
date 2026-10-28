@@ -124,3 +124,22 @@ test('a key in several parts takes titles only for its own parts', () => {
     ['partTitles', 'explanations', 'Пояснения: нужен непустой текст'],
   ]);
 });
+
+// The rules carry only the shape of the answer; what the pairs are about is in the
+// instructions, so the same block serves a topic warm-up and a vocabulary drill.
+test('two This or That blocks in one stage keep their own rules and instructions', () => {
+  const definition = singleBlockTemplate(CONTROL_CATALOG.get('thisOrThat'), { pairs: 3 });
+  definition.stages[1].blocks.push({
+    id: 'checked-words', kind: 'generated', control: 'thisOrThat', fields: { choices: 'wordChoices' },
+    instructions: 'Make each pair from two words of the Target Vocabulary.',
+  });
+  const template = compileTemplate(definition, CONTROL_CATALOG);
+  const { messages, schema } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
+  const lines = messages[0].content.split('\n');
+  const topicPairs = lines.indexOf('Create exactly three This or That pairs in choices: in each pair the learner picks one of exactly two options.');
+  const wordPairs = lines.indexOf('Create exactly four This or That pairs in wordChoices: in each pair the learner picks one of exactly two options.');
+  assert.ok(topicPairs >= 0 && wordPairs > topicPairs);
+  assert.equal(lines[topicPairs + 2], 'Make the two options in each pair clearly contrasting and engaging: things the learner can easily have an opinion about.');
+  assert.equal(lines[wordPairs + 1], 'Make each pair from two words of the Target Vocabulary.');
+  assert.deepEqual(Object.keys(schema.properties), ['choices', 'wordChoices']);
+});

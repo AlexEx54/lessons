@@ -31,7 +31,7 @@
       "context": {
         "Warm-Up topic": "$input.warmUpTopic"
       },
-      "instructions": "This is a five-minute Warm-Up built around a This or That activity.\nKeep every activity directly connected to the provided Warm-Up topic.\nThis or That captions must be in natural English at the target CEFR level. Image prompts must be in English.",
+      "instructions": "This is a five-minute Warm-Up built around a This or That activity.\nKeep every activity directly connected to the provided Warm-Up topic.",
       "blocks": [
         {
           "id": "warm-up-teacher-note",
