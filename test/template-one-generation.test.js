@@ -142,7 +142,7 @@ test('Template 1 rejects model answers that would break a task', () => {
     ['warm-up', answer => { answer.choices[0].options.pop(); }, /exactly two options/],
     ['target-vocabulary', answer => { answer.vocabularyItems.pop(); }, /«Vocabulary»: нужно ровно 10 \(слов\)/],
     ['target-vocabulary', answer => { answer.describeAndGuessTerms[5] = answer.describeAndGuessTerms[0]; }, /не должны повторяться/],
-    ['target-vocabulary', answer => { answer.vocabularyItems[0].imagePrompt = 'A traveler buying a ticket.'; }, /квадратными иллюстрациями без текста/],
+    ['target-vocabulary', answer => { answer.pictureItems.pop(); }, /«Task 1 · Match the Words»: нужно ровно 10 \(слов\)/],
     ['reading', answer => { answer.detailQuestions.pop(); }, /Reading for Detail»: нужно ровно 5/],
     ['reading', answer => { answer.gistQuestions[0].options[1] = answer.gistQuestions[0].options[0]; }, /варианты в вопросе 1 не должны повторяться/],
     ['reading', answer => { answer.detailQuestions[0].answer = 'An answer outside the options.'; }, /должен точно совпадать с вариантом/],

@@ -212,14 +212,16 @@ test('without a source an input stays unbound; a source without a required featu
   const early = addBlock(definition, 'lead-in', 'vocabularyMeanings').block;
   assert.equal(early.inputs, undefined);
 
-  const links = Edits.plannedLinks(definition, stage(definition, 'wrap-up'), controls.get('matchPictures'), controls);
-  assert.deepEqual(links.inputs.vocabulary.missing, ['imagePrompt']);
-  const pictures = addBlock(definition, 'wrap-up', 'matchPictures').block;
-  assert.deepEqual(pictures.inputs, { vocabulary: 'targetVocabulary' });
+  stage(definition, 'target-vocabulary').blocks.find(block => block.id === 'target-vocabulary-card').params.distractors = false;
+  const links = Edits.plannedLinks(definition, stage(definition, 'wrap-up'), controls.get('vocabularyMeanings'), controls);
+  assert.deepEqual(links.inputs.vocabulary.missing, ['distractor']);
+  const meanings = addBlock(definition, 'wrap-up', 'vocabularyMeanings').block;
+  assert.deepEqual(meanings.inputs, { vocabulary: 'targetVocabulary' });
 
   assert.deepEqual(problems(definition), [
     'Блоку lead-in-vocabulary-meanings нужен вход vocabulary (словарь).',
-    'Вход vocabulary блока wrap-up-match-pictures требует у targetVocabulary: imagePrompt.',
+    'Вход vocabulary блока target-vocabulary-meanings требует у targetVocabulary: distractor.',
+    'Вход vocabulary блока wrap-up-vocabulary-meanings требует у targetVocabulary: distractor.',
   ]);
 });
 

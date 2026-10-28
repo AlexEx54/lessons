@@ -193,7 +193,9 @@ module.exports = {
   Тогда один контрол служит разным задачам: This or That на тему разминки
   и This or That на слова Target Vocabulary — один и тот же `thisOrThat`,
   отличаются только указания блока (и строка контекста со словарём, если
-  он из более раннего этапа). Указания о блоке пишутся в блоке, а не в
+  он из более раннего этапа). Так же `matchPictures` сам пишет слова и
+  картинки к ним, а указания говорят, откуда слова: из словаря урока, по
+  теме этапа или списком учителя. Указания о блоке пишутся в блоке, а не в
   этапе: при переносе блок забирает их с собой.
 - **Параметры** создаются помощниками из `template-controls/helpers.js`:
   `integer`, `choice`, `flag` и `text`. У каждого есть подпись
@@ -360,7 +362,7 @@ warm-up, watch-and-interact — без связей
 | Контрол | Компонент | Входы → выходы |
 |---|---|---|
 | `thisOrThat` | thisOrThat | |
-| `matchPictures` *derived* | matchWords | vocabulary (с картинками) |
+| `matchPictures` | matchWords | |
 | `termExplanations` | markdownCard | vocabulary |
 | `fillInBlanks` | fillInBlanks | vocabulary |
 | `describeAndGuess` | describeAndGuess | vocabulary |
@@ -374,8 +376,7 @@ warm-up, watch-and-interact — без связей
 | `roleDialogue` *derived* | markdownCard | блок roleCards |
 | `speakingSupport` | speakingSupport | |
 
-Общие для обоих шаблонов: `vocabularyList` (у шаблона 1 с параметром
-`imagePrompts`, словарь тогда несёт картинки), `contextDropdown`,
+Общие для обоих шаблонов: `vocabularyList`, `contextDropdown`,
 `personalizedQuestions`, `ruleGaps`, `quickRule`, `choiceSentences`,
 `wordBankSupport`, `threeTwoOne`. Всего 35 контролов.
 

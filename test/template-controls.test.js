@@ -143,3 +143,23 @@ test('two This or That blocks in one stage keep their own rules and instructions
   assert.equal(lines[wordPairs + 1], 'Make each pair from two words of the Target Vocabulary.');
   assert.deepEqual(Object.keys(schema.properties), ['choices', 'wordChoices']);
 });
+
+// Where the words of a matching task come from is up to its instructions: the lesson
+// vocabulary or a list the teacher typed in.
+test('two Match the Words blocks in one stage take their words from their own instructions', () => {
+  const definition = singleBlockTemplate(CONTROL_CATALOG.get('matchPictures'), { items: 4 });
+  definition.stages[1].blocks[0].instructions = 'Use four terms of the Target Vocabulary, copied exactly.';
+  definition.stages[1].blocks.push({
+    id: 'own-words', kind: 'generated', control: 'matchPictures', params: { items: 5 }, fields: { items: 'ownWords' },
+    instructions: 'Use these words: kite, tent, compass, ladder, camera.',
+  });
+  const template = compileTemplate(definition, CONTROL_CATALOG);
+  const { messages, schema } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
+  const lines = messages[0].content.split('\n');
+  const vocabularyPictures = lines.indexOf('items: exactly four items for a word-to-picture matching task. term is the word or short phrase the learner sees; imagePrompt describes the picture that shows it.');
+  const ownPictures = lines.indexOf('ownWords: exactly five items for a word-to-picture matching task. term is the word or short phrase the learner sees; imagePrompt describes the picture that shows it.');
+  assert.ok(vocabularyPictures >= 0 && ownPictures > vocabularyPictures);
+  assert.equal(lines[vocabularyPictures + 2], 'Use four terms of the Target Vocabulary, copied exactly.');
+  assert.equal(lines[ownPictures + 1], 'Use these words: kite, tent, compass, ladder, camera.');
+  assert.deepEqual(Object.keys(schema.properties), ['items', 'ownWords']);
+});

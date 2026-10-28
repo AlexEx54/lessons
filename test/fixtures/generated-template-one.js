@@ -60,11 +60,14 @@ const GENERATED_WRAP_UP = Object.freeze({
 });
 
 // Target Vocabulary and Reading answers in the shape of the Template 1 controls, made from
-// the answers to the old prompts: the context task is one text with numbered gaps,
-// personalized questions have no targetTerm, and the gist question is a list of one.
-function templateOneTargetVocabulary({ contextItems, personalizedQuestions, ...answer }) {
+// the answers to the old prompts: the pictures of the words are a task of their own, the
+// context task is one text with numbered gaps, personalized questions have no targetTerm,
+// and the gist question is a list of one.
+function templateOneTargetVocabulary({ vocabularyItems, contextItems, personalizedQuestions, ...answer }) {
   return {
     ...answer,
+    vocabularyItems: vocabularyItems.map(({ term, definition }) => ({ term, definition })),
+    pictureItems: vocabularyItems.map(({ term, imagePrompt }) => ({ term, imagePrompt })),
     contextText: contextItems.map((item, index) => [item.before, `[[${index + 1}]]`, item.after].filter(Boolean).join(' ')).join(' '),
     contextChoices: contextItems.map(({ options, answer: term }) => ({ options, answer: term })),
     personalizedQuestions: personalizedQuestions.map(({ question, followUp }) => ({ question, followUp })),
