@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Реакции — согласованный стиль</title>
+<link rel="stylesheet" href="../../../assets/lesson-editor.css">
+<style>
+  body { margin:0; padding:56px 32px; background:#f5f4f9; color:#292337; font-family:system-ui,sans-serif; }
+  main { max-width:880px; margin:auto; }
+  h1 { margin:0 0 12px; font-size:30px; }
+  p { color:#716b80; margin:0 0 28px; }
+  .gallery { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; background:white; padding:28px 18px; border-radius:24px; }
+  figure { margin:0; width:104px; text-align:center; }
+  figure img { width:96px; height:96px; }
+  figcaption { margin-top:10px; color:#716b80; font-size:12px; }
+  .sample { margin-top:36px; }
+  .sample .lesson-reactions { position:relative; display:inline-flex; }
+  .sample .lesson-reaction-picker { position:relative; top:auto; right:auto; left:auto; }
+  #lesson-reactions-toggle { position:absolute; left:-10000px; }
+  .lesson-reaction-picker button { border:0; cursor:pointer; padding:0; }
+  .lesson-reaction-picker { --line:#e9e6ef; --purple:#7c3aed; --purple-soft:#f2ebff; }
+  @media (max-width:700px) { body { padding:28px 16px; } .sample { width:100%; } .sample .lesson-reactions { display:flex; } .sample .lesson-reaction-picker { width:100%; } }
+</style>
+<main>
+  <h1>Реакции</h1>
+  <p>Новый набор в согласованном стиле</p>
+  <div class="gallery">
+    <figure><img src="../../../assets/images/reactions/like.webp" alt="Нравится"><figcaption>Нравится</figcaption></figure>
+    <figure><img src="../../../assets/images/reactions/heart.webp" alt="Сердце"><figcaption>Сердце</figcaption></figure>
+    <figure><img src="../../../assets/images/reactions/clap.webp" alt="Аплодисменты"><figcaption>Аплодисменты</figcaption></figure>
+    <figure><img src="../../../assets/images/reactions/laugh.webp" alt="Смешно"><figcaption>Смешно</figcaption></figure>
+    <figure><img src="../../../assets/images/reactions/fire.webp" alt="Огонь"><figcaption>Огонь</figcaption></figure>
+    <figure><img src="../../../assets/images/reactions/confused.webp" alt="Непонятно"><figcaption>Непонятно</figcaption></figure>
+    <figure><img src="../../../assets/images/reactions/mindblown.webp" alt="Взрыв мозга"><figcaption>Взрыв мозга</figcaption></figure>
+  </div>
+  <div class="sample">
+    <p>В размере интерфейса · нажмите на реакцию</p>
+    <div class="lesson-reactions" id="lesson-reactions" hidden>
+      <button id="lesson-reactions-toggle" aria-label="Реакции" aria-expanded="false" aria-controls="lesson-reaction-picker">Реакции</button>
+      <div class="lesson-reaction-picker" id="lesson-reaction-picker" hidden></div>
+    </div>
+  </div>
+</main>
+<div class="lesson-reaction-layer" id="lesson-reaction-layer" aria-hidden="true"></div>
+<script src="../../../assets/class-reactions.js"></script>
+<script>ClassReactions.create(); document.getElementById('lesson-reactions-toggle').click();</script>
+</html>
