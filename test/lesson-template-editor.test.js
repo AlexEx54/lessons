@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const { learnerProfileInstructions } = require('../lib/ai-lesson-generator.js');
 const { controlExample, describeControls, previewLessonTemplate } = require('../lib/lesson-template-editor.js');
 const Statics = require('../assets/lesson-template-statics.js');
 const { findSystemTemplate } = require('../lib/lesson-templates/system-templates.js');
@@ -122,6 +123,10 @@ test('controls are described for the editor with labelled parameters and chrome'
   assert.deepEqual(byType('choiceSentences').answerKey.parts.explanations, { label: 'Пояснения', title: 'Short explanations' });
   assert.equal(byType('quickRule').answerKey, undefined);
   assert.deepEqual(Object.keys(describeControls().answerKeyFields), ['title', 'format', 'layout']);
+  // The editor names the learner profile as every stage prompt does.
+  const profile = learnerProfileInstructions({ level: 'B1', ageGroup: '15-18' });
+  assert.deepEqual(describeControls().learnerProfile, ['CEFR level', 'Age']);
+  for (const label of describeControls().learnerProfile) assert.match(profile, new RegExp(`^- ${label}: `, 'm'));
   const icon = controls.find(control => control.type === 'quickRule').chrome.find(field => field.key === 'icon');
   assert.equal(icon.type, 'choice');
   assert.equal(icon.options.lifeRing, 'Спасательный круг');

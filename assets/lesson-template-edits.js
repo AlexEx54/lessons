@@ -741,17 +741,28 @@
     return component;
   }
 
-  // Names the stage's model answer already holds: fields of its generated blocks and its
-  // slots, which share one flat answer object. `controls` maps a control type to
-  // `{ fields }`.
-  function answerNames(stage, controls) {
-    const names = new Set();
+  // The fields of the stage's model answer, in display order, with the blocks that own
+  // them: fields of its generated blocks and slots the model fills, which share one flat
+  // answer object. `controls` maps a control type to `{ fields }`.
+  function answerFields(stage, controls) {
+    const fields = [];
     for (const block of flattenBlocks(stage.blocks)) {
       if (block.kind === 'generated') {
-        for (const field of controls.get(block.control)?.fields || []) names.add(block.fields?.[field] ?? field);
+        for (const field of controls.get(block.control)?.fields || []) {
+          fields.push({ name: block.fields?.[field] ?? field, block: block.id });
+        }
       }
-      Object.keys(block.slots || {}).forEach(name => names.add(name));
+      for (const [name, slot] of Object.entries(block.slots || {})) {
+        if (!slot?.from) fields.push({ name, block: block.id });
+      }
     }
+    return fields;
+  }
+
+  // Names taken in the stage: its answer fields and the slots copied from other blocks.
+  function answerNames(stage, controls) {
+    const names = new Set(answerFields(stage, controls).map(field => field.name));
+    for (const block of flattenBlocks(stage.blocks)) Object.keys(block.slots || {}).forEach(name => names.add(name));
     return names;
   }
 
@@ -808,6 +819,7 @@
     moveBlockers,
     moveToStage,
     applyStaticChanges,
+    answerFields,
     newFieldName,
     appendNoteField,
     slotSourceBlock,

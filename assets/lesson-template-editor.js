@@ -41,6 +41,8 @@
     catalog: { entries: [], groups: [], group: 'all', query: '', selected: null },
     variableTypes: {},
     stageIcons: { icons: {}, aliases: {} },
+    // How every stage prompt names the learner profile.
+    learnerProfile: [],
     // The settings of a task's answer key with their defaults.
     answerKeyFields: {},
     preview: null,
@@ -1976,8 +1978,25 @@
     return panelSection(
       'Контекст',
       el('p', 'template-panel__hint', 'Что ИИ получает перед заданием этапа. Подписи — по-английски, как в запросе.'),
+      ...profileRows(),
       list,
       ...[contextAdder(stage, producers)].filter(Boolean),
+    );
+  }
+
+  // The learner profile goes to the model with every stage; the template does not set it.
+  const profileRows = () => state.learnerProfile
+    .map(label => settingRow(label, el('small', '', 'Профиль ученика · в каждом запросе')));
+
+  // The fields the model fills in its answer for the stage. The instructions of the
+  // stage and of its blocks may refer to them by name.
+  function answerFieldsSection(stage) {
+    const fields = Edits.answerFields(stage, state.controls);
+    if (fields.length === 0) return null;
+    return panelSection(
+      'Поля ответа',
+      el('p', 'template-panel__hint', 'ИИ заполняет их одним ответом; указания могут ссылаться на них по имени.'),
+      ...fields.map(field => settingRow(field.name, linkButton(placedName(field.block, stage.id), field.block))),
     );
   }
 
@@ -2032,11 +2051,12 @@
     if (!usesModel) return sections;
     sections.push(panelSection('Указания для ИИ', el('p', 'template-instructions', stage.instructions || '—')));
     const producers = Edits.variableProducers(state.template.definition);
-    const lines = Edits.contextLines(stage);
-    sections.push(panelSection('Контекст', ...(lines.length > 0
-      ? lines.map(line => settingRow(line.label, contextSource(line, producers)))
-      : [el('small', 'template-panel__hint', 'Пусто')])));
-    return sections;
+    sections.push(panelSection(
+      'Контекст',
+      ...profileRows(),
+      ...Edits.contextLines(stage).map(line => settingRow(line.label, contextSource(line, producers))),
+    ));
+    return [...sections, answerFieldsSection(stage)].filter(Boolean);
   }
 
   function stagePanel() {
@@ -2087,7 +2107,7 @@
         text: stage.instructions || '',
         fallback: facts?.defaultInstructions,
         apply: text => setOptional(stage, 'instructions', text),
-      }), contextSection(stage));
+      }), contextSection(stage), ...[answerFieldsSection(stage)].filter(Boolean));
     }
     sections.push(deleteSection('Удалить этап', { stage: stage.id }));
     return sections;
@@ -2719,6 +2739,7 @@
       state.variableTypes = controls.variableTypes;
       state.answerKeyFields = controls.answerKeyFields;
       state.stageIcons = controls.stageIcons;
+      state.learnerProfile = controls.learnerProfile;
       state.blocks = indexBlocks(template.definition);
       state.preview = await request('POST', '/api/lesson-templates/preview', {
         definition: template.definition,

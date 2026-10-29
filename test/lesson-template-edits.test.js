@@ -678,6 +678,19 @@ test('a field for the AI inserted into the open editor joins the block when its 
   assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
 });
 
+// What instructions may refer to: the fields of the stage's answer in display order. A
+// slot copied from another block is not the model's to write.
+test('the answer fields of a stage come with the blocks that own them', () => {
+  const definition = templateTwo();
+  assert.deepEqual(Edits.answerFields(stage(definition, 'lead-in'), controls), [
+    { name: 'checkStatements', block: 'lead-in-fact-or-myth' },
+    { name: 'guessStatements', block: 'lead-in-fact-or-myth' },
+    { name: 'speakingSupport', block: 'lead-in-speaking-support' },
+  ]);
+  assert.deepEqual(Edits.answerFields(stage(definition, 'warm-up'), controls), [{ name: 'rows', block: 'warm-up-odd-one-out' }]);
+  assert.deepEqual(Edits.answerFields(stage(definition, 'watch-and-interact'), controls), []);
+});
+
 test('a new field takes the first aiField name free among the stage answer names', () => {
   const definition = templateTwo();
   const speaking = stage(definition, 'guided-speaking');
