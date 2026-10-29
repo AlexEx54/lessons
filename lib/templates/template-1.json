@@ -277,22 +277,19 @@
         },
         {
           "id": "target-vocabulary-extra-explanation-card",
-          "kind": "generated",
-          "control": "termExplanations",
-          "params": {
-            "items": 5
-          },
-          "fields": {
-            "items": "extraExplanations"
-          },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
-          },
-          "chrome": {
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
             "title": "1. Words That Need Extra Explanation",
+            "text": "{{extraExplanations}}",
             "icon": "book",
             "accentColor": "#6545F5",
             "studentVisibility": "teacherOnly"
+          },
+          "slots": {
+            "extraExplanations": {
+              "rule": "Exactly five terms of vocabularyItems that genuinely need extra explanation, each explained briefly for the teacher in simple English. Copy each term exactly. A Markdown bulleted list with one term per line in the form “- **term** — explanation”. No heading or introduction."
+            }
           }
         },
         {

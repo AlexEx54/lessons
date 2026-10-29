@@ -56,6 +56,8 @@ Wrap-Up). Заголовки, иконки и цвета подблоков ос
 Support, Challenge, Possible language, Speaking Support) — статичные
 `markdownCard` с одним слотом на весь список: число строк и вид списка задаёт
 правило слота, постоянное вступление стоит в тексте карточки перед слотом.
+Так же устроены пояснения к трудным словам в Target Vocabulary шаблона 1:
+какие слова взять и сколько, говорит правило слота.
 Сообщение в Lead-In шаблона 1 — статичный `illustratedTextPanel`: слоты стоят и
 в тексте (`{{message}}`), и в промтах обеих картинок (`{{senderImagePrompt}}`,
 `{{symbolImagePrompt}}`). Картинок может быть одна или ни одной, а промт —
@@ -363,7 +365,6 @@ warm-up, watch-and-interact — без связей
 |---|---|---|
 | `thisOrThat` | thisOrThat | |
 | `matchPictures` | matchWords | |
-| `termExplanations` | markdownCard | vocabulary |
 | `fillInBlanks` | fillInBlanks | vocabulary |
 | `describeAndGuess` | describeAndGuess | vocabulary |
 | `readingText` | textReading | vocabulary |
@@ -378,7 +379,7 @@ warm-up, watch-and-interact — без связей
 
 Общие для обоих шаблонов: `vocabularyList`, `contextDropdown`,
 `personalizedQuestions`, `ruleGaps`, `quickRule`, `choiceSentences`,
-`wordBankSupport`, `threeTwoOne`. Всего 35 контролов.
+`wordBankSupport`, `threeTwoOne`. Всего 34 контрола.
 
 **Ключ ответов.** Контрол задания отдаёт `answerKey()` → `{ lines, list }`:
 строки ключа и признак, что это пункты Markdown-списка. Блок задания включает

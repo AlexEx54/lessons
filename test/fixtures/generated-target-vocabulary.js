@@ -30,22 +30,13 @@ const GENERATED_TARGET_VOCABULARY = Object.freeze({
     ][index],
     imagePrompt: `Child-friendly square educational illustration of travelers who ${term}, bright clean style, no text.`,
   })),
-  extraExplanations: [{
-    term: 'book a ticket',
-    explanation: '“Book” means reserve or buy here, not something you read.',
-  }, {
-    term: 'catch a flight',
-    explanation: '“Catch” means arrive in time and travel on the flight.',
-  }, {
-    term: 'go through security',
-    explanation: 'This is the airport safety check before the gates.',
-  }, {
-    term: 'board a plane',
-    explanation: '“Board” means get onto the plane.',
-  }, {
-    term: 'pick up luggage',
-    explanation: 'This means collect your bags after landing.',
-  }],
+  extraExplanations: [
+    '- **book a ticket** — “Book” means reserve or buy here, not something you read.',
+    '- **catch a flight** — “Catch” means arrive in time and travel on the flight.',
+    '- **go through security** — This is the airport safety check before the gates.',
+    '- **board a plane** — “Board” means get onto the plane.',
+    '- **pick up luggage** — This means collect your bags after landing.',
+  ].join('\n'),
   contextItems: [{
     before: 'First, I need to', answer: 'book a ticket', after: 'for my summer trip.',
     options: ['book a ticket', 'land', 'pick up luggage'],
