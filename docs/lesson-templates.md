@@ -85,7 +85,7 @@ vocabularyList    out: vocabulary      : vocabulary
 storyCards        in:  highlight       : vocabulary   (необязателен)
                   in:  guesses         : statements   (необязателен)
 storyGuessKey     in:  guesses         : statements
-contextDropdown   in:  vocabulary      : vocabulary
+fillInBlanks      in:  vocabulary      : vocabulary
 repeatAudio       from: блок audioScript того же этапа
 ```
 
@@ -197,8 +197,9 @@ module.exports = {
   отличаются только указания блока (и строка контекста со словарём, если
   он из более раннего этапа). Так же `matchPictures` сам пишет слова и
   картинки к ним, а указания говорят, откуда слова: из словаря урока, по
-  теме этапа или списком учителя. Указания о блоке пишутся в блоке, а не в
-  этапе: при переносе блок забирает их с собой.
+  теме этапа или списком учителя, а `contextDropdown` — откуда слова для
+  пропусков. Указания о блоке пишутся в блоке, а не в этапе: при переносе
+  блок забирает их с собой.
 - **Параметры** создаются помощниками из `template-controls/helpers.js`:
   `integer`, `choice`, `flag` и `text`. У каждого есть подпись
   для редактора.
@@ -343,7 +344,7 @@ warm-up, watch-and-interact — без связей
 | `storyCards` | storyCards | vocabulary?, statements? |
 | `storyGuessKey` *derived* | markdownCard | блок storyCards, statements |
 | `vocabularyMeanings` *derived* | multipleChoice | vocabulary (с дистракторами) |
-| `contextDropdown` | dropdownChoice | vocabulary |
+| `contextDropdown` | dropdownChoice | |
 | `dragSentences` | dragWordsInText | vocabulary |
 | `translationHints` | gapFill | vocabulary |
 | `personalizedQuestions` | personalizedQuestions | vocabulary? |

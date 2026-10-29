@@ -260,14 +260,11 @@
             "text": "contextText",
             "choices": "contextChoices"
           },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
-          },
           "chrome": {
             "title": "Task 3. Vocabulary in Context — Dropdown",
             "instruction": "Fill in the blanks with the correct words from the dropdown lists."
           },
-          "instructions": "contextText is about a new person connected to the topic."
+          "instructions": "Every answer and every option is a term of vocabularyItems in the form that fits the gap.\ncontextText is about a new person connected to the topic."
         },
         {
           "id": "target-vocabulary-drag-words",

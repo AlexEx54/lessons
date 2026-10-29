@@ -163,3 +163,16 @@ test('two Match the Words blocks in one stage take their words from their own in
   assert.equal(lines[ownPictures + 1], 'Use these words: kite, tent, compass, ladder, camera.');
   assert.deepEqual(Object.keys(schema.properties), ['items', 'ownWords']);
 });
+
+// The words of the gaps come from the instructions too: the lesson vocabulary or any
+// other words the teacher names.
+test('a Vocabulary in Context block takes the words of its gaps from its instructions', () => {
+  const definition = singleBlockTemplate(CONTROL_CATALOG.get('contextDropdown'), { gaps: 4, options: 3 });
+  definition.stages[1].blocks[0].instructions = 'Every answer and every option is a term of the Target Vocabulary.';
+  const template = compileTemplate(definition, CONTROL_CATALOG);
+  const { messages } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
+  const lines = messages[0].content.split('\n');
+  const gaps = lines.indexOf('choices: one choice per gap, in the same order. options are three different words or short phrases, each in the form that fits the gap; answer is one of them, copied exactly. Use four different answers and vary the position of the answer.');
+  assert.ok(gaps >= 0);
+  assert.equal(lines[gaps + 1], 'Every answer and every option is a term of the Target Vocabulary.');
+});

@@ -306,14 +306,11 @@
             "text": "contextText",
             "choices": "contextChoices"
           },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
-          },
           "chrome": {
             "title": "Task 2 · Vocabulary in Context — Dropdown",
             "instruction": "Fill in the blanks with the correct words from the dropdown lists."
           },
-          "instructions": "contextText is a topic-related story.",
+          "instructions": "Every answer and every option is a term of vocabularyItems in the form that fits the gap.\ncontextText is a topic-related story.",
           "answerKey": {
             "title": "Answer Key"
           }
