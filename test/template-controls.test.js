@@ -172,7 +172,7 @@ test('a Vocabulary in Context block takes the words of its gaps from its instruc
   const template = compileTemplate(definition, CONTROL_CATALOG);
   const { messages } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
   const lines = messages[0].content.split('\n');
-  const gaps = lines.indexOf('choices: one choice per gap, in the same order. options are three different words or short phrases, each in the form that fits the gap; answer is one of them, copied exactly. Use four different answers and vary the position of the answer.');
+  const gaps = lines.indexOf('choices: one choice per gap, in the same order. options are three different words or short phrases, each in the form that fits the gap; answer is one of them, copied exactly. Use four different answers.');
   assert.ok(gaps >= 0);
   assert.equal(lines[gaps + 1], 'Every answer and every option is a term of the Target Vocabulary.');
 });

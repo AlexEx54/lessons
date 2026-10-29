@@ -399,7 +399,7 @@
         "Grammar topic": "$input.grammarTopic",
         "Target Vocabulary": "$var.targetVocabulary"
       },
-      "instructions": "Generate only the variable content for a five-minute Reading section in the existing template.\nAll student-facing content must be natural English at the target CEFR level and directly connected to the supplied lesson topic.\nMake distractors plausible but unambiguously incorrect. Vary the position of correct answers.\nDo not generate Teacher’s Notes, component titles, instructions, IDs, option letters, or an Answer Key; the application adds them.",
+      "instructions": "Generate only the variable content for a five-minute Reading section in the existing template.\nAll student-facing content must be natural English at the target CEFR level and directly connected to the supplied lesson topic.\nMake distractors plausible but unambiguously incorrect.\nDo not generate Teacher’s Notes, component titles, instructions, IDs, option letters, or an Answer Key; the application adds them.",
       "blocks": [
         {
           "id": "reading-teacher-note",
@@ -656,7 +656,7 @@
             "title": "Task 2. Check the Rule",
             "instruction": "Choose the correct option from each drop-down list."
           },
-          "instructions": "Use varied, plausible distractors and vary the correct-answer position across the five option lists.",
+          "instructions": "Use varied, plausible distractors.",
           "answerKey": {
             "title": "Answer key",
             "layout": "columns"
@@ -747,7 +747,7 @@
             "instruction": "Read each sentence and choose the correct grammar option.",
             "accentColor": "#6545F5"
           },
-          "instructions": "Vary the position of correct options and include affirmative, negative, and question forms whenever the grammar topic supports them.",
+          "instructions": "Include affirmative, negative, and question forms whenever the grammar topic supports them.",
           "answerKey": {
             "title": "Answer Key & Explanations",
             "layout": "columns"

@@ -613,7 +613,7 @@
             "instruction": "Read each sentence and choose the correct grammar option.",
             "accentColor": "#6545F5"
           },
-          "instructions": "Vary the position of correct options and include affirmative, negative, and question forms whenever the grammar topic supports them.",
+          "instructions": "Include affirmative, negative, and question forms whenever the grammar topic supports them.",
           "answerKey": {
             "title": "Answer Key & Explanations",
             "layout": "columns"
