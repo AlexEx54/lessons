@@ -1224,13 +1224,62 @@
     else block.instructions = text;
   }
 
-  function blockInstructionsSection(block) {
-    if (!editable()) return panelSection('Указания для ИИ', el('p', 'template-instructions', blockInstructions(block) || '—'));
-    return instructionsSection({
+  function blockInstructionsSections(block) {
+    if (!editable()) {
+      return [
+        panelSection('Указания для ИИ', el('p', 'template-instructions', blockInstructions(block) || '—')),
+        referencesSection(block),
+      ];
+    }
+    const section = instructionsSection({
       text: blockInstructions(block),
       fallback: state.blockFacts[block.id]?.defaultInstructions,
       apply: text => setBlockInstructions(block, text),
     });
+    return [section, referencesSection(block, section.querySelector('textarea'))];
+  }
+
+  // Names the block's instructions may use: the fields of the stage's answer, its own
+  // first, and what the stage passes to the model. With `input`, a click on a name puts
+  // it at the caret, as if typed.
+  function referencesSection(block, input) {
+    const { stage } = state.blocks.get(block.id);
+    const fields = Edits.answerFields(stage, state.controls);
+    const fieldChoices = owned => fields
+      .filter(field => (field.block === block.id) === owned)
+      .map(field => ({ name: field.name, title: placedName(field.block, stage.id) }));
+    const groups = [
+      ['Поля этого блока', fieldChoices(true)],
+      ['Поля других блоков этапа', fieldChoices(false)],
+      ['Контекст этапа', [
+        ...state.learnerProfile.map(name => ({ name, title: 'Профиль ученика' })),
+        ...Edits.contextLines(stage).map(line => ({ name: line.label, title: line.reference })),
+      ]],
+    ].filter(([, names]) => names.length > 0);
+
+    const insert = name => {
+      input.setRangeText(name, input.selectionStart, input.selectionEnd, 'end');
+      input.focus();
+      input.dispatchEvent(new Event('input'));
+    };
+    const chip = ({ name, title }) => {
+      const node = input ? button('template-chip', name, () => insert(name)) : el('span', 'template-chip', name);
+      node.title = title;
+      return node;
+    };
+    return panelSection(
+      'Можно сослаться',
+      el('p', 'template-panel__hint', input
+        ? 'Нажмите имя — оно встанет в указания там, где курсор.'
+        : 'Указания могут называть эти поля ответа и строки контекста.'),
+      ...groups.map(([title, names]) => {
+        const group = el('div', 'template-refs');
+        const list = el('div', 'template-refs__names');
+        list.append(...names.map(chip));
+        group.append(el('h4', '', title), list);
+        return group;
+      }),
+    );
   }
 
   // The rules follow the parameters: `showRules` refills them after each preview.
@@ -1264,7 +1313,7 @@
     }
     if (control.answerKey) sections.push(answerKeySection(block, control.answerKey.parts));
     sections.push(linksSection(block));
-    if (block.kind === 'generated') sections.push(blockInstructionsSection(block));
+    if (block.kind === 'generated') sections.push(...blockInstructionsSections(block));
     if (block.kind === 'generated' && state.blockFacts[block.id]) sections.push(rulesSection());
     return sections.filter(Boolean);
   }
