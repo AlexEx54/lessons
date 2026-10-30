@@ -185,7 +185,7 @@ test('a block from the catalog goes to the end of the stage with an id and varia
 test('an input takes the nearest source of its type; a source of another stage joins the context', () => {
   const definition = templateTwo();
   // Grammar Focus passes the target vocabulary already.
-  let added = addBlock(definition, 'grammar-focus', 'fillInBlanks');
+  let added = addBlock(definition, 'grammar-focus', 'dragSentences');
   assert.deepEqual([added.block.inputs, added.addedLines], [{ vocabulary: 'targetVocabulary' }, []]);
   // Watch & Interact has no context at all.
   added = addBlock(definition, 'watch-and-interact', 'dragSentences');
@@ -195,13 +195,13 @@ test('an input takes the nearest source of its type; a source of another stage j
 
   // Words of the stage itself come first; a generated block reads them only from a generated one.
   const own = addBlock(definition, 'grammar-focus', 'vocabularyList').block;
-  assert.deepEqual(addBlock(definition, 'grammar-focus', 'fillInBlanks').block.inputs, { vocabulary: own.exports.vocabulary });
+  assert.deepEqual(addBlock(definition, 'grammar-focus', 'dragSentences').block.inputs, { vocabulary: own.exports.vocabulary });
   assert.deepEqual(addBlock(definition, 'grammar-focus', 'vocabularyMeanings').block.inputs, { vocabulary: own.exports.vocabulary });
   assert.deepEqual(problems(definition), []);
   const sources = (kind, input) => Edits.inputSources(definition, stage(definition, 'grammar-focus'), kind, input, controls)
     .map(source => [source.variable, source.sameStage]);
   const both = [['vocabulary', true], ['targetVocabulary', false]];
-  assert.deepEqual(sources('generated', controls.get('fillInBlanks').inputs.vocabulary), both);
+  assert.deepEqual(sources('generated', controls.get('dragSentences').inputs.vocabulary), both);
   assert.deepEqual(sources('generated', { type: 'vocabulary' }), [['targetVocabulary', false]]);
   assert.deepEqual(sources('derived', { type: 'vocabulary' }), both);
   assert.deepEqual(sources('derived', { type: 'statements' }), [['leadInGuesses', false]]);
@@ -295,7 +295,7 @@ test('another source of an earlier stage joins the context; the line read before
   assert.deepEqual(problems(definition), []);
 
   // Back again; then a line another block of the stage reads stays.
-  assert.deepEqual(addBlock(definition, 'grammar-focus', 'fillInBlanks').addedLines, ['Target vocabulary']);
+  assert.deepEqual(addBlock(definition, 'grammar-focus', 'dragSentences').addedLines, ['Target vocabulary']);
   assert.deepEqual(Edits.setInputSource(definition, focus, support, 'vocabulary', 'targetVocabulary'), {
     addedLines: [],
     removedLines: ['Vocabulary'],

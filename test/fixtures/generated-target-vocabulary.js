@@ -63,17 +63,17 @@ const GENERATED_TARGET_VOCABULARY = Object.freeze({
     options: ['catch a flight', 'book a ticket', 'land'],
   }],
   fillInBlanks: [{
-    targetTerm: 'book a ticket', before: 'Yesterday I', answer: 'booked a ticket', after: 'online.',
+    before: 'Yesterday I', answer: 'booked a ticket', after: 'online.',
   }, {
-    targetTerm: 'pack a suitcase', before: 'Mia', answer: 'packed a suitcase', after: 'for her holiday.',
+    before: 'Mia', answer: 'packed a suitcase', after: 'for her holiday.',
   }, {
-    targetTerm: 'catch a flight', before: 'We left early to', answer: 'catch a flight', after: 'at 8 a.m.',
+    before: 'We left early to', answer: 'catch a flight', after: 'at 8 a.m.',
   }, {
-    targetTerm: 'miss a flight', before: 'Leo nearly', answer: 'missed his flight', after: 'because of traffic.',
+    before: 'Leo nearly', answer: 'missed his flight', after: 'because of traffic.',
   }, {
-    targetTerm: 'go through security', before: 'Every passenger must', answer: 'go through security', after: 'before boarding.',
+    before: 'Every passenger must', answer: 'go through security', after: 'before boarding.',
   }, {
-    targetTerm: 'show a passport', before: 'Please', answer: 'show your passport', after: 'at the desk.',
+    before: 'Please', answer: 'show your passport', after: 'at the desk.',
   }],
   personalizedQuestions: [{
     targetTerm: 'book a ticket',

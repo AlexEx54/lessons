@@ -176,3 +176,16 @@ test('a Vocabulary in Context block takes the words of its gaps from its instruc
   assert.ok(gaps >= 0);
   assert.equal(lines[gaps + 1], 'Every answer and every option is a term of the Target Vocabulary.');
 });
+
+test('a Fill in the Blanks block takes its answers from its instructions and needs no vocabulary', () => {
+  const definition = singleBlockTemplate(CONTROL_CATALOG.get('fillInBlanks'), { items: 4 });
+  definition.stages[1].blocks[0].instructions = 'Every answer is a term of the Target Vocabulary.';
+  const template = compileTemplate(definition, CONTROL_CATALOG);
+  const run = exampleRun(template);
+  const { messages } = template.request('checked', { inputs: { topic: 'Topic' }, variables: run.variables });
+  const lines = messages[0].content.split('\n');
+  const items = lines.indexOf('Create exactly four sentences in items, each with one gap: before + answer + after form the sentence; answer is the word or short phrase the learner types into the gap, in the form that fits the sentence. Use four different answers.');
+  assert.ok(items >= 0);
+  assert.equal(lines[items + 1], 'Every answer is a term of the Target Vocabulary.');
+  assert.deepEqual(CONTROL_CATALOG.get('fillInBlanks').inputs, {});
+});

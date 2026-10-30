@@ -325,13 +325,11 @@
           "fields": {
             "items": "fillInBlanks"
           },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
-          },
           "chrome": {
             "title": "Task 3 · Fill in the Blanks",
             "instruction": "Use the words and phrases in the box to complete the sentences."
-          }
+          },
+          "instructions": "Every answer is a term of vocabularyItems in the form that fits the sentence; use different terms."
         },
         {
           "id": "target-vocabulary-personalized-questions",
