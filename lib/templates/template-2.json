@@ -276,31 +276,28 @@
           "fields": {
             "sentences": "dragSentences"
           },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
-          },
           "chrome": {
             "title": "Task 4. Drag the correct words into the gaps.",
             "instruction": "Use each word once."
           },
-          "instructions": "Style example for dragSentences: \"Night Fox has got a black [[mask]] over his eyes.\""
+          "instructions": "Every gap is a term of vocabularyItems in the form that fits the sentence; use different terms.\nStyle example for dragSentences: \"Night Fox has got a black [[mask]] over his eyes.\""
         },
         {
           "id": "target-vocabulary-type-words",
           "kind": "generated",
           "control": "translationHints",
+          "params": {
+            "items": 10
+          },
           "fields": {
             "sentences": "translationSentences"
-          },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
           },
           "chrome": {
             "title": "Extra Task. Type the English words.",
             "instruction": "Type the English word or phrase next to each Russian hint.",
             "studentVisibility": "controlled"
           },
-          "instructions": "Style example for translationSentences: before \"Shadow Girl has got a black\", hint \"маска\", answer \"mask\""
+          "instructions": "One sentence for each term of vocabularyItems; answer is the term.\nStyle example for translationSentences: before \"Shadow Girl has got a black\", hint \"маска\", answer \"mask\""
         },
         {
           "id": "target-vocabulary-personalized-questions",

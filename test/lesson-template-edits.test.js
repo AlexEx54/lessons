@@ -185,23 +185,23 @@ test('a block from the catalog goes to the end of the stage with an id and varia
 test('an input takes the nearest source of its type; a source of another stage joins the context', () => {
   const definition = templateTwo();
   // Grammar Focus passes the target vocabulary already.
-  let added = addBlock(definition, 'grammar-focus', 'dragSentences');
+  let added = addBlock(definition, 'grammar-focus', 'describeAndGuess');
   assert.deepEqual([added.block.inputs, added.addedLines], [{ vocabulary: 'targetVocabulary' }, []]);
   // Watch & Interact has no context at all.
-  added = addBlock(definition, 'watch-and-interact', 'dragSentences');
+  added = addBlock(definition, 'watch-and-interact', 'describeAndGuess');
   assert.deepEqual([added.block.inputs, added.addedLines], [{ vocabulary: 'targetVocabulary' }, ['Target vocabulary']]);
   assert.deepEqual(stage(definition, 'watch-and-interact').context, { 'Target vocabulary': '$var.targetVocabulary' });
   assert.deepEqual(problems(definition), []);
 
   // Words of the stage itself come first; a generated block reads them only from a generated one.
   const own = addBlock(definition, 'grammar-focus', 'vocabularyList').block;
-  assert.deepEqual(addBlock(definition, 'grammar-focus', 'dragSentences').block.inputs, { vocabulary: own.exports.vocabulary });
+  assert.deepEqual(addBlock(definition, 'grammar-focus', 'describeAndGuess').block.inputs, { vocabulary: own.exports.vocabulary });
   assert.deepEqual(addBlock(definition, 'grammar-focus', 'vocabularyMeanings').block.inputs, { vocabulary: own.exports.vocabulary });
   assert.deepEqual(problems(definition), []);
   const sources = (kind, input) => Edits.inputSources(definition, stage(definition, 'grammar-focus'), kind, input, controls)
     .map(source => [source.variable, source.sameStage]);
   const both = [['vocabulary', true], ['targetVocabulary', false]];
-  assert.deepEqual(sources('generated', controls.get('dragSentences').inputs.vocabulary), both);
+  assert.deepEqual(sources('generated', controls.get('describeAndGuess').inputs.vocabulary), both);
   assert.deepEqual(sources('generated', { type: 'vocabulary' }), [['targetVocabulary', false]]);
   assert.deepEqual(sources('derived', { type: 'vocabulary' }), both);
   assert.deepEqual(sources('derived', { type: 'statements' }), [['leadInGuesses', false]]);
@@ -295,7 +295,7 @@ test('another source of an earlier stage joins the context; the line read before
   assert.deepEqual(problems(definition), []);
 
   // Back again; then a line another block of the stage reads stays.
-  assert.deepEqual(addBlock(definition, 'grammar-focus', 'dragSentences').addedLines, ['Target vocabulary']);
+  assert.deepEqual(addBlock(definition, 'grammar-focus', 'describeAndGuess').addedLines, ['Target vocabulary']);
   assert.deepEqual(Edits.setInputSource(definition, focus, support, 'vocabulary', 'targetVocabulary'), {
     addedLines: [],
     removedLines: ['Vocabulary'],
@@ -377,8 +377,6 @@ test('a deleted block takes required readers, sources and slots with it; optiona
   assert.deepEqual(blockIds(plan), [
     'target-vocabulary-card',
     'target-vocabulary-meanings',
-    'target-vocabulary-drag-words',
-    'target-vocabulary-type-words',
     'grammar-focus-support',
     'guided-communication-cards',
   ]);
@@ -488,14 +486,12 @@ test('a block goes no higher than its sources and no lower than its readers', ()
   assert.deepEqual(blockersOf(definition, 'target-vocabulary-card', 'grammar-presentation'), [
     'reader target-vocabulary-stories target-vocabulary',
     'reader target-vocabulary-meanings target-vocabulary',
-    'reader target-vocabulary-drag-words target-vocabulary',
-    'reader target-vocabulary-type-words target-vocabulary',
     'reader target-vocabulary-personalized-questions target-vocabulary',
   ]);
-  assert.deepEqual(blockersOf(definition, 'target-vocabulary-drag-words', 'lead-in'), [
+  assert.deepEqual(blockersOf(definition, 'target-vocabulary-meanings', 'lead-in'), [
     'input target-vocabulary-card target-vocabulary',
   ]);
-  assert.deepEqual(blockersOf(definition, 'target-vocabulary-drag-words', 'wrap-up'), []);
+  assert.deepEqual(blockersOf(definition, 'target-vocabulary-meanings', 'wrap-up'), []);
 
   // The reading text cannot be written in one answer with the vocabulary it takes.
   const one = templateOne();
@@ -527,7 +523,7 @@ test('a moved block goes to the end of the stage; context lines follow its links
   });
   assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
 
-  const watch = Edits.moveToStage(definition, 'target-vocabulary-drag-words', 'watch-and-interact', controls);
+  const watch = Edits.moveToStage(definition, 'target-vocabulary-meanings', 'watch-and-interact', controls);
   assert.deepEqual(watch.addedLines, [{ stage: 'watch-and-interact', label: 'Target vocabulary' }]);
 });
 

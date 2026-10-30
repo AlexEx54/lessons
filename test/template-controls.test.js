@@ -189,3 +189,22 @@ test('a Fill in the Blanks block takes its answers from its instructions and nee
   assert.equal(lines[items + 1], 'Every answer is a term of the Target Vocabulary.');
   assert.deepEqual(CONTROL_CATALOG.get('fillInBlanks').inputs, {});
 });
+
+test('Drag Sentences and Type the Words blocks take their words from their instructions and need no vocabulary', () => {
+  const definition = singleBlockTemplate(CONTROL_CATALOG.get('dragSentences'), { sentences: 4 });
+  definition.stages[1].blocks[0].instructions = 'Every gap is a term of the Target Vocabulary.';
+  definition.stages[1].blocks.push({
+    id: 'typed-words', kind: 'generated', control: 'translationHints', params: { items: 5 }, fields: { sentences: 'typedSentences' },
+    instructions: 'One sentence for each term of the Target Vocabulary.',
+  });
+  const template = compileTemplate(definition, CONTROL_CATALOG);
+  const { messages, schema } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
+  const lines = messages[0].content.split('\n');
+  const dragged = lines.indexOf('sentences: exactly four short sentences, each with exactly one gap written as the missing word or short phrase in double square brackets, for example "I put on my [[sunglasses]]." Use four different answers, each in the form that fits the sentence.');
+  const typed = lines.indexOf('typedSentences: exactly five sentences. The missing word or short phrase is always the last words of the sentence. before is the English text before it; hint is its Russian translation; answer is the English word or phrase exactly as the learner should type it. Use five different answers.');
+  assert.ok(dragged >= 0 && typed > dragged);
+  assert.equal(lines[dragged + 1], 'Every gap is a term of the Target Vocabulary.');
+  assert.equal(lines[typed + 1], 'One sentence for each term of the Target Vocabulary.');
+  assert.deepEqual([schema.properties.sentences.maxItems, schema.properties.typedSentences.maxItems], [4, 5]);
+  assert.deepEqual([CONTROL_CATALOG.get('dragSentences').inputs, CONTROL_CATALOG.get('translationHints').inputs], [{}, {}]);
+});
