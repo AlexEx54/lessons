@@ -158,5 +158,61 @@
     }
   }
 
-  window.CallRecorder = { supported, start };
+  // The record button of a call page: one recording at a time, saved to the moment it is stopped.
+  //   getSources(), canStart()  see start()
+  //   onChange()                state() changed; the page re-renders the button and tells the peer
+  function control({ getSources, canStart, onChange }) {
+    let session = null;
+    let starting = false;
+    let stopping = false;
+    let message = '';
+    let saved = Promise.resolve();
+
+    async function toggle() {
+      if (starting || stopping) return;
+      if (session) { await stop(); return; }
+      starting = true;
+      message = '';
+      onChange();
+      try {
+        const current = await start({ getSources, canStart });
+        session = current;
+        saved = current.finished.then(() => 'Запись сохранена на компьютере.',
+          error => `Запись не сохранена: ${error.message || 'ошибка записи на диск'}`)
+          .then(text => {
+            message = text;
+            session = null;
+            stopping = false;
+            onChange();
+          });
+      } catch (error) {
+        if (error.name !== 'AbortError') message = error.message || 'Не удалось начать запись.';
+      } finally {
+        starting = false;
+        onChange();
+      }
+    }
+
+    // Resolves once the file is closed, so a page that ends the call keeps everything up to now.
+    function stop() {
+      if (!session || stopping) return saved;
+      stopping = true;
+      message = 'Сохраняем запись… Не закрывайте вкладку.';
+      onChange();
+      void session.stop().catch(() => {});
+      return saved;
+    }
+
+    return {
+      toggle,
+      stop,
+      // recording: the peer is told; busy: the button waits; unsaved: leaving the page would lose the file.
+      state() {
+        return { recording: Boolean(session) && !stopping, busy: starting || stopping,
+          unsaved: starting || Boolean(session), message };
+      },
+    };
+  }
+
+  window.CallRecorder = { supported, start, control };
 })();

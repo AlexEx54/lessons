@@ -24,6 +24,7 @@
   };
   const pointer = window.ClassPointer?.create({ role, notify, send: sendEphemeral });
   const reactions = window.ClassReactions?.create({ send: sendEphemeral });
+  const call = window.SessionCall?.create({ sessionId, role, notify });
   const adapters = window.ClassComponentAdapters;
   const status = byId('teacher-screen');
   status.disabled = true;
@@ -193,6 +194,7 @@
       }
       if (message.type === 'pointer-error') { notify(message.error); return; }
       if (message.type === 'reaction') { reactions?.receive(message); return; }
+      if (message.type === 'call-presence') { call?.presence(message); return; }
       if (message.type === 'presence') {
         peerPresent = message.peerPresent;
         paint();
@@ -203,7 +205,7 @@
         return;
       }
       if (!['snapshot', 'action', 'action-error'].includes(message.type)) return;
-      if (message.type === 'snapshot') { connected = true; reconnectDelay = 500; slotTaken = false; showNotice(null); }
+      if (message.type === 'snapshot') { connected = true; reconnectDelay = 500; slotTaken = false; showNotice(null); call?.presence(message.callPresence); }
       if (inFlight && ((message.type === 'action' && message.actorRole === role) || message.type === 'action-error')) {
         pending.shift();
         inFlight = false;

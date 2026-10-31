@@ -44,6 +44,7 @@
   <link rel="stylesheet" href="/assets/components/card-row.css" />
   <link rel="stylesheet" href="/assets/lesson-publication.css" />
   <link rel="stylesheet" href="/assets/lesson-notes.css" />
+  <link rel="stylesheet" href="/assets/session-call.css" />
 </head>
 <body>
   <div class="lesson-app" id="lesson-app">
@@ -78,6 +79,10 @@
         </button>
         <button class="reset-stage" id="reset-stage-progress" type="button" title="Сбросить прогресс на этой странице" aria-label="Сбросить прогресс на этой странице" hidden disabled>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2.6 8.4M3 4v6h6"/></svg>
+        </button>
+        <button class="teacher-screen call-toggle" id="call-toggle" type="button" aria-controls="call-panel" aria-expanded="false" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z M16 10.5l6-3.5v10l-6-3.5"/></svg>
+          <span id="call-toggle-label">Звонок</span>
         </button>
         <button class="teacher-screen" id="teacher-screen" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
@@ -143,6 +148,72 @@
           <a href="/lesson-drafts">Вернуться к черновикам</a>
         </div>
       </main>
+
+      <aside class="call-panel" id="call-panel" aria-labelledby="call-panel-title" hidden>
+        <div class="call-panel__heading">
+          <strong id="call-panel-title">Видеозвонок</strong>
+          <button class="call-panel__collapse" id="call-panel-collapse" type="button" aria-label="Свернуть звонок" title="Свернуть звонок">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg>
+          </button>
+        </div>
+        <p class="call-panel__status" id="call-panel-status" role="status"></p>
+
+        <section class="call-lobby" id="call-lobby">
+          <button class="call-lobby__join" id="call-join" type="button">Войти в звонок</button>
+          <p class="call-lobby__hint">Камера и микрофон включатся только после входа.</p>
+        </section>
+
+        <section class="call-room" id="call-room" aria-label="Звонок" hidden>
+          <div class="call-tiles">
+            <article class="call-tile call-tile--remote">
+              <video id="call-remote-video" autoplay playsinline></video>
+              <p class="call-tile__placeholder" id="call-remote-placeholder"></p>
+              <span class="call-tile__label">
+                <span id="call-remote-name"></span>
+                <svg class="call-tile__muted" id="call-remote-muted" viewBox="0 0 24 24" role="img" aria-label="Микрофон выключен" hidden><path d="M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V6a3 3 0 0 0-5.7-1.3M5 11v1a7 7 0 0 0 11.9 5M19 11v1a7 7 0 0 1-.4 2.3M12 19v3M4 4l16 16"/></svg>
+              </span>
+            </article>
+            <article class="call-tile call-tile--local">
+              <video id="call-local-video" autoplay muted playsinline></video>
+              <p class="call-tile__placeholder" id="call-local-placeholder">Камера выключена</p>
+              <span class="call-tile__label">Вы</span>
+            </article>
+          </div>
+          <div class="call-effect" id="call-effect" role="status" hidden>
+            <span id="call-effect-text"></span>
+            <button id="call-effect-cancel" type="button">Отменить</button>
+            <button id="call-effect-retry" type="button">Повторить</button>
+            <button id="call-effect-close" type="button" aria-label="Скрыть сообщение">×</button>
+          </div>
+          <nav class="call-controls" aria-label="Управление звонком">
+            <button class="call-control" id="call-mic" type="button" aria-pressed="true" aria-label="Микрофон" title="Микрофон">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z M5 11v1a7 7 0 0 0 14 0v-1 M12 19v3"/></svg>
+            </button>
+            <button class="call-control" id="call-camera" type="button" aria-pressed="true" aria-label="Камера" title="Камера">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z M16 10.5l6-3.5v10l-6-3.5"/></svg>
+            </button>
+            <button class="call-control" id="call-background" type="button" aria-expanded="false" aria-controls="call-backgrounds" aria-label="Фон камеры" title="Фон камеры">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z M8 15l2.8-3 2.2 2 2.5-3 3.5 4 M8.5 9.2h.01"/></svg>
+            </button>
+            <button class="call-control" id="call-more" type="button" aria-expanded="false" aria-controls="call-more-menu" aria-label="Ещё" title="Ещё">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+            </button>
+            <button class="call-control call-control--leave" id="call-leave" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11a11 11 0 0 1 14 0 M7 10l-2 5 4 2 2-4 M17 10l2 5-4 2-2-4"/></svg>
+            </button>
+          </nav>
+          <div class="call-popover call-menu" id="call-more-menu" hidden>
+            <button id="call-screen" type="button">Показать экран</button>
+            <button id="call-record" type="button" hidden>Записать</button>
+          </div>
+          <section class="call-popover call-backgrounds" id="call-backgrounds" aria-label="Фон камеры" hidden>
+            <div class="call-backgrounds__options" id="call-background-options" role="radiogroup" aria-label="Выберите фон камеры"></div>
+            <span class="call-backgrounds__status" id="call-background-status" role="status"></span>
+          </section>
+        </section>
+
+        <p class="call-panel__note" id="call-note" role="status" hidden></p>
+      </aside>
     </div>
   </div>
   <div class="lesson-reaction-layer" id="lesson-reaction-layer" aria-hidden="true"></div>
@@ -194,6 +265,10 @@
   <script src="/assets/lesson-notes.bundle.js" defer></script>
   <script src="/assets/class-pointer.js" defer></script>
   <script src="/assets/class-reactions.js" defer></script>
+  <script src="/assets/call-recorder.js" defer></script>
+  <script src="/assets/call-media.js" defer></script>
+  <script src="/assets/call-connection.js" defer></script>
+  <script src="/assets/session-call.js" defer></script>
   <script src="/assets/class-live.js" defer></script>
   <script src="/assets/lesson-editor.js" defer></script>
 </body>

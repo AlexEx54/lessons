@@ -39,7 +39,8 @@
   //   onStatus(status, details)  see setStatus()
   //   onRemote()             the peer's presence, name or media changed, see remote()
   //   onMessage(message)     every room message, before the connection handles it (the chat uses it)
-  //   onEnded(reason)        'ended' by the teacher, or 'elsewhere' when another tab took the call over
+  //   onEnded(reason)        'ended' by the teacher, 'elsewhere' when another tab took the call over,
+  //                          or 'occupied' when another student of the class is already in it
   function create({ role, socketUrl, iceEndpoint, media, localDetails, remoteVideo,
     onStatus, onRemote, onMessage, onEnded }) {
     const polite = role === 'guest';
@@ -603,6 +604,10 @@
         // Another tab took the room over; reconnecting would take it back and loop forever.
         if (event.code === 4001) {
           onEnded('elsewhere');
+          return;
+        }
+        if (event.code === 4003) {
+          onEnded('occupied');
           return;
         }
         scheduleReconnect();

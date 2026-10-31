@@ -1,0 +1,91 @@
+:root { --call-panel-width: 340px; }
+
+.call-toggle[data-call='peer']::before,
+.call-toggle[data-call='joined']::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .18); }
+.call-toggle[data-call='peer']::before { animation: status-pulse 1.6s ease-in-out infinite; }
+.call-toggle span { white-space: nowrap; }
+.call-toggle[data-call='joined'] { color: #15803d; background: #f0fdf4; border-color: #a7d9b9; }
+.call-toggle[aria-expanded='true']:not([data-call='joined']) { color: var(--purple); background: var(--purple-soft); border-color: #ddd6ff; }
+
+.call-panel { position: sticky; top: 88px; display: flex; flex-direction: column; height: calc(100vh - 88px - var(--image-generation-banner-height)); padding: 20px 16px; gap: 12px; border-left: 1px solid var(--line); background: #fbfaff; overflow: auto; }
+.call-panel__heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.call-panel__heading strong { font-size: 14px; }
+.call-panel__collapse { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; background: transparent; color: #7d8298; }
+.call-panel__collapse:hover { background: #f0eef9; }
+.call-panel__collapse svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.call-panel__status { display: flex; align-items: center; min-height: 18px; margin: -4px 0 0; gap: 8px; color: var(--muted); font-size: 12px; }
+.call-panel__status:empty { display: none; }
+.call-panel__status::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 50%; background: #c4c2d4; }
+.call-panel__status[data-state='connected']::before { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .18); }
+.call-panel__status[data-state='error']::before { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, .18); }
+.call-panel__note { margin: 0; padding: 10px 12px; border: 1px solid #e4e0f7; border-radius: 9px; color: #4d4a63; background: #fff; font-size: 12px; line-height: 1.45; }
+
+.call-lobby { display: grid; gap: 10px; }
+.call-lobby__join { min-height: 44px; padding: 0 16px; border-radius: 9px; color: #fff; background: var(--purple); box-shadow: 0 6px 16px rgba(101, 69, 245, .22); font-size: 13px; font-weight: 700; }
+.call-lobby__join:hover:not(:disabled) { background: #5634e8; }
+.call-lobby__join:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.call-lobby__hint { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; text-align: center; }
+
+.call-room { position: relative; display: grid; gap: 10px; }
+.call-tiles { display: grid; gap: 8px; }
+.call-tile { position: relative; overflow: hidden; aspect-ratio: 16 / 10; border-radius: 10px; background: #1d1b2e; }
+.call-tile video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.call-tile--local video { transform: scaleX(-1); }
+.call-tile__placeholder { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 12px; color: #b9b6cc; font-size: 12px; text-align: center; }
+.call-tile__label { position: absolute; bottom: 7px; left: 7px; display: flex; align-items: center; max-width: calc(100% - 14px); padding: 3px 8px; gap: 5px; border-radius: 6px; color: #fff; background: rgba(18, 17, 30, .62); font-size: 11px; font-weight: 600; }
+.call-tile__label > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.call-tile__muted { flex: none; width: 13px; height: 13px; fill: none; stroke: #ff8a94; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.call-effect { display: flex; align-items: center; flex-wrap: wrap; padding: 8px 10px; gap: 6px 8px; border-radius: 9px; color: #4d3b91; background: var(--purple-soft); font-size: 12px; font-weight: 600; }
+.call-effect[data-state='error'] { color: #b91c1c; background: #fef2f2; }
+.call-effect span { flex: 1 1 auto; }
+.call-effect button { padding: 4px 10px; border-radius: 999px; color: inherit; background: #fff; font-size: 11px; font-weight: 700; }
+
+.call-controls { display: flex; justify-content: center; gap: 8px; }
+.call-control { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 50%; color: #3f4258; background: #fff; box-shadow: 0 3px 10px rgba(31, 28, 72, .05); }
+.call-control:hover:not(:disabled) { background: #f6f5fb; }
+.call-control:disabled { opacity: .45; cursor: not-allowed; }
+.call-control svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.call-control[aria-pressed='false'] { color: #c2394a; background: #fdecee; border-color: #f6c5cb; }
+.call-control[aria-pressed='false']::after { content: ''; position: absolute; width: 24px; height: 2px; border-radius: 2px; background: currentColor; transform: rotate(-45deg); }
+#call-background[data-active='true'], .call-control[aria-expanded='true'] { color: var(--purple); background: var(--purple-soft); border-color: #ddd6ff; }
+.call-control--leave { color: #fff; background: #e5484d; border-color: #e5484d; }
+.call-control--leave:hover:not(:disabled) { background: #d33c41; }
+
+.call-popover { position: absolute; right: 0; bottom: 54px; left: 0; z-index: 3; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 14px 34px rgba(20, 20, 45, .16); }
+.call-menu { display: grid; gap: 2px; }
+.call-menu button { min-height: 38px; padding: 0 12px; border-radius: 8px; background: transparent; font-size: 13px; font-weight: 600; text-align: left; }
+.call-menu button:hover:not(:disabled) { background: var(--purple-soft); }
+.call-menu button:disabled { opacity: .45; cursor: not-allowed; }
+.call-backgrounds__options { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 8px; }
+.call-background-option { display: grid; min-width: 0; padding: 0; gap: 4px; color: var(--muted); background: transparent; font-size: 10px; font-weight: 600; text-align: center; }
+.call-background-option[aria-checked='true'] { color: var(--purple); }
+.call-background-option__preview { position: relative; display: block; overflow: hidden; aspect-ratio: 16 / 10; border: 2px solid transparent; border-radius: 7px; background-color: #e9e6f5; background-position: center; background-size: cover; }
+.call-background-option[aria-checked='true'] .call-background-option__preview { border-color: var(--purple); }
+.call-background-option__preview--none::after { content: ''; position: absolute; top: -15%; left: 50%; width: 2px; height: 130%; background: #d96772; transform: rotate(55deg); }
+.call-background-option__preview--blur { background: radial-gradient(circle at 28% 25%, #b7a3ff 0 12%, transparent 33%), linear-gradient(135deg, #8f84b3, #4d4566 70%); }
+.call-backgrounds__status { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; }
+.call-backgrounds__status:empty { display: none; }
+.call-backgrounds__status[data-state='error'] { color: #b91c1c; }
+
+@media (min-width: 981px) {
+  .lesson-call-open .lesson-layout { grid-template-columns: var(--lesson-plan-width) minmax(0, 1fr) var(--call-panel-width); }
+  .lesson-call-open.lesson-plan-hidden .lesson-layout { grid-template-columns: minmax(0, 1fr) var(--call-panel-width); }
+}
+
+/* Narrow screens keep the whole lesson and float the call over it. */
+@media (max-width: 980px) {
+  .call-panel { position: fixed; top: auto; right: 12px; bottom: 12px; z-index: 32; width: min(232px, calc(100vw - 24px)); height: auto; max-height: calc(100vh - 24px); padding: 10px; gap: 8px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 16px 40px rgba(20, 20, 45, .22); overflow: visible; }
+  .call-panel__heading strong { font-size: 13px; }
+  .call-lobby__hint { display: none; }
+  .call-panel__note { display: -webkit-box; overflow: hidden; max-height: calc(2.8em + 14px); padding: 7px 9px; font-size: 11px; line-height: 1.4; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .call-tiles { position: relative; display: block; }
+  .call-tile--local { position: absolute; right: 6px; top: 6px; z-index: 1; width: 34%; border: 2px solid #fff; border-radius: 8px; }
+  .call-tile--local .call-tile__placeholder { font-size: 9px; padding: 4px; }
+  .call-tile--local .call-tile__label { display: none; }
+  .call-controls { gap: 4px; }
+  .call-control { width: 38px; height: 38px; }
+  .call-control svg { width: 18px; height: 18px; }
+  .call-control[aria-pressed='false']::after { width: 21px; }
+  .call-popover { bottom: 48px; }
+}

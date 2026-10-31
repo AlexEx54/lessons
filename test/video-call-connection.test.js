@@ -272,6 +272,13 @@ test('a room taken over by another tab ends here instead of reconnecting', async
   assert.equal(c.timer(1000), undefined);
 });
 
+test('a session call held by another student ends here instead of reconnecting', async () => {
+  const c = await joinedCall();
+  c.socket.drop(4003, true);
+  assert.deepEqual(c.ended, ['occupied']);
+  assert.equal(c.timer(1000), undefined);
+});
+
 test('ICE servers are fetched on join, so a late join still gets fresh credentials', async () => {
   const c = await joinedCall();
   await c.socket.message({ type: 'peer-joined' });

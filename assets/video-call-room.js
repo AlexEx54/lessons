@@ -66,16 +66,10 @@
 
   const recordingButton = document.getElementById('toggle-recording');
   const recordingStatus = document.getElementById('recording-status');
-  let recording = null;
-  let recordingBusy = false;
-  let recordingActive = false;
-  let recordingDone = null;
-
-  function recordingMessage(message) {
-    if (role !== 'teacher') return;
-    recordingStatus.hidden = !message;
-    recordingStatus.textContent = message;
-  }
+  const recorder = window.CallRecorder.control({
+    getSources: recordingSources, canStart: () => !leaving, onChange: renderRecording,
+  });
+  let recordingPublished = false;
 
   function recordingSources() {
     const remote = connection.remote();
@@ -90,49 +84,18 @@
     };
   }
 
-  async function stopRecording() {
-    if (!recording) return;
-    recordingActive = false;
-    recordingButton.setAttribute('aria-pressed', 'false');
-    recordingButton.disabled = true;
-    recordingMessage('Сохраняем запись… Не закрывайте вкладку.');
-    connection.publishMediaState();
-    void recording.stop().catch(() => {});
-    await recordingDone;
-  }
-
-  async function toggleRecording() {
-    if (role !== 'teacher' || leaving || recordingBusy) return;
-    if (recording) { await stopRecording(); return; }
-    recordingBusy = true;
-    recordingButton.disabled = true;
-    try {
-      const session = await window.CallRecorder.start({
-        getSources: recordingSources, canStart: () => !leaving,
-      });
-      recording = session;
-      recordingActive = true;
-      recordingButton.querySelector('span').textContent = 'Остановить запись';
-      recordingButton.setAttribute('aria-pressed', 'true');
-      recordingMessage('');
+  function renderRecording() {
+    if (role !== 'teacher') return;
+    const state = recorder.state();
+    recordingButton.disabled = leaving || state.busy || !window.CallRecorder.supported();
+    recordingButton.setAttribute('aria-pressed', String(state.recording));
+    recordingButton.querySelector('span').textContent = state.recording ? 'Остановить запись' : 'Записать';
+    recordingStatus.hidden = !state.message;
+    recordingStatus.textContent = state.message;
+    // The recording flag goes out with this side's media state.
+    if (state.recording !== recordingPublished) {
+      recordingPublished = state.recording;
       connection.publishMediaState();
-      recordingDone = session.finished.then(() => {
-        recordingMessage('Запись сохранена на компьютере.');
-      }, error => {
-        recordingMessage(`Запись не сохранена: ${error.message || 'ошибка записи на диск'}`);
-      }).finally(() => {
-        recording = null;
-        recordingActive = false;
-        recordingButton.disabled = leaving;
-        recordingButton.setAttribute('aria-pressed', 'false');
-        recordingButton.querySelector('span').textContent = 'Записать';
-        connection.publishMediaState();
-      });
-    } catch (error) {
-      if (error.name !== 'AbortError') recordingMessage(error.message || 'Не удалось начать запись.');
-    } finally {
-      recordingBusy = false;
-      recordingButton.disabled = leaving;
     }
   }
 
@@ -145,9 +108,9 @@
     recordingButton.disabled = true;
     recordingButton.title = 'Для записи нужен настольный Chrome или Edge';
   }
-  recordingButton.addEventListener('click', toggleRecording);
+  recordingButton.addEventListener('click', () => { if (role === 'teacher' && !leaving) void recorder.toggle(); });
   window.addEventListener('beforeunload', event => {
-    if (recording || recordingBusy) { event.preventDefault(); event.returnValue = ''; }
+    if (recorder.state().unsaved) { event.preventDefault(); event.returnValue = ''; }
   });
 
   let room = null;
@@ -166,7 +129,7 @@
     iceEndpoint: roomEndpoint,
     media,
     localDetails: () => ({
-      recording: role === 'teacher' && recordingActive,
+      recording: role === 'teacher' && recorder.state().recording,
       // Without a typed name the teacher keeps the room name as the student's label.
       name: role === 'guest' ? elements.participantName.value.trim() : 'Преподаватель',
     }),
@@ -326,7 +289,7 @@
     leaving = true;
     // The recorder is asked to stop first, so it keeps everything up to this moment; closing the
     // connection right away stops signaling that would otherwise arrive while the file is saved.
-    const saving = stopRecording();
+    const saving = recorder.stop();
     connection.close();
     await saving;
     media.stop();
@@ -448,7 +411,7 @@
     if (!leaving) {
       connection.diagnostic('page-lifecycle', { state: 'pagehide', persisted: event.persisted });
       connection.leave('pagehide');
-      void stopRecording();
+      void recorder.stop();
       media.stop();
     }
   });

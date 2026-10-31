@@ -288,6 +288,11 @@
           audio: { echoCancellation: true, noiseSuppression: true },
           video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
         });
+        // The participant left while the browser was asking, so the camera must not stay on.
+        if (stopped) {
+          stream.getTracks().forEach(item => item.stop());
+          return;
+        }
         // Clicks made while the browser was asking only changed mediaState.
         stream.getAudioTracks().forEach(item => { item.enabled = mediaState.audio; });
         stream.getVideoTracks().forEach(item => { item.enabled = mediaState.video; });

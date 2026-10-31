@@ -64,3 +64,14 @@ test('toggles during the prompt change the choice without opening a second camer
   assert.equal(room.media.sentState().video, false);
   assert.equal(room.sentVideo.at(-1), null);
 });
+
+test('a camera granted after leaving is released at once and never sent', async () => {
+  const room = setup();
+  room.media.stop();
+  room.answer().resolve(room.stream);
+  await room.preparing;
+  assert.equal(room.tracks.video.readyState, 'ended');
+  assert.equal(room.tracks.audio.readyState, 'ended');
+  assert.deepEqual(room.calls, []);
+  assert.equal(room.media.previewTrack(), null);
+});
