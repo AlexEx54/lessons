@@ -56,25 +56,6 @@
     exitLink: document.getElementById('room-exit-link'),
   };
 
-  const BACKGROUND_STORAGE_KEY = 'easyclass.videoBackground';
-  const BACKGROUND_OPTIONS = [
-    { id: 'none', label: 'Без фона', previewClass: 'background-option__preview--none' },
-    { id: 'blur', label: 'Размытие', previewClass: 'background-option__preview--blur' },
-    { id: 'study-light', label: 'Кабинет', src: '/assets/images/video-backgrounds/study-light.jpg' },
-    { id: 'library-plum', label: 'Библиотека', src: '/assets/images/video-backgrounds/library-plum.jpg' },
-    { id: 'classroom-soft', label: 'Класс', src: '/assets/images/video-backgrounds/classroom-soft.jpg' },
-  ];
-  const BACKGROUND_IDS = new Set(BACKGROUND_OPTIONS.map(option => option.id));
-  const MEDIAPIPE_BASE = '/assets/vendor/mediapipe-1.0.1';
-  const MOBILE_DEVICE = navigator.userAgentData?.mobile === true
-    || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-    || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
-  const SEGMENTER_MODEL = MOBILE_DEVICE
-    ? { id: 'landscape', filename: 'selfie_segmenter_landscape.tflite' }
-    : { id: 'square', filename: 'selfie_segmenter.tflite' };
-  const EFFECT_FRAME_INTERVAL_MS = MOBILE_DEVICE ? 1000 / 18 : 1000 / 24;
-
-
   const recordingButton = document.getElementById('toggle-recording');
   const recordingStatus = document.getElementById('recording-status');
   let recording = null;
@@ -90,14 +71,13 @@
 
   function recordingSources() {
     return {
-      localVideo: outboundVideoTrack(),
+      localVideo: media.outboundVideoTrack(),
       remoteVideo: (remoteMediaState.screen || remoteMediaState.video !== false)
         ? remoteStream.getVideoTracks()[0] : null,
-      localScreen: Boolean(screenTrack),
+      localScreen: media.sentState().screen,
       remoteScreen: Boolean(remoteMediaState.screen),
       remoteName: elements.remoteName.textContent,
-      audio: [screenAudioMixer?.destination.stream.getAudioTracks()[0] || track('audio'),
-        ...remoteStream.getAudioTracks()],
+      audio: [media.outboundAudioTrack(), ...remoteStream.getAudioTracks()],
     };
   }
 
@@ -163,7 +143,6 @@
 
   let room = null;
   let iceServers = [];
-  let localStream = new MediaStream();
   let remoteStream = new MediaStream();
   let remoteMediaState = {};
   let mediaStatsTimer = null;
@@ -171,10 +150,6 @@
   let replacementSequence = 0;
   const diagnosticTrackIds = new WeakMap();
   let diagnosticTrackSequence = 0;
-  let screenTrack = null;
-  let displayStream = null;
-  let screenAudioMixer = null;
-  let screenShareBusy = false;
   let socket = null;
   const pageSession = crypto.randomUUID();
   let socketAttempt = 0;
@@ -182,15 +157,7 @@
   let peerConnection = null;
   let audioTransceiver = null;
   let videoTransceiver = null;
-  let selectedBackground = readStoredBackground();
-  let backgroundEffectGeneration = 0;
-  // { background, generation, session }: the active effect's track goes to the peer, while a pending
-  // one is still preparing and the previous output (camera or older effect) keeps going.
-  let activeEffect = null;
-  let pendingEffect = null;
   let joined = false;
-  // 'idle' → 'pending' while the browser asks for camera and microphone → 'granted', 'failed' or 'unsupported'.
-  const mediaPreparation = { state: 'idle', waitMs: undefined, errorName: undefined };
   let leaving = false;
   let reconnectAttempts = 0;
   let reconnectTimer = null;
@@ -199,7 +166,13 @@
   let isSettingRemoteAnswerPending = false;
   const gatheredCandidateTypes = new Set();
   const polite = role === 'guest';
-  const mediaState = { audio: true, video: true, screen: false };
+  const media = window.CallMedia.create({
+    diagnostic: sendDiagnostic,
+    applyAudio: applyOutboundAudioTrack,
+    applyVideo: applyOutboundVideoTrack,
+    publish: sendMediaState,
+    onChange: renderMedia,
+  });
 
   elements.brand.href = exitPath;
   elements.exitLink.href = exitPath;
@@ -211,8 +184,7 @@
     updateRemoteVideoVisibility('playing');
   });
   document.addEventListener('visibilitychange', () => {
-    activeEffect?.session.visibility(document.hidden);
-    pendingEffect?.session?.visibility(document.hidden);
+    media.setPageHidden(document.hidden);
     reportMediaStats(peerConnection, 'visibility');
   });
 
@@ -221,37 +193,14 @@
     elements.connection.lastChild.textContent = ` ${text}`;
   }
 
-  function showPrejoinError(message) {
-    elements.prejoinError.textContent = message;
-    elements.prejoinError.hidden = !message;
-  }
-
-  function readStoredBackground() {
-    try {
-      const stored = window.localStorage.getItem(BACKGROUND_STORAGE_KEY);
-      return BACKGROUND_IDS.has(stored) ? stored : 'none';
-    } catch (_error) {
-      return 'none';
-    }
-  }
-
-  function writeStoredBackground(value) {
-    try {
-      window.localStorage.setItem(BACKGROUND_STORAGE_KEY, value);
-    } catch (_error) {
-      // The choice still works for this call when storage is unavailable.
-    }
-  }
-
   function renderBackgroundOptions(container) {
     const fragment = document.createDocumentFragment();
-    BACKGROUND_OPTIONS.forEach(option => {
+    window.CallMedia.BACKGROUND_OPTIONS.forEach(option => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'background-option';
       button.dataset.backgroundOption = option.id;
       button.setAttribute('role', 'radio');
-      button.setAttribute('aria-checked', String(option.id === selectedBackground));
       button.setAttribute('aria-label', option.label);
 
       const preview = document.createElement('span');
@@ -260,24 +209,10 @@
       const label = document.createElement('span');
       label.textContent = option.label;
       button.append(preview, label);
-      button.addEventListener('click', () => selectVideoBackground(option.id));
+      button.addEventListener('click', () => media.selectBackground(option.id));
       fragment.append(button);
     });
     container.replaceChildren(fragment);
-  }
-
-  function updateBackgroundControls() {
-    document.querySelectorAll('[data-background-option]').forEach(button => {
-      button.setAttribute('aria-checked', String(button.dataset.backgroundOption === selectedBackground));
-    });
-    elements.toggleBackground.setAttribute('aria-pressed', String(selectedBackground !== 'none'));
-  }
-
-  function setBackgroundStatus(message, state = '') {
-    document.querySelectorAll('.background-picker__status').forEach(status => {
-      status.textContent = message;
-      status.dataset.state = state;
-    });
   }
 
   const EFFECT_STAGES = {
@@ -287,11 +222,9 @@
     'background-image': 'Загружаем фон',
     'first-frame': 'Обрабатываем первый кадр',
   };
-  let effectProgress = null;
 
   // progress: null hides the notice, { stage } shows preparation, { failed: background } offers a retry.
   function renderEffectProgress(progress) {
-    effectProgress = progress;
     document.querySelectorAll('.effect-progress').forEach(notice => {
       notice.hidden = !progress;
       if (!progress) return;
@@ -306,47 +239,56 @@
     });
   }
 
-  function backgroundOption(value = selectedBackground) {
-    return BACKGROUND_OPTIONS.find(option => option.id === value) || BACKGROUND_OPTIONS[0];
+  // A new srcObject restarts the video element, so the preview is replaced only with its track.
+  let previewTrack;
+  function updateLocalPreview() {
+    const next = media.previewTrack() || null;
+    if (next === previewTrack) return;
+    previewTrack = next;
+    const previewStream = next ? new MediaStream([next]) : new MediaStream();
+    elements.previewVideo.srcObject = previewStream;
+    elements.localVideo.srcObject = previewStream;
+    elements.previewPlaceholder.hidden = Boolean(next);
+    elements.localPlaceholder.hidden = Boolean(next);
   }
 
-  function backgroundEffectsSupported() {
-    return Boolean(window.WebAssembly && window.Worker);
+  function renderMedia() {
+    const state = media.snapshot();
+    elements.prejoinMic.setAttribute('aria-pressed', String(state.microphone));
+    elements.prejoinMic.textContent = state.microphone ? 'Микрофон включён' : 'Микрофон выключен';
+    elements.prejoinCamera.setAttribute('aria-pressed', String(state.camera));
+    elements.prejoinCamera.textContent = state.camera ? 'Камера включена' : 'Камера выключена';
+    elements.toggleMic.setAttribute('aria-pressed', String(state.microphone));
+    elements.toggleCamera.setAttribute('aria-pressed', String(state.camera));
+    elements.toggleScreen.setAttribute('aria-pressed', String(state.screen));
+    elements.toggleScreen.disabled = state.screenShareBusy;
+    elements.screenAudioStatus.hidden = !state.screenAudioStatus;
+    elements.screenAudioStatus.textContent = state.screenAudioStatus;
+    document.querySelectorAll('[data-background-option]').forEach(button => {
+      button.setAttribute('aria-checked', String(button.dataset.backgroundOption === state.background));
+    });
+    elements.toggleBackground.setAttribute('aria-pressed', String(state.background !== 'none'));
+    document.querySelectorAll('.background-picker__status').forEach(status => {
+      status.textContent = state.backgroundStatus.text;
+      status.dataset.state = state.backgroundStatus.state;
+    });
+    renderEffectProgress(state.effectProgress);
+    elements.prejoinError.textContent = state.error;
+    elements.prejoinError.hidden = !state.error;
+    updateLocalPreview();
   }
 
-  function cancelPendingEffect() {
-    pendingEffect?.session?.stop();
-    pendingEffect = null;
-    renderEffectProgress(null);
-  }
-
-  function stopBackgroundEffect() {
-    cancelPendingEffect();
-    activeEffect?.session.stop();
-    activeEffect = null;
-  }
-
-  function shownBackground() {
-    return activeEffect?.background || 'none';
-  }
-
-  function cameraTrack() {
-    return localStream.getVideoTracks()[0];
-  }
-
-  function outboundVideoTrack() {
-    if (screenTrack) return screenTrack;
-    if (!mediaState.video || !cameraTrack()?.enabled) return null;
-    return activeEffect?.session.track || cameraTrack();
+  async function applyOutboundAudioTrack() {
+    if (audioTransceiver) await audioTransceiver.sender.replaceTrack(media.outboundAudioTrack());
   }
 
   async function applyOutboundVideoTrack() {
     if (!videoTransceiver) return;
     const sender = videoTransceiver.sender;
-    const next = outboundVideoTrack();
+    const next = media.outboundVideoTrack();
     const operation = ++replacementSequence;
     const details = { peerGeneration, operation, previousTrack: diagnosticTrackId(sender.track),
-      nextTrack: diagnosticTrackId(next), source: !next ? 'none' : next === screenTrack ? 'screen' : next === activeEffect?.session.track ? 'effect' : 'camera' };
+      nextTrack: diagnosticTrackId(next), source: media.videoSource(next) };
     sendDiagnostic('video-track-replace', { ...details, state: 'start' });
     try {
       await sender.replaceTrack(next);
@@ -356,229 +298,6 @@
         ...videoTrackDetails(sender.track), errorText: `${error.name}: ${error.message}` });
       throw error;
     }
-  }
-
-  function effectDiagnosticDetails(effect, extra = {}) {
-    const background = effect?.background || selectedBackground;
-    return { pipelineVersion: 3, effectGeneration: effect?.generation ?? backgroundEffectGeneration,
-      mode: background === 'blur' ? 'blur' : 'replacement', model: SEGMENTER_MODEL.id,
-      ...effect?.session?.details, ...extra };
-  }
-
-  function showEffectStatus() {
-    if (!activeEffect) setBackgroundStatus('');
-    else setBackgroundStatus(activeEffect.session.details.transport === 'canvas-worker'
-      ? 'Эффект включён — совместимый режим' : 'Эффект включён', 'ready');
-  }
-
-  // A failed start keeps the previous output; a failed running effect falls back to the camera.
-  function handleEffectFailure(error, broken = pendingEffect || activeEffect) {
-    if (error?.name === 'AbortError') return;
-    console.error('Video background processing failed:', error);
-    sendDiagnostic('background-effect-failure', effectDiagnosticDetails(broken, { state: 'failed',
-      errorText: `${error?.name || 'Error'}: ${error?.message || 'Background processing failed'}` }));
-    const failed = broken?.background || selectedBackground;
-    if (broken === activeEffect) activeEffect = null;
-    else pendingEffect = null;
-    broken?.session?.stop();
-    // A newer choice that is still preparing stays selected; otherwise the picker shows what is sent.
-    if (!pendingEffect) {
-      selectedBackground = shownBackground();
-      updateBackgroundControls();
-      setBackgroundStatus('');
-      renderEffectProgress({ failed });
-    }
-    void applyOutboundVideoTrack().catch(error => console.error('Video replacement failed:', error));
-    updateLocalPreview();
-  }
-
-  function loadBackgroundPipeline() {
-    return import('/assets/video-background-pipeline.mjs');
-  }
-
-  async function startBackgroundEffect() {
-    const background = selectedBackground;
-    // Repeated clicks on the background that is preparing or shown do not restart it.
-    if (pendingEffect?.background === background) return;
-    cancelPendingEffect();
-    if (shownBackground() === background) { showEffectStatus(); return; }
-    if (background === 'none' || !mediaState.video || !cameraTrack()?.enabled || screenTrack) return;
-    if (!backgroundEffectsSupported()) throw new Error('Браузер не поддерживает обработку видеофона.');
-    const pending = { background, generation: ++backgroundEffectGeneration, session: null };
-    pendingEffect = pending;
-    const current = () => pendingEffect === pending;
-    setBackgroundStatus('');
-    renderEffectProgress({ stage: 'worker' });
-    const { createBackgroundPipeline } = await loadBackgroundPipeline();
-    if (!current()) return;
-    pending.session = createBackgroundPipeline({
-      camera: cameraTrack(),
-      config: { model: SEGMENTER_MODEL, mode: background,
-        backgroundUrl: backgroundOption(background).src, targetFps: 1000 / EFFECT_FRAME_INTERVAL_MS,
-        maxWidth: MOBILE_DEVICE ? 640 : 960, hidden: document.hidden },
-      onStage: stage => {
-        if (current()) renderEffectProgress({ stage });
-      },
-      onDiagnostic: (event, details) => {
-        if (current() || activeEffect === pending) sendDiagnostic(event, { ...details, effectGeneration: pending.generation });
-      },
-      onFailure: error => {
-        if (activeEffect === pending) handleEffectFailure(error, pending);
-      },
-    });
-    try { await pending.session.ready; }
-    catch (error) {
-      if (current()) throw error;
-      return;
-    }
-    if (!current()) return;
-    pendingEffect = null;
-    const previous = activeEffect;
-    activeEffect = pending;
-    pending.session.track.enabled = mediaState.video;
-    // Preparation ends here, before the await: a choice made during the swap owns the notice and status.
-    renderEffectProgress(null);
-    showEffectStatus();
-    try {
-      await applyOutboundVideoTrack();
-    } catch (error) {
-      // This effect broke, not a newer choice that may be preparing meanwhile.
-      if (activeEffect === pending) handleEffectFailure(error, pending);
-      return;
-    } finally {
-      // The older effect stops only once the sender no longer uses its track.
-      previous?.session.stop();
-    }
-    if (activeEffect !== pending) return;
-    updateLocalPreview();
-    sendDiagnostic('background-effect-ready', effectDiagnosticDetails(pending, { state: 'ready' }));
-  }
-
-  // The current output keeps going while an effect prepares, so callers need not wait for it.
-  function applyBackgroundEffect() {
-    return startBackgroundEffect().catch(error => handleEffectFailure(error));
-  }
-
-  async function selectVideoBackground(value, { persist = true } = {}) {
-    if (!BACKGROUND_IDS.has(value)) value = 'none';
-    sendDiagnostic('video-background-selection', { state: value === 'none' ? 'none' : value === 'blur' ? 'blur' : 'replacement' });
-    selectedBackground = value;
-    if (persist) writeStoredBackground(value);
-    updateBackgroundControls();
-    if (value === 'none') {
-      stopBackgroundEffect();
-      setBackgroundStatus('');
-      await applyOutboundVideoTrack();
-      updateLocalPreview();
-      return;
-    }
-    if (!mediaState.video || !cameraTrack()?.enabled) {
-      setBackgroundStatus('Включите камеру, чтобы применить эффект');
-      return;
-    }
-    if (screenTrack) {
-      setBackgroundStatus('Фон включится после демонстрации экрана');
-      return;
-    }
-    await applyBackgroundEffect();
-  }
-
-  function track(kind) {
-    return kind === 'audio' ? localStream.getAudioTracks()[0] : localStream.getVideoTracks()[0];
-  }
-
-  function updateLocalPreview() {
-    const previewTrack = screenTrack || (mediaState.video && cameraTrack()?.enabled ? outboundVideoTrack() : null);
-    const previewStream = previewTrack ? new MediaStream([previewTrack]) : new MediaStream();
-    elements.previewVideo.srcObject = previewStream;
-    elements.localVideo.srcObject = previewStream;
-    const cameraVisible = Boolean(previewTrack);
-    elements.previewPlaceholder.hidden = cameraVisible;
-    elements.localPlaceholder.hidden = cameraVisible;
-  }
-
-  function updateButtons() {
-    // While the browser asks there are no tracks yet, so the buttons show the chosen state.
-    const pending = mediaPreparation.state === 'pending';
-    const micEnabled = mediaState.audio && (pending || Boolean(track('audio')?.enabled));
-    const cameraEnabled = mediaState.video && (pending || Boolean(track('video')?.enabled));
-    elements.prejoinMic.setAttribute('aria-pressed', String(micEnabled));
-    elements.prejoinMic.textContent = micEnabled ? 'Микрофон включён' : 'Микрофон выключен';
-    elements.prejoinCamera.setAttribute('aria-pressed', String(cameraEnabled));
-    elements.prejoinCamera.textContent = cameraEnabled ? 'Камера включена' : 'Камера выключена';
-    elements.toggleMic.setAttribute('aria-pressed', String(micEnabled));
-    elements.toggleCamera.setAttribute('aria-pressed', String(cameraEnabled));
-    elements.toggleScreen.setAttribute('aria-pressed', String(Boolean(screenTrack)));
-    updateBackgroundControls();
-    updateLocalPreview();
-  }
-
-  async function acquireTrack(kind) {
-    const constraints = kind === 'audio'
-      ? { audio: { echoCancellation: true, noiseSuppression: true }, video: false }
-      : { audio: false, video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } };
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    const newTrack = kind === 'audio' ? stream.getAudioTracks()[0] : stream.getVideoTracks()[0];
-    if (!newTrack) throw new Error(`Браузер не предоставил ${kind === 'audio' ? 'микрофон' : 'камеру'}.`);
-    if (kind === 'video') stopBackgroundEffect();
-    localStream.getTracks().filter(item => item.kind === kind).forEach(item => {
-      localStream.removeTrack(item);
-      item.stop();
-    });
-    localStream.addTrack(newTrack);
-    if (kind === 'audio') {
-      connectMixerMicrophone();
-      await applyOutboundAudioTrack();
-    }
-    return newTrack;
-  }
-
-  async function prepareMedia() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      mediaPreparation.state = 'unsupported';
-      showPrejoinError('Этот браузер не поддерживает доступ к камере и микрофону.');
-      mediaState.audio = false;
-      mediaState.video = false;
-      updateButtons();
-      return;
-    }
-    mediaPreparation.state = 'pending';
-    const startedAt = performance.now();
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-      });
-      // Clicks made while the browser was asking only changed mediaState.
-      stream.getAudioTracks().forEach(item => { item.enabled = mediaState.audio; });
-      stream.getVideoTracks().forEach(item => { item.enabled = mediaState.video; });
-      localStream = stream;
-      mediaPreparation.state = 'granted';
-      showPrejoinError('');
-    } catch (error) {
-      mediaPreparation.errorName = error?.name;
-      mediaPreparation.state = 'failed';
-      mediaState.audio = false;
-      mediaState.video = false;
-      showPrejoinError('Камера или микрофон недоступны. Можно войти без них и включить позже.');
-    }
-    mediaPreparation.waitMs = Math.round(performance.now() - startedAt);
-    // Reaches the server only when the call was joined before the browser answered.
-    sendDiagnostic('media-prepared', { state: mediaPreparation.state, mediaWaitMs: mediaPreparation.waitMs,
-      errorName: mediaPreparation.errorName });
-    updateButtons();
-    if (joined) {
-      // The peer connection may already exist with empty senders and the peer was told the camera is off.
-      connectMixerMicrophone();
-      try {
-        await applyOutboundAudioTrack();
-        await applyOutboundVideoTrack();
-      } catch (error) {
-        console.error('Track replacement failed:', error);
-      }
-      sendMediaState();
-    }
-    if (mediaState.video && cameraTrack()?.enabled && selectedBackground !== 'none') void applyBackgroundEffect();
   }
 
   function send(message) {
@@ -707,13 +426,12 @@
   }
 
   function sendMediaState() {
-    sendDiagnostic('local-media-state', { video: Boolean(track('video')?.enabled) && mediaState.video, screen: Boolean(screenTrack) });
+    const sent = media.sentState();
+    sendDiagnostic('local-media-state', { video: sent.video, screen: sent.screen });
     send({
       type: 'media-state',
       recording: role === 'teacher' && recordingActive,
-      audio: Boolean(track('audio')?.enabled) && mediaState.audio,
-      video: Boolean(track('video')?.enabled) && mediaState.video,
-      screen: Boolean(screenTrack),
+      ...sent,
       // Without a typed name the teacher keeps the room name as the student's label.
       name: role === 'guest' ? elements.participantName.value.trim() : 'Преподаватель',
     });
@@ -1021,8 +739,8 @@
       if (socket !== currentSocket) return;
       sendDiagnostic('socket-open', { state: lastSocketClose ? 'reconnected' : 'initial',
         socketAttempt, navigationType: performance.getEntriesByType('navigation')[0]?.type || 'unknown',
-        online: navigator.onLine, mediaPreparation: mediaPreparation.state, mediaWaitMs: mediaPreparation.waitMs,
-        errorName: mediaPreparation.errorName, ...lastSocketClose });
+        online: navigator.onLine, mediaPreparation: media.preparation.state, mediaWaitMs: media.preparation.waitMs,
+        errorName: media.preparation.errorName, ...lastSocketClose });
       lastSocketClose = null;
       reconnectAttempts = 0;
       const configuredUrls = iceServers.map(server => server.urls).filter(Boolean);
@@ -1036,9 +754,8 @@
             ? (turnHasCredentials ? 'turn-auth' : 'turn-no-auth')
             : 'stun-only'),
       });
-      if (activeEffect) {
-        sendDiagnostic('background-effect-ready', effectDiagnosticDetails(activeEffect, { state: 'ready' }));
-      }
+      const effect = media.activeEffectDiagnostic();
+      if (effect) sendDiagnostic('background-effect-ready', effect);
       sendMediaState();
     });
     socket.addEventListener('message', async event => {
@@ -1118,199 +835,19 @@
     socket.addEventListener('error', () => setConnection('Ошибка соединения', 'error'));
   }
 
-  async function toggleKind(kind) {
-    const key = kind === 'audio' ? 'audio' : 'video';
-    if (mediaPreparation.state === 'pending') {
-      // Requesting another track now would open a second camera that prepareMedia then discards.
-      mediaState[key] = !mediaState[key];
-      updateButtons();
-      return;
-    }
-    let current = track(kind);
-    if (mediaState[key] && current?.enabled) {
-      current.enabled = false;
-      mediaState[key] = false;
-      if (kind === 'video') {
-        stopBackgroundEffect();
-        await applyOutboundVideoTrack();
-        if (selectedBackground !== 'none') setBackgroundStatus('Включите камеру, чтобы применить эффект');
-      }
-    } else {
-      try {
-        if (!current || current.readyState === 'ended') current = await acquireTrack(kind);
-        current.enabled = true;
-        mediaState[key] = true;
-        showPrejoinError('');
-      } catch (_error) {
-        mediaState[key] = false;
-        showPrejoinError(`Не удалось включить ${kind === 'audio' ? 'микрофон' : 'камеру'}. Проверьте разрешения браузера.`);
-      }
-      if (kind === 'video' && mediaState.video) {
-        await applyOutboundVideoTrack().catch(error => console.error('Video replacement failed:', error));
-        if (selectedBackground !== 'none' && !screenTrack) void applyBackgroundEffect();
-      }
-    }
-    updateButtons();
-    sendMediaState();
-  }
-
-  function connectMixerMicrophone() {
-    if (!screenAudioMixer) return;
-    screenAudioMixer.microphone?.disconnect();
-    screenAudioMixer.microphone = null;
-    const microphone = track('audio');
-    if (microphone?.readyState === 'live') {
-      screenAudioMixer.microphone = screenAudioMixer.context.createMediaStreamSource(new MediaStream([microphone]));
-      screenAudioMixer.microphone.connect(screenAudioMixer.destination);
-    }
-  }
-
-  async function applyOutboundAudioTrack() {
-    const next = screenAudioMixer?.destination.stream.getAudioTracks()[0] || track('audio') || null;
-    if (audioTransceiver) await audioTransceiver.sender.replaceTrack(next);
-  }
-
-  function disposeScreenAudio(mixer = screenAudioMixer) {
-    if (screenAudioMixer === mixer) screenAudioMixer = null;
-    if (mixer) {
-      mixer.microphone?.disconnect();
-      mixer.source?.disconnect();
-      mixer.destination.stream.getTracks().forEach(item => item.stop());
-      void mixer.context.close().catch(() => {});
-    }
-  }
-
-  function updateScreenAudioStatus() {
-    elements.screenAudioStatus.hidden = !screenTrack;
-    const audio = displayStream?.getAudioTracks().find(item => item.readyState === 'live');
-    if (!audio || !screenAudioMixer) {
-      elements.screenAudioStatus.textContent = 'Демонстрация без звука. Для передачи звука выберите его в окне демонстрации браузера.';
-      return;
-    }
-    const isolated = screenTrack?.getSettings().displaySurface === 'browser' || audio.getSettings().restrictOwnAudio === true;
-    elements.screenAudioStatus.textContent = audio.muted
-      ? 'Звук демонстрации временно недоступен.'
-      : 'Звук демонстрации включён.';
-    if (!isolated) elements.screenAudioStatus.textContent += ' Возможно эхо: для ролика лучше выбрать отдельную вкладку со звуком.';
-  }
-
-  async function startScreenAudio() {
-    const audio = displayStream.getAudioTracks().find(item => item.readyState === 'live');
-    if (!audio) return;
-    try {
-      const context = new AudioContext();
-      screenAudioMixer = { context, destination: context.createMediaStreamDestination() };
-      screenAudioMixer.source = context.createMediaStreamSource(new MediaStream([audio]));
-      screenAudioMixer.source.connect(screenAudioMixer.destination);
-      connectMixerMicrophone();
-      await context.resume();
-      if (leaving || !screenTrack || !screenAudioMixer) return;
-      await applyOutboundAudioTrack();
-      audio.onmute = audio.onunmute = updateScreenAudioStatus;
-      audio.onended = () => {
-        disposeScreenAudio();
-        void applyOutboundAudioTrack().catch(error => console.error('Audio restore failed:', error));
-        updateScreenAudioStatus();
-      };
-    } catch (error) {
-      disposeScreenAudio();
-      audio.stop();
-      await applyOutboundAudioTrack();
-      console.error('Screen audio unavailable:', error);
-    }
-  }
-
-  async function stopScreenShare() {
-    const previous = screenTrack;
-    screenTrack = null;
-    if (previous) {
-      previous.onended = null;
-      previous.stop();
-    }
-    displayStream?.getTracks().forEach(item => {
-      item.onended = item.onmute = item.onunmute = null;
-      item.stop();
-    });
-    displayStream = null;
-    const mixer = screenAudioMixer;
-    screenAudioMixer = null;
-    try {
-      await applyOutboundAudioTrack();
-    } finally {
-      disposeScreenAudio(mixer);
-    }
-    updateScreenAudioStatus();
-    mediaState.screen = false;
-    await applyOutboundVideoTrack();
-    if (selectedBackground !== 'none' && mediaState.video && cameraTrack()?.enabled) void applyBackgroundEffect();
-    updateButtons();
-    sendMediaState();
+  function stopMedia() {
+    window.clearTimeout(reconnectTimer);
+    media.stop();
+    closePeerConnection();
   }
 
   async function toggleScreenShare() {
-    if (screenShareBusy || leaving) return;
-    if (screenTrack) {
-      screenShareBusy = true;
-      elements.toggleScreen.disabled = true;
-      try {
-        await stopScreenShare();
-      } finally {
-        screenShareBusy = false;
-        elements.toggleScreen.disabled = false;
-      }
-      return;
-    }
-    if (!navigator.mediaDevices?.getDisplayMedia) {
-      setConnection('Демонстрация экрана не поддерживается браузером', 'error');
-      return;
-    }
-    screenShareBusy = true;
-    elements.toggleScreen.disabled = true;
+    if (leaving) return;
     try {
-      const display = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: { restrictOwnAudio: true, suppressLocalAudioPlayback: false },
-        systemAudio: 'include',
-        selfBrowserSurface: 'exclude',
-      });
-      if (leaving) {
-        display.getTracks().forEach(item => item.stop());
-        return;
-      }
-      displayStream = display;
-      screenTrack = display.getVideoTracks()[0];
-      if (!screenTrack) throw new Error('No display video track');
-      screenTrack.onended = () => { void stopScreenShare().catch(console.error); };
-      await startScreenAudio();
-      if (leaving || !screenTrack) return;
-      updateScreenAudioStatus();
-      stopBackgroundEffect();
-      await applyOutboundVideoTrack();
-      mediaState.screen = true;
-      if (selectedBackground !== 'none') setBackgroundStatus('Фон включится после демонстрации экрана');
-      updateButtons();
-      sendMediaState();
+      await media.toggleScreenShare();
     } catch (error) {
-      await stopScreenShare().catch(console.error);
-      if (error.name !== 'NotAllowedError') setConnection('Не удалось начать демонстрацию экрана', 'error');
-    } finally {
-      screenShareBusy = false;
-      elements.toggleScreen.disabled = false;
+      setConnection(error.message, 'error');
     }
-  }
-
-  function stopMedia() {
-    window.clearTimeout(reconnectTimer);
-    stopBackgroundEffect();
-    displayStream?.getTracks().forEach(item => {
-      item.onended = item.onmute = item.onunmute = null;
-      item.stop();
-    });
-    displayStream = null;
-    screenTrack = null;
-    disposeScreenAudio();
-    localStream.getTracks().forEach(item => item.stop());
-    closePeerConnection();
   }
 
   async function finishCall(message = 'Спасибо за занятие!', title = 'Звонок завершён') {
@@ -1356,12 +893,12 @@
     elements.join.disabled = true;
     elements.join.textContent = 'Подключаемся…';
     // Only the chat link reaches the join without media. A pending prompt is not awaited: it may never
-    // settle, and prepareMedia sends the tracks once the browser answers.
-    if (mediaPreparation.state === 'idle') await prepareMedia();
+    // settle, and media.prepare() sends the tracks once the browser answers.
+    if (media.preparation.state === 'idle') await media.prepare();
     joined = true;
     elements.prejoin.hidden = true;
     elements.stage.hidden = false;
-    updateButtons();
+    renderMedia();
     connectSocket();
   }
 
@@ -1424,7 +961,7 @@
         window.CallChat.open();
         return;
       }
-      await prepareMedia();
+      await media.prepare();
     } catch (error) {
       elements.prejoin.hidden = true;
       elements.ended.hidden = false;
@@ -1433,10 +970,10 @@
     }
   }
 
-  elements.prejoinMic.addEventListener('click', () => toggleKind('audio'));
-  elements.prejoinCamera.addEventListener('click', () => toggleKind('video'));
-  elements.toggleMic.addEventListener('click', () => toggleKind('audio'));
-  elements.toggleCamera.addEventListener('click', () => toggleKind('video'));
+  elements.prejoinMic.addEventListener('click', () => media.toggle('audio'));
+  elements.prejoinCamera.addEventListener('click', () => media.toggle('video'));
+  elements.toggleMic.addEventListener('click', () => media.toggle('audio'));
+  elements.toggleCamera.addEventListener('click', () => media.toggle('video'));
   elements.toggleBackground.addEventListener('click', event => {
     event.stopPropagation();
     setBackgroundPanelOpen(elements.toggleBackground.getAttribute('aria-expanded') !== 'true');
@@ -1444,10 +981,9 @@
   elements.closeBackgroundPanel.addEventListener('click', () => setBackgroundPanelOpen(false));
   document.querySelectorAll('[data-effect-action]').forEach(button => button.addEventListener('click', () => {
     const action = button.dataset.effectAction;
-    // Cancelling re-selects what is already shown, so the stored choice matches the picture.
-    if (action === 'cancel') void selectVideoBackground(shownBackground());
-    else if (action === 'retry') void selectVideoBackground(effectProgress.failed);
-    else renderEffectProgress(null);
+    if (action === 'cancel') void media.cancelBackground();
+    else if (action === 'retry') void media.retryBackground();
+    else media.dismissEffectNotice();
   }));
   elements.toggleScreen.addEventListener('click', toggleScreenShare);
   elements.leave.addEventListener('click', leaveCall);
@@ -1476,7 +1012,7 @@
 
   renderBackgroundOptions(elements.prejoinBackgroundOptions);
   renderBackgroundOptions(elements.callBackgroundOptions);
-  updateBackgroundControls();
+  renderMedia();
 
   loadRoom();
 })();

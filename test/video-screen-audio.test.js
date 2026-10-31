@@ -1,77 +1,73 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const source = fs.readFileSync(require('node:path').join(__dirname, '../assets/video-call-room.js'), 'utf8');
+const { createCallMedia, fakeTrack, FakeMediaStream } = require('./helpers/call-media.js');
 
-function setup() {
-  const microphone = { readyState: 'live', enabled: true };
-  const audio = { readyState: 'live', stop() { this.readyState = 'ended'; }, getSettings: () => ({ restrictOwnAudio: true }) };
-  const mixed = { stopped: false, stop() { this.stopped = true; } };
+// A prepared microphone and camera, then a screen share with or without its audio.
+async function setup({ displayAudio = true, resume = async () => {} } = {}) {
+  const microphone = fakeTrack('audio');
+  const nextMicrophone = fakeTrack('audio');
+  const camera = fakeTrack('video');
+  const screen = fakeTrack('video', { getSettings: () => ({ displaySurface: 'monitor' }) });
+  const audio = fakeTrack('audio', { getSettings: () => ({ restrictOwnAudio: true }) });
+  const mixed = fakeTrack('audio');
   const nodes = [];
-  const context = vm.createContext({
-    console, leaving: false, screenAudioMixer: null,
-    screenTrack: { getSettings: () => ({ displaySurface: 'monitor' }) },
-    displayStream: { getAudioTracks: () => [audio] },
-    elements: { screenAudioStatus: {} },
-    microphone, mixed, audio, nodes,
-    track: () => microphone,
-    audioTransceiver: { sender: { async replaceTrack(track) { this.track = track; } } },
-    MediaStream: class { constructor(tracks) { this.tracks = tracks; } },
-    AudioContext: class {
-      createMediaStreamDestination() { return { stream: { getAudioTracks: () => [mixed], getTracks: () => [mixed] } }; }
-      createMediaStreamSource(stream) {
-        const node = { stream, connect(destination) { this.destination = destination; }, disconnect() { this.destination = null; } };
-        nodes.push(node);
-        return node;
-      }
-      async resume() {}
-      async close() { this.closed = true; }
+  class FakeAudioContext {
+    createMediaStreamDestination() { return { stream: new FakeMediaStream([mixed]) }; }
+    createMediaStreamSource(stream) {
+      const node = { stream, connect(destination) { this.destination = destination; }, disconnect() { this.destination = null; } };
+      nodes.push(node);
+      return node;
+    }
+    resume() { return resume(); }
+    async close() {}
+  }
+  const room = createCallMedia({
+    globals: { AudioContext: FakeAudioContext, console: { error() {} } },
+    mediaDevices: {
+      getUserMedia: async constraints => new FakeMediaStream(constraints.video === false ? [nextMicrophone] : [microphone, camera]),
+      getDisplayMedia: async () => new FakeMediaStream(displayAudio ? [screen, audio] : [screen]),
     },
   });
-  vm.runInContext(source.slice(source.indexOf('  function connectMixerMicrophone()'), source.indexOf('  async function stopScreenShare()')), context);
-  return context;
+  await room.media.prepare();
+  await room.media.toggleScreenShare();
+  return Object.assign(room, { microphone, nextMicrophone, screen, audio, mixed, nodes });
 }
 
-test('screen audio mixes microphone independently and reuses the mix after reconnect', async () => {
-  const c = setup();
-  await c.startScreenAudio();
-  assert.equal(c.audioTransceiver.sender.track, c.mixed);
+test('screen audio mixes the microphone independently and keeps the mix for a new microphone', async () => {
+  const c = await setup();
+  assert.equal(c.media.outboundAudioTrack(), c.mixed);
+  assert.equal(c.sentAudio.at(-1), c.mixed);
+  assert.equal(c.sentVideo.at(-1), c.screen);
   assert.equal(c.nodes.length, 2);
-  c.microphone.enabled = false;
+  await c.media.toggle('audio');
+  assert.equal(c.microphone.enabled, false);
   assert.equal(c.audio.readyState, 'live');
-  assert.equal(c.mixed.stopped, false);
-  const oldMicrophoneNode = c.nodes[1];
-  c.connectMixerMicrophone();
-  assert.equal(oldMicrophoneNode.destination, null);
-  c.audioTransceiver = { sender: { async replaceTrack(track) { this.track = track; } } };
-  await c.applyOutboundAudioTrack();
-  assert.equal(c.audioTransceiver.sender.track, c.mixed);
+  assert.equal(c.mixed.readyState, 'live');
+  c.microphone.readyState = 'ended';
+  await c.media.toggle('audio');
+  assert.equal(c.nodes[1].destination, null);
+  assert.equal(c.nodes[2].stream.tracks[0], c.nextMicrophone);
+  assert.equal(c.sentAudio.at(-1), c.mixed);
   c.audio.readyState = 'ended';
   c.audio.onended();
-  assert.equal(c.audioTransceiver.sender.track, c.microphone);
-  assert.equal(c.mixed.stopped, true);
-  assert.match(c.elements.screenAudioStatus.textContent, /без звука/);
+  assert.equal(c.sentAudio.at(-1), c.nextMicrophone);
+  assert.equal(c.mixed.readyState, 'ended');
+  assert.match(c.media.snapshot().screenAudioStatus, /без звука/);
 });
 
 test('missing display audio preserves microphone and reports silent sharing', async () => {
-  const c = setup();
-  c.displayStream.getAudioTracks = () => [];
-  await c.startScreenAudio();
-  await c.applyOutboundAudioTrack();
-  c.updateScreenAudioStatus();
-  assert.equal(c.audioTransceiver.sender.track, c.microphone);
+  const c = await setup({ displayAudio: false });
+  assert.equal(c.media.outboundAudioTrack(), c.microphone);
   assert.equal(c.nodes.length, 0);
-  assert.match(c.elements.screenAudioStatus.textContent, /без звука/);
+  assert.equal(c.media.snapshot().screen, true);
+  assert.match(c.media.snapshot().screenAudioStatus, /без звука/);
 });
 
 test('mixer failure releases resources and restores microphone', async () => {
-  const c = setup();
-  c.console = { error() {} };
-  c.AudioContext.prototype.resume = async () => { throw new Error('resume failed'); };
-  await c.startScreenAudio();
-  assert.equal(c.audioTransceiver.sender.track, c.microphone);
-  assert.equal(c.mixed.stopped, true);
+  const c = await setup({ resume: async () => { throw new Error('resume failed'); } });
+  assert.equal(c.sentAudio.at(-1), c.microphone);
+  assert.equal(c.mixed.readyState, 'ended');
   assert.equal(c.audio.readyState, 'ended');
+  assert.equal(c.media.snapshot().screen, true);
 });

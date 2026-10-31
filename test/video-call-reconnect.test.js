@@ -48,7 +48,7 @@ function setup() {
     applyOutboundVideoTrack: async () => {},
   });
   vm.runInContext(source.slice(source.indexOf('  function closePeerConnection()'), source.indexOf('  function websocketUrl()')), context);
-  vm.runInContext(source.slice(source.indexOf('  function connectSocket()'), source.indexOf('  async function toggleKind(')), context);
+  vm.runInContext(source.slice(source.indexOf('  function connectSocket()'), source.indexOf('  function stopMedia()')), context);
   context.connectSocket();
   return context;
 }
