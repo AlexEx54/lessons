@@ -40,7 +40,7 @@ const {
   secondsUntilResend,
 } = require('./lib/registration-store.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
-const { MAX_DISPLAY_NAME_LENGTH, findOrCreateYandexUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
+const { MAX_DISPLAY_NAME_LENGTH, findOrCreateYandexUser, findUserByEmail, findUserById, normalizeEmail, publicUser } = require('./lib/user-store.js');
 const { avatarFilePath, removeAvatar, replaceAvatar, updateProfile } = require('./lib/profile-store.js');
 const { listNotifications, markNotificationRead } = require('./lib/notification-store.js');
 const { listSupportMessages, listSupportThreads, postSupportReply, postTeacherMessage } = require('./lib/support-store.js');
@@ -1711,7 +1711,12 @@ async function handleRequest(req, res) {
     const user = requireTeacherAuth(req, res);
     if (!user) return;
     if (req.method === 'GET') { json(res, 200, { sessions: listClassSessions(user.id, database) }); return; }
-    if (req.method === 'DELETE') { json(res, 200, { deleted: clearClassSessions(user.id, database) }); return; }
+    if (req.method === 'DELETE') {
+      const sessionIds = listClassSessions(user.id, database).map(session => session.id);
+      json(res, 200, { deleted: clearClassSessions(user.id, database) });
+      sessionIds.forEach(id => videoCallSignaling.closeSessionCall(id));
+      return;
+    }
     try {
       const session = createClassSession(await readJsonBody(req), user.id, database);
       json(res, 201, { session });
@@ -1753,11 +1758,39 @@ async function handleRequest(req, res) {
     } catch (error) { json(res, error.statusCode || 500, { error: error.message }); }
     return;
   }
+  // The student enters the session's call with the class cookie, as they enter the lesson itself.
+  const sessionCall = pathname.match(/^\/api\/sessions\/([a-f0-9-]{36})\/call$/i);
+  if (req.method === 'GET' && sessionCall) {
+    const role = new URL(req.url, 'http://localhost').searchParams.get('role');
+    const access = ['teacher', 'student'].includes(role) && authorizeSession(req, sessionCall[1], database, role);
+    if (!access) { json(res, 403, { error: 'Откройте действующую ссылку на класс.' }); return; }
+    json(res, 200, {
+      iceServers: getIceServers(`${role}-${access.sessionId.slice(0, 8)}`),
+      names: {
+        teacher: findUserById(access.ownerId, database)?.display_name || 'Преподаватель',
+        student: findClassSession(access.sessionId, access.ownerId, database).class_name,
+      },
+    });
+    return;
+  }
+  // Ending the call disconnects both participants; either of them may join again.
+  const sessionCallEnd = pathname.match(/^\/api\/sessions\/([a-f0-9-]{36})\/call\/end$/i);
+  if (req.method === 'POST' && sessionCallEnd) {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    if (!authorizeSession(req, sessionCallEnd[1], database, 'teacher')) { json(res, 404, { error: 'Занятие не найдено.' }); return; }
+    videoCallSignaling.closeSessionCall(sessionCallEnd[1]);
+    json(res, 200, { ended: true });
+    return;
+  }
   if (req.method === 'PATCH' && sessionDetail) {
     const user = requireTeacherAuth(req, res);
     if (!user) return;
     try {
-      json(res, 200, { session: updateClassSession(sessionDetail[1], await readJsonBody(req), user.id, database) });
+      const session = updateClassSession(sessionDetail[1], await readJsonBody(req), user.id, database);
+      // A cancelled session no longer opens, so its call ends as well.
+      if (session.status === 'cancelled') videoCallSignaling.closeSessionCall(session.id);
+      json(res, 200, { session });
     } catch (error) {
       json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось изменить занятие.' });
     }
@@ -2744,11 +2777,13 @@ const server = http.createServer((req, res) => {
   });
 });
 
-videoCallSignaling = createVideoCallSignaling({ server, database, attachUpgrade: false });
+videoCallSignaling = createVideoCallSignaling({ server, database, attachUpgrade: false,
+  onSessionPresence: (sessionId, presence) => classLiveSignaling.broadcast(sessionId, { type: 'call-presence', ...presence }) });
 const videoCallChat = require('./lib/video-call-chat.js').createVideoCallChat({
   database, broadcast: (callId, payload) => videoCallSignaling.broadcast(callId, payload),
 });
-const classLiveSignaling = createClassLiveSignaling({ database });
+const classLiveSignaling = createClassLiveSignaling({ database,
+  callPresence: sessionId => videoCallSignaling.sessionPresence(sessionId) });
 const notesSignaling = require('./lib/lesson-notes-signaling.js').createNotesSignaling({ database });
 server.on('upgrade', (req, socket, head) => {
   let pathname;
