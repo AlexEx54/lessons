@@ -46,6 +46,11 @@
       remotePlaceholder: byId('call-remote-placeholder'),
       remoteName: byId('call-remote-name'),
       remoteMuted: byId('call-remote-muted'),
+      stageOpen: byId('call-stage-open'),
+      stage: byId('call-stage'),
+      stageVideo: byId('call-stage-video'),
+      stageName: byId('call-stage-name'),
+      stageClose: byId('call-stage-close'),
       localVideo: byId('call-local-video'),
       localPlaceholder: byId('call-local-placeholder'),
       effect: byId('call-effect'),
@@ -97,6 +102,9 @@
     let note = '';
     // The open popover: 'more', 'backgrounds' or null.
     let popover = null;
+    // The peer's screen share opens over the lesson once; after closing it waits for the next share.
+    let peerSharing = false;
+    let stageOpen = false;
     let previewTrack = null;
     let recordingPublished = false;
     const backgroundButtons = window.CallMedia.BACKGROUND_OPTIONS.map(backgroundButton);
@@ -233,8 +241,27 @@
       elements.localPlaceholder.hidden = Boolean(next);
     }
 
+    function setStageOpen(open) {
+      stageOpen = open;
+      render();
+    }
+
+    function renderStage() {
+      const sharing = Boolean(call?.connection.remote().screen);
+      if (sharing !== peerSharing) {
+        peerSharing = sharing;
+        stageOpen = sharing;
+      }
+      elements.stage.hidden = !stageOpen;
+      elements.stageOpen.hidden = !peerSharing || stageOpen;
+      elements.stageName.textContent = `Экран: ${elements.remoteName.textContent}`;
+      const stream = stageOpen ? call.connection.remoteStream : null;
+      if (elements.stageVideo.srcObject !== stream) elements.stageVideo.srcObject = stream;
+    }
+
     function renderRemote() {
       const remote = call.connection.remote();
+      elements.remoteVideo.dataset.screen = String(remote.screen);
       elements.remoteName.textContent = remote.name || peerName();
       elements.remoteMuted.hidden = !remote.present || remote.audio !== false;
       elements.remotePlaceholder.hidden = remote.videoVisible;
@@ -256,6 +283,7 @@
       });
       elements.backgroundStatus.textContent = state.backgroundStatus.text;
       elements.backgroundStatus.dataset.state = state.backgroundStatus.state;
+      elements.localVideo.dataset.screen = String(state.screen);
       elements.screen.textContent = state.screen ? 'Остановить показ экрана' : 'Показать экран';
       elements.screen.disabled = state.screenShareBusy;
       const progress = state.effectProgress;
@@ -309,6 +337,7 @@
         renderRemote();
         notes.push(...renderMedia());
       }
+      renderStage();
       renderLocalVideo();
       notes.push(renderRecording());
       const text = notes.filter(Boolean).join(' ');
@@ -361,6 +390,8 @@
     toggleButton.hidden = false;
     toggleButton.addEventListener('click', () => setCollapsed(!panel.hidden));
     elements.collapse.addEventListener('click', () => setCollapsed(true));
+    elements.stageOpen.addEventListener('click', () => setStageOpen(true));
+    elements.stageClose.addEventListener('click', () => setStageOpen(false));
     elements.join.addEventListener('click', join);
     elements.leave.addEventListener('click', leave);
     elements.mic.addEventListener('click', () => call?.media.toggle('audio'));
@@ -383,9 +414,12 @@
       }
     });
     document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && popover) {
+      if (event.key !== 'Escape') return;
+      if (popover) {
         popover = null;
         render();
+      } else if (stageOpen) {
+        setStageOpen(false);
       }
     });
     document.addEventListener('visibilitychange', () => call?.media.setPageHidden(document.hidden));

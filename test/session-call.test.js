@@ -55,7 +55,8 @@ function setup({ role = 'teacher', stored = {}, callInfo = { status: 200, body: 
     MediaStream: class { constructor(tracks) { this.tracks = tracks; } } });
   const panelCall = window.SessionCall.create({ sessionId: SESSION, role, notify: text => toasts.push(text) });
   const byId = id => document.getElementById(id);
-  return { panelCall, byId, toasts, requests, calls, storage, windowListeners,
+  const press = key => document.listeners.keydown.forEach(listener => listener({ key }));
+  return { panelCall, byId, toasts, requests, calls, storage, windowListeners, snapshot, press,
     current: () => calls.at(-1), settle: () => new Promise(setImmediate),
     unload() { const event = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
       windowListeners.beforeunload.forEach(listener => listener(event)); return event.defaultPrevented; } };
@@ -125,6 +126,53 @@ test('the student joins with fresh media, leaves, and a late event of the old ca
   assert.equal(s.byId('call-room').hidden, false);
   assert.equal(s.byId('call-panel-status').textContent, 'Подключаемся…');
   assert.deepEqual(s.current().media.log, ['prepare']);
+});
+
+test("the peer's screen opens over the lesson once per share and the own screen is not mirrored", async () => {
+  const s = setup();
+  await s.settle();
+  s.byId('call-join').click();
+  const { connection } = s.current();
+  const share = screen => {
+    connection.remoteState = { ...connection.remoteState, present: true, name: 'Маша', screen, videoVisible: true };
+    connection.options.onRemote();
+  };
+  assert.equal(s.byId('call-stage').hidden, true);
+
+  share(true);
+  assert.equal(s.byId('call-stage').hidden, false);
+  assert.equal(s.byId('call-stage-video').srcObject, connection.remoteStream);
+  assert.equal(s.byId('call-stage-name').textContent, 'Экран: Маша');
+  assert.equal(s.byId('call-remote-video').dataset.screen, 'true');
+  assert.equal(s.byId('call-stage-open').hidden, true);
+
+  s.press('Escape');
+  assert.equal(s.byId('call-stage').hidden, true);
+  assert.equal(s.byId('call-stage-video').srcObject, null);
+  assert.equal(s.byId('call-stage-open').hidden, false);
+  share(true);
+  assert.equal(s.byId('call-stage').hidden, true, 'a closed stage waits for the next share');
+  s.byId('call-stage-open').click();
+  assert.equal(s.byId('call-stage').hidden, false);
+  s.byId('call-stage-close').click();
+  assert.equal(s.byId('call-stage').hidden, true);
+
+  share(false);
+  assert.equal(s.byId('call-stage-open').hidden, true);
+  assert.equal(s.byId('call-remote-video').dataset.screen, 'false');
+  share(true);
+  assert.equal(s.byId('call-stage').hidden, false, 'a new share opens again');
+  share(false);
+  assert.equal(s.byId('call-stage').hidden, true, 'the stage closes with the share');
+
+  share(true);
+  s.byId('call-leave').click();
+  await s.settle();
+  assert.equal(s.byId('call-stage').hidden, true, 'leaving the call closes the stage');
+
+  s.snapshot.screen = true;
+  s.byId('call-join').click();
+  assert.equal(s.byId('call-local-video').dataset.screen, 'true');
 });
 
 test('ending reasons stay in the panel until the next join', async () => {

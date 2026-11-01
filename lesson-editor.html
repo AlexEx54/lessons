@@ -168,6 +168,9 @@
             <article class="call-tile call-tile--remote">
               <video id="call-remote-video" autoplay playsinline></video>
               <p class="call-tile__placeholder" id="call-remote-placeholder"></p>
+              <button class="call-tile__expand" id="call-stage-open" type="button" aria-label="Развернуть экран собеседника" title="Развернуть экран" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6 M20 4l-7 7 M10 20H4v-6 M4 20l7-7"/></svg>
+              </button>
               <span class="call-tile__label">
                 <span id="call-remote-name"></span>
                 <svg class="call-tile__muted" id="call-remote-muted" viewBox="0 0 24 24" role="img" aria-label="Микрофон выключен" hidden><path d="M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V6a3 3 0 0 0-5.7-1.3M5 11v1a7 7 0 0 0 11.9 5M19 11v1a7 7 0 0 1-.4 2.3M12 19v3M4 4l16 16"/></svg>
@@ -214,6 +217,16 @@
 
         <p class="call-panel__note" id="call-note" role="status" hidden></p>
       </aside>
+
+      <!-- Muted: the peer's sound keeps playing from the panel's tile. -->
+      <section class="call-stage" id="call-stage" aria-labelledby="call-stage-name" hidden>
+        <video id="call-stage-video" autoplay muted playsinline></video>
+        <span class="call-tile__label call-stage__label" id="call-stage-name"></span>
+        <button class="call-stage__close" id="call-stage-close" type="button" title="Свернуть (Esc)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h6v6 M10 14l-7 7 M20 10h-6V4 M14 10l7-7"/></svg>
+          <span>Свернуть</span>
+        </button>
+      </section>
     </div>
   </div>
   <div class="lesson-reaction-layer" id="lesson-reaction-layer" aria-hidden="true"></div>

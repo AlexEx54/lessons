@@ -226,6 +226,7 @@
     elements.toggleMic.setAttribute('aria-pressed', String(state.microphone));
     elements.toggleCamera.setAttribute('aria-pressed', String(state.camera));
     elements.toggleScreen.setAttribute('aria-pressed', String(state.screen));
+    elements.localVideo.dataset.screen = String(state.screen);
     elements.toggleScreen.disabled = state.screenShareBusy;
     elements.screenAudioStatus.hidden = !state.screenAudioStatus;
     elements.screenAudioStatus.textContent = state.screenAudioStatus;
