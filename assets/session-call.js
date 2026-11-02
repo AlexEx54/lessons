@@ -1,10 +1,9 @@
-/* The session's video call in a side panel of the lesson page, a floating mini window on narrow screens.
+/* The session's video call: the call tab of the session panel (assets/session-panel.js).
    Nobody joins on page load: the teacher may prepare the lesson alone and the student may do homework.
    Each join gets fresh CallMedia and CallConnection, so a stopped camera is never reused. */
 (() => {
   'use strict';
 
-  const COLLAPSED_KEY = 'easyclass.sessionCallCollapsed';
   const EFFECT_STAGES = {
     worker: 'Запускаем обработку',
     wasm: 'Загружаем модель',
@@ -13,31 +12,13 @@
     'first-frame': 'Обрабатываем первый кадр',
   };
 
-  function readCollapsed() {
-    try {
-      return window.localStorage.getItem(COLLAPSED_KEY) === '1';
-    } catch (_error) {
-      return false;
-    }
-  }
-
-  function writeCollapsed(collapsed) {
-    try {
-      window.localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0');
-    } catch (_error) {
-      // The panel still opens and closes; only the next visit forgets the choice.
-    }
-  }
-
-  // role is 'teacher' or 'student'; notify(text) shows the lesson page's toast.
-  // Returns { presence({ teacher, student }) } for the lesson socket to report who is in the call.
-  function create({ sessionId, role, notify }) {
+  // role is 'teacher' or 'student'; notify(text) shows the lesson page's toast;
+  // onState({ joined, peerIn, peerName }) tells the panel what its header button shows.
+  // Returns { presence({ teacher, student }) } for the lesson socket to report who is in the call,
+  // and setVisible(visible) for the panel to say whether the call tab is on screen.
+  function create({ sessionId, role, notify, onState }) {
     const byId = id => document.getElementById(id);
-    const panel = byId('call-panel');
-    const toggleButton = byId('call-toggle');
     const elements = {
-      toggleLabel: byId('call-toggle-label'),
-      collapse: byId('call-panel-collapse'),
       status: byId('call-panel-status'),
       lobby: byId('call-lobby'),
       join: byId('call-join'),
@@ -214,11 +195,12 @@
       render();
     }
 
-    function setCollapsed(collapsed) {
-      panel.hidden = collapsed;
-      writeCollapsed(collapsed);
-      if (collapsed) popover = null;
-      render();
+    // A hidden call keeps playing; only its menus close.
+    function setVisible(visible) {
+      if (!visible && popover) {
+        popover = null;
+        render();
+      }
     }
 
     function statusLine() {
@@ -317,12 +299,7 @@
 
     function render() {
       const joined = Boolean(call);
-      const peerIn = Boolean(presence?.[peerRole]);
-      document.body.classList.toggle('lesson-call-open', !panel.hidden);
-      toggleButton.setAttribute('aria-expanded', String(!panel.hidden));
-      toggleButton.dataset.call = joined ? 'joined' : (peerIn ? 'peer' : '');
-      elements.toggleLabel.textContent = joined ? 'В звонке' : 'Звонок';
-      toggleButton.title = !joined && peerIn ? `${peerName()} уже в звонке` : '';
+      onState({ joined, peerIn: Boolean(presence?.[peerRole]), peerName: peerName() });
 
       const [statusText, statusState = ''] = statusLine();
       elements.status.textContent = statusText;
@@ -387,9 +364,6 @@
     // Phones and tablets cannot share their screen from a browser.
     elements.screen.hidden = !navigator.mediaDevices?.getDisplayMedia;
     if (!recorder) elements.record.remove();
-    toggleButton.hidden = false;
-    toggleButton.addEventListener('click', () => setCollapsed(!panel.hidden));
-    elements.collapse.addEventListener('click', () => setCollapsed(true));
     elements.stageOpen.addEventListener('click', () => setStageOpen(true));
     elements.stageClose.addEventListener('click', () => setStageOpen(false));
     elements.join.addEventListener('click', join);
@@ -437,7 +411,6 @@
       call.media.stop();
     });
 
-    panel.hidden = readCollapsed();
     elements.backgroundOptions.replaceChildren(...backgroundButtons);
     render();
     fetch(callEndpoint, { cache: 'no-store' }).then(async response => {
@@ -449,7 +422,7 @@
       note = error.message;
     }).finally(render);
 
-    return { presence: receivePresence };
+    return { presence: receivePresence, setVisible };
   }
 
   window.SessionCall = { create };

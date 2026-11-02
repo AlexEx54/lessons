@@ -28,6 +28,7 @@ function createDocument() {
       addEventListener(name, listener) { (this.listeners[name] ||= []).push(listener); },
       removeEventListener(name, listener) { this.listeners[name] = (this.listeners[name] || []).filter(item => item !== listener); },
       click() { if (!this.disabled) for (const listener of this.listeners.click || []) listener({}); },
+      focus() { document.activeElement = this; },
       querySelectorAll(selector) {
         const matches = [];
         const visit = child => {
@@ -52,7 +53,7 @@ function createDocument() {
     return node;
   }
   const events = element('document');
-  return {
+  const document = {
     listeners: events.listeners,
     addEventListener: events.addEventListener.bind(events),
     removeEventListener: events.removeEventListener.bind(events),
@@ -64,6 +65,8 @@ function createDocument() {
       return elements.get(id);
     },
     body: element('body'),
+    activeElement: null,
   };
+  return document;
 }
 module.exports = { createDocument };

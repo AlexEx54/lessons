@@ -3,16 +3,24 @@
 .call-toggle[data-call='peer']::before,
 .call-toggle[data-call='joined']::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .18); }
 .call-toggle[data-call='peer']::before { animation: status-pulse 1.6s ease-in-out infinite; }
+.call-toggle { position: relative; }
 .call-toggle span { white-space: nowrap; }
 .call-toggle[data-call='joined'] { color: #15803d; background: #f0fdf4; border-color: #a7d9b9; }
 .call-toggle[aria-expanded='true']:not([data-call='joined']) { color: var(--purple); background: var(--purple-soft); border-color: #ddd6ff; }
 
 .call-panel { position: sticky; top: 88px; z-index: 19; display: flex; flex-direction: column; height: calc(100vh - 88px - var(--image-generation-banner-height)); padding: 20px 16px; gap: 12px; border-left: 1px solid var(--line); background: #fbfaff; overflow: auto; }
 .call-panel__heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.call-panel__heading strong { font-size: 14px; }
+.call-panel__tabs { display: flex; padding: 3px; gap: 2px; border-radius: 9px; background: #efedf8; }
+.call-panel__tab { display: flex; align-items: center; min-height: 30px; padding: 0 12px; gap: 6px; border-radius: 7px; color: var(--muted); background: transparent; font-size: 13px; font-weight: 650; }
+.call-panel__tab:hover { color: var(--ink); }
+.call-panel__tab[aria-selected='true'] { color: var(--ink); background: #fff; box-shadow: 0 1px 4px rgba(31, 28, 72, .1); }
+/* Unread chat messages: a small count that never changes the size of what it sits on. */
+.call-badge { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; color: #fff; background: #e5484d; font-size: 10px; font-weight: 700; line-height: 1; }
+.call-toggle__badge { position: absolute; top: -7px; right: -7px; box-shadow: 0 0 0 2px #fff; }
 .call-panel__collapse { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; background: transparent; color: #7d8298; }
 .call-panel__collapse:hover { background: #f0eef9; }
 .call-panel__collapse svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.call-section { display: flex; flex-direction: column; gap: 12px; }
 .call-panel__status { display: flex; align-items: center; min-height: 18px; margin: -4px 0 0; gap: 8px; color: var(--muted); font-size: 12px; }
 .call-panel__status:empty { display: none; }
 .call-panel__status::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 50%; background: #c4c2d4; }
@@ -73,6 +81,33 @@
 .call-backgrounds__status:empty { display: none; }
 .call-backgrounds__status[data-state='error'] { color: #b91c1c; }
 
+/* The chat tab fills the panel: the messages scroll, the composer stays at the bottom. */
+.session-chat { display: flex; flex: 1; flex-direction: column; min-height: 0; margin: 0 -16px -20px; border-top: 1px solid var(--line); }
+.session-chat .chat-messages { flex: 1; min-height: 80px; padding: 12px 16px; overflow-y: auto; overscroll-behavior: contain; }
+.session-chat .chat-empty { margin: 0; padding: 20px 4px; color: var(--muted); font-size: 13px; line-height: 1.5; text-align: center; }
+.session-chat .chat-message { max-width: 92%; margin: 0 auto 10px 0; padding: 9px 11px; border: 1px solid var(--line); border-radius: 12px 12px 12px 4px; background: #fff; overflow-wrap: anywhere; }
+.session-chat .chat-message--own { margin: 0 0 10px auto; border-color: #ddd6ff; border-radius: 12px 12px 4px 12px; background: var(--purple-soft); }
+.session-chat .chat-meta { margin: 0 0 5px; color: var(--muted); font-size: 11px; }
+.session-chat .chat-text { margin: 0; white-space: pre-wrap; font-size: 13px; line-height: 1.5; }
+.session-chat .chat-text a { color: var(--purple); text-decoration: underline; text-underline-offset: 2px; }
+.session-chat .chat-message img { display: block; max-width: 100%; max-height: 220px; margin-top: 8px; border-radius: 8px; object-fit: contain; }
+.session-chat .chat-file { display: block; padding-top: 6px; color: var(--purple); font-size: 12px; line-height: 1.45; text-decoration: underline; }
+.session-chat .chat-error { margin: 0; padding: 0 16px; color: #b91c1c; font-size: 12px; line-height: 1.45; }
+.session-chat .chat-error:empty { display: none; }
+.session-chat .chat-refresh { margin: 6px 16px 0; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 12px; font-weight: 650; }
+.session-chat .chat-form { padding: 10px 16px 14px; border-top: 1px solid var(--line); background: #fff; }
+.session-chat .chat-form textarea { display: block; box-sizing: border-box; width: 100%; min-height: 62px; max-height: 160px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: #fff; font: inherit; font-size: 13px; resize: vertical; }
+.session-chat .chat-form textarea:focus { border-color: #b9a9ff; outline: 3px solid rgba(101, 69, 245, .15); }
+.session-chat .chat-files { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.session-chat .chat-files:empty { display: none; }
+.session-chat .chat-files button { max-width: 100%; padding: 4px 9px; border-radius: 999px; background: #efedf8; font-size: 11px; overflow-wrap: anywhere; text-align: left; }
+.session-chat .chat-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.session-chat .chat-actions span { color: var(--muted); font-size: 10px; }
+.session-chat .chat-actions button { min-height: 32px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+.session-chat .chat-attach { border: 1px solid var(--line); background: #fff; }
+.session-chat .chat-actions button[type='submit'] { margin-left: auto; color: #fff; background: var(--purple); }
+.session-chat button:disabled { opacity: .55; cursor: default; }
+
 /* The peer's screen over the lesson column: the plan and the call panel stay usable. */
 .call-stage { position: fixed; top: 88px; right: 0; bottom: 0; left: var(--lesson-plan-width); z-index: 19; display: grid; padding: 16px; background: #12111e; }
 .lesson-plan-hidden .call-stage { left: 0; }
@@ -90,7 +125,8 @@
 /* Narrow screens keep the whole lesson and float the call over it. */
 @media (max-width: 980px) {
   .call-panel { position: fixed; top: auto; right: 12px; bottom: 12px; z-index: 32; width: min(232px, calc(100vw - 24px)); height: auto; max-height: calc(100vh - 24px); padding: 10px; gap: 8px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 16px 40px rgba(20, 20, 45, .22); overflow: visible; }
-  .call-panel__heading strong { font-size: 13px; }
+  .call-section { gap: 8px; }
+  .call-panel__tab { min-height: 28px; padding: 0 10px; font-size: 12px; }
   .call-lobby__hint { display: none; }
   .call-panel__note { display: -webkit-box; overflow: hidden; max-height: calc(2.8em + 14px); padding: 7px 9px; font-size: 11px; line-height: 1.4; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .call-tiles { position: relative; display: block; }
@@ -102,6 +138,10 @@
   .call-control svg { width: 18px; height: 18px; }
   .call-control[aria-pressed='false']::after { width: 21px; }
   .call-popover { bottom: 48px; }
+  /* The chat needs room to read and type: the mini window becomes a full-height sheet. */
+  .lesson-chat-open .call-panel { top: 12px; width: min(380px, calc(100vw - 24px)); height: auto; max-height: none; padding-bottom: 0; overflow: hidden; }
+  .session-chat { margin: 0 -10px; }
+  .session-chat .chat-form { padding-bottom: 12px; }
   /* The whole screen, under the mini window. */
   .call-stage { top: 0; left: 0; z-index: 31; padding: 12px; }
   .call-stage__close { top: 12px; right: 12px; }

@@ -200,6 +200,17 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .lesson-toast { position: fixed; right: 24px; bottom: 24px; z-index: 40; max-width: 340px; padding: 13px 17px; border-radius: 9px; color: #fff; background: #1b1c33; box-shadow: 0 12px 32px rgba(20, 20, 45, .2); opacity: 0; transform: translateY(12px); pointer-events: none; transition: 180ms ease; font-size: 13px; }
 .lesson-toast--visible { opacity: 1; transform: translateY(0); }
 
+/* Too narrow for every label: the buttons keep their icons, status dots and titles, the labels stay for screen readers. */
+@media (max-width: 1440px) {
+  .lesson-header { grid-template-columns: calc(var(--lesson-plan-width) - var(--lesson-header-pad-x)) minmax(160px, 1fr) auto; }
+  .lesson-header__actions { gap: 10px; }
+  .lesson-header__actions > * { flex: none; }
+  .timer-card strong { white-space: nowrap; }
+  .teacher-screen:has(> svg), .end-lesson { position: relative; width: 48px; padding: 8px 6px; gap: 4px; }
+  .teacher-screen > span:not(.call-badge), .end-lesson span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .timer-card > svg { display: none; }
+}
+
 @media (max-width: 980px) {
   .lesson-header { grid-template-columns: auto 1fr; min-height: 76px; position: relative; }
   .lesson-identity { border-left: 0; }
@@ -214,9 +225,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
   .lesson-header { padding: 13px 16px; }
   .lesson-brand > span { display: none; }
   .lesson-identity { padding-left: 4px; }
-  .lesson-header__actions { gap: 7px; }
-  .teacher-screen span, .end-lesson span, .timer-card > svg { display: none; }
-  .teacher-screen, .end-lesson { width: 48px; padding: 8px; }
+  .lesson-header__actions { flex-wrap: wrap; gap: 7px; }
   .timer-card { flex: 1; }
   .lesson-layout { grid-template-columns: 1fr; }
   .lesson-plan { position: fixed; inset: 0 auto 0 0; z-index: 30; width: min(86vw, 300px); height: 100vh; box-shadow: 16px 0 38px rgba(28, 24, 58, .14); }
@@ -226,6 +235,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
   .stage-pagination { grid-template-columns: 1fr 1fr; }
   .stage-pagination button { width: 100%; }
   .stage-pagination span { grid-column: 1 / -1; grid-row: 1; text-align: center; }
+}
+
+/* A phone fits the teacher's icons in one row only under the timer. */
+@media (max-width: 520px) {
+  .timer-card { flex-basis: 100%; }
 }
 
 .reset-stage { flex: none; width: 48px; padding: 8px; color: var(--purple); }

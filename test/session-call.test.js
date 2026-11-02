@@ -6,14 +6,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createDocument } = require('./helpers/lesson-dom');
 
-const source = fs.readFileSync(path.join(__dirname, '../assets/session-call.js'), 'utf8');
+const sources = ['session-call.js', 'session-panel.js'].map(file => fs.readFileSync(path.join(__dirname, '../assets', file), 'utf8'));
 const SESSION = '11111111-2222-3333-4444-555555555555';
 
-// Runs the real panel with fake call modules; each join records the media and connection it created.
+// Runs the real panel and call with fake call modules and a fake chat; each join records the media and connection it created.
 function setup({ role = 'teacher', stored = {}, callInfo = { status: 200, body: { names: { teacher: 'Анна', student: 'Маша' } } },
   endStatus = 200 } = {}) {
   const document = createDocument();
   const toasts = [], requests = [], calls = [], windowListeners = {};
+  const chat = { log: [] };
   const storage = { ...stored };
   const snapshot = { microphone: true, camera: true, screen: false, screenShareBusy: false, screenAudioStatus: '',
     background: 'none', backgroundStatus: { text: '', state: '' }, effectProgress: null, error: '' };
@@ -43,6 +44,13 @@ function setup({ role = 'teacher', stored = {}, callInfo = { status: 200, body: 
         return connection;
       },
     },
+    CallChat: {
+      create(options) {
+        chat.options = options;
+        return { receive: message => chat.log.push(`receive:${message.id}`), sync: () => chat.log.push('sync'),
+          setVisible: visible => { chat.visible = visible; } };
+      },
+    },
     CallRecorder: { supported: () => false, control: () => ({ state: () => ({ recording: false, busy: false, unsaved: false, message: '' }),
       stop: async () => {}, toggle: async () => {} }) },
   };
@@ -51,12 +59,13 @@ function setup({ role = 'teacher', stored = {}, callInfo = { status: 200, body: 
     if (url.endsWith('/call/end')) return { ok: endStatus === 200, json: async () => ({}) };
     return { ok: callInfo.status === 200, json: async () => callInfo.body };
   }
-  vm.runInNewContext(source, { window, document, fetch, navigator: { mediaDevices: { getDisplayMedia() {} } },
+  const context = vm.createContext({ window, document, fetch, navigator: { mediaDevices: { getDisplayMedia() {} } },
     MediaStream: class { constructor(tracks) { this.tracks = tracks; } } });
-  const panelCall = window.SessionCall.create({ sessionId: SESSION, role, notify: text => toasts.push(text) });
+  sources.forEach(source => vm.runInContext(source, context));
+  const panel = window.SessionPanel.create({ sessionId: SESSION, role, notify: text => toasts.push(text) });
   const byId = id => document.getElementById(id);
   const press = key => document.listeners.keydown.forEach(listener => listener({ key }));
-  return { panelCall, byId, toasts, requests, calls, storage, windowListeners, snapshot, press,
+  return { panel, chat, document, byId, toasts, requests, calls, storage, windowListeners, snapshot, press,
     current: () => calls.at(-1), settle: () => new Promise(setImmediate),
     unload() { const event = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
       windowListeners.beforeunload.forEach(listener => listener(event)); return event.defaultPrevented; } };
@@ -70,12 +79,12 @@ test('the panel opens without joining, reports the student and remembers being c
   assert.equal(s.calls.length, 0);
   assert.deepEqual(s.requests, [`GET /api/sessions/${SESSION}/call?role=teacher`]);
 
-  s.panelCall.presence({ teacher: false, student: true });
+  s.panel.presence({ teacher: false, student: true });
   assert.deepEqual(s.toasts, [], 'the first snapshot is not news');
   assert.equal(s.byId('call-panel-status').textContent, 'Маша уже в звонке');
   assert.equal(s.byId('call-toggle').dataset.call, 'peer');
-  s.panelCall.presence({ teacher: false, student: false });
-  s.panelCall.presence({ teacher: false, student: true });
+  s.panel.presence({ teacher: false, student: false });
+  s.panel.presence({ teacher: false, student: true });
   assert.deepEqual(s.toasts, ['Маша больше не в звонке', 'В звонке: Маша']);
 
   s.byId('call-panel-collapse').click();
@@ -85,6 +94,44 @@ test('the panel opens without joining, reports the student and remembers being c
   s.byId('call-toggle').click();
   assert.equal(s.byId('call-panel').hidden, false);
   assert.equal(s.storage['easyclass.sessionCallCollapsed'], '0');
+});
+
+test('the chat tab hides the running call, and unread messages show on the tab or the collapsed header button', async () => {
+  const s = setup();
+  await s.settle();
+  assert.equal(s.chat.options.container, s.byId('chat-section'));
+  assert.equal(s.chat.options.endpoint, `/api/sessions/${SESSION}/chat`);
+  assert.deepEqual([s.chat.options.role, { ...s.chat.options.params }], ['teacher', { role: 'teacher' }]);
+  assert.deepEqual([s.byId('call-section').hidden, s.byId('chat-section').hidden, s.chat.visible], [false, true, false], 'the panel opens on the call');
+
+  s.chat.options.onUnread(2);
+  assert.deepEqual([s.byId('chat-tab-badge').hidden, s.byId('chat-tab-badge').textContent], [false, '2']);
+  assert.equal(s.byId('call-toggle-badge').hidden, true, 'the open panel shows the count on its tab');
+  s.byId('call-panel-collapse').click();
+  assert.deepEqual([s.byId('call-toggle-badge').hidden, s.byId('call-toggle-badge').textContent], [false, '2']);
+  assert.equal(s.byId('call-toggle').getAttribute('aria-label'), 'Звонок, новых сообщений: 2');
+
+  s.byId('call-toggle').click();
+  s.byId('call-join').click();
+  s.byId('call-more').click();
+  assert.equal(s.byId('call-more-menu').hidden, false);
+  s.byId('chat-tab').click();
+  assert.equal(s.chat.visible, true);
+  assert.deepEqual([s.byId('call-section').hidden, s.byId('chat-section').hidden], [true, false]);
+  assert.equal(s.byId('call-more-menu').hidden, true, 'a hidden call closes its menus');
+  assert.deepEqual(s.current().connection.log, ['join'], 'the call keeps running behind the chat');
+  assert.equal(s.document.body.classList.contains('lesson-chat-open'), true);
+  s.chat.options.onUnread(0);
+  assert.equal(s.byId('chat-tab-badge').hidden, true);
+
+  s.byId('call-panel-tabs').listeners.keydown.forEach(listener => listener({ key: 'Home', preventDefault() {} }));
+  assert.equal(s.byId('call-tab').getAttribute('aria-selected'), 'true');
+  assert.equal(s.document.activeElement, s.byId('call-tab'));
+  assert.equal(s.chat.visible, false);
+
+  s.panel.receiveChat({ id: 7 });
+  s.panel.syncChat();
+  assert.deepEqual(s.chat.log, ['receive:7', 'sync']);
 });
 
 test('the student joins with fresh media, leaves, and a late event of the old call changes nothing', async () => {
