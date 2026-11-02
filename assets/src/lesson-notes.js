@@ -36,7 +36,7 @@ function mount(options) {
   heading.querySelector('strong').hidden = true;
   heading.classList.add('notes-heading');
   const tabs = document.createElement('div');
-  tabs.className = 'notes-tabs';
+  tabs.className = 'panel-tabs';
   tabs.setAttribute('role', 'tablist');
   tabs.setAttribute('aria-label', 'Материалы урока');
   tabs.innerHTML = '<button type="button" role="tab" id="plan-tab" aria-controls="lesson-stages" aria-selected="true">План урока</button><button type="button" role="tab" id="notes-tab" aria-controls="lesson-notes" aria-selected="false" tabindex="-1">Заметки</button>';

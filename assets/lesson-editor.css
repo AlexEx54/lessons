@@ -146,6 +146,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .lesson-plan__heading button:hover { background: #f6f5fb; }
 .lesson-plan__items { display: grid; gap: 5px; }
 
+/* Tabs of both side panels: the plan with the notes and the call with the chat. */
+.panel-tabs { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; min-width: 0; border-bottom: 1px solid #eeeaf4; }
+.panel-tabs [role='tab'] { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: auto; min-height: 42px; margin-bottom: -1px; padding: 11px 8px; gap: 6px; border-radius: 0; border-bottom: 2px solid transparent; background: transparent; color: #65677b; font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; transition: color .15s, border-color .15s; }
+.panel-tabs [role='tab'][aria-selected='true'] { color: #713be6; border-bottom-color: #713be6; font-weight: 600; }
+.panel-tabs [role='tab']:hover { background: transparent; color: #713be6; }
+.panel-tabs [role='tab']:focus-visible { outline: 2px solid #713be6; outline-offset: 2px; }
+
 .lesson-stage { display: grid; grid-template-columns: 18px auto minmax(0, 1fr) auto; align-items: center; min-height: 50px; padding: 8px 10px; column-gap: 8px; border-radius: 8px; background: transparent; color: #4c5269; text-align: left; }
 .lesson-stage:hover { background: #f8f7fc; }
 .lesson-stage__icon { display: grid; place-items: center; width: 18px; height: 18px; color: #858ba1; }
