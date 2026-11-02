@@ -1172,6 +1172,7 @@ async function handleRequest(req, res) {
   const pathname = requestUrl.pathname;
   setUserIdHeader(req, res, database);
   if (await videoCallChat.handle(req, res, requestUrl)) return;
+  if (await sessionChat.handle(req, res, requestUrl)) return;
 
   const notesDraft = pathname.match(/^\/api\/lesson-drafts\/([a-f0-9-]{36})\/notes$/i);
   if (notesDraft && ['GET', 'PUT'].includes(req.method)) {
@@ -1713,8 +1714,10 @@ async function handleRequest(req, res) {
     if (req.method === 'GET') { json(res, 200, { sessions: listClassSessions(user.id, database) }); return; }
     if (req.method === 'DELETE') {
       const sessionIds = listClassSessions(user.id, database).map(session => session.id);
-      json(res, 200, { deleted: clearClassSessions(user.id, database) });
+      const deleted = clearClassSessions(user.id, database);
       sessionIds.forEach(id => videoCallSignaling.closeSessionCall(id));
+      sessionChat.cleanup();
+      json(res, 200, { deleted });
       return;
     }
     try {
@@ -2784,6 +2787,9 @@ const videoCallChat = require('./lib/video-call-chat.js').createVideoCallChat({
 });
 const classLiveSignaling = createClassLiveSignaling({ database,
   callPresence: sessionId => videoCallSignaling.sessionPresence(sessionId) });
+const sessionChat = require('./lib/session-chat.js').createSessionChat({
+  database, broadcast: (sessionId, payload) => classLiveSignaling.broadcast(sessionId, payload),
+});
 const notesSignaling = require('./lib/lesson-notes-signaling.js').createNotesSignaling({ database });
 server.on('upgrade', (req, socket, head) => {
   let pathname;

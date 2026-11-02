@@ -128,6 +128,10 @@ Unsent uploads expire after 24 hours and are cleaned hourly and on server startu
 Clearing call history removes messages and attachment directories; startup/hourly
 cleanup retries removal of directories whose calls no longer exist.
 
+The class session chat (migration `023-session-chat.sql`) works the same way, with
+files in `session-chat-files/` next to `APP_DB_PATH` (`SESSION_CHAT_FILES_DIR` overrides it)
+and a limit of 100 MiB per session. Its messages and files go with the session.
+
 The current guest invite remains a read-only archive link after a call ends or
 expires, until its owner clears the history. Rotating an active invite still
 revokes the previous link. Archive requests do not provide ICE credentials or
