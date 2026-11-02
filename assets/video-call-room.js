@@ -137,8 +137,8 @@
     onStatus: renderStatus,
     onRemote: renderRemote,
     onMessage: message => {
-      if (message.type === 'chat-message') window.CallChat?.receive(message.message);
-      else if (message.type === 'connected') window.CallChat?.sync();
+      if (message.type === 'chat-message') window.RoomChat?.receive(message.message);
+      else if (message.type === 'connected') window.RoomChat?.sync();
     },
     onEnded: reason => (reason === 'elsewhere'
       ? finishCall('Звонок продолжается в другой вкладке или на другом устройстве. '
@@ -303,8 +303,8 @@
     elements.rejoinLink.hidden = !room;
     elements.rejoinLink.href = window.location.pathname;
     setConnection('Звонок завершён');
-    window.CallChat?.open();
-    window.CallChat?.sync();
+    window.RoomChat?.open();
+    window.RoomChat?.sync();
   }
 
   async function leaveCall() {
@@ -373,10 +373,10 @@
       elements.prejoinInvite.hidden = !room.guestPath;
       if (room.name) document.title = `${room.name} — видеозвонок EasyClass`;
       renderRemote();
-      window.CallChat.init({ role, reference: roomReference });
+      window.RoomChat.init({ role, reference: roomReference });
       setConnection('Комната готова');
       if (new URLSearchParams(location.search).has('chat')) {
-        window.CallChat.open();
+        window.RoomChat.open();
         return;
       }
       await media.prepare();
