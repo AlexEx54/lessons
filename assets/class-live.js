@@ -4,8 +4,7 @@
   if (!match) return;
   const sessionId = match[1], role = match[2] ? 'student' : 'teacher';
   const byId = id => document.getElementById(id);
-  let socket, reconnectTimer, toastTimer, lessonTimer, stopped = false, connected = false, slotTaken = false;
-  let elapsedSeconds = 0;
+  let socket, reconnectTimer, toastTimer, stopped = false, connected = false, slotTaken = false;
   let confirmed, inFlight = false, pending = [], reconnectDelay = 500;
   const viewState = { lesson: null, activeIndex: 0 };
   // The student may look at a stage other than the teacher's shared `activeStageId`.
@@ -52,8 +51,7 @@
   });
   const follow = byId('lesson-follow');
   byId('lesson-follow-return').addEventListener('click', () => showTeacherStage());
-  const timerButton = byId('lesson-timer');
-  timerButton.hidden = role !== 'teacher';
+  byId('lesson-timer-card').hidden = role !== 'teacher';
   document.querySelector('.teacher-version').textContent = role === 'teacher' ? 'Teacher version' : 'Student version';
   const exit = document.querySelector('.end-lesson');
   if (role === 'teacher') { exit.href = '/schedule'; exit.querySelector('span').textContent = 'В расписание'; }
@@ -111,19 +109,7 @@
     view.selectStage(stageIndex(confirmed.activeStageId), true);
     paint();
   }
-  if (role === 'teacher') timerButton.addEventListener('click', () => {
-    if (lessonTimer) {
-      window.clearInterval(lessonTimer);
-      lessonTimer = null;
-      byId('timer-icon').textContent = '▶';
-      return;
-    }
-    byId('timer-icon').textContent = 'Ⅱ';
-    lessonTimer = window.setInterval(() => {
-      elapsedSeconds += 1;
-      byId('elapsed-time').textContent = view.formatTime(elapsedSeconds);
-    }, 1000);
-  });
+  const lessonTimer = role === 'teacher' && window.LessonTimer.create({ formatTime: view.formatTime });
   function paint() {
     resetButton.disabled = !connected || !confirmed || pending.length > 0;
     if (!confirmed || !viewState.lesson) return;
@@ -278,7 +264,7 @@
   }
   window.addEventListener('pagehide', () => {
     stopped = true;
-    window.clearInterval(lessonTimer);
+    if (lessonTimer) lessonTimer.stop();
     window.clearTimeout(reconnectTimer);
     window.clearTimeout(toastTimer);
     socket?.close();

@@ -7,8 +7,6 @@
     draftId: '',
     draftStatus: '',
     activeIndex: 0,
-    elapsedSeconds: 0,
-    timer: null,
     dirtyComponents: new Set(),
     imageGeneration: null,
     imagePollTimer: null,
@@ -1490,21 +1488,9 @@
   imageGenerationStop.addEventListener('click', () => changeImageGeneration('stop', imageGenerationStop));
   imageGenerationStart.addEventListener('click', () => changeImageGeneration('start', imageGenerationStart));
   window.addEventListener('resize', syncImageGenerationBannerHeight);
-  byId('lesson-timer').addEventListener('click', () => {
-    if (state.timer) {
-      window.clearInterval(state.timer);
-      state.timer = null;
-      byId('timer-icon').textContent = '▶';
-      return;
-    }
-    byId('timer-icon').textContent = 'Ⅱ';
-    state.timer = window.setInterval(() => {
-      state.elapsedSeconds += 1;
-      byId('elapsed-time').textContent = formatTime(state.elapsedSeconds);
-    }, 1000);
-  });
+  const lessonTimer = window.LessonTimer.create({ formatTime });
   window.addEventListener('pagehide', () => {
-    window.clearInterval(state.timer);
+    lessonTimer.stop();
     window.clearTimeout(state.imagePollTimer);
   });
   window.addEventListener('beforeunload', (event) => {

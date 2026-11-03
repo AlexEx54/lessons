@@ -110,14 +110,18 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
   font-size: 13px;
   font-weight: 650;
 }
+.timer-card { padding-right: 10px; }
+.timer-card__toggle { display: flex; align-items: center; gap: 11px; padding: 0; background: transparent; }
 .timer-card__play { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; color: var(--purple); background: var(--purple-soft); font-size: 11px; }
-.timer-card > span:nth-child(2) { text-align: left; }
+.timer-card__toggle > span:nth-child(2) { text-align: left; }
+.timer-card__reset { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; color: #777b90; background: transparent; }
+.timer-card__reset:hover:not(:disabled) { color: var(--purple); background: var(--purple-soft); }
+.timer-card__reset:disabled { opacity: .4; cursor: default; }
 .timer-card strong, .timer-card small { display: block; }
 .timer-card strong { font-size: 13px; font-variant-numeric: tabular-nums; }
 .timer-card em { color: var(--muted); font-style: normal; font-weight: 500; }
 .timer-card small { margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 500; }
 .timer-card svg, .teacher-screen svg, .end-lesson svg, .reset-stage svg, .reaction-toggle svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.timer-card > svg { margin-left: 8px; color: #777b90; }
 .end-lesson { color: #ef4b57; }
 .end-lesson--classes { color: var(--purple); }
 .schedule-lesson { color: #fff; border-color: var(--purple); background: var(--purple); }
@@ -215,7 +219,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
   .timer-card strong { white-space: nowrap; }
   .teacher-screen:has(> svg), .end-lesson { position: relative; width: 48px; padding: 8px 6px; gap: 4px; }
   .teacher-screen > span:not(.call-badge), .end-lesson span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .timer-card > svg { display: none; }
 }
 
 @media (max-width: 980px) {

@@ -53,6 +53,7 @@ async function fixture(role = 'student', quiz = null, globals = {}) {
   const initial = { activeStageId: quiz ? 'reading' : 'warm-up', version: 0, selections: {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/lesson-view.js'), 'utf8'), { window, document });
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/class-component-adapters.js'), 'utf8'), { window });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/lesson-timer.js'), 'utf8'), { window, document });
   const createView = window.LessonView.create;
   window.LessonView.create = value => { settings = value; return createView(value); };
   vm.runInNewContext(source, { window, document, WebSocket: Socket, structuredClone, fetch: async () => ({ ok: true, json: async () => ({ state: initial, lesson, availableStageIds, ...(role === 'student' ? { classPath: '/join/anna-x' } : {}) }) }) });
@@ -73,21 +74,42 @@ test('student header leads to the class sessions and the teacher header to the s
 });
 test('lesson timer is local to the teacher view and stays hidden from the student', async () => {
   const teacher = await fixture('teacher');
-  const teacherTimer = teacher.document.getElementById('lesson-timer');
-  assert.equal(teacherTimer.hidden, false);
+  const byId = id => teacher.document.getElementById(id);
+  const teacherTimer = byId('lesson-timer'), reset = byId('lesson-timer-reset');
+  assert.equal(byId('lesson-timer-card').hidden, false);
+  assert.equal(reset.disabled, true);
   teacherTimer.click();
   assert.equal(teacher.intervals.size, 1);
   [...teacher.intervals.values()][0]();
-  assert.equal(teacher.document.getElementById('elapsed-time').textContent, '00:01');
-  assert.equal(teacher.document.getElementById('timer-icon').textContent, 'Ⅱ');
+  assert.equal(byId('elapsed-time').textContent, '00:01');
+  assert.equal(byId('timer-icon').textContent, 'Ⅱ');
+  assert.equal(teacherTimer.getAttribute('aria-label'), 'Остановить таймер урока');
   teacherTimer.click();
   assert.equal(teacher.intervals.size, 0);
-  assert.equal(teacher.document.getElementById('timer-icon').textContent, '▶');
+  assert.equal(byId('timer-icon').textContent, '▶');
+  assert.equal(byId('elapsed-time').textContent, '00:01');
 
   const student = await fixture('student');
-  assert.equal(student.document.getElementById('lesson-timer').hidden, true);
+  assert.equal(student.document.getElementById('lesson-timer-card').hidden, true);
   student.document.getElementById('lesson-timer').click();
   assert.equal(student.intervals.size, 0);
+});
+test('teacher resets the lesson timer to a stopped 00:00', async () => {
+  const teacher = await fixture('teacher');
+  const byId = id => teacher.document.getElementById(id);
+  const reset = byId('lesson-timer-reset');
+  byId('lesson-timer').click();
+  [...teacher.intervals.values()][0]();
+  [...teacher.intervals.values()][0]();
+  assert.equal(reset.disabled, false);
+  reset.click();
+  assert.equal(teacher.intervals.size, 0);
+  assert.equal(byId('elapsed-time').textContent, '00:00');
+  assert.equal(byId('timer-icon').textContent, '▶');
+  assert.equal(reset.disabled, true);
+  byId('lesson-timer').click();
+  [...teacher.intervals.values()][0]();
+  assert.equal(byId('elapsed-time').textContent, '00:01');
 });
 for (const role of ['teacher', 'student']) test(`${role}: rapid selections are sent in order with acknowledged versions and remote updates do not echo`, async () => {
   const f = await fixture(role), socket = f.sockets[0];
