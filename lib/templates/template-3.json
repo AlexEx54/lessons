@@ -746,17 +746,25 @@
         },
         {
           "id": "create-reply-task",
-          "kind": "static",
-          "component": {
-            "type": "taskPrompt",
-            "variant": "followUp",
-            "title": "Your Reply",
-            "text": "Go back to the post from the Warm-Up and write a reply of 4–6 sentences.\n\n- Say if you agree or disagree.\n- Give two reasons.\n- {{grammarTask}}\n- Use words from the lesson."
+          "kind": "generated",
+          "control": "miniSituation",
+          "params": {
+            "minSentences": 4,
+            "maxSentences": 6
           },
-          "slots": {
-            "grammarTask": {
-              "rule": "One short instruction for the learner to use the target grammar in the reply, with the key form in **bold**. One line, no list marker, heading or introduction.",
-              "example": "Give one piece of advice with **should** or **shouldn’t**."
+          "fields": {
+            "situation": "replyTask"
+          },
+          "chrome": {
+            "title": "Your Reply",
+            "instruction": "Write your reply to the post in 4–6 sentences. Your answer will be checked by the teacher.",
+            "backgroundColor": "#FFF4E8"
+          },
+          "instructions": "replyTask.prompt asks the learner to reply to the hot-take post from the Warm-Up without quoting the post or naming its author: one short opening line, a blank line, then exactly four Markdown bullet points in this order: say if you agree or disagree; give two reasons; one instruction to use the target grammar with the key form in **bold**; use words from the lesson.\nreplyTask.imagePrompt shows a teenager typing a reply under a social-media post on a smartphone.",
+          "example": {
+            "situation": {
+              "prompt": "Remember the hot take about phones at school? Now it’s your turn to reply.\n\n- Say if you agree or disagree.\n- Give two reasons.\n- Give one piece of advice with **should** or **shouldn’t**.\n- Use words from the lesson.",
+              "imagePrompt": "A teenager on a school bench typing a reply under a social-media post on a smartphone, heart and comment icons floating around the phone, modern educational illustration for teenagers, bright flat colours, no text."
             }
           }
         },

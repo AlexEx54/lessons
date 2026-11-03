@@ -43,7 +43,9 @@ test('Template 3 builds its synthetic lesson from its examples without warnings'
   assert.equal(builder.items.length, 6);
   assert.equal(builder.completionText, 'Message sent! Well done!');
   const task = byId(byId(lesson.stages, 'create').content, 'create-reply-task');
-  assert.match(task.text, /- Give one piece of advice with \*\*should\*\* or \*\*shouldn’t\*\*\./);
+  assert.equal(task.type, 'miniSituation');
+  assert.equal(task.sentenceCount, 6);
+  assert.match(task.situation.text, /- Give one piece of advice with \*\*should\*\* or \*\*shouldn’t\*\*\./);
 });
 
 test('Grammar Presentation takes its examples from the group chat of the earlier stage', () => {
