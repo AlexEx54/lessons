@@ -70,14 +70,21 @@ test('reduced motion fades reactions in place and drafts work without a socket',
   assert.equal(f.layer.children.length, 1);
   assert.ok(f.animations[0].frames.every(frame => !frame.transform));
 });
-test('a burst of reactions rises from one spot and a pause picks a new one', () => {
+test('a burst rises from one spot over the stage and a pause picks a new one', () => {
   let random = .5;
   const f = fixture({ random: () => random });
+  const stage = f.document.getElementById('lesson-content');
+  f.layer.getBoundingClientRect = () => ({ left: 0, width: 1200 });
+  stage.getBoundingClientRect = () => ({ left: 300, width: 600 });
   const left = index => f.animations[index].node.style.left;
   f.reactions.receive({ kind: 'heart' });
-  assert.equal(left(0), 'clamp(24px, calc(50% + 0px), calc(100% - 24px))');
+  assert.equal(left(0), '600px');
   random = 1; f.tick(4000); f.button('fire').click();
-  assert.equal(left(1), 'clamp(24px, calc(50% + 20px), calc(100% - 24px))');
+  assert.equal(left(1), '620px');
   random = 0; f.tick(5001); f.reactions.receive({ kind: 'clap' });
-  assert.equal(left(2), 'clamp(24px, calc(5% + -20px), calc(100% - 24px))');
+  assert.equal(left(2), '280px');
+  // A hidden stage has no width: the whole window is used instead.
+  stage.getBoundingClientRect = () => ({ left: 0, width: 0 });
+  random = .25; f.tick(5001); f.reactions.receive({ kind: 'clap' });
+  assert.equal(left(3), '290px');
 });
