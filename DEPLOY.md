@@ -109,6 +109,14 @@ cd /opt/teach_platform
 npm run user:create -- --email teacher@example.com --name "Teacher name"
 ```
 
+To post product news to the notification bell of every active user (a rerun with the
+same `--key` reaches only those who have not received it yet):
+
+```bash
+cd /opt/teach_platform
+npm run announce -- --key session-calls --title "Заголовок" --text "Текст"
+```
+
 Authentication cookies require HTTPS in production. Put the Node.js service behind
 an HTTPS reverse proxy before creating real teacher accounts.
 

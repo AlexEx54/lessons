@@ -26,7 +26,7 @@
     const item = document.createElement('li');
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = `notifications-item${notification.read ? '' : ' notifications-item--unread'}`;
+    button.className = `notifications-item notifications-item--${notification.type}${notification.read ? '' : ' notifications-item--unread'}`;
     const heading = document.createElement('strong');
     heading.textContent = title;
     const body = document.createElement('span');
@@ -83,6 +83,9 @@
     describers.set(type, describe);
     render();
   }
+
+  // Product news is self-contained: it is read right in the panel and leads nowhere.
+  register('announcement', ({ title, text }) => ({ title, text, open() {} }));
 
   bells.forEach(bell => bell.button.addEventListener('click', () => {
     if (bell.button.getAttribute('aria-expanded') === 'true') refresh();

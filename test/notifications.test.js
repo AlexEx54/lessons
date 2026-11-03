@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { openDatabase } = require('../lib/db.js');
-const { listNotifications, markNotificationRead, notify } = require('../lib/notification-store.js');
+const { announce, listNotifications, markNotificationRead, notify } = require('../lib/notification-store.js');
 const { createSession } = require('../lib/session-store.js');
 const { createUser } = require('../lib/user-store.js');
 
@@ -47,6 +47,21 @@ test('notifications are listed newest first and belong to their recipient only',
   const { notifications, unreadCount } = listNotifications(admin.id, database);
   assert.deepEqual(notifications.map(item => item.subjectKey), ['support:b', 'support:a']);
   assert.equal(unreadCount, 2);
+});
+
+test('an announcement reaches every active user once and a rerun does not make it unread again', () => {
+  const { database, admin, other } = setupDatabase();
+  database.prepare("UPDATE users SET status = 'blocked' WHERE id = ?").run(other.id);
+  const news = { key: 'session-calls', title: 'Звонок в занятии', text: 'Текст' };
+
+  assert.equal(announce(news, database), 1);
+  markNotificationRead(admin.id, 'announcement:session-calls', database);
+  assert.equal(announce(news, database), 0);
+
+  const { notifications, unreadCount } = listNotifications(admin.id, database);
+  assert.equal(unreadCount, 0);
+  assert.deepEqual(notifications[0].payload, { title: 'Звонок в занятии', text: 'Текст' });
+  assert.equal(listNotifications(other.id, database).notifications.length, 0);
 });
 
 async function startServer(t, directory) {

@@ -1159,6 +1159,11 @@ p { margin: 0; }
   -webkit-line-clamp: 2;
 }
 
+/* Announcements are read in full right in the panel. */
+.notifications-item--announcement span {
+  display: block;
+}
+
 .notifications-item time {
   color: #8d84a3;
   font-size: 12px;
