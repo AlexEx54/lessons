@@ -113,6 +113,23 @@ test('saving a definition validates it and keeps the id and title of the copy', 
   assert.equal(findLessonTemplate(copy.id, database).revision, 1);
 });
 
+test('examples for synthetic lessons survive saving and copying', t => {
+  const { database, admin } = setup(t);
+  const copy = copyLessonTemplate({ id: 'template-2', createdBy: admin.id }, database);
+  const { definition } = findLessonTemplate(copy.id, database);
+  const blocks = definition.stages.flatMap(stage => stage.blocks);
+  const stories = blocks.find(block => block.control === 'storyCards');
+  const [slotName, slot] = blocks.flatMap(block => Object.entries(block.slots || {})).find(([, spec]) => spec.rule);
+  stories.example = { stories: ['A story.'] };
+  slot.example = 'A sample line.';
+  updateLessonTemplate({ id: copy.id, revision: 0, definition }, database);
+
+  const again = copyLessonTemplate({ id: copy.id, createdBy: admin.id }, database);
+  const copied = findLessonTemplate(again.id, database).definition.stages.flatMap(stage => stage.blocks);
+  assert.deepEqual(copied.find(block => block.id === stories.id).example, { stories: ['A story.'] });
+  assert.equal(copied.find(block => block.slots?.[slotName]).slots[slotName].example, 'A sample line.');
+});
+
 test('a deleted copy leaves its drafts working from their snapshots', t => {
   const { database, admin } = setup(t);
   const copy = copyLessonTemplate({ id: 'template-2', title: 'Путешествия', createdBy: admin.id }, database);

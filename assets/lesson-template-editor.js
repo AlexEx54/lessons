@@ -1747,7 +1747,11 @@
       rows: 3,
       onInput: text => {
         if (pending) slot.rule = text.trim();
-        else edit(() => { block.slots[name] = { ...block.slots[name], rule: text.trim() }; });
+        // The template's example was written for the old rule.
+        else edit(() => {
+          const { example, ...kept } = block.slots[name];
+          block.slots[name] = { ...kept, rule: text.trim() };
+        });
       },
     });
     input.placeholder = 'Например: one short measurable sentence about the goal of the stage.';

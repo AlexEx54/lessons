@@ -309,6 +309,49 @@ test('example run builds every stage without the model', () => {
   assert.deepEqual(state.lesson.stages[1].content[0].items, ['word1', 'word2', 'word3']);
 });
 
+test('an example run takes the template examples and falls back when one no longer fits', t => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  const withExamples = definition();
+  block(withExamples, 'guess', 'guess-note').slots.success.example = ' The student explains both answers. ';
+  block(withExamples, 'guess', 'guess-game').example = { checks: ['Cats can swim.', 'Dogs fly.'], guesses: ['Somebody has a red hat.'] };
+  block(withExamples, 'vocabulary', 'vocabulary-list').example = {
+    words: ['hat', 'scarf', 'boots'].map(term => ({ term, definition: `A ${term}.`, distractor: `Not a ${term}.` })),
+  };
+  // The stories do not bold the words, so the block falls back to the control's sample.
+  block(withExamples, 'vocabulary', 'vocabulary-stories').example = { stories: ['No words here.', 'None here.'] };
+
+  const plan = compileTemplate(withExamples, catalog);
+  let state = { lesson: plan.createSkeleton(), variables: {} };
+  for (const step of plan.steps) state = plan.applyExample(step.key, state, { random: () => 0 });
+  const content = id => state.lesson.stages.find(stage => stage.id === id).content;
+
+  assert.equal(content('guess')[0].text, 'Say "Cats can swim." first. Success: The student explains both answers.');
+  assert.deepEqual(content('guess')[1].items, ['Cats can swim.', 'Dogs fly.', 'Somebody has a red hat.']);
+  assert.deepEqual(state.variables.guesses, [{ number: 3, text: 'Somebody has a red hat.' }]);
+  assert.deepEqual(content('recap')[0].items, ['hat', 'scarf', 'boots']);
+  assert.deepEqual(content('vocabulary')[0].stories, ['**hat** **scarf** **boots**', 'Story 2.']);
+  assert.deepEqual(content('vocabulary')[2].items.map(item => item.text), ['Item 1\nItem 2', 'Item 1\nItem 2']);
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments[0]), [
+    'Пример блока vocabulary-stories не подошёл, взят пример контрола: Story misses hat.',
+  ]);
+});
+
+test('example problems name the slot or the block', () => {
+  const messages = errorsAfter(template => {
+    const note = block(template, 'guess', 'guess-note');
+    note.slots.success.example = 7;
+    note.slots.firstCheck.example = 'A check.';
+    block(template, 'guess', 'guess-game').example = ['Cats can swim.'];
+    block(template, 'guess', 'guess-checks').example = { text: 'Checks' };
+    block(template, 'vocabulary', 'vocabulary-list').example = { words: [], terms: [] };
+  }).join('\n');
+  assert.match(messages, /Пример слота success блока guess-note должен быть текстом рядом с rule/);
+  assert.match(messages, /Пример слота firstCheck блока guess-note должен быть текстом рядом с rule/);
+  assert.match(messages, /Пример блока guess-game должен быть объектом с полями контрола/);
+  assert.match(messages, /Блоку guess-checks пример не нужен: его не пишет ИИ/);
+  assert.match(messages, /В примере блока vocabulary-list лишнее поле terms/);
+});
+
 test('inputs are trimmed, fall back, and required ones must be filled', () => {
   const plan = compileTemplate(definition(), catalog);
   assert.deepEqual(plan.resolveInputs({ topic: ' Clothes ', warmUpTopic: ' Hats ' }), { topic: 'Clothes', warmUpTopic: 'Hats' });
