@@ -125,7 +125,6 @@
     const button = event.target.closest('[data-role]');
     if (button && lesson) switchRole(button.dataset.role);
   });
-  byId('preview-hint').hidden = false;
   mountCallMockup();
   const exit = document.querySelector('.end-lesson');
   exit.href = '/library.html';
