@@ -383,6 +383,10 @@ warm-up, watch-and-interact — без связей
 `personalizedQuestions`, `ruleGaps`, `quickRule`, `choiceSentences`,
 `wordBankSupport`, `threeTwoOne`. Всего 34 контрола.
 
+Для шаблона 3 добавлен `sentenceBuilder` (компонент sentenceBuilder, без входов):
+предложения с фразами в `[скобках]` и другими верными порядками, см.
+[sentence-builder.md](sentence-builder.md).
+
 **Ключ ответов.** Контрол задания отдаёт `answerKey()` → `{ lines, list }`:
 строки ключа и признак, что это пункты Markdown-списка. Блок задания включает
 ключ полем `answerKey` (`{}` — всё по умолчанию): `title`, `format`

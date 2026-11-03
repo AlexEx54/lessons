@@ -91,7 +91,7 @@ test('template two creation and editing update the answer key atomically', async
   // Editing is checked on the saved Template 2 lesson rather than on the controls' examples.
   draft.content = syntheticLesson('template-2');
   // Exercise the reusable component on an explicit fixture, independently of template 2.
-  const builder = require('../lib/sentence-builder-example.js').createSentenceBuilderExample();
+  const builder = require('./helpers/sentence-builder.js').sentenceBuilderComponent();
   const builderContent = structuredClone(draft.content);
   builderContent.stages[7].content.splice(1, 0, builder);
   const fixtureDb = openDatabase(databasePath);

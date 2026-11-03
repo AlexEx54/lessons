@@ -208,3 +208,29 @@ test('Drag Sentences and Type the Words blocks take their words from their instr
   assert.deepEqual([schema.properties.sentences.maxItems, schema.properties.typedSentences.maxItems], [4, 5]);
   assert.deepEqual([CONTROL_CATALOG.get('dragSentences').inputs, CONTROL_CATALOG.get('translationHints').inputs], [{}, {}]);
 });
+
+test('a Sentence Builder block keeps bracketed phrases on one card and drops orders made of other cards', t => {
+  const warn = silentWarnings(t);
+  const control = CONTROL_CATALOG.get('sentenceBuilder');
+  const params = { sentences: 2, hints: false, completionText: 'Well done!' };
+  const context = { id: 'builder', params, chrome: {} };
+  const component = control.build({ items: [
+    {
+      sentence: 'You should take [your phone] and [your keys] with you.',
+      otherOrders: ['You should take [your keys] and [your phone] with you.', 'You should take your keys and your phone with you.'],
+    },
+    { sentence: 'Phones are bad.', otherOrders: ['Phones are bad.'] },
+  ] }, context);
+  assert.deepEqual(component.items[0].tokens.map(token => token.text),
+    ['You', 'should', 'take', 'your phone', 'and', 'your keys', 'with', 'you.']);
+  assert.equal(component.items[0].acceptedOrders.length, 2);
+  assert.equal(component.items[1].acceptedOrders.length, 1);
+  assert.deepEqual([component.hintsEnabled, component.completionText], [false, 'Well done!']);
+  assert.deepEqual(warnings(warn), [
+    'builder: в предложении 1 другой порядок не из тех же карточек, убран: You should take your keys and your phone with you.',
+  ]);
+  const items = [{ sentence: 'Phones are bad.', otherOrders: [] }, { sentence: 'Phones are bad.', otherOrders: [] }];
+  assert.throws(() => control.build({ items }, context), /не должны повторяться/);
+  assert.throws(() => control.build({ items: [items[0], { sentence: 'Phones [are bad.', otherOrders: [] }] }, context),
+    /builder: предложении 2: Проверьте квадратные скобки/);
+});

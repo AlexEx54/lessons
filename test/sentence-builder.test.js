@@ -9,8 +9,8 @@ const { renderSentenceBuilder } = require('../assets/components/sentence-builder
 const { createDocument } = require('./helpers/lesson-dom.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { studentComponent, applyComponentAction } = require('../lib/class-component-handlers.js');
-const { createSentenceBuilderExample } = require('../lib/sentence-builder-example.js');
-const source = createSentenceBuilderExample();
+const { sentenceBuilderComponent } = require('./helpers/sentence-builder.js');
+const source = sentenceBuilderComponent();
 const task = (...sentences) => model.normalizeSentenceBuilder({ ...source, items: sentences.map((text, i) => model.itemFromText(text, `sentence-${i + 1}`)) });
 const fire = async (node, name = 'click', event = {}) => { for (const fn of node.listeners[name] || []) await fn({ preventDefault() {}, ...event }); };
 function place(component, ids, previous = {}) {
@@ -23,7 +23,7 @@ const command = (component, type, extra = {}) => ({ type, itemId: component.item
 test('template two omits the reusable game; chunks and alternative orders round-trip', () => {
   const content = syntheticLesson('template-2').stages[7].content;
   assert.deepEqual(content.map(item => item.type), ['teacherNote', 'threeTwoOne', 'selfAssessment', 'markdownCard']);
-  assert.equal(model.normalizeSentenceBuilder(source).items.length, 4);
+  assert.equal(model.normalizeSentenceBuilder(source).items.length, 6);
   const text = 'Today we can [help people].\nwe can [help people]. Today';
   const item = model.itemFromText(text, 'sample');
   assert.equal(item.tokens[3].text, 'help people.');
