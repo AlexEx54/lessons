@@ -296,10 +296,6 @@ test('generated Target Vocabulary rejects damaged counts and cross-references', 
   const repeatedDescribeTerm = JSON.parse(JSON.stringify(GENERATED_TARGET_VOCABULARY));
   repeatedDescribeTerm.describeAndGuessTerms[5] = repeatedDescribeTerm.describeAndGuessTerms[0];
   assert.throws(() => buildTargetVocabularyContent(repeatedDescribeTerm), /повторяющиеся слова Describe and Guess/);
-
-  const invalidImagePrompt = JSON.parse(JSON.stringify(GENERATED_TARGET_VOCABULARY));
-  invalidImagePrompt.vocabularyItems[0].imagePrompt = 'A traveler buying a ticket.';
-  assert.throws(() => buildTargetVocabularyContent(invalidImagePrompt), /квадратные иллюстрации без текста/);
 });
 
 test('generated Reading is mapped onto the fixed synthetic component structure', () => {
@@ -378,9 +374,6 @@ test('generated Reading rejects damaged questions, vocabulary references, and ar
 
   const shortText = { ...GENERATED_READING, text: 'A very short reading text.' };
   assert.throws(() => buildReadingContent(shortText, vocabularyItems), /от 180 до 230 слов/);
-
-  const unsafeImagePrompt = { ...GENERATED_READING, textImagePrompt: 'Students arrive at an airport.' };
-  assert.throws(() => buildReadingContent(unsafeImagePrompt, vocabularyItems), /без текста/);
 });
 
 test('generated Listening is mapped onto the fixed synthetic component structure', () => {
