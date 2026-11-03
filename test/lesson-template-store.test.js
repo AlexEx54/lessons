@@ -30,12 +30,13 @@ test('templates list the system ones first, then copies from the newest', t => {
   assert.deepEqual(listLessonTemplates(database).map(({ id, system }) => ({ id, system })), [
     { id: 'template-1', system: true },
     { id: 'template-2', system: true },
+    { id: 'template-3', system: true },
   ]);
 
   const first = copyLessonTemplate({ id: 'template-2', createdBy: admin.id }, database);
   const second = copyLessonTemplate({ id: first.id, title: '  Для младших  ', createdBy: admin.id }, database);
   database.prepare('UPDATE lesson_templates SET created_at = ? WHERE id = ?').run('2026-01-01T00:00:00.000Z', first.id);
-  assert.deepEqual(listLessonTemplates(database).map(template => template.title), ['Шаблон 1', 'Шаблон 2', 'Для младших', 'Шаблон 2 (копия)']);
+  assert.deepEqual(listLessonTemplates(database).map(template => template.title), ['Шаблон 1', 'Шаблон 2', 'Шаблон 3', 'Для младших', 'Шаблон 2 (копия)']);
   assert.deepEqual(second, {
     id: second.id,
     title: 'Для младших',

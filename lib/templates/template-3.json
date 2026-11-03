@@ -1,0 +1,841 @@
+{
+  "schemaVersion": "lesson-template-v1",
+  "id": "template-3",
+  "title": "Шаблон 3",
+  "description": "Hot Take для подростков: спорный пост, групповой чат, грамматика из чата, Sentence Builder, дебаты с учителем и ответ на пост.",
+  "inputs": {
+    "topic": {
+      "label": "Тема урока",
+      "placeholder": "Напр. Phones at School"
+    },
+    "warmUpTopic": {
+      "label": "Тема Warm-Up",
+      "optional": true,
+      "fallback": "topic"
+    },
+    "grammarTopic": {
+      "label": "Грамматика",
+      "placeholder": "Напр. should / shouldn’t"
+    }
+  },
+  "lesson": {
+    "durationMinutes": 50
+  },
+  "stages": [
+    {
+      "id": "warm-up",
+      "title": "Warm Up",
+      "subtitle": "Hot Take",
+      "durationMinutes": 5,
+      "icon": "sparkles",
+      "context": {
+        "Warm-Up topic": "$input.warmUpTopic"
+      },
+      "instructions": "This is a five-minute Warm-Up: the learner reads a short provocative social-media post, a “hot take”, and says whether they agree.\nKeep everything directly connected to the Warm-Up topic. Image prompts must be in English.",
+      "blocks": [
+        {
+          "id": "warm-up-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Goal:** Get the student talking from the first minute. The post is a “hot take”: a strong, slightly provocative opinion. There is no right answer, only good reasons.\n\n**Say:** “Look at this post. Do you agree or disagree with it? Why?”\n\n**Teacher's Tips:**\n\n- **Take the other side:** Whatever the student says, gently argue the opposite: “Really? But some people say…” This prepares them for the debate later in the lesson.\n- **Push for reasons:** If the answer is just “Yes” or “No”, point to the Speaking Support box and ask: “Can you say why?”\n- **Fluency first:** Do not correct grammar now. Note one or two mistakes for the end of the lesson."
+          }
+        },
+        {
+          "id": "warm-up-hot-take-post",
+          "kind": "static",
+          "component": {
+            "type": "illustratedTextPanel",
+            "text": "{{post}}",
+            "backgroundColor": "#252A38",
+            "leadingPicture": {
+              "imagePrompt": "{{avatarImagePrompt}}"
+            }
+          },
+          "slots": {
+            "post": {
+              "rule": "A short social-media post by a teenage blogger with one strong, slightly provocative but harmless opinion about the Warm-Up topic: a “hot take” that teenagers will want to argue with.\nStart with the blogger’s handle in bold, like **@name**, then write two or three short sentences in natural English at the target CEFR level. You may add one or two emojis and one hashtag. No other Markdown.",
+              "example": "**@maxi_talks** 🔥 Hot take: phones should stay at home on school days. We spend the whole evening on our screens anyway. Who’s with me? #NoPhoneZone"
+            },
+            "avatarImagePrompt": {
+              "rule": "An image prompt for a small circular avatar of the blogger who wrote the post. A modern educational illustration suitable for teenagers, with no text. Avoid childish or preschool aesthetics.",
+              "example": "Small circular avatar of a confident teenage blogger with headphones around the neck, bright flat colours, modern educational illustration, no text."
+            }
+          }
+        },
+        {
+          "id": "warm-up-hot-take-questions",
+          "kind": "generated",
+          "control": "personalizedQuestions",
+          "params": {
+            "items": 3
+          },
+          "fields": {
+            "questions": "hotTakeQuestions"
+          },
+          "chrome": {
+            "title": "What’s Your Take?",
+            "instruction": "Answer the questions out loud. Give a reason for every answer."
+          },
+          "instructions": "hotTakeQuestions ask what the learner thinks about the post and connect it to their own life. The first question asks whether they agree with the post.",
+          "example": {
+            "questions": [
+              { "question": "Do you agree with the post? Why or why not?", "followUp": "What would your best friend say?" },
+              { "question": "How often do you use your phone at school?", "followUp": "What do you use it for?" },
+              { "question": "Can a phone help you learn something?", "followUp": "Can you give an example?" }
+            ]
+          }
+        },
+        {
+          "id": "warm-up-speaking-support",
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
+            "title": "Speaking Support",
+            "text": "I totally agree because…\n\nNo way! I think…\n\nIt depends. On the one hand… On the other hand…",
+            "icon": "chat",
+            "accentColor": "#E5AD16",
+            "studentVisibility": "always"
+          }
+        }
+      ]
+    },
+    {
+      "id": "target-vocabulary",
+      "title": "Target Vocabulary",
+      "subtitle": "Unlock the Words",
+      "durationMinutes": 8,
+      "icon": "cards",
+      "context": {
+        "Lesson topic": "$input.topic"
+      },
+      "instructions": "This is an eight-minute Target Vocabulary stage: the learner meets the words of the lesson, matches them with pictures, recalls them from Russian hints and plays a guessing game.\nAll English must be natural, at the target CEFR level and directly connected to the lesson topic.\nWhenever a field refers to a vocabulary term, copy it exactly, including spelling, capitalization, articles, and “to”.",
+      "blocks": [
+        {
+          "id": "target-vocabulary-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Task 1:** say “Here are the words we need to argue about our topic. Match them with the pictures. Start with the words you know.” After matching, read the Vocabulary card together and check the meanings.\n\n**Task 2:** say “Read each sentence and type the English word for the Russian hint.” Ask the student to read the whole sentence aloud.\n\n**Task 3:** say “Let’s play! Choose a word and describe it without saying it. I’ll guess. Then it’s my turn.” Go first to show how it works.\n\n**Pronunciation:** Check tricky words in the Cambridge or Oxford Learner’s dictionaries, play the audio and ask the student to repeat."
+          }
+        },
+        {
+          "id": "target-vocabulary-card",
+          "kind": "generated",
+          "control": "vocabularyList",
+          "params": {
+            "items": 8,
+            "distractors": false
+          },
+          "fields": {
+            "items": "vocabularyItems"
+          },
+          "chrome": {
+            "title": "Vocabulary",
+            "icon": "book",
+            "accentColor": "#20A85B",
+            "studentVisibility": "controlled"
+          },
+          "exports": {
+            "vocabulary": "targetVocabulary"
+          },
+          "instructions": "vocabularyItems: words or short phrases teenagers need to give opinions and argue about the topic.",
+          "example": {
+            "items": [
+              { "term": "ban", "definition": "an official rule that says people must not do something" },
+              { "term": "distraction", "definition": "something that takes your attention away from what you are doing" },
+              { "term": "screen time", "definition": "the time you spend looking at a phone, tablet or computer" },
+              { "term": "on silent", "definition": "set so that it makes no sound" },
+              { "term": "emergency", "definition": "a sudden dangerous situation when you need help quickly" },
+              { "term": "group chat", "definition": "an online conversation between several people" },
+              { "term": "phone locker", "definition": "a small cupboard where you can lock your phone away" },
+              { "term": "check messages", "definition": "look at your phone to see if someone wrote to you" }
+            ]
+          }
+        },
+        {
+          "id": "target-vocabulary-match-words",
+          "kind": "generated",
+          "control": "matchPictures",
+          "params": {
+            "items": 8
+          },
+          "fields": {
+            "items": "pictureItems"
+          },
+          "chrome": {
+            "title": "Task 1 · Match the Words",
+            "instruction": "Match the words with the pictures."
+          },
+          "instructions": "Use every term of vocabularyItems, copied exactly, in the same order.\nThe pictures appear together, so each one must make its term recognizable and clearly distinguishable from every other term in the set.\nPlan all image concepts together before writing the final prompts. Give each term a distinct visual scene with a clear identifying cue. Compare each scene against all other terms: if another term would be an equally reasonable answer, redesign the scene.\nAvoid similar scenes for different terms. Prefer concrete actions, objects, and observable contrasts over facial expressions, mood, or generic topic-related settings.\nFor abstract terms, use a simple two-panel scene if needed to show a change or a contrast. Specify what appears in each panel.\nWrite each imagePrompt as a self-contained drawing instruction: the main subject, exact action, and identifying visual cue first, then style and background. Make the cue large enough to recognize in a small thumbnail and do not rely on readable words, labels, or numbers.\nUse a consistent modern educational illustration style across the set.",
+          "example": {
+            "items": [
+              { "term": "ban", "imagePrompt": "A big red crossed-out circle over a smartphone lying on a school desk, square modern educational illustration, no text." },
+              { "term": "distraction", "imagePrompt": "Two-panel scene: a teenager writing in a notebook; then the same teenager looking away at a buzzing phone with the pen stopped. Square modern educational illustration, no text." },
+              { "term": "screen time", "imagePrompt": "A teenager on a sofa staring at a glowing phone while the window behind changes from day to night, square modern educational illustration, no text." },
+              { "term": "on silent", "imagePrompt": "Close-up of a thumb pressing the side switch of a smartphone, a crossed-out speaker symbol on the screen, square modern educational illustration, no text." },
+              { "term": "emergency", "imagePrompt": "A worried teenager making a phone call next to a friend who has fallen off a bike, square modern educational illustration, no text." },
+              { "term": "group chat", "imagePrompt": "A phone screen full of colourful chat bubbles from five different small round avatars, square modern educational illustration, no text." },
+              { "term": "phone locker", "imagePrompt": "A student putting a phone into one of many small metal lockers on a school corridor wall and turning a key, square modern educational illustration, no text." },
+              { "term": "check messages", "imagePrompt": "A teenager quickly pulling a phone out of a pocket to look at a new notification, square modern educational illustration, no text." }
+            ]
+          }
+        },
+        {
+          "id": "target-vocabulary-type-words",
+          "kind": "generated",
+          "control": "translationHints",
+          "params": {
+            "items": 8
+          },
+          "fields": {
+            "sentences": "translationSentences"
+          },
+          "chrome": {
+            "title": "Task 2 · Type the Words",
+            "instruction": "Type the English word or phrase next to each Russian hint."
+          },
+          "instructions": "One sentence for each term of vocabularyItems; answer is the term.",
+          "example": {
+            "sentences": [
+              { "before": "Some schools have a phone", "hint": "запрет", "answer": "ban" },
+              { "before": "Loud notifications in class are a big", "hint": "отвлекающий фактор", "answer": "distraction" },
+              { "before": "My mum says I need less", "hint": "время у экрана", "answer": "screen time" },
+              { "before": "During the test, my phone was", "hint": "в беззвучном режиме", "answer": "on silent" },
+              { "before": "You can call your parents if there is an", "hint": "чрезвычайная ситуация", "answer": "emergency" },
+              { "before": "Our class talks about homework in a", "hint": "групповой чат", "answer": "group chat" },
+              { "before": "In the morning, we put our phones in the", "hint": "шкафчик для телефонов", "answer": "phone locker" },
+              { "before": "In the break, everybody wants to", "hint": "проверить сообщения", "answer": "check messages" }
+            ]
+          }
+        },
+        {
+          "id": "target-vocabulary-describe-and-guess",
+          "kind": "generated",
+          "control": "describeAndGuess",
+          "params": {
+            "items": 6
+          },
+          "fields": {
+            "terms": "describeAndGuessTerms"
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "Task 3 · Describe and Guess",
+            "instruction": "Take turns with your teacher. Describe the word without saying it. Can your partner guess it?"
+          },
+          "example": {
+            "terms": ["ban", "distraction", "screen time", "emergency", "group chat", "phone locker"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "group-chat",
+      "title": "Group Chat",
+      "subtitle": "Read the Class Chat",
+      "durationMinutes": 7,
+      "icon": "book",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "This is a seven-minute reading stage. The reading text is a class group chat: three or four teenagers argue about the lesson topic and agree on something at the end.\nThe supplied Grammar topic is authoritative: use exactly that grammar in the chat, because the Grammar Presentation later takes its examples from it.\nAll content must be natural English at the target CEFR level. Make distractors plausible but clearly wrong.",
+      "blocks": [
+        {
+          "id": "group-chat-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Before reading:** say “Our class has a group chat too! Let’s read what these friends think about our topic.” Ask the student to guess from the title what the friends argue about.\n\n**Task 1:** Read the chat together. Weaker students read it aloud; stronger students read silently first. Ask the student to find the message that proves each answer.\n\n**Task 2:** Ask the questions and react like a friend in the chat: “Really? Why?”\n\n**Keep in mind:** The chat is full of the grammar of the next stage. Don’t explain it yet."
+          }
+        },
+        {
+          "id": "group-chat-text",
+          "kind": "generated",
+          "control": "readingText",
+          "params": {
+            "minWords": 110,
+            "maxWords": 170,
+            "minTerms": 4,
+            "maxTerms": 6
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "exports": {
+            "text": "groupChat"
+          },
+          "instructions": "Write the text as a group chat. Every paragraph is one message in the form **Name:** message, short and informal like real teenagers write; one or two emojis in the whole chat are fine.\nThe friends start with different opinions, give reasons, and agree on something at the end.\nInclude 5 to 7 clear and accurate examples of the target grammar in different messages, without explaining the grammar.\ntitle is the name of the chat; subtitle is the question the friends argue about.\nheaderImagePrompt describes a group avatar for the chat; textImagePrompt describes a scene connected to the argument.",
+          "example": {
+            "title": "Class 8B 💬",
+            "subtitle": "Should our school ban phones?",
+            "text": "**Mia:** Did you see the news? From Monday our school wants a phone ban! 😱\n\n**Leo:** Honestly, I think it’s a good idea. Phones are a huge distraction in class. We shouldn’t check messages every five minutes.\n\n**Mia:** But what about an emergency? I should be able to call my mum.\n\n**Sara:** You can use the phone in the office. And we could put our phones in a phone locker in the morning.\n\n**Leo:** Exactly. Teachers should keep the rules simple.\n\n**Tom:** I don’t agree. We use phones for homework and for our group chat. The school shouldn’t take them away completely.\n\n**Sara:** Maybe students should keep them on silent and use them only in the break?\n\n**Mia:** That sounds fair. We should talk to the head teacher about it! 👍\n\n**Tom:** Deal. And less screen time at lunch, I promise 😂",
+            "headerImagePrompt": "Small round group avatar with four smiling teenagers' faces, bright flat colours, modern educational illustration, no text.",
+            "textImagePrompt": "Wide scene of four teenagers arguing in a friendly way at a school table, one holding up a phone, modern educational illustration, no text.",
+            "usedVocabularyTerms": ["distraction", "emergency", "phone locker", "group chat", "on silent", "screen time"]
+          }
+        },
+        {
+          "id": "group-chat-questions",
+          "kind": "generated",
+          "control": "choiceQuestions",
+          "params": {
+            "questions": 4,
+            "options": 3
+          },
+          "fields": {
+            "questions": "chatQuestions"
+          },
+          "chrome": {
+            "title": "Task 1. Who Thinks What?",
+            "instruction": "Read the chat and choose the correct answer."
+          },
+          "instructions": "chatQuestions ask who said what, why the friends think so, and what they agree on at the end. Every answer is stated in the chat.",
+          "answerKey": {
+            "title": "Answer Key",
+            "format": "paragraphs"
+          },
+          "example": {
+            "questions": [
+              {
+                "question": "Who thinks phones are a distraction in class?",
+                "options": ["Leo", "Tom", "Mia"],
+                "answer": "Leo",
+                "explanation": "Leo says phones are a huge distraction in class."
+              },
+              {
+                "question": "Why is Mia worried about the ban?",
+                "options": ["She wants to call her mum in an emergency.", "She wants to play games in the break.", "She needs her phone for a test."],
+                "answer": "She wants to call her mum in an emergency.",
+                "explanation": "Mia says she should be able to call her mum in an emergency."
+              },
+              {
+                "question": "What does Sara suggest?",
+                "options": ["Keeping phones on silent and using them only in the break", "Bringing two phones to school", "Using phones in every lesson"],
+                "answer": "Keeping phones on silent and using them only in the break",
+                "explanation": "Sara says students should keep them on silent and use them only in the break."
+              },
+              {
+                "question": "What do the friends decide to do?",
+                "options": ["Talk to the head teacher", "Start a new group chat", "Stop using phones at home"],
+                "answer": "Talk to the head teacher",
+                "explanation": "Mia says they should talk to the head teacher, and Tom agrees."
+              }
+            ]
+          }
+        },
+        {
+          "id": "group-chat-your-side",
+          "kind": "generated",
+          "control": "personalizedQuestions",
+          "params": {
+            "items": 3
+          },
+          "fields": {
+            "questions": "sideQuestions"
+          },
+          "chrome": {
+            "title": "Task 2 · Whose Side Are You On?",
+            "instruction": "Answer the questions out loud. There are no right or wrong answers!"
+          },
+          "instructions": "sideQuestions ask whose opinion in the chat the learner shares and connect the argument to the learner’s own life.",
+          "example": {
+            "questions": [
+              { "question": "Whose idea in the chat do you like most?", "followUp": "Why do you like it?" },
+              { "question": "Do you use your phone during the school day?", "followUp": "When and what for?" },
+              { "question": "Is a phone ban fair for students your age?", "followUp": "What would you change?" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "grammar-presentation",
+      "title": "Grammar Presentation",
+      "subtitle": "Spot It in the Chat",
+      "durationMinutes": 5,
+      "icon": "cap",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Group chat": "$var.groupChat"
+      },
+      "instructions": "This is a five-minute Grammar Presentation built on guided discovery: the learner finds the target grammar in the group chat they have just read, completes the rule and checks it.\nThe supplied Grammar topic is authoritative: present exactly that grammar.\nWhere a slot asks for it, take examples from the supplied Group chat; elsewhere use the lesson topic as the context.\nAll copy must be natural English at the target CEFR level.",
+      "blocks": [
+        {
+          "id": "grammar-presentation-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Guided discovery:** Don’t explain the rule first. Let the student notice it in the chat they have just read.\n\n**Say:** “Do you remember the group chat? Here are five messages from it. Look at the words in bold. What do they have in common?”\n\n**Then:** Work through the questions, let the student complete the rule and confirm it with Quick Rule.\n\n**Check:** In the last task, ask the student to explain each choice and to correct the wrong sentences aloud."
+          }
+        },
+        {
+          "id": "grammar-presentation-spot-it",
+          "kind": "static",
+          "component": {
+            "type": "textPanel",
+            "text": "{l}**Spot It in the Chat**{/l}\n\n{muted}{s}These sentences are from the group chat. Look at the words in bold.{/s}{/muted}\n\n{{chatExamples}}",
+            "backgroundColor": "#FFFFFF",
+            "accentColor": "#6545F5",
+            "showBorder": false
+          },
+          "slots": {
+            "chatExamples": {
+              "rule": "Exactly five sentences from the supplied Group chat that use the target grammar, copied exactly, as a Markdown numbered list (1. to 5.), one per line. End each line with “ — ” and the speaker’s name in italics. In every sentence, wrap the target grammar form in exactly one pair of **bold** Markdown markers. No heading or introduction.",
+              "example": "1. We **shouldn’t check** messages every five minutes. — *Leo*\n2. I **should be** able to call my mum. — *Mia*\n3. Teachers **should keep** the rules simple. — *Leo*\n4. The school **shouldn’t take** them away completely. — *Tom*\n5. We **should talk** to the head teacher about it! — *Mia*"
+            }
+          }
+        },
+        {
+          "id": "grammar-presentation-concept-checking",
+          "kind": "static",
+          "component": {
+            "type": "textPanel",
+            "text": "{l}**Concept-checking questions:**{/l}\n\n{{conceptCheckingQuestions}}",
+            "backgroundColor": "#FFFFFF",
+            "accentColor": "#20A85B",
+            "showBorder": true
+          },
+          "slots": {
+            "conceptCheckingQuestions": {
+              "rule": "Exactly four concept-checking questions about the chat sentences as a Markdown numbered list (1. to 4.), one question per line. Keep them concise and guide the learner to discover meaning, use, and form. No heading or introduction.",
+              "example": "1. In sentence 3, is Leo giving advice or talking about the past?\n2. Which word means “it’s a bad idea”: should or shouldn’t?\n3. What comes after should: check, to check or checks?\n4. Does should change after he, she or it?"
+            }
+          }
+        },
+        {
+          "id": "grammar-presentation-complete-the-rule",
+          "kind": "generated",
+          "control": "ruleGaps",
+          "params": {
+            "gaps": 4,
+            "distractors": 2
+          },
+          "fields": {
+            "items": "ruleItems",
+            "distractors": "ruleDistractors"
+          },
+          "chrome": {
+            "title": "Complete the Rule",
+            "instruction": "Drag the correct words into the gaps."
+          },
+          "answerKey": {
+            "title": "Answer key"
+          },
+          "example": {
+            "items": [
+              { "before": "We use should to give ", "answer": "advice", "after": " or to say that something is a good idea." },
+              { "before": "We use ", "answer": "shouldn’t", "after": " to say that something is a bad idea." },
+              { "before": "After should we use the ", "answer": "base form", "after": " of the verb: should keep, not should to keep." },
+              { "before": "Should is the ", "answer": "same", "after": " for all persons: I should, she should, they should." }
+            ],
+            "distractors": ["past form", "different"]
+          }
+        },
+        {
+          "id": "grammar-presentation-quick-rule",
+          "kind": "generated",
+          "control": "quickRule",
+          "params": {
+            "minSections": 1,
+            "maxSections": 3
+          },
+          "fields": {
+            "sections": "quickRuleSections"
+          },
+          "chrome": {
+            "title": "Quick Rule",
+            "layout": "columns",
+            "icon": "bulb",
+            "accentColor": "#6545F5",
+            "studentVisibility": "always"
+          },
+          "instructions": "Use concise Markdown bullet points to cover meaning, affirmative form, and relevant negative/question forms, with an example from the lesson topic where useful.",
+          "example": {
+            "sections": [
+              { "title": "SHOULD", "text": "- **meaning:** advice, a good idea\n- **form:** should + base verb\n- **example:** “You should put your phone on silent.”" },
+              { "title": "SHOULDN’T", "text": "- **meaning:** a bad idea\n- **form:** shouldn’t + base verb\n- **example:** “We shouldn’t check messages in class.”" },
+              { "title": "QUESTIONS", "text": "- **form:** Should + subject + base verb?\n- **example:** “Should we ban phones?”\n- **short answers:** Yes, we should. / No, we shouldn’t." }
+            ]
+          }
+        },
+        {
+          "id": "grammar-presentation-check-the-rule",
+          "kind": "generated",
+          "control": "correctSentences",
+          "params": {
+            "sentences": 6,
+            "correct": 3
+          },
+          "fields": {
+            "items": "checkItems"
+          },
+          "chrome": {
+            "title": "Check the Rule. Tick the correct sentences.",
+            "instruction": "Read the sentences and tick the grammatically correct ones.",
+            "question": "Which three sentences are grammatically correct?"
+          },
+          "answerKey": {
+            "title": "Answer key",
+            "layout": "columns"
+          },
+          "example": {
+            "items": [
+              { "sentence": "You should keep your phone in your bag.", "isCorrect": true, "explanation": "" },
+              { "sentence": "Students shouldn’t use phones in tests.", "isCorrect": true, "explanation": "" },
+              { "sentence": "Should we talk to the head teacher?", "isCorrect": true, "explanation": "" },
+              { "sentence": "He shoulds ask his teacher first.", "isCorrect": false, "explanation": "Should doesn’t change: He should ask his teacher first." },
+              { "sentence": "We should to put our phones on silent.", "isCorrect": false, "explanation": "Use the base form after should: We should put our phones on silent." },
+              { "sentence": "You don’t should check messages in class.", "isCorrect": false, "explanation": "The negative is shouldn’t: You shouldn’t check messages in class." }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "grammar-focus",
+      "title": "Grammar Focus",
+      "subtitle": "Build & Fix",
+      "durationMinutes": 8,
+      "icon": "cap",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "This is an eight-minute Grammar Focus with three controlled-practice tasks written as chat messages: build messages from word cards, fix messages that autocorrect broke, and complete messages with the right form.\nThe supplied Grammar topic is authoritative: every task practises exactly that grammar accurately.\nUse the lesson topic as one coherent context and reuse some supplied Target Vocabulary where it fits.\nAll content must be natural English at the target CEFR level. Do not use Markdown or HTML.",
+      "blocks": [
+        {
+          "id": "grammar-focus-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Task 1:** say “These chat messages fell apart! Put the cards in the right order.” Let the student use the hints if they get stuck, then ask them to read each message aloud.\n\n**Task 2:** say “Autocorrect broke these messages. There is one mistake in each. Can you fix it?” Ask the student to explain the rule behind each correction.\n\n**Task 3:** say “Complete the messages with the correct form of the words in brackets.”\n\n**Correct now:** mistakes in the target grammar. **Leave for later:** small slips that do not stop communication."
+          }
+        },
+        {
+          "id": "grammar-focus-build-the-message",
+          "kind": "generated",
+          "control": "sentenceBuilder",
+          "params": {
+            "sentences": 6,
+            "hints": true,
+            "completionText": "Message sent! Well done!"
+          },
+          "fields": {
+            "items": "builderItems"
+          },
+          "chrome": {
+            "title": "Task 1. Build the Message",
+            "instruction": "Put the cards in the right order to make a chat message."
+          },
+          "instructions": "builderItems are short chat messages about the lesson topic; each uses the target grammar.",
+          "example": {
+            "items": [
+              { "sentence": "We should [put our phones] [on silent] in class.", "otherOrders": [] },
+              { "sentence": "Students shouldn’t [check messages] during lessons.", "otherOrders": [] },
+              { "sentence": "Should we [use our phones] for homework?", "otherOrders": [] },
+              { "sentence": "You should [call your parents] in an emergency.", "otherOrders": [] },
+              { "sentence": "The school shouldn’t [ban phones] [for everyone].", "otherOrders": [] },
+              {
+                "sentence": "We should [turn off] [our phones] and [our tablets] in tests.",
+                "otherOrders": ["We should [turn off] [our tablets] and [our phones] in tests."]
+              }
+            ]
+          }
+        },
+        {
+          "id": "grammar-focus-fix-the-messages",
+          "kind": "generated",
+          "control": "sentenceCorrection",
+          "params": {
+            "items": 6
+          },
+          "fields": {
+            "items": "correctionItems"
+          },
+          "chrome": {
+            "title": "Task 2. Autocorrect Fail! Fix the Messages.",
+            "instruction": "There is one mistake in each message. Rewrite it correctly.",
+            "accentColor": "#6545F5"
+          },
+          "instructions": "correctionItems are short chat messages about the lesson topic.",
+          "answerKey": {},
+          "example": {
+            "items": [
+              { "incorrect": "You should to put your phone in the locker.", "corrections": ["You should put your phone in the locker."] },
+              { "incorrect": "Students shouldn’t uses phones in tests.", "corrections": ["Students shouldn’t use phones in tests."] },
+              { "incorrect": "Do we should switch off our phones?", "corrections": ["Should we switch off our phones?"] },
+              { "incorrect": "She shoulds ask the teacher first.", "corrections": ["She should ask the teacher first."] },
+              { "incorrect": "We don’t should check messages in class.", "corrections": ["We shouldn’t check messages in class.", "We should not check messages in class."] },
+              { "incorrect": "Should I calling my mum in an emergency?", "corrections": ["Should I call my mum in an emergency?"] }
+            ]
+          }
+        },
+        {
+          "id": "grammar-focus-complete-the-messages",
+          "kind": "generated",
+          "control": "cueGaps",
+          "params": {
+            "items": 6
+          },
+          "fields": {
+            "items": "gapItems"
+          },
+          "chrome": {
+            "title": "Task 3. Complete the Messages.",
+            "instruction": "Type the correct form of the words in brackets.",
+            "accentColor": "#2F80ED"
+          },
+          "instructions": "gapItems are separate chat messages, not a dialogue.",
+          "answerKey": {},
+          "example": {
+            "items": [
+              { "before": "Students ", "answer": "shouldn’t play", "after": " games during lessons.", "cue": "not play" },
+              { "before": "You ", "answer": "should keep", "after": " your phone on silent in class.", "cue": "keep" },
+              { "before": "", "answer": "Should we use", "after": " our phones for the project?", "cue": "we / use" },
+              { "before": "I think teachers ", "answer": "shouldn’t take", "after": " our phones away.", "cue": "not take" },
+              { "before": "We ", "answer": "should talk", "after": " to each other at lunch.", "cue": "talk" },
+              { "before": "Parents ", "answer": "shouldn’t call", "after": " their children during lessons.", "cue": "not call" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "debate",
+      "title": "Debate",
+      "subtitle": "Agree or Disagree?",
+      "durationMinutes": 10,
+      "icon": "chat",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "This is a ten-minute debate between the learner and the teacher about one clear question on the lesson topic. Each side has a secret role card; in the end they must agree on one fair solution.\nAll content must be natural English at the target CEFR level. Do not use Russian, Markdown or HTML.\nDo not turn the debate into a grammar exercise.",
+      "blocks": [
+        {
+          "id": "debate-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Set up:** Read How to Debate together. The student argues for one side, you argue for the other. Keep your card secret.\n\n**Say:** “Let’s have a debate! Read your card. You have one minute to think of your reasons.”\n\n**During the debate:** Disagree politely and ask for reasons: “Why do you think so?” Use the Speaking Support phrases yourself so the student hears them.\n\n**If the student gets stuck:** Point to one phrase in Speaking Support or offer a choice of two ideas.\n\n**Finish:** Agree on one solution together. Show the Example Debate if the student needs a model.\n\n**Correct:** only when the meaning is unclear. Note other mistakes for later."
+          }
+        },
+        {
+          "id": "debate-how-to-play",
+          "kind": "static",
+          "component": {
+            "type": "howToPlay",
+            "title": "How to Debate",
+            "steps": [
+              "Read your card. Keep it secret.",
+              "Say what you think and give two reasons.",
+              "Listen to your partner and react. Agree or disagree politely.",
+              "Complete your secret mission.",
+              "Agree on one fair solution together."
+            ]
+          }
+        },
+        {
+          "id": "debate-role-cards",
+          "kind": "generated",
+          "control": "roleCards",
+          "params": {
+            "minTurns": 6,
+            "maxTurns": 8,
+            "minTerms": 3,
+            "maxTerms": 4
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "instructions": "The two roles take opposite sides of one debate question about the lesson topic: Student argues for one side, Teacher for the other.\nwant: the two main arguments of that side; avoid: what that side does not want to happen; secret: two private facts that help that side; mission: two short actions, the first of them is to use three words from the lesson.\nThe student and teacher goal strings must be exactly the same: agree on one fair solution together.\nThe Example Dialogue is a short polite debate that uses phrases like those in Speaking Support and ends with the shared solution.",
+          "example": {
+            "usedVocabularyTerms": ["emergency", "distraction", "screen time"],
+            "roles": {
+              "student": {
+                "want": ["Keep your phone for an emergency", "Use phones for homework apps"],
+                "avoid": ["A full phone ban"],
+                "secret": ["Your bus is often late, so you text your mum", "The class group chat has all the homework"],
+                "mission": ["Use three words from the lesson", "Ask your partner one question"],
+                "goal": "Agree on one fair phone rule for our school."
+              },
+              "teacher": {
+                "want": ["Fewer distractions in class", "More talking at lunch"],
+                "avoid": ["Phones on desks during lessons"],
+                "secret": ["Last week three phones rang in a test", "Many students want less screen time"],
+                "mission": ["Use three words from the lesson", "Suggest one compromise"],
+                "goal": "Agree on one fair phone rule for our school."
+              }
+            },
+            "dialogue": [
+              { "speaker": "Teacher", "text": "I think phones should stay in a phone locker during lessons. They are a big distraction." },
+              { "speaker": "Student", "text": "I see your point, but what about an emergency? I should be able to call my mum." },
+              { "speaker": "Teacher", "text": "That’s fair. But students shouldn’t check messages in class." },
+              { "speaker": "Student", "text": "OK. What if we keep our phones on silent in our bags?" },
+              { "speaker": "Teacher", "text": "Good idea. And no phones at lunch, so we have less screen time." },
+              { "speaker": "Student", "text": "Deal! So we agree: phones on silent in bags, and we only use them in an emergency." }
+            ]
+          }
+        },
+        {
+          "id": "debate-speaking-support",
+          "kind": "generated",
+          "control": "speakingSupport",
+          "params": {
+            "phrases": 3
+          },
+          "fields": {
+            "phrases": "debatePhrases"
+          },
+          "chrome": {
+            "title": "Speaking Support"
+          },
+          "instructions": "Make the phrases suitable for a polite debate about the topic. Keep clarification phrases generally reusable.",
+          "example": {
+            "phrases": {
+              "reacting": ["Really?", "That’s a good point.", "Hmm, I’m not sure."],
+              "followUpQuestions": ["Why do you think so?", "What about emergencies?", "Can you give an example?"],
+              "clarification": ["What do you mean?", "Could you say that again?", "Do you mean all day?"],
+              "suggestions": ["What if we…?", "We could…", "How about a phone locker?"],
+              "agreeingDisagreeing": ["I agree with you.", "I see your point, but…", "I don’t think so, because…"],
+              "decision": ["So, we agree that…", "Let’s choose…", "That’s a fair rule."]
+            }
+          }
+        },
+        {
+          "id": "debate-example-dialogue",
+          "kind": "derived",
+          "control": "roleDialogue",
+          "from": "debate-role-cards",
+          "chrome": {
+            "title": "Example Debate",
+            "icon": "chat",
+            "accentColor": "#3563D4",
+            "studentVisibility": "controlled"
+          }
+        }
+      ]
+    },
+    {
+      "id": "create",
+      "title": "Create",
+      "subtitle": "Reply to the Post",
+      "durationMinutes": 5,
+      "icon": "pencil",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "This is a five-minute writing stage: the learner writes a reply to the hot-take post from the Warm-Up, using the target grammar and words of the lesson.\nAll content must be natural English at the target CEFR level.",
+      "blocks": [
+        {
+          "id": "create-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Say:** “Remember the hot take from the start of the lesson? Now you are an expert! Write your reply to the post.”\n\n**Support:** Weaker students can start from the model sentence and write three sentences. Stronger students add a question to the blogger at the end.\n\n**After writing:** Ask the student to read the reply aloud like a real post. Praise one strong argument, then correct one or two mistakes together."
+          }
+        },
+        {
+          "id": "create-reply-task",
+          "kind": "static",
+          "component": {
+            "type": "taskPrompt",
+            "variant": "followUp",
+            "title": "Your Reply",
+            "text": "Go back to the post from the Warm-Up and write a reply of 4–6 sentences.\n\n- Say if you agree or disagree.\n- Give two reasons.\n- {{grammarTask}}\n- Use words from the lesson."
+          },
+          "slots": {
+            "grammarTask": {
+              "rule": "One short instruction for the learner to use the target grammar in the reply, with the key form in **bold**. One line, no list marker, heading or introduction.",
+              "example": "Give one piece of advice with **should** or **shouldn’t**."
+            }
+          }
+        },
+        {
+          "id": "create-support",
+          "kind": "generated",
+          "control": "wordBankSupport",
+          "params": {
+            "words": 6,
+            "minimumTask": "Write 3 sentences if you need extra support."
+          },
+          "fields": {
+            "words": "replyWords"
+          },
+          "inputs": {
+            "vocabulary": "targetVocabulary"
+          },
+          "chrome": {
+            "title": "Support",
+            "icon": "lifeRing",
+            "accentColor": "#20A85B",
+            "studentVisibility": "always"
+          },
+          "instructions": "modelSentence: one natural sentence of a reply to the post that uses the target grammar.",
+          "example": {
+            "words": ["ban", "distraction", "emergency", "on silent", "screen time", "phone locker"],
+            "modelSentence": "I don’t agree with a phone ban, but we should keep our phones on silent in class."
+          }
+        }
+      ]
+    },
+    {
+      "id": "wrap-up",
+      "title": "Wrap-Up",
+      "subtitle": "How Did It Go?",
+      "durationMinutes": 2,
+      "icon": "check",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "This is a two-minute Wrap-Up: the learner rates the lesson and gets a homework task that reviews the lesson topic, grammar and words.\nAll copy must be natural English at the target CEFR level.",
+      "blocks": [
+        {
+          "id": "wrap-up-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Say:** “Great debate today! How do you feel about the lesson? Choose an answer for each line.”\n\n**Then:** Read the homework together and make sure the student knows what to do.\n\n**Positive ending:** Praise one good argument the student made in the debate."
+          }
+        },
+        {
+          "id": "wrap-up-self-assessment",
+          "kind": "static",
+          "component": {
+            "type": "selfAssessment",
+            "title": "Self-assessment: How do you feel about today’s lesson?"
+          }
+        },
+        {
+          "id": "wrap-up-homework",
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
+            "title": "Homework",
+            "text": "{{homework}}",
+            "icon": "pencil",
+            "accentColor": "#6545F5",
+            "studentVisibility": "always"
+          },
+          "slots": {
+            "homework": {
+              "rule": "A short homework task for the learner: write a comment of 50–70 words for the class group chat about a question on the lesson topic, using the target grammar at least three times and three words from the Target Vocabulary. Name the grammar form in **bold**. Two short paragraphs separated by a blank line; no heading or list.",
+              "example": "Write a comment of 50–70 words for your class group chat: *Should our school ban phones?*\n\nUse **should** or **shouldn’t** at least three times and three words from today’s lesson."
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

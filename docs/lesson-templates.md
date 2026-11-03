@@ -377,7 +377,7 @@ warm-up, watch-and-interact — без связей
 | `matchPictures` | matchWords | |
 | `fillInBlanks` | fillInBlanks | |
 | `describeAndGuess` | describeAndGuess | vocabulary |
-| `readingText` | textReading | vocabulary |
+| `readingText` | textReading | vocabulary → text |
 | `choiceQuestions` | multipleChoice или checkboxChoice | |
 | `audioScript` | audioPlayer | |
 | `repeatAudio` *derived* | audioPlayer | блок audioScript |
@@ -393,7 +393,9 @@ warm-up, watch-and-interact — без связей
 
 Для шаблона 3 добавлен `sentenceBuilder` (компонент sentenceBuilder, без входов):
 предложения с фразами в `[скобках]` и другими верными порядками, см.
-[sentence-builder.md](sentence-builder.md).
+[sentence-builder.md](sentence-builder.md). `readingText` отдаёт свой текст
+выходом `text`: в шаблоне 3 Grammar Presentation берёт примеры из группового
+чата (`"Group chat": "$var.groupChat"` в `context` этапа).
 
 **Ключ ответов.** Контрол задания отдаёт `answerKey()` → `{ lines, list }`:
 строки ключа и признак, что это пункты Markdown-списка. Блок задания включает
