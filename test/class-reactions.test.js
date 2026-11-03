@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const { createDocument } = require('./helpers/lesson-dom');
-function fixture({ send, reducedMotion = false } = {}) {
+function fixture({ send, reducedMotion = false, random = Math.random } = {}) {
   const document = createDocument(), animations = [];
   const layer = document.getElementById('lesson-reaction-layer');
   Object.defineProperty(layer, 'firstElementChild', { get() { return this.children[0] || null; } });
@@ -24,7 +24,7 @@ function fixture({ send, reducedMotion = false } = {}) {
   };
   let now = 1000;
   const window = { matchMedia: () => ({ matches: reducedMotion }) };
-  const context = { window, document, Date: { now: () => now } };
+  const context = { window, document, Date: { now: () => now }, Math: Object.create(Math, { random: { value: random } }) };
   vm.runInNewContext(fs.readFileSync('assets/class-reactions.js', 'utf8'), context);
   const reactions = window.ClassReactions.create({ send });
   const picker = document.getElementById('lesson-reaction-picker');
@@ -69,4 +69,15 @@ test('reduced motion fades reactions in place and drafts work without a socket',
   f.button('clap').click();
   assert.equal(f.layer.children.length, 1);
   assert.ok(f.animations[0].frames.every(frame => !frame.transform));
+});
+test('a burst of reactions rises from one spot and a pause picks a new one', () => {
+  let random = .5;
+  const f = fixture({ random: () => random });
+  const left = index => f.animations[index].node.style.left;
+  f.reactions.receive({ kind: 'heart' });
+  assert.equal(left(0), 'clamp(24px, calc(50% + 0px), calc(100% - 24px))');
+  random = 1; f.tick(4000); f.button('fire').click();
+  assert.equal(left(1), 'clamp(24px, calc(50% + 20px), calc(100% - 24px))');
+  random = 0; f.tick(5001); f.reactions.receive({ kind: 'clap' });
+  assert.equal(left(2), 'clamp(24px, calc(5% + -20px), calc(100% - 24px))');
 });

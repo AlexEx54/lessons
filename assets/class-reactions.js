@@ -3,14 +3,15 @@
   const labels = { heart: 'Сердце', like: 'Нравится', clap: 'Аплодисменты', laugh: 'Смешно', fire: 'Огонь', confused: 'Непонятно', mindblown: 'Взрыв мозга' };
   const kinds = Object.keys(labels);
   if (typeof module !== 'undefined' && module.exports) { module.exports = { kinds }; return; }
-  const SEND_INTERVAL_MS = 120, MAX_FLYING = 30;
+  // A burst of reactions rises from one spot; after a pause the next burst picks a new one.
+  const SEND_INTERVAL_MS = 120, MAX_FLYING = 30, ANCHOR_IDLE_MS = 5000, ANCHOR_JITTER_PX = 20;
   window.ClassReactions = { kinds, create({ send } = {}) {
     const root = document.getElementById('lesson-reactions');
     const toggle = document.getElementById('lesson-reactions-toggle');
     const picker = document.getElementById('lesson-reaction-picker');
     const layer = document.getElementById('lesson-reaction-layer');
     const src = kind => `/assets/images/reactions/${kind}.webp`;
-    let sentAt = 0;
+    let sentAt = 0, anchor, flownAt = -Infinity;
     root.hidden = false;
     function open(value) {
       picker.hidden = !value;
@@ -18,11 +19,14 @@
     }
     function fly(kind) {
       if (layer.children.length >= MAX_FLYING) layer.firstElementChild.remove();
+      if (Date.now() - flownAt > ANCHOR_IDLE_MS) anchor = 5 + Math.random() * 90;
+      flownAt = Date.now();
+      const jitter = (Math.random() - .5) * 2 * ANCHOR_JITTER_PX;
       const node = document.createElement('img');
       node.className = 'lesson-reaction';
       node.src = src(kind);
       node.alt = '';
-      node.style.left = `${15 + Math.random() * 50}%`;
+      node.style.left = `clamp(24px, calc(${anchor}% + ${jitter}px), calc(100% - 24px))`;
       layer.append(node);
       const height = layer.clientHeight, sway = (Math.random() - .5) * 56, scale = .85 + Math.random() * .4;
       const frames = window.matchMedia('(prefers-reduced-motion: reduce)').matches
