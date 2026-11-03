@@ -14,6 +14,7 @@
 /* Unread chat messages: a small count that never changes the size of what it sits on. */
 .call-badge { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; color: #fff; background: #e5484d; font-size: 10px; font-weight: 700; line-height: 1; }
 .call-toggle__badge { position: absolute; top: -7px; right: -7px; box-shadow: 0 0 0 2px #fff; }
+.call-panel .panel-tabs [role='tab']:disabled { color: #b4b6c4; cursor: not-allowed; }
 .call-panel__collapse { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; background: transparent; color: #7d8298; }
 .call-panel__collapse:hover { background: #f6f5fb; }
 .call-panel__collapse svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
@@ -35,6 +36,8 @@
 .call-tiles { display: grid; gap: 8px; }
 .call-tile { position: relative; overflow: hidden; aspect-ratio: 16 / 10; border-radius: 10px; background: #1d1b2e; }
 .call-tile video { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* The library preview draws the call with pictures, and a picture is not mirrored like a camera. */
+.call-tile video[poster] { transform: none; }
 .call-tile--local video { transform: scaleX(-1); }
 /* A shared screen is shown whole and as it is, never cropped or mirrored like a camera. */
 .call-tile video[data-screen='true'] { object-fit: contain; transform: none; }

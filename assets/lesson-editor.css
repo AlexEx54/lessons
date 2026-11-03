@@ -125,6 +125,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .end-lesson { color: #ef4b57; }
 .end-lesson--classes { color: var(--purple); }
 .schedule-lesson { color: #fff; border-color: var(--purple); background: var(--purple); }
+/* The library preview: whose side of the class the page shows. */
+.preview-role { display: flex; padding: 4px; gap: 4px; border: 1px solid var(--line); border-radius: 9px; background: #fff; box-shadow: 0 3px 12px rgba(31, 28, 72, .03); }
+.preview-role button { padding: 0 14px; border-radius: 6px; color: #65677b; background: transparent; font-size: 13px; font-weight: 650; }
+.preview-role button:hover { color: var(--purple); }
+.preview-role button[aria-pressed='true'] { color: var(--purple); background: var(--purple-soft); }
 
 .teacher-screen[data-state] { color: #b45309; background: #fffbeb; border-color: #fbd38d; }
 .teacher-screen[data-state]::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, .18); }
@@ -179,6 +184,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .stage-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 13px; }
 .stage-heading h1 { margin: 0; font-size: clamp(26px, 2.8vw, 34px); letter-spacing: -.03em; }
 .teacher-version { padding: 7px 10px; border-radius: 6px; color: var(--purple); background: var(--purple-soft); font-size: 11px; font-weight: 650; }
+.preview-hint { color: var(--muted); font-size: 12px; }
 .stage-kicker { margin: 12px 0 25px; color: var(--purple); font-size: 20px; font-weight: 650; }
 .stage-components { display: grid; gap: 18px; }
 

@@ -86,6 +86,17 @@ test('teacher never scrolls and reconnect accepts a restarted revision', () => {
   f.pointer.update(f.state); f.pointer.receive({ ...event, revision: 1 });
   assert.ok(f.part.classList.contains('lesson-pointer-target'));
 });
+test('setRole hides the button from a student and lets them scroll to the target', () => {
+  const f = fixture('teacher'), button = f.document.getElementById('lesson-pointer');
+  button.click();
+  f.pointer.setRole('student');
+  assert.equal(button.hidden, true);
+  assert.equal(button.getAttribute('aria-pressed'), 'false');
+  f.pointer.receive({ stageId: 'reading', target: { componentId: 'card', part: 'paragraph:0' }, revision: 1 });
+  assert.equal(f.scrolls.length, 1);
+  f.pointer.setRole('teacher');
+  assert.equal(button.hidden, false);
+});
 
 for (const [name, rect] of [
   ['below the viewport', { top: 900, bottom: 950, height: 50 }],

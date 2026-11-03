@@ -7,6 +7,7 @@
   const byId = id => document.getElementById(id);
   const rules = window.ClassRules, adapters = window.ClassComponentAdapters;
   const viewState = { lesson: null, activeIndex: 0 };
+  const CALL_PICTURES = { teacher: '/assets/images/call-mockup-teacher.jpg', student: '/assets/images/call-mockup-student.jpg' };
   let role = 'teacher', lesson, state, availableStageIds = [], studentStageId, feedback = false, pointerRevision = 0, toastTimer;
   const viewedStageId = () => viewState.lesson?.stages[viewState.activeIndex]?.id;
   const stageIndex = stageId => viewState.lesson.stages.findIndex(stage => stage.id === stageId);
@@ -82,12 +83,49 @@
     byId('lesson-follow').hidden = role !== 'student' || viewedStageId() === state.activeStageId;
     byId('lesson-follow-text').textContent = `Учитель на этапе «${viewState.lesson.stages[stageIndex(state.activeStageId)].title}»`;
   }
-  // Shows the controls the current role has in a live class.
+  // Shows the controls and the call picture the current role has in a live class.
   function applyRole() {
-    const teacher = role === 'teacher';
+    const teacher = role === 'teacher', peer = teacher ? 'student' : 'teacher';
     byId('reset-stage-progress').hidden = !teacher;
     byId('lesson-timer-card').hidden = !teacher;
     document.querySelector('.teacher-version').textContent = teacher ? 'Teacher version' : 'Student version';
+    for (const button of byId('preview-role').children) button.setAttribute('aria-pressed', String(button.dataset.role === role));
+    byId('call-local-video').poster = CALL_PICTURES[role];
+    byId('call-remote-video').poster = CALL_PICTURES[peer];
+    byId('call-remote-name').textContent = peer === 'teacher' ? 'Учитель' : 'Ученик';
+  }
+  // Both views share the class state, so switching only re-projects it for the other side.
+  function switchRole(next) {
+    if (next === role) return;
+    role = next;
+    pointer.setRole(role);
+    applyRole();
+    viewState.lesson = project();
+    view.selectStage(stageIndex(ownStageId()), true);
+    paint();
+  }
+  // The call is only drawn: pictures stand in for the cameras, so the teacher sees where it lives in a class.
+  function mountCallMockup() {
+    const panel = byId('call-panel'), toggle = byId('call-toggle');
+    const setOpen = open => {
+      panel.hidden = !open;
+      document.body.classList.toggle('lesson-call-open', open);
+      toggle.setAttribute('aria-expanded', String(open));
+    };
+    toggle.hidden = false;
+    toggle.addEventListener('click', () => setOpen(panel.hidden));
+    byId('call-panel-collapse').addEventListener('click', () => setOpen(false));
+    byId('call-lobby').hidden = true;
+    byId('call-room').hidden = false;
+    byId('call-local-placeholder').hidden = true;
+    for (const control of document.querySelectorAll('.call-controls button')) control.disabled = true;
+    const chatTab = byId('chat-tab');
+    chatTab.disabled = true;
+    chatTab.title = 'Чат работает на занятии';
+    const note = byId('call-note');
+    note.textContent = 'Это макет звонка. На занятии здесь будут камеры учителя и ученика.';
+    note.hidden = false;
+    setOpen(true);
   }
   const resetButton = byId('reset-stage-progress');
   resetButton.disabled = false;
@@ -97,6 +135,13 @@
     show();
   });
   byId('teacher-screen').hidden = true;
+  byId('preview-role').hidden = false;
+  byId('preview-role').addEventListener('click', event => {
+    const button = event.target.closest('[data-role]');
+    if (button && lesson) switchRole(button.dataset.role);
+  });
+  byId('preview-hint').hidden = false;
+  mountCallMockup();
   const exit = document.querySelector('.end-lesson');
   exit.href = '/library.html';
   exit.querySelector('span').textContent = 'В библиотеку';

@@ -95,6 +95,8 @@
           paint();
         }, 2200);
       },
+      // The library preview lets one person play both sides of the class.
+      setRole(value) { role = value; button.hidden = role !== 'teacher'; arm(false); },
       disconnect() { window.clearTimeout(expiryTimer); revision = -1; current = null; connected = false; arm(false); button.disabled = true; paint(); },
     };
   } };
