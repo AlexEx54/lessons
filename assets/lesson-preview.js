@@ -7,7 +7,7 @@
   const byId = id => document.getElementById(id);
   const rules = window.ClassRules, adapters = window.ClassComponentAdapters;
   const viewState = { lesson: null, activeIndex: 0 };
-  const CALL_PICTURES = { teacher: '/assets/images/call-mockup-teacher.jpg', student: '/assets/images/call-mockup-student.jpg' };
+  const CALL_PICTURES = { teacher: '/assets/images/call-mockup-teacher.webp', student: '/assets/images/call-mockup-student.webp' };
   let role = 'teacher', lesson, state, availableStageIds = [], feedback = false, pointerRevision = 0, toastTimer;
   const viewedStageId = () => viewState.lesson?.stages[viewState.activeIndex]?.id;
   const stageIndex = stageId => viewState.lesson.stages.findIndex(stage => stage.id === stageId);
