@@ -8,7 +8,7 @@ const exercises = require('../assets/components/exercise-state.js');
 const { renderSentenceBuilder } = require('../assets/components/sentence-builder.js');
 const { createDocument } = require('./helpers/lesson-dom.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
-const { studentComponent, applyComponentAction } = require('../lib/class-component-handlers.js');
+const { studentComponent, applyComponentAction } = require('../assets/class-rules.js');
 const { createSentenceBuilderExample } = require('../lib/sentence-builder-example.js');
 const source = createSentenceBuilderExample();
 const task = (...sentences) => model.normalizeSentenceBuilder({ ...source, items: sentences.map((text, i) => model.itemFromText(text, `sentence-${i + 1}`)) });

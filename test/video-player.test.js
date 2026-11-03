@@ -158,7 +158,7 @@ test('active question is restored on reload and reset uses a new local progress 
 });
 
 test('server enforces single selection, accepts teacher answers and keeps the first accepted answer', () => {
-  const { applyComponentAction } = require('../lib/class-component-handlers.js');
+  const { applyComponentAction } = require('../assets/class-rules.js');
   const single = { ...component, questions: [{ ...question, mode: 'single', correctOptionIds: ['a'] }] };
   const state = {};
   const action = { type: 'video-question-answer', questionId: 'q-1', selectedOptionIds: ['a', 'b'] };

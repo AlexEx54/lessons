@@ -8,7 +8,7 @@ const { normalizeSentenceCorrection, createSentenceCorrectionAnswerKey, renderSe
 const { normalizeMarkdownCard } = require('../assets/components/markdown-card.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
 const model = require('../assets/components/exercise-state.js');
-const { applyComponentAction, studentComponent, clearComponentState } = require('../lib/class-component-handlers.js');
+const { applyComponentAction, studentComponent, clearComponentState } = require('../assets/class-rules.js');
 const source = { type: 'sentenceCorrection', id: 'corrections', title: 'Correct the mistakes.',
   instruction: 'Rewrite each sentence correctly.', items: [
     { id: 'robot', text: "Robot Boy hasn't got gloves?", answers: ["Robot Boy hasn't got gloves.", "Hasn't Robot Boy got gloves?"] },

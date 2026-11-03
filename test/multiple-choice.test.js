@@ -336,7 +336,7 @@ test('guess mode stays neutral, synchronizes selections and permits changing the
   const data = normalizeMultipleChoice(component({ mode: 'guess', items: [{
     id: 'prediction', question: 'What happens next?', options: ['One', 'Two'], answer: null,
   }] }));
-  const { studentComponent, applyComponentAction } = require('../lib/class-component-handlers.js');
+  const { studentComponent, applyComponentAction } = require('../assets/class-rules.js');
   const state = { exercises: {} };
   const activities = [];
   const teacher = renderMultipleChoice(data, { onActivity: (...args) => activities.push(args) }, createFakeDocument());

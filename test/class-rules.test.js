@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { studentComponent, applyComponentAction } = require('../lib/class-component-handlers.js');
+const { studentComponent, applyComponentAction } = require('../assets/class-rules.js');
 
 test('component policies exclude unknown and private content regardless of visibility state', () => {
   const state = { visibleCards: { secret: true } };
@@ -145,7 +145,7 @@ test('listening projects hidden transcripts and validates checkbox choices with 
 
 test('controlled gap fill visibility is teacher-only and hiding preserves answers until reset', () => {
   const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
-  const { clearComponentState } = require('../lib/class-component-handlers.js');
+  const { clearComponentState } = require('../assets/class-rules.js');
   const component = createSyntheticLesson('Superheroes', { template: 'template-2' }).stages[2].content.find(c => c.type === 'gapFill');
   const state = {};
   const act = (action, role = 'teacher') => applyComponentAction({ component, state, action, role });
@@ -196,4 +196,28 @@ test('controlled gap fill adapter sends visibility and applies acknowledged stat
   session.connected = false;
   window.ClassComponentAdapters.update(node, component, session);
   assert.equal(enabled, false);
+});
+
+test('lesson page loads the rules without require, so the library preview can run them', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const vm = require('node:vm');
+  const root = path.join(__dirname, '..');
+  const scripts = [...fs.readFileSync(path.join(root, 'lesson-editor.html'), 'utf8').matchAll(/<script src="\/(assets\/[^"]+)"/g)].map(match => match[1]);
+  const context = vm.createContext({ crypto: globalThis.crypto });
+  context.window = context;
+  for (const script of scripts.slice(0, scripts.indexOf('assets/class-rules.js') + 1)) {
+    vm.runInContext(fs.readFileSync(path.join(root, script), 'utf8'), context, { filename: script });
+  }
+  const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
+  const content = createSyntheticLesson('Preview');
+  const state = context.ClassRules.initialState(content);
+  context.ClassRules.addLayouts(content, state);
+  const [first, second] = context.ClassRules.availableStageIds(content);
+  assert.throws(() => context.ClassRules.applyAction(content, state, 'student', { type: 'select-stage', stageId: second, expectedVersion: 0 }), /Стадией управляет/);
+  assert.equal(context.ClassRules.applyAction(content, state, 'teacher', { type: 'select-stage', stageId: first, expectedVersion: 0 }), false);
+  assert.equal(context.ClassRules.applyAction(content, state, 'teacher', { type: 'select-stage', stageId: second, expectedVersion: 0 }), true);
+  assert.equal(state.activeStageId, second);
+  assert.equal(state.version, 1);
+  assert.ok(context.ClassRules.pointerComponentIds(content, state).length > 0);
 });

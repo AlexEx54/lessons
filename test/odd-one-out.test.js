@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { normalizeOddOneOut, createOddOneOutAnswerKey, renderOddOneOut } = require('../assets/components/odd-one-out.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
-const { studentComponent, applyComponentAction, clearComponentState } = require('../lib/class-component-handlers.js');
+const { studentComponent, applyComponentAction, clearComponentState } = require('../assets/class-rules.js');
 const component = () => createSyntheticLesson('Test', { template: 'template-2' }).stages[0].content[1];
 function createFakeDocument() {
   function textNode(value) {

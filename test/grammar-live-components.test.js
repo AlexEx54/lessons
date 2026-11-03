@@ -7,7 +7,7 @@ const { createDocument } = require('./helpers/lesson-dom.js');
 const { renderDragWordsInText } = require('../assets/components/drag-words-in-text.js');
 const { renderDropdownChoice } = require('../assets/components/dropdown-choice.js');
 const model = require('../assets/components/exercise-state.js');
-const { applyComponentAction } = require('../lib/class-component-handlers.js');
+const { applyComponentAction } = require('../assets/class-rules.js');
 const source = { type: 'dragWordsInText', id: 'rule', title: 'Rule', instruction: 'Complete.',
   words: ['past', 'verb', 'future'], text: 'Use a [[verb]] in the [[past]].' };
 const fire = (node, name, event = {}) => {

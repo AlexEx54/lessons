@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { normalizeStoryCards, renderStoryCards } = require('../assets/components/story-cards.js');
 const { createSyntheticLesson } = require('../lib/synthetic-lesson.js');
-const { studentComponent } = require('../lib/class-component-handlers.js');
+const { studentComponent } = require('../assets/class-rules.js');
 const { createDocument } = require('./helpers/lesson-dom.js');
 const stage = () => createSyntheticLesson('Superheroes', { template: 'template-2' }).stages[2];
 

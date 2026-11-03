@@ -272,7 +272,7 @@ test('snapshot feedback is not replayed and a disconnected pending drop releases
 
 test('template two vocabulary propagates student answers to teacher views and resets', () => {
   const { renderMultipleChoice } = require('../assets/components/multiple-choice.js');
-  const { studentComponent, teacherComponent, applyComponentAction, clearComponentState } = require('../lib/class-component-handlers.js');
+  const { studentComponent, teacherComponent, applyComponentAction, clearComponentState } = require('../assets/class-rules.js');
   const content = createSyntheticLesson('Superheroes', { template: 'template-2' }).stages[2].content;
   for (const [type, render, actionType, selector] of [
     ['multipleChoice', renderMultipleChoice, 'choose-option', '.multiple-choice__option'],
