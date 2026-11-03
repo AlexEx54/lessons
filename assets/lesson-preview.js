@@ -8,11 +8,9 @@
   const rules = window.ClassRules, adapters = window.ClassComponentAdapters;
   const viewState = { lesson: null, activeIndex: 0 };
   const CALL_PICTURES = { teacher: '/assets/images/call-mockup-teacher.jpg', student: '/assets/images/call-mockup-student.jpg' };
-  let role = 'teacher', lesson, state, availableStageIds = [], studentStageId, feedback = false, pointerRevision = 0, toastTimer;
+  let role = 'teacher', lesson, state, availableStageIds = [], feedback = false, pointerRevision = 0, toastTimer;
   const viewedStageId = () => viewState.lesson?.stages[viewState.activeIndex]?.id;
   const stageIndex = stageId => viewState.lesson.stages.findIndex(stage => stage.id === stageId);
-  // The teacher always looks at the class stage; the student may browse to another one.
-  const ownStageId = () => role === 'teacher' ? state.activeStageId : studentStageId;
   const project = () => role === 'teacher' ? rules.teacherContent(lesson, state) : rules.studentContent(lesson, state);
   // The other participant is always "present", and without sendMedia the video plays locally.
   const session = () => ({ role, connected: true, peerPresent: true, state: structuredClone(state), send: act, pendingActions: [], feedback });
@@ -30,13 +28,11 @@
     byId('lesson-error-message').textContent = message;
   }
   // There is no server to wait for, so an action applies at once, as if it were already confirmed.
-  function act(action) {
+  function act(action, actor = role) {
     const stageId = action.stageId || viewedStageId();
     try {
-      if (!rules.applyAction(lesson, state, role, { ...action, stageId, expectedVersion: state.version })) return;
+      if (!rules.applyAction(lesson, state, actor, { ...action, stageId, expectedVersion: state.version })) return;
     } catch (error) { notify(error.message); return; }
-    // As in a live class, a new teacher stage brings the student along.
-    if (action.type === 'select-stage') studentStageId = state.activeStageId;
     feedback = true;
     show(action.type === 'reset-stage' ? stageId : null);
     feedback = false;
@@ -47,25 +43,20 @@
     stageId: state.activeStageId, target: message.type === 'pointer-set' ? message.target : null }) });
   const view = window.LessonView.create({
     state: viewState,
-    initialStageId: ownStageId,
+    initialStageId: () => state.activeStageId,
     canSelect: index => availableStageIds.includes(viewState.lesson?.stages[index]?.id),
-    // The teacher's choice moves the whole class; the student only browses.
+    // Both views show one stage, and whoever runs the preview moves it, so the move goes through as the teacher's.
     beforeSelect: index => {
-      if (role !== 'teacher') return true;
-      act({ type: 'select-stage', stageId: viewState.lesson.stages[index].id });
+      act({ type: 'select-stage', stageId: viewState.lesson.stages[index].id }, 'teacher');
       return false;
     },
     componentOptions: component => adapters.options(component, session()),
-    onSelect: () => {
-      studentStageId = viewedStageId();
-      paint();
-    },
   });
   // Re-projects the state for the current role and updates the page in place, like a live class on a new snapshot.
   function show(resetStageId) {
     const previous = viewState.lesson.stages[viewState.activeIndex];
     viewState.lesson = project();
-    const index = stageIndex(ownStageId());
+    const index = stageIndex(state.activeStageId);
     const stage = viewState.lesson.stages[index];
     if (previous.id !== stage.id) view.selectStage(index, true);
     else if (resetStageId === stage.id) view.renderStageContent(stage);
@@ -80,8 +71,6 @@
     }
     view.refreshNavigation();
     pointer.update({ connected: true, stageId: viewedStageId(), componentIds: rules.pointerComponentIds(lesson, state) });
-    byId('lesson-follow').hidden = role !== 'student' || viewedStageId() === state.activeStageId;
-    byId('lesson-follow-text').textContent = `Учитель на этапе «${viewState.lesson.stages[stageIndex(state.activeStageId)].title}»`;
   }
   // Shows the controls and the call picture the current role has in a live class.
   function applyRole() {
@@ -94,14 +83,14 @@
     byId('call-remote-video').poster = CALL_PICTURES[peer];
     byId('call-remote-name').textContent = peer === 'teacher' ? 'Учитель' : 'Ученик';
   }
-  // Both views share the class state, so switching only re-projects it for the other side.
+  // Both views share the class state and the stage, so switching only re-draws the same stage for the other side.
   function switchRole(next) {
     if (next === role) return;
     role = next;
     pointer.setRole(role);
     applyRole();
     viewState.lesson = project();
-    view.selectStage(stageIndex(ownStageId()), true);
+    view.selectStage(viewState.activeIndex, true);
     paint();
   }
   // The call is only drawn: pictures stand in for the cameras, so the teacher sees where it lives in a class.
@@ -130,10 +119,6 @@
   const resetButton = byId('reset-stage-progress');
   resetButton.disabled = false;
   resetButton.addEventListener('click', () => act({ type: 'reset-stage', stageId: state.activeStageId }));
-  byId('lesson-follow-return').addEventListener('click', () => {
-    studentStageId = state.activeStageId;
-    show();
-  });
   byId('teacher-screen').hidden = true;
   byId('preview-role').hidden = false;
   byId('preview-role').addEventListener('click', event => {
@@ -160,7 +145,6 @@
       state = rules.initialState(lesson);
       rules.addLayouts(lesson, state, () => crypto.randomUUID());
       availableStageIds = rules.availableStageIds(lesson);
-      studentStageId = state.activeStageId;
       const schedule = byId('schedule-lesson');
       schedule.hidden = false;
       schedule.addEventListener('click', () => window.ClassModal.open({ lessonId: payload.lesson.id }));
