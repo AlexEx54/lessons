@@ -48,7 +48,7 @@ test('class home offers the running session with a big entry button and the list
   assert.equal(byId('class-home-all').href, `${classPath}/sessions`);
   assert.equal(byId('class-sessions').hidden, true);
 });
-test('class home announces the nearest session or that none is scheduled yet', async () => {
+test('class home announces the nearest session, otherwise the latest past one or that none is scheduled yet', async () => {
   const next = session('next', 24 * 60, { cover: '' });
   const upcoming = await open(classPath, { className: 'Анна', current: next, upcoming: [next], past: [] });
   assert.match(upcoming.byId('class-home-when').textContent, /^Ближайшее занятие · /);
@@ -58,8 +58,13 @@ test('class home announces the nearest session or that none is scheduled yet', a
   assert.equal(empty.byId('class-home-current').hidden, true);
   assert.equal(empty.byId('class-home-enter').hidden, true);
   assert.equal(empty.byId('class-home-all').hidden, true);
-  const finished = await open(classPath, { className: 'Анна', current: null, upcoming: [], past: [session('old', -500)] });
-  assert.equal(finished.byId('class-home-empty').hidden, false);
+  const finished = await open(classPath, { className: 'Анна', current: null, upcoming: [], past: [session('recent', -500), session('old', -5000)] });
+  assert.equal(finished.byId('class-home-empty').hidden, true);
+  assert.equal(finished.byId('class-home-current').hidden, false);
+  assert.match(finished.byId('class-home-when').textContent, /^Прошлое занятие · /);
+  assert.equal(finished.byId('class-home-title').textContent, 'Lesson recent');
+  assert.equal(finished.byId('class-home-enter').hidden, false);
+  assert.equal(finished.byId('class-home-enter').href, '/sessions/recent/student');
   assert.equal(finished.byId('class-home-all').hidden, false);
 });
 test('session list switches between upcoming and past sessions and remembers the tab', async () => {

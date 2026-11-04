@@ -22,24 +22,30 @@
     if (text) node.textContent = text;
     return node;
   }
+  function whenLabel(session, current) {
+    if (!current) return `Прошлое занятие · ${formatWhen(session.scheduledAt)}`;
+    return started(session)
+      ? `Идёт сейчас · началось в ${time.format(new Date(session.scheduledAt))}`
+      : `Ближайшее занятие · ${formatWhen(session.scheduledAt)}`;
+  }
   function showHome({ className, current, upcoming, past }) {
     byId('class-home-class').textContent = `Ваш класс · ${className}`;
-    byId('class-home-current').hidden = !current;
-    byId('class-home-empty').hidden = Boolean(current);
+    // Without a current session the student most likely returns for homework, so offer the latest past one.
+    const shown = current ?? past[0];
+    byId('class-home-current').hidden = !shown;
+    byId('class-home-empty').hidden = Boolean(shown);
     const enter = byId('class-home-enter'), all = byId('class-home-all');
-    enter.hidden = !current;
+    enter.hidden = !shown;
     all.hidden = !upcoming.length && !past.length;
     all.href = listPath;
-    if (current) {
+    if (shown) {
       const cover = byId('class-home-cover');
-      cover.hidden = !current.cover;
-      if (current.cover) cover.src = current.cover;
-      byId('class-home-when').textContent = started(current)
-        ? `Идёт сейчас · началось в ${time.format(new Date(current.scheduledAt))}`
-        : `Ближайшее занятие · ${formatWhen(current.scheduledAt)}`;
-      byId('class-home-title').textContent = current.title;
-      byId('class-home-meta').textContent = describe(current);
-      enter.href = current.path;
+      cover.hidden = !shown.cover;
+      if (shown.cover) cover.src = shown.cover;
+      byId('class-home-when').textContent = whenLabel(shown, current);
+      byId('class-home-title').textContent = shown.title;
+      byId('class-home-meta').textContent = describe(shown);
+      enter.href = shown.path;
     }
     byId('class-home').hidden = false;
   }
