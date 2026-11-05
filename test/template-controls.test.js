@@ -190,6 +190,18 @@ test('a Fill in the Blanks block takes its answers from its instructions and nee
   assert.deepEqual(CONTROL_CATALOG.get('fillInBlanks').inputs, {});
 });
 
+test('a Personalised Questions block takes the lesson words from its instructions and needs no vocabulary', () => {
+  const definition = singleBlockTemplate(CONTROL_CATALOG.get('personalizedQuestions'), { items: 3 });
+  definition.stages[1].blocks[0].instructions = 'Each question contains a term of the Target Vocabulary in **bold**.';
+  const template = compileTemplate(definition, CONTROL_CATALOG);
+  const { messages } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
+  const lines = messages[0].content.split('\n');
+  const questions = lines.indexOf('questions: exactly three questions. followUp is a short extra question.');
+  assert.ok(questions >= 0);
+  assert.equal(lines[questions + 1], 'Each question contains a term of the Target Vocabulary in **bold**.');
+  assert.deepEqual(CONTROL_CATALOG.get('personalizedQuestions').inputs, {});
+});
+
 test('Drag Sentences and Type the Words blocks take their words from their instructions and need no vocabulary', () => {
   const definition = singleBlockTemplate(CONTROL_CATALOG.get('dragSentences'), { sentences: 4 });
   definition.stages[1].blocks[0].instructions = 'Every gap is a term of the Target Vocabulary.';

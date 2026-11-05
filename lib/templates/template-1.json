@@ -341,14 +341,11 @@
           "fields": {
             "questions": "personalizedQuestions"
           },
-          "inputs": {
-            "highlight": "targetVocabulary"
-          },
           "chrome": {
             "title": "Task 4 · Personalised Questions",
             "instruction": "Answer the questions out loud. There are no right or wrong answers!"
           },
-          "instructions": "personalizedQuestions are about the student’s own life and experience. Use a different vocabulary item in each question."
+          "instructions": "personalizedQuestions are about the student’s own life and experience. Each question contains a different term of vocabularyItems in **bold**, in the form that fits the question."
         },
         {
           "id": "target-vocabulary-sentence-starters-card",

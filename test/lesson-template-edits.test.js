@@ -311,11 +311,11 @@ test('a source of the stage itself needs no line; an optional input may be left 
   const definition = templateTwo();
   const vocabulary = stage(definition, 'target-vocabulary');
   const context = structuredClone(vocabulary.context);
-  const questions = block(definition, 'target-vocabulary-personalized-questions');
-  assert.deepEqual(Edits.setInputSource(definition, vocabulary, questions, 'highlight', null), { addedLines: [], removedLines: [] });
-  assert.equal(Object.hasOwn(questions, 'inputs'), false);
-  assert.deepEqual(Edits.setInputSource(definition, vocabulary, questions, 'highlight', 'targetVocabulary'), { addedLines: [], removedLines: [] });
-  assert.deepEqual(questions.inputs, { highlight: 'targetVocabulary' });
+  const stories = block(definition, 'target-vocabulary-stories');
+  assert.deepEqual(Edits.setInputSource(definition, vocabulary, stories, 'highlight', null), { addedLines: [], removedLines: [] });
+  assert.deepEqual(stories.inputs, { guesses: 'leadInGuesses' });
+  assert.deepEqual(Edits.setInputSource(definition, vocabulary, stories, 'highlight', 'targetVocabulary'), { addedLines: [], removedLines: [] });
+  assert.deepEqual(stories.inputs, { guesses: 'leadInGuesses', highlight: 'targetVocabulary' });
   assert.deepEqual(vocabulary.context, context);
 
   // A required one left unbound is the server's problem.
@@ -380,17 +380,13 @@ test('a deleted block takes required readers, sources and slots with it; optiona
     'grammar-focus-support',
     'guided-communication-cards',
   ]);
-  assert.deepEqual(plan.unbound.map(entry => `${entry.block}.${entry.port}`), [
-    'target-vocabulary-stories.highlight',
-    'target-vocabulary-personalized-questions.highlight',
-  ]);
+  assert.deepEqual(plan.unbound.map(entry => `${entry.block}.${entry.port}`), ['target-vocabulary-stories.highlight']);
   assert.deepEqual(plan.context.map(line => line.stage), ['grammar-presentation', 'grammar-focus', 'guided-speaking', 'wrap-up']);
   assert.deepEqual(plan.stages, []);
 
   Edits.applyDeletion(definition, plan);
   const vocabulary = stage(definition, 'target-vocabulary');
   assert.deepEqual(vocabulary.blocks.find(block => block.id === 'target-vocabulary-stories').inputs, { guesses: 'leadInGuesses' });
-  assert.equal(Object.hasOwn(vocabulary.blocks.find(block => block.id === 'target-vocabulary-personalized-questions'), 'inputs'), false);
   assert.deepEqual(Object.keys(stage(definition, 'wrap-up').context), ['Lesson topic', 'Grammar topic']);
 
   // A block built from a deleted one has nothing to be built from and goes too.
@@ -486,7 +482,6 @@ test('a block goes no higher than its sources and no lower than its readers', ()
   assert.deepEqual(blockersOf(definition, 'target-vocabulary-card', 'grammar-presentation'), [
     'reader target-vocabulary-stories target-vocabulary',
     'reader target-vocabulary-meanings target-vocabulary',
-    'reader target-vocabulary-personalized-questions target-vocabulary',
   ]);
   assert.deepEqual(blockersOf(definition, 'target-vocabulary-meanings', 'lead-in'), [
     'input target-vocabulary-card target-vocabulary',

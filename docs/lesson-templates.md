@@ -199,6 +199,8 @@ module.exports = {
   картинки к ним, а указания говорят, откуда слова: из словаря урока, по
   теме этапа или списком учителя, а `contextDropdown`, `fillInBlanks`,
   `dragSentences` и `translationHints` — откуда слова для пропусков.
+  У `personalizedQuestions` указания говорят, нужны ли в вопросах слова
+  урока.
   Указания о блоке пишутся в блоке, а не в этапе: при переносе блок
   забирает их с собой.
 - **Параметры** создаются помощниками из `template-controls/helpers.js`:
@@ -356,7 +358,7 @@ warm-up, watch-and-interact — без связей
 | `contextDropdown` | dropdownChoice | |
 | `dragSentences` | dragWordsInText | |
 | `translationHints` | gapFill | |
-| `personalizedQuestions` | personalizedQuestions | vocabulary? |
+| `personalizedQuestions` | personalizedQuestions | |
 | `ruleGaps` | dragWordsInText | |
 | `quickRule` | markdownCard (sections) | |
 | `correctSentences` | checkboxChoice | |
