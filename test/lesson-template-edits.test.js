@@ -185,23 +185,23 @@ test('a block from the catalog goes to the end of the stage with an id and varia
 test('an input takes the nearest source of its type; a source of another stage joins the context', () => {
   const definition = templateTwo();
   // Grammar Focus passes the target vocabulary already.
-  let added = addBlock(definition, 'grammar-focus', 'describeAndGuess');
+  let added = addBlock(definition, 'grammar-focus', 'wordBankSupport');
   assert.deepEqual([added.block.inputs, added.addedLines], [{ vocabulary: 'targetVocabulary' }, []]);
   // Watch & Interact has no context at all.
-  added = addBlock(definition, 'watch-and-interact', 'describeAndGuess');
+  added = addBlock(definition, 'watch-and-interact', 'wordBankSupport');
   assert.deepEqual([added.block.inputs, added.addedLines], [{ vocabulary: 'targetVocabulary' }, ['Target vocabulary']]);
   assert.deepEqual(stage(definition, 'watch-and-interact').context, { 'Target vocabulary': '$var.targetVocabulary' });
   assert.deepEqual(problems(definition), []);
 
   // Words of the stage itself come first; a generated block reads them only from a generated one.
   const own = addBlock(definition, 'grammar-focus', 'vocabularyList').block;
-  assert.deepEqual(addBlock(definition, 'grammar-focus', 'describeAndGuess').block.inputs, { vocabulary: own.exports.vocabulary });
+  assert.equal(addBlock(definition, 'grammar-focus', 'storyCards').block.inputs.highlight, own.exports.vocabulary);
   assert.deepEqual(addBlock(definition, 'grammar-focus', 'vocabularyMeanings').block.inputs, { vocabulary: own.exports.vocabulary });
   assert.deepEqual(problems(definition), []);
   const sources = (kind, input) => Edits.inputSources(definition, stage(definition, 'grammar-focus'), kind, input, controls)
     .map(source => [source.variable, source.sameStage]);
   const both = [['vocabulary', true], ['targetVocabulary', false]];
-  assert.deepEqual(sources('generated', controls.get('describeAndGuess').inputs.vocabulary), both);
+  assert.deepEqual(sources('generated', controls.get('storyCards').inputs.highlight), both);
   assert.deepEqual(sources('generated', { type: 'vocabulary' }), [['targetVocabulary', false]]);
   assert.deepEqual(sources('derived', { type: 'vocabulary' }), both);
   assert.deepEqual(sources('derived', { type: 'statements' }), [['leadInGuesses', false]]);
@@ -295,7 +295,7 @@ test('another source of an earlier stage joins the context; the line read before
   assert.deepEqual(problems(definition), []);
 
   // Back again; then a line another block of the stage reads stays.
-  assert.deepEqual(addBlock(definition, 'grammar-focus', 'describeAndGuess').addedLines, ['Target vocabulary']);
+  assert.deepEqual(addBlock(definition, 'grammar-focus', 'wordBankSupport').addedLines, ['Target vocabulary']);
   assert.deepEqual(Edits.setInputSource(definition, focus, support, 'vocabulary', 'targetVocabulary'), {
     addedLines: [],
     removedLines: ['Vocabulary'],

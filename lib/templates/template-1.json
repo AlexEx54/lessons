@@ -374,13 +374,11 @@
           "fields": {
             "terms": "describeAndGuessTerms"
           },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
-          },
           "chrome": {
             "title": "Extra Task · Describe and Guess",
             "instruction": "Take turns with your teacher. Describe the word without saying it. Can your partner guess it?"
-          }
+          },
+          "instructions": "Every item of describeAndGuessTerms is a term of vocabularyItems, copied exactly; use different terms."
         }
       ]
     },

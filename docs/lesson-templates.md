@@ -85,7 +85,7 @@ vocabularyList    out: vocabulary      : vocabulary
 storyCards        in:  highlight       : vocabulary   (необязателен)
                   in:  guesses         : statements   (необязателен)
 storyGuessKey     in:  guesses         : statements
-describeAndGuess  in:  vocabulary      : vocabulary
+wordBankSupport   in:  vocabulary      : vocabulary
 repeatAudio       from: блок audioScript того же этапа
 ```
 
@@ -200,7 +200,7 @@ module.exports = {
   теме этапа или списком учителя, а `contextDropdown`, `fillInBlanks`,
   `dragSentences` и `translationHints` — откуда слова для пропусков.
   У `personalizedQuestions` указания говорят, нужны ли в вопросах слова
-  урока.
+  урока, у `describeAndGuess` — какие слова описывать в игре.
   Указания о блоке пишутся в блоке, а не в этапе: при переносе блок
   забирает их с собой.
 - **Параметры** создаются помощниками из `template-controls/helpers.js`:
@@ -378,7 +378,7 @@ warm-up, watch-and-interact — без связей
 | `thisOrThat` | thisOrThat | |
 | `matchPictures` | matchWords | |
 | `fillInBlanks` | fillInBlanks | |
-| `describeAndGuess` | describeAndGuess | vocabulary |
+| `describeAndGuess` | describeAndGuess | |
 | `readingText` | textReading | vocabulary → text |
 | `choiceQuestions` | multipleChoice или checkboxChoice | |
 | `audioScript` | audioPlayer | |

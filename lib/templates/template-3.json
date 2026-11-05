@@ -219,13 +219,11 @@
           "fields": {
             "terms": "describeAndGuessTerms"
           },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
-          },
           "chrome": {
             "title": "Task 3 · Describe and Guess",
             "instruction": "Take turns with your teacher. Describe the word without saying it. Can your partner guess it?"
           },
+          "instructions": "Every item of describeAndGuessTerms is a term of vocabularyItems, copied exactly; use different terms.",
           "example": {
             "terms": ["ban", "distraction", "screen time", "emergency", "group chat", "phone locker"]
           }
