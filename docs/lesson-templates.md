@@ -21,14 +21,15 @@
 Каждый элемент этапа — блок одного из четырёх видов:
 
 - **`static`** — готовый компонент из JSON. Правится существующими редакторами
-  компонентов, нейросеть его не видит. Примеры: Teacher's Note, видео,
+  компонентов, нейросеть его не видит. Примеры: Teacher's Note, видео, аудио,
   Self-assessment.
 - **`generated`** — контрол с параметрами. Нейросеть заполняет его данные, контрол
   собирает из них компонент. «Обвес» компонента (заголовок, инструкция, цвета,
   видимость) задаётся в шаблоне в `chrome` и нейросети не передаётся.
 - **`derived`** — компонент, который строится без нейросети из переменных или из
-  одного блока своего этапа. Примеры: повтор аудио, Vocabulary meanings quiz.
-  Блок-источник задаётся в `from` своим id: `"from": "listening-audio"`.
+  одного блока своего этапа. Примеры: пример диалога к ролевой игре, Vocabulary
+  meanings quiz. Блок-источник задаётся в `from` своим id:
+  `"from": "guided-speaking-role-cards"`.
 - **`row`** — контейнер `cardRow` с вложенными блоками.
 
 Static-блок может содержать **слоты**: `{{name}}` в любом текстовом поле и описание
@@ -41,6 +42,17 @@ Static-блок может содержать **слоты**: `{{name}}` в лю
   того же этапа, без нейросети. Пример: слово из первого ряда Odd One Out в
   заметке Warm-Up (`warm-up-odd-one-out.items[0].answer`). `"capitalize": true`
   делает первую букву заглавной.
+
+Значения слотов общие для этапа: блок может поставить в текст `{{name}}`, который
+описан в `slots` другого статичного блока того же этапа, и получит то же
+значение. Поэтому имя описывается в этапе один раз. Так аудио Listening шаблона 1
+звучит дважды: первый плеер описывает слот `listeningScript` с `rule`, второй
+(«Listen to the audio one more time») только ставит `{{listeningScript}}` в свой
+`script`. В уроке это два независимых плеера с одним текстом, и в каждый
+учитель загружает свою запись. Аудио — статичный `audioPlayer`: текст для
+озвучки бывает постоянным, его пишет нейросеть или он берётся из другого блока.
+Заполненный статичный блок проверяется нормализатором своего компонента: текст
+аудио без Markdown, иначе этап генерируется заново.
 
 Отдельных контролов для Teacher's Notes нет: заметку, которую целиком пишет
 нейросеть, тоже выражает статичный блок со слотами `rule`. Весь текст —
@@ -86,7 +98,6 @@ storyCards        in:  highlight       : vocabulary   (необязателен)
                   in:  guesses         : statements   (необязателен)
 storyGuessKey     in:  guesses         : statements
 wordBankSupport   in:  vocabulary      : vocabulary
-repeatAudio       from: блок audioScript того же этапа
 ```
 
 Шаблон связывает порты через **переменные урока**:
@@ -372,7 +383,7 @@ warm-up, watch-and-interact — без связей
 | `communicationCards` | guidedCommunicationCards | vocabulary (выбор N слов) |
 | `threeTwoOne` | threeTwoOne | |
 
-Шаблону 1 нужны ещё 14:
+Шаблону 1 нужны ещё 12:
 
 | Контрол | Компонент | Входы → выходы |
 |---|---|---|
@@ -382,8 +393,6 @@ warm-up, watch-and-interact — без связей
 | `describeAndGuess` | describeAndGuess | |
 | `readingText` | textReading | → text |
 | `choiceQuestions` | multipleChoice или checkboxChoice | |
-| `audioScript` | audioPlayer | |
-| `repeatAudio` *derived* | audioPlayer | блок audioScript |
 | `dialogueGaps` | gapFill | |
 | `miniSituation` | miniSituation | |
 | `roleCards` | guidedRoleCards | vocabulary |
@@ -392,7 +401,7 @@ warm-up, watch-and-interact — без связей
 
 Общие для обоих шаблонов: `vocabularyList`, `contextDropdown`,
 `personalizedQuestions`, `ruleGaps`, `quickRule`, `choiceSentences`,
-`wordBankSupport`, `threeTwoOne`. Всего 34 контрола.
+`wordBankSupport`, `threeTwoOne`. Всего 32 контрола.
 
 Для шаблона 3 добавлен `sentenceBuilder` (компонент sentenceBuilder, без входов):
 предложения с фразами в `[скобках]` и другими верными порядками, см.

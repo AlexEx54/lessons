@@ -287,6 +287,28 @@ test('apply builds stages in display order, fills slots and passes variables on'
   assert.deepEqual(state.variables.guesses, [{ number: 3, text: 'Somebody in our stories has a red hat.' }]);
 });
 
+test('a static block may use a field another static block of its stage describes', () => {
+  const shared = definition();
+  stage(shared, 'guess').blocks.push(
+    { id: 'guess-recap-note', kind: 'static', component: { type: 'teacherNote', text: 'Again: {{success}} Start with "{{firstCheck}}".' } },
+  );
+  const plan = compileTemplate(shared, catalog);
+  const guess = runAll(plan, { guess: GUESS_ANSWER, vocabulary: VOCABULARY_ANSWER }).lesson.stages[2];
+  assert.equal(guess.content.at(-1).text, 'Again: The student explains two answers. Start with "Cats can swim.".');
+  // The model writes a shared field once.
+  assert.deepEqual(plan.request('guess', { inputs: plan.resolveInputs({ topic: 'Clothes' }) }).schema.required.filter(key => key === 'success'), ['success']);
+
+  // A field of another stage is not shared, and a copied field is described once.
+  const broken = definition();
+  stage(broken, 'vocabulary').blocks.push({ id: 'vocabulary-note', kind: 'static', component: { type: 'teacherNote', text: '{{success}}' } });
+  stage(broken, 'guess').blocks.push({ id: 'guess-copy', kind: 'static', component: { type: 'teacherNote', text: '{{firstCheck}}' },
+    slots: { firstCheck: { from: 'guess-game.items[1]' } } });
+  assert.deepEqual(validateTemplate(broken, catalog).errors.map(({ block: id, slot, message }) => [id, slot, message]), [
+    ['guess-copy', 'firstCheck', 'Поле firstCheck описано дважды в этапе guess: в guess-note и в guess-copy.'],
+    ['vocabulary-note', undefined, 'В блоке vocabulary-note поле {{success}} не описано ни в нём, ни в другом блоке этапа.'],
+  ]);
+});
+
 test('apply rejects an answer without a required field and control validation errors', () => {
   const plan = compileTemplate(definition(), catalog);
   const state = { lesson: plan.createSkeleton(), variables: {} };
@@ -466,7 +488,7 @@ test('validation reports block-level mistakes', () => {
   assert.match(messages, /Блок guess-game, «Проверок»: не больше 4/);
   assert.match(messages, /нет параметра colour/);
   assert.match(messages, /не поддерживает оформление accentColor/);
-  assert.match(messages, /слот \{\{unknown\}\} не описан/);
+  assert.match(messages, /поле \{\{unknown\}\} не описано ни в нём, ни в другом блоке этапа/);
   assert.match(messages, /Слот unused блока guess-note не используется/);
   assert.match(messages, /собирается из vocabulary-list, а такого блока нет в этапе guess/);
   assert.match(messages, /у bullets нет проверок/);

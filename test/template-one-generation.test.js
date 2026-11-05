@@ -147,6 +147,7 @@ test('Template 1 rejects model answers that would break a task', () => {
     ['reading', answer => { answer.detailQuestions[0].answer = 'An answer outside the options.'; }, /должен точно совпадать с вариантом/],
     ['reading', answer => { answer.text = 'A very short reading text.'; }, /от 180 до 230 слов, получено 5/],
     ['reading', answer => { answer.textImagePrompt = 'Students arrive at an airport.'; }, /иллюстрацию без текста/],
+    ['listening', answer => { answer.listeningScript = `**Maya:** ${answer.listeningScript}`; }, /Блок listening-audio: AudioPlayer does not allow HTML or Markdown in script/],
     ['listening', answer => { answer.gistQuestions.pop(); }, /Listening for Gist»: нужно ровно 2/],
     ['listening', answer => { answer.detailQuestions.pop(); }, /Listening for Detail»: нужно ровно 5/],
     ['grammar-presentation', answer => { answer.ruleItems[1].answer = answer.ruleItems[0].answer; }, /ответы не должны повторяться/],

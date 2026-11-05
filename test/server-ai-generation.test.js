@@ -335,8 +335,8 @@ test('AI draft sequentially streams lesson metadata and nine sections into revie
   assert.deepEqual(ready.content.stages[4].content.map(component => component.type), [
     'teacherNote', 'audioPlayer', 'checkboxChoice', 'markdownCard', 'audioPlayer', 'multipleChoice', 'markdownCard',
   ]);
-  assert.equal(ready.content.stages[4].content[1].script, GENERATED_LISTENING.script);
-  assert.equal(ready.content.stages[4].content[4].script, GENERATED_LISTENING.script);
+  assert.equal(ready.content.stages[4].content[1].script, GENERATED_LISTENING.listeningScript);
+  assert.equal(ready.content.stages[4].content[4].script, GENERATED_LISTENING.listeningScript);
   assert.equal(ready.content.stages[4].content[2].items.length, 2);
   assert.equal(ready.content.stages[4].content[5].items.length, 5);
   assert.deepEqual(ready.content.stages[5].content.map(component => component.type), [

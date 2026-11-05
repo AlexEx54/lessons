@@ -478,12 +478,18 @@
         },
         {
           "id": "listening-audio",
-          "kind": "generated",
-          "control": "audioScript",
-          "chrome": {
-            "title": "Listen to the audio"
+          "kind": "static",
+          "component": {
+            "type": "audioPlayer",
+            "title": "Listen to the audio",
+            "script": "{{listeningScript}}"
           },
-          "instructions": "Write an audio script designed to last approximately 60 to 90 seconds.\nChoose the format that best suits the topic: voice-message exchange, conversation between friends, podcast fragment, school announcement, video commentary, or short interview.\nUse two or three speakers. Write every spoken turn on a separate line in the plain-text format Speaker: words.\nThe supplied Grammar topic is authoritative. Naturally include 4 to 7 clear and accurate examples of that target grammar in the audio script, without explaining the grammar.\nNaturally include 5 to 6 distinct entries from the supplied Target Vocabulary, copying their wording exactly."
+          "slots": {
+            "listeningScript": {
+              "rule": "Write an audio script designed to last approximately 60 to 90 seconds.\nChoose the format that best suits the topic: voice-message exchange, conversation between friends, podcast fragment, school announcement, video commentary, or short interview.\nUse two or three speakers. Write every spoken turn on a separate line in the plain-text format Speaker: words.\nThe supplied Grammar topic is authoritative. Naturally include 4 to 7 clear and accurate examples of that target grammar in the audio script, without explaining the grammar.\nNaturally include 5 to 6 distinct entries from the supplied Target Vocabulary, copying their wording exactly.",
+              "example": "Alex: Hi, Mia! Are you ready for the trip?\nMia: Yes! I packed my bag last night.\nAlex: Great. See you at the station!"
+            }
+          }
         },
         {
           "id": "listening-gist-quiz",
@@ -509,11 +515,11 @@
         },
         {
           "id": "listening-audio-again",
-          "kind": "derived",
-          "control": "repeatAudio",
-          "from": "listening-audio",
-          "chrome": {
-            "title": "Listen to the audio one more time"
+          "kind": "static",
+          "component": {
+            "type": "audioPlayer",
+            "title": "Listen to the audio one more time",
+            "script": "{{listeningScript}}"
           }
         },
         {

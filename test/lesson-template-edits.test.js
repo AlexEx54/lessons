@@ -225,19 +225,19 @@ test('without a source an input stays unbound; a source without a required featu
   ]);
 });
 
-test('a repeated audio takes the nearest audio of its stage', () => {
+test('an example dialogue takes the nearest role cards of its stage', () => {
   const definition = templateTwo();
-  addBlock(definition, 'wrap-up', 'audioScript');
-  const audio = addBlock(definition, 'wrap-up', 'audioScript').block;
-  const again = addBlock(definition, 'wrap-up', 'repeatAudio').block;
-  assert.equal(again.from, audio.id);
-  assert.deepEqual(Edits.blockLinks(definition, again, controls).source, { block: audio.id, inStage: true });
+  addBlock(definition, 'wrap-up', 'roleCards');
+  const cards = addBlock(definition, 'wrap-up', 'roleCards').block;
+  const dialogue = addBlock(definition, 'wrap-up', 'roleDialogue').block;
+  assert.equal(dialogue.from, cards.id);
+  assert.deepEqual(Edits.blockLinks(definition, dialogue, controls).source, { block: cards.id, inStage: true });
   assert.deepEqual(problems(definition), []);
 
-  const lonely = addBlock(definition, 'watch-and-interact', 'repeatAudio').block;
+  const lonely = addBlock(definition, 'watch-and-interact', 'roleDialogue').block;
   assert.equal(lonely.from, undefined);
   assert.equal(Edits.blockLinks(definition, lonely, controls).source, null);
-  assert.deepEqual(problems(definition), ['Блок watch-and-interact-repeat-audio не собирается ни из одного блока этапа.']);
+  assert.deepEqual(problems(definition), ['Блок watch-and-interact-role-dialogue не собирается ни из одного блока этапа.']);
 });
 
 const block = (definition, id) => definition.stages.flatMap(item => Edits.flattenBlocks(item.blocks)).find(item => item.id === id);
@@ -328,21 +328,21 @@ const blockIds = plan => plan.blocks.map(entry => entry.block);
 
 test('a block built from one block takes another source of its stage instead', () => {
   const definition = templateOne();
-  const listening = stage(definition, 'listening');
-  const again = block(definition, 'listening-audio-again');
-  const audio = addBlock(definition, 'listening', 'audioScript').block;
-  assert.deepEqual(Edits.sourceOptions(listening, again, controls), [
-    { block: 'listening-audio', chosen: true },
-    { block: audio.id, chosen: false },
+  const speaking = stage(definition, 'guided-speaking');
+  const dialogue = block(definition, 'guided-speaking-example-dialogue');
+  const cards = addBlock(definition, 'guided-speaking', 'roleCards').block;
+  assert.deepEqual(Edits.sourceOptions(speaking, dialogue, controls), [
+    { block: 'guided-speaking-role-cards', chosen: true },
+    { block: cards.id, chosen: false },
   ]);
-  Edits.setSource(again, audio.id);
-  assert.equal(again.from, audio.id);
+  Edits.setSource(dialogue, cards.id);
+  assert.equal(dialogue.from, cards.id);
   assert.deepEqual(problems(definition), []);
 
   // A source the stage lacks stays among the options, after the stage's own.
-  again.from = 'reading-text';
-  assert.deepEqual(Edits.sourceOptions(listening, again, controls).map(option => [option.block, option.chosen]), [
-    ['listening-audio', false], [audio.id, false], ['reading-text', true],
+  dialogue.from = 'reading-text';
+  assert.deepEqual(Edits.sourceOptions(speaking, dialogue, controls).map(option => [option.block, option.chosen]), [
+    ['guided-speaking-role-cards', false], [cards.id, false], ['reading-text', true],
   ]);
 });
 

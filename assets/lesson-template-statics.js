@@ -14,6 +14,7 @@
     illustratedTextPanel: ['IllustratedTextPanelComponent', 'normalizeIllustratedTextPanel', './components/text-panel.js'],
     multipleChoice: ['MultipleChoiceComponent', 'normalizeMultipleChoice', './components/multiple-choice.js'],
     videoPlayer: ['VideoPlayerComponent', 'normalizeVideoPlayer', './components/video-player.js'],
+    audioPlayer: ['AudioPlayerComponent', 'normalizeAudioPlayer', './components/audio-player.js'],
     howToPlay: ['HowToPlayComponent', 'normalizeHowToPlay', './components/how-to-play.js'],
     selfAssessment: ['SelfAssessmentComponent', 'normalizeSelfAssessment', './components/self-assessment.js'],
   };
@@ -103,6 +104,16 @@
       group: 'comprehension',
       description: 'Видеоплеер. Само видео учитель добавляет в уроке.',
       sample: { type: 'videoPlayer', title: 'Watch the video' },
+    },
+    audioPlayer: {
+      label: 'Аудио',
+      group: 'comprehension',
+      description: 'Аудиоплеер с текстом для озвучки. Запись учитель загружает в уроке.',
+      sample: {
+        type: 'audioPlayer',
+        title: 'Listen to the audio',
+        script: 'Alex: Hi, Mia! Are you ready for the trip?\nMia: Yes! I packed my bag last night.',
+      },
     },
   });
 

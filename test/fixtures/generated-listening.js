@@ -16,7 +16,7 @@ const LISTENING_SCRIPT = [
 ].join('\n');
 
 const GENERATED_LISTENING = Object.freeze({
-  script: LISTENING_SCRIPT,
+  listeningScript: LISTENING_SCRIPT,
   gistQuestions: [{
     question: 'Where are Maya and Leo going?',
     options: ['On a class trip to Edinburgh.', 'On a family holiday to London.', 'On a day trip to the countryside.'],

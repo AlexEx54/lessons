@@ -381,6 +381,20 @@
   // `<block>.items[0].answer` → `<block>`.
   const slotSourceBlock = source => /^[a-z][a-z0-9-]*/.exec(String(source))?.[0];
 
+  // The blocks of `stage` a static block takes its fields from: those its slots copy
+  // (`from`) and those that describe a {{name}} it uses without describing it, since the
+  // stage shares its fields.
+  function fieldSources(block, stage) {
+    if (block.kind !== 'static') return [];
+    const sources = Object.values(block.slots || {}).map(slot => slot?.from).filter(Boolean).map(slotSourceBlock);
+    for (const name of placeholders(block.component)) {
+      if (block.slots?.[name]) continue;
+      const owner = flattenBlocks(stage.blocks).find(other => other !== block && other.kind === 'static' && other.slots?.[name]);
+      if (owner) sources.push(owner.id);
+    }
+    return [...new Set(sources)];
+  }
+
   // What a block built from another block may be built from: every block of the stage
   // its control takes, in stage order, then its `from` when that is none of them.
   // `chosen` marks the block's own source.
@@ -426,7 +440,7 @@
   //   - a required input reading a gone variable takes its block too; an optional one is
   //     unbound;
   //   - a block built from a deleted block goes;
-  //   - a static block whose slot reads a deleted block goes.
+  //   - a static block whose slot reads a deleted block, or that uses a field of one, goes.
   // Then emptied rows and stages go, and context lines lose the gone variables.
   // `controls` maps a control type to `{ inputs: { <port>: { required } } }`.
   // The definition is not changed: `applyDeletion` does it once the user agrees.
@@ -448,10 +462,8 @@
       .filter(({ block }) => deleted.has(block.id))
       .flatMap(({ block }) => Object.values(block.exports || {})));
     const isRequired = (block, port) => controls.get(block.control)?.inputs?.[port]?.required !== false;
-    const breaks = (block, gone) => {
-      if (block.kind === 'static') {
-        return Object.values(block.slots || {}).some(slot => deleted.has(slotSourceBlock(slot?.from)));
-      }
+    const breaks = (block, stage, gone) => {
+      if (block.kind === 'static') return fieldSources(block, stage).some(source => deleted.has(source));
       return Object.entries(block.inputs || {}).some(([port, variable]) => gone.has(variable) && isRequired(block, port))
         || deleted.has(block.from);
     };
@@ -459,8 +471,8 @@
     while (grown) {
       grown = false;
       const gone = goneVariables();
-      for (const { block } of entries) {
-        if (deleted.has(block.id) || !breaks(block, gone)) continue;
+      for (const { block, stage } of entries) {
+        if (deleted.has(block.id) || !breaks(block, stage, gone)) continue;
         deleted.add(block.id);
         grown = true;
       }
@@ -533,7 +545,8 @@
   }
 
   // What keeps the block or row `id` out of the stage `targetId`, links within a row aside:
-  //   - `builtFrom`: it is built from blocks of its stage (`from` or a slot's `from`);
+  //   - `builtFrom`: it is built from blocks of its stage (`from`, a slot's `from` or a
+  //     field another block describes);
   //   - `usedBy`: blocks of its stage are built from it;
   //   - `input`: its input reads a block of a later stage, or of the target one where the
   //     block cannot read it (`inStage` tells whether that stage would do);
@@ -551,13 +564,12 @@
 
     const builtFrom = blocks.flatMap(block => [
       ...(block.from === undefined ? [] : [block.from]),
-      ...Object.values(block.slots || {}).map(slot => slot?.from).filter(Boolean).map(slotSourceBlock),
+      ...fieldSources(block, home),
     ]).filter(source => !ids.has(source));
     if (builtFrom.length > 0) blockers.push({ kind: 'builtFrom', blocks: [...new Set(builtFrom)] });
     const usedBy = flattenBlocks(home.blocks)
       .filter(block => !ids.has(block.id))
-      .filter(block => ids.has(block.from)
-        || Object.values(block.slots || {}).some(slot => ids.has(slotSourceBlock(slot?.from))))
+      .filter(block => ids.has(block.from) || fieldSources(block, home).some(source => ids.has(source)))
       .map(block => block.id);
     if (usedBy.length > 0) blockers.push({ kind: 'usedBy', blocks: usedBy });
 
@@ -612,7 +624,8 @@
   }
 
   // The moved blocks' answer names the target stage already holds get other ones: the
-  // stage's answer is one flat object. A field for the AI is renamed in its text too.
+  // stage's answer is one flat object. A field for the AI is renamed in its text too, and
+  // in the texts of the moved blocks that use it.
   function renameAnswerNames(blocks, target, controls) {
     const taken = answerNames(target, controls);
     for (const block of blocks) {
@@ -636,7 +649,12 @@
         taken.add(free);
         const { [name]: slot, ...slots } = block.slots;
         block.slots = { ...slots, [free]: slot };
-        block.component = renamePlaceholder(block.component, name, free);
+        // Moved blocks that use the field go on using it.
+        for (const user of blocks) {
+          if (user === block || (user.kind === 'static' && !user.slots?.[name])) {
+            user.component = renamePlaceholder(user.component, name, free);
+          }
+        }
       }
     }
   }
