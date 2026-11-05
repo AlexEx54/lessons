@@ -237,13 +237,33 @@ test('Drag Sentences and Type the Words blocks take their words from their instr
   const template = compileTemplate(definition, CONTROL_CATALOG);
   const { messages, schema } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
   const lines = messages[0].content.split('\n');
-  const dragged = lines.indexOf('sentences: exactly four short sentences, each with exactly one gap written as the missing word or short phrase in double square brackets, for example "I put on my [[sunglasses]]." Use four different answers, each in the form that fits the sentence.');
+  const dragged = lines.indexOf('sentences: exactly four short sentences, each with exactly one gap written as the missing word or short phrase in double square brackets, for example "I put on my [[sunglasses]]." Use four different answers, each in the form that fits the sentence. No Markdown or HTML.');
   const typed = lines.indexOf('typedSentences: exactly five sentences. The missing word or short phrase is always the last words of the sentence. before is the English text before it; hint is its Russian translation; answer is the English word or phrase exactly as the learner should type it. Use five different answers.');
   assert.ok(dragged >= 0 && typed > dragged);
   assert.equal(lines[dragged + 1], 'Every gap is a term of the Target Vocabulary.');
   assert.equal(lines[typed + 1], 'One sentence for each term of the Target Vocabulary.');
   assert.deepEqual([schema.properties.sentences.maxItems, schema.properties.typedSentences.maxItems], [4, 5]);
   assert.deepEqual([CONTROL_CATALOG.get('dragSentences').inputs, CONTROL_CATALOG.get('translationHints').inputs], [{}, {}]);
+});
+
+test('a Drag Sentences block with distractors asks for them, adds them to the word bank and keys only the gaps', () => {
+  const control = CONTROL_CATALOG.get('dragSentences');
+  const definition = singleBlockTemplate(control, { sentences: 2, distractors: 1 });
+  Object.assign(definition.stages[1].blocks[0], { fields: { sentences: 'ruleSentences', distractors: 'ruleDistractors' }, answerKey: {} });
+  const template = compileTemplate(definition, CONTROL_CATALOG);
+  const { messages, schema } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
+  assert.ok(messages[0].content.includes('ruleDistractors: exactly one plausible but wrong words or short phrases for the word bank, different from each other and from every answer.'));
+  assert.equal(schema.properties.ruleDistractors.maxItems, 1);
+  const context = { id: 'rule', params: { sentences: 2, distractors: 1 }, chrome: {} };
+  const sentences = ['We use [[has]] with he.', 'We use [[have]] with they.'];
+  const task = control.build({ sentences, distractors: ['had'] }, context);
+  assert.deepEqual(task.words, ['had', 'has', 'have']);
+  assert.equal(task.text, 'We use [[has]] with he.\n\nWe use [[have]] with they.');
+  assert.deepEqual(control.answerKey({ component: task }).lines, ['1 has, 2 have.']);
+  assert.throws(() => control.build({ sentences, distractors: ['has'] }, context), /слова в пропусках и лишние варианты не должны повторяться/);
+
+  const plain = compileTemplate(singleBlockTemplate(control, { sentences: 2 }), CONTROL_CATALOG);
+  assert.equal(plain.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(plain).variables }).schema.properties.distractors, undefined);
 });
 
 test('a Sentence Builder block keeps bracketed phrases on one card and drops orders made of other cards', t => {

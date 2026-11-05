@@ -403,28 +403,29 @@
         {
           "id": "grammar-presentation-complete-the-rule",
           "kind": "generated",
-          "control": "ruleGaps",
+          "control": "dragSentences",
           "params": {
-            "gaps": 4,
+            "sentences": 4,
             "distractors": 2
           },
           "fields": {
-            "items": "ruleItems",
+            "sentences": "ruleSentences",
             "distractors": "ruleDistractors"
           },
           "chrome": {
             "title": "Complete the Rule",
             "instruction": "Drag the correct words into the gaps."
           },
+          "instructions": "Together, ruleSentences state the grammar rule of the lesson: each sentence is one clear rule statement, and its gap is a key word or short phrase of the rule.",
           "answerKey": {
             "title": "Answer key"
           },
           "example": {
-            "items": [
-              { "before": "We use should to give ", "answer": "advice", "after": " or to say that something is a good idea." },
-              { "before": "We use ", "answer": "shouldn’t", "after": " to say that something is a bad idea." },
-              { "before": "After should we use the ", "answer": "base form", "after": " of the verb: should keep, not should to keep." },
-              { "before": "Should is the ", "answer": "same", "after": " for all persons: I should, she should, they should." }
+            "sentences": [
+              "We use should to give [[advice]] or to say that something is a good idea.",
+              "We use [[shouldn’t]] to say that something is a bad idea.",
+              "After should we use the [[base form]] of the verb: should keep, not should to keep.",
+              "Should is the [[same]] for all persons: I should, she should, they should."
             ],
             "distractors": ["past form", "different"]
           }

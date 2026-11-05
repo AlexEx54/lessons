@@ -14,23 +14,12 @@ const GENERATED_GRAMMAR_PRESENTATION = Object.freeze({
     '3. Do regular verbs usually end in -ed?',
     '4. Do we use the past form after did?',
   ].join('\n'),
-  ruleItems: [{
-    before: 'We use the Past Simple for finished actions in the ',
-    answer: 'past',
-    after: '.',
-  }, {
-    before: 'Regular verbs usually end in ',
-    answer: '-ed',
-    after: '.',
-  }, {
-    before: 'In negative sentences, use did not and the ',
-    answer: 'base verb',
-    after: '.',
-  }, {
-    before: 'Questions start with ',
-    answer: 'Did',
-    after: '.',
-  }],
+  ruleSentences: [
+    'We use the Past Simple for finished actions in the [[past]].',
+    'Regular verbs usually end in [[-ed]].',
+    'In negative sentences, use did not and the [[base verb]].',
+    'Questions start with [[Did]].',
+  ],
   ruleDistractors: ['future', '-ing form'],
   quickRuleSections: [{
     title: 'PAST SIMPLE',

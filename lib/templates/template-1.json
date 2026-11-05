@@ -598,21 +598,34 @@
         {
           "id": "grammar-presentation-complete-the-rule",
           "kind": "generated",
-          "control": "ruleGaps",
+          "control": "dragSentences",
           "params": {
-            "gaps": 4,
+            "sentences": 4,
             "distractors": 2
           },
           "fields": {
-            "items": "ruleItems",
+            "sentences": "ruleSentences",
             "distractors": "ruleDistractors"
           },
           "chrome": {
             "title": "Complete the Rule",
             "instruction": "Drag the correct words into the gaps."
           },
+          "instructions": "Together, ruleSentences state the grammar rule of the lesson: each sentence is one clear rule statement, and its gap is a key word or short phrase of the rule.",
           "answerKey": {
             "title": "Answer key"
+          },
+          "example": {
+            "sentences": [
+              "We use have got to talk about [[things]] we own.",
+              "With he, she and it we use [[has got]].",
+              "The negative form is [[hasn’t got]] or haven’t got.",
+              "In questions, [[has]] or have goes first."
+            ],
+            "distractors": [
+              "places",
+              "did"
+            ]
           }
         },
         {

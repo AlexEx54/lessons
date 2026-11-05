@@ -42,7 +42,7 @@ test('Template 2 grammar validates counts, booleans, explanations, duplicates an
     g => { g.checkItems[0].isCorrect = 'true'; },
     g => { g.checkItems[1].sentence = g.checkItems[0].sentence; },
     g => { g.checkItems[1].explanation = ''; },
-    g => { g.ruleDistractors[0] = g.ruleItems[0].answer; },
+    g => { g.ruleDistractors[0] = 'past'; },
   ]) {
     const invalid = structuredClone(generated);
     mutate(invalid);

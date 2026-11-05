@@ -210,6 +210,8 @@ module.exports = {
   картинки к ним, а указания говорят, откуда слова: из словаря урока, по
   теме этапа или списком учителя, а `contextDropdown`, `fillInBlanks`,
   `dragSentences` и `translationHints` — откуда слова для пропусков.
+  `dragSentences` с лишними вариантами — это и «Complete the Rule»:
+  указания блока говорят, что предложения вместе формулируют правило.
   У `personalizedQuestions` указания говорят, нужны ли в вопросах слова
   урока, у `describeAndGuess` — какие слова описывать в игре, у
   `readingText` — сколько слов урока взять в текст.
@@ -368,10 +370,9 @@ warm-up, watch-and-interact — без связей
 | `storyGuessKey` *derived* | markdownCard | блок storyCards, statements |
 | `vocabularyMeanings` *derived* | multipleChoice | vocabulary (с дистракторами) |
 | `contextDropdown` | dropdownChoice | |
-| `dragSentences` | dragWordsInText | |
+| `dragSentences` | dragWordsInText (с лишними вариантами — и «Complete the Rule») | |
 | `translationHints` | gapFill | |
 | `personalizedQuestions` | personalizedQuestions | |
-| `ruleGaps` | dragWordsInText | |
 | `quickRule` | markdownCard (sections) | |
 | `correctSentences` | checkboxChoice | |
 | `choiceSentences` | dropdownChoice | |
@@ -400,7 +401,7 @@ warm-up, watch-and-interact — без связей
 | `speakingSupport` | speakingSupport | |
 
 Общие для обоих шаблонов: `vocabularyList`, `contextDropdown`,
-`personalizedQuestions`, `ruleGaps`, `quickRule`, `choiceSentences`,
+`personalizedQuestions`, `dragSentences`, `quickRule`, `choiceSentences`,
 `wordBankSupport`, `threeTwoOne`. Всего 32 контрола.
 
 Для шаблона 3 добавлен `sentenceBuilder` (компонент sentenceBuilder, без входов):
