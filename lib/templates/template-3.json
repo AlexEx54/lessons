@@ -257,24 +257,18 @@
           "control": "readingText",
           "params": {
             "minWords": 110,
-            "maxWords": 170,
-            "minTerms": 4,
-            "maxTerms": 6
-          },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
+            "maxWords": 170
           },
           "exports": {
             "text": "groupChat"
           },
-          "instructions": "Write the text as a group chat. Every paragraph is one message in the form **Name:** message, short and informal like real teenagers write; one or two emojis in the whole chat are fine.\nThe friends start with different opinions, give reasons, and agree on something at the end.\nInclude 5 to 7 clear and accurate examples of the target grammar in different messages, without explaining the grammar.\ntitle is the name of the chat; subtitle is the question the friends argue about.\nheaderImagePrompt describes a group avatar for the chat; textImagePrompt describes a scene connected to the argument.",
+          "instructions": "Select 4 to 6 distinct entries from the supplied Target Vocabulary and include each of them exactly and naturally in the chat.\nWrite the text as a group chat. Every paragraph is one message in the form **Name:** message, short and informal like real teenagers write; one or two emojis in the whole chat are fine.\nThe friends start with different opinions, give reasons, and agree on something at the end.\nInclude 5 to 7 clear and accurate examples of the target grammar in different messages, without explaining the grammar.\ntitle is the name of the chat; subtitle is the question the friends argue about.\nheaderImagePrompt describes a group avatar for the chat; textImagePrompt describes a scene connected to the argument.",
           "example": {
             "title": "Class 8B 💬",
             "subtitle": "Should our school ban phones?",
             "text": "**Mia:** Did you see the news? From Monday our school wants a phone ban! 😱\n\n**Leo:** Honestly, I think it’s a good idea. Phones are a huge distraction in class. We shouldn’t check messages every five minutes.\n\n**Mia:** But what about an emergency? I should be able to call my mum.\n\n**Sara:** You can use the phone in the office. And we could put our phones in a phone locker in the morning.\n\n**Leo:** Exactly. Teachers should keep the rules simple.\n\n**Tom:** I don’t agree. We use phones for homework and for our group chat. The school shouldn’t take them away completely.\n\n**Sara:** Maybe students should keep them on silent and use them only in the break?\n\n**Mia:** That sounds fair. We should talk to the head teacher about it! 👍\n\n**Tom:** Deal. And less screen time at lunch, I promise 😂",
             "headerImagePrompt": "Small round group avatar with four smiling teenagers' faces, bright flat colours, modern educational illustration, no text.",
-            "textImagePrompt": "Wide scene of four teenagers arguing in a friendly way at a school table, one holding up a phone, modern educational illustration, no text.",
-            "usedVocabularyTerms": ["distraction", "emergency", "phone locker", "group chat", "on silent", "screen time"]
+            "textImagePrompt": "Wide scene of four teenagers arguing in a friendly way at a school table, one holding up a phone, modern educational illustration, no text."
           }
         },
         {

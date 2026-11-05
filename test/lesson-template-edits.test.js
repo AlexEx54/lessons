@@ -488,15 +488,15 @@ test('a block goes no higher than its sources and no lower than its readers', ()
   ]);
   assert.deepEqual(blockersOf(definition, 'target-vocabulary-meanings', 'wrap-up'), []);
 
-  // The reading text cannot be written in one answer with the vocabulary it takes.
+  // The role cards cannot be written in one answer with the vocabulary they take.
   const one = templateOne();
-  assert.deepEqual(Edits.moveBlockers(one, 'reading-text', 'target-vocabulary', controls), [
+  assert.deepEqual(Edits.moveBlockers(one, 'guided-speaking-role-cards', 'target-vocabulary', controls).filter(({ kind }) => kind === 'input'), [
     { kind: 'input', block: 'target-vocabulary-card', stage: 'target-vocabulary', inStage: false, type: 'vocabulary' },
   ]);
-  assert.deepEqual(blockersOf(one, 'target-vocabulary-card', 'reading').slice(-1), ['reader reading-text reading']);
-  // Listening passes the vocabulary to the model, though none of its blocks reads it.
+  assert.deepEqual(blockersOf(one, 'target-vocabulary-card', 'guided-speaking').slice(-1), ['reader guided-speaking-role-cards guided-speaking']);
+  // Reading and Listening pass the vocabulary to the model, though none of their blocks reads it.
   assert.deepEqual(blockersOf(one, 'target-vocabulary-card', 'grammar-presentation').filter(text => !text.endsWith(' target-vocabulary')), [
-    'reader reading-text reading',
+    'reader reading',
     'reader listening',
   ]);
 });
@@ -523,10 +523,9 @@ test('a moved block goes to the end of the stage; context lines follow its links
 });
 
 test('the old stage loses a line only the moved block read; a row moves whole', () => {
-  const one = templateOne();
-  assert.deepEqual(Edits.moveToStage(one, 'reading-text', 'listening', controls), {
+  assert.deepEqual(Edits.moveToStage(templateTwo(), 'guided-communication-cards', 'grammar-focus', controls), {
     addedLines: [],
-    removedLines: [{ stage: 'reading', label: 'Target Vocabulary' }],
+    removedLines: [{ stage: 'guided-speaking', label: 'Target Vocabulary' }],
   });
 
   const definition = templateTwo();

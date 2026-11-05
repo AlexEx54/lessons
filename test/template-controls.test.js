@@ -214,6 +214,19 @@ test('a Describe and Guess block takes its words from its instructions and needs
   assert.deepEqual(CONTROL_CATALOG.get('describeAndGuess').inputs, {});
 });
 
+test('a reading text takes its lesson words from its instructions and needs no vocabulary', () => {
+  const definition = singleBlockTemplate(CONTROL_CATALOG.get('readingText'), { minWords: 60, maxWords: 80 });
+  definition.stages[1].blocks[0].instructions = 'Use 3 to 4 terms of the Target Vocabulary.';
+  const template = compileTemplate(definition, CONTROL_CATALOG);
+  const { messages, schema } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
+  const lines = messages[0].content.split('\n');
+  const images = lines.findIndex(line => line.startsWith('Both image prompts must be in English'));
+  assert.ok(images >= 0);
+  assert.equal(lines[images + 1], 'Use 3 to 4 terms of the Target Vocabulary.');
+  assert.equal(schema.properties.usedVocabularyTerms, undefined);
+  assert.deepEqual(CONTROL_CATALOG.get('readingText').inputs, {});
+});
+
 test('Drag Sentences and Type the Words blocks take their words from their instructions and need no vocabulary', () => {
   const definition = singleBlockTemplate(CONTROL_CATALOG.get('dragSentences'), { sentences: 4 });
   definition.stages[1].blocks[0].instructions = 'Every gap is a term of the Target Vocabulary.';

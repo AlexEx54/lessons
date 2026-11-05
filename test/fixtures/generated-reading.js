@@ -13,9 +13,6 @@ const GENERATED_READING = Object.freeze({
   text: READING_TEXT,
   headerImagePrompt: 'Small circular child-friendly avatar of a happy teenage traveler, educational illustration, no text.',
   textImagePrompt: 'Wide child-friendly educational illustration of students arriving at Edinburgh airport with a teacher, warm colorful style, no readable text.',
-  usedVocabularyTerms: [
-    'book a ticket', 'pack a suitcase', 'catch a flight', 'go through security', 'board a plane',
-  ],
   gistQuestion: {
     question: 'What is the main idea of the text?',
     options: [

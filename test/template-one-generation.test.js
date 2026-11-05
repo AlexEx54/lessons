@@ -145,9 +145,6 @@ test('Template 1 rejects model answers that would break a task', () => {
     ['reading', answer => { answer.detailQuestions.pop(); }, /Reading for Detail»: нужно ровно 5/],
     ['reading', answer => { answer.gistQuestions[0].options[1] = answer.gistQuestions[0].options[0]; }, /варианты в вопросе 1 не должны повторяться/],
     ['reading', answer => { answer.detailQuestions[0].answer = 'An answer outside the options.'; }, /должен точно совпадать с вариантом/],
-    ['reading', answer => { answer.usedVocabularyTerms[4] = 'rent a car'; }, /получено «rent a car»/],
-    ['reading', answer => { answer.usedVocabularyTerms.splice(3); }, /от 5 до 6 слов из словаря/],
-    ['reading', answer => { answer.usedVocabularyTerms = TERMS.slice(0, 7); }, /от 5 до 6 слов из словаря/],
     ['reading', answer => { answer.text = 'A very short reading text.'; }, /от 180 до 230 слов, получено 5/],
     ['reading', answer => { answer.textImagePrompt = 'Students arrive at an airport.'; }, /иллюстрацию без текста/],
     ['listening', answer => { answer.gistQuestions.pop(); }, /Listening for Gist»: нужно ровно 2/],
@@ -173,9 +170,6 @@ test('Template 1 rejects model answers that would break a task', () => {
 test('Template 1 only logs answers that stay usable', t => {
   const warn = t.mock.method(console, 'warn', () => {});
   const warnings = () => warn.mock.calls.splice(0).map(call => call.arguments[0]).join('\n');
-
-  damaged('reading', answer => { answer.usedVocabularyTerms[4] = 'pick up luggage'; })();
-  assert.match(warnings(), /в тексте нет слов из словаря: pick up luggage/);
 
   const { lesson } = damaged('grammar-presentation', answer => {
     answer.checkItems[0].before = '';

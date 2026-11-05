@@ -408,14 +408,9 @@
           "control": "readingText",
           "params": {
             "minWords": 180,
-            "maxWords": 230,
-            "minTerms": 5,
-            "maxTerms": 6
+            "maxWords": 230
           },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
-          },
-          "instructions": "Choose exactly one of these text formats, whichever best suits the lesson topic: review, social media post, short article, influencer story, or advice-column message.\nDo not use any other genre or text format.\nThe supplied Grammar topic is authoritative. Naturally include 4 to 7 clear and accurate examples of that target grammar in the reading text, without explaining the grammar.\nProvide a concise title and a useful subtitle appropriate to the chosen genre."
+          "instructions": "Select 5 to 6 distinct entries from the supplied Target Vocabulary and include each of them exactly and naturally in the reading text.\nChoose exactly one of these text formats, whichever best suits the lesson topic: review, social media post, short article, influencer story, or advice-column message.\nDo not use any other genre or text format.\nThe supplied Grammar topic is authoritative. Naturally include 4 to 7 clear and accurate examples of that target grammar in the reading text, without explaining the grammar.\nProvide a concise title and a useful subtitle appropriate to the chosen genre."
         },
         {
           "id": "reading-gist-quiz",
