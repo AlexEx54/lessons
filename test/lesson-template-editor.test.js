@@ -119,8 +119,8 @@ test('controls are described for the editor with labelled parameters and chrome'
   assert.deepEqual(byType('roleDialogue').sources, { accepts: ['roleCards'], label: 'диалог' });
   assert.equal(byType('contextDropdown').sources, undefined);
   // Tasks that can have an answer key, a key in two parts with its part titles.
-  assert.deepEqual(byType('contextDropdown').answerKey, {});
-  assert.deepEqual(byType('choiceSentences').answerKey.parts.explanations, { label: 'Пояснения', title: 'Short explanations' });
+  assert.deepEqual(byType('dragSentences').answerKey, {});
+  assert.deepEqual(byType('contextDropdown').answerKey.parts.explanations, { label: 'Пояснения', title: 'Short explanations' });
   assert.equal(byType('quickRule').answerKey, undefined);
   assert.deepEqual(Object.keys(describeControls().answerKeyFields), ['title', 'format', 'layout']);
   // The editor names the learner profile as every stage prompt does.
@@ -134,7 +134,7 @@ test('controls are described for the editor with labelled parameters and chrome'
 
 test('every block of the catalog has a group and a description; static ones come with a sample', () => {
   const { controls, statics, groups } = describeControls();
-  assert.equal(controls.length + statics.length, 42);
+  assert.equal(controls.length + statics.length, 41);
   for (const block of [...controls, ...statics]) {
     assert.ok(groups.some(group => group.key === block.group), `${block.type}: группа ${block.group}`);
     assert.ok(block.description.trim().length > 0, block.type);

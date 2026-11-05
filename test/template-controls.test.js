@@ -172,9 +172,34 @@ test('a Vocabulary in Context block takes the words of its gaps from its instruc
   const template = compileTemplate(definition, CONTROL_CATALOG);
   const { messages } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
   const lines = messages[0].content.split('\n');
-  const gaps = lines.indexOf('choices: one choice per gap, in the same order. options are three different words or short phrases, each in the form that fits the gap; answer is one of them, copied exactly. Use four different answers.');
+  const gaps = lines.indexOf('choices: one choice per gap, in the same order. options are three different words or short phrases, each in the form that fits the gap; answer is one of them, copied exactly.');
   assert.ok(gaps >= 0);
   assert.equal(lines[gaps + 1], 'Every answer and every option is a term of the Target Vocabulary.');
+});
+
+// Numbered sentences with explanations, as in the grammar stages, are the same control: the
+// look of the text is in the instructions, the explanations are a flag.
+test('a dropdown block with explanations asks for them and keys them in a second part', () => {
+  const control = CONTROL_CATALOG.get('contextDropdown');
+  const run = params => {
+    const template = compileTemplate(singleBlockTemplate(control, { gaps: 3, options: 2, ...params }), CONTROL_CATALOG);
+    const { schema } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
+    const key = exampleRun(template).lesson.stages[1].content.find(item => item.id === 'checked-block-answer-key');
+    return { schema, key };
+  };
+  const explained = run({ explanations: true });
+  assert.deepEqual(explained.schema.properties.choices.items.required, ['options', 'answer', 'explanation']);
+  assert.deepEqual(explained.key.sections.map(section => section.title), ['Answers', 'Short explanations']);
+  assert.match(explained.key.sections[1].text, /^1\. Star Kid needs a umbrella\.\n2\. /);
+
+  const plain = run({});
+  assert.deepEqual(plain.schema.properties.choices.items.required, ['options', 'answer']);
+  assert.equal(plain.key.sections, undefined);
+  assert.match(plain.key.text, /^1\. \*\*umbrella\*\*\n/);
+
+  const context = { id: 'check', params: { gaps: 1, options: 2, explanations: true }, chrome: {}, random: () => 0 };
+  const choice = { options: ['has got', 'have got'], answer: 'has got', explanation: ' ' };
+  assert.throws(() => control.build({ text: '**1.** He [[1]] a cape.', choices: [choice] }, context), /не заполнено: пояснение в пропуске 1/);
 });
 
 test('a Fill in the Blanks block takes its answers from its instructions and needs no vocabulary', () => {

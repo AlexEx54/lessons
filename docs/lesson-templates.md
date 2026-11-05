@@ -212,6 +212,9 @@ module.exports = {
   `dragSentences` и `translationHints` — откуда слова для пропусков.
   `dragSentences` с лишними вариантами — это и «Complete the Rule»:
   указания блока говорят, что предложения вместе формулируют правило.
+  `contextDropdown` — и связный абзац со словами урока, и нумерованные
+  предложения на грамматику (Check the Rule, Grammar Focus Task 1): как
+  выглядит текст, говорят указания блока, пояснения к ответам включает флажок.
   У `personalizedQuestions` указания говорят, нужны ли в вопросах слова
   урока, у `describeAndGuess` — какие слова описывать в игре, у
   `readingText` — сколько слов урока взять в текст.
@@ -369,13 +372,12 @@ warm-up, watch-and-interact — без связей
 | `storyCards` | storyCards | vocabulary?, statements? |
 | `storyGuessKey` *derived* | markdownCard | блок storyCards, statements |
 | `vocabularyMeanings` *derived* | multipleChoice | vocabulary (с дистракторами) |
-| `contextDropdown` | dropdownChoice | |
+| `contextDropdown` | dropdownChoice (с пояснениями — и выбор формы в предложениях) | |
 | `dragSentences` | dragWordsInText (с лишними вариантами — и «Complete the Rule») | |
 | `translationHints` | gapFill | |
 | `personalizedQuestions` | personalizedQuestions | |
 | `quickRule` | markdownCard (sections) | |
 | `correctSentences` | checkboxChoice | |
-| `choiceSentences` | dropdownChoice | |
 | `cueGaps` | gapFill | |
 | `sentenceCorrection` | sentenceCorrection | |
 | `sentenceHalves` | sentenceMatching | |
@@ -401,7 +403,7 @@ warm-up, watch-and-interact — без связей
 | `speakingSupport` | speakingSupport | |
 
 Общие для обоих шаблонов: `vocabularyList`, `contextDropdown`,
-`personalizedQuestions`, `dragSentences`, `quickRule`, `choiceSentences`,
+`personalizedQuestions`, `dragSentences`, `quickRule`,
 `wordBankSupport`, `threeTwoOne`. Всего 32 контрола.
 
 Для шаблона 3 добавлен `sentenceBuilder` (компонент sentenceBuilder, без входов):
@@ -503,7 +505,8 @@ ALTER TABLE lesson_drafts ADD COLUMN template_snapshot_json TEXT;
    слов из словаря 5–6, как и просил промпт (схема пропускала 4).
 4. **Listening:** вопросы проверяются так же, как в Reading: различные
    варианты, ответ из вариантов.
-5. **Grammar Presentation:** Check the Rule — контрол `choiceSentences`:
+5. **Grammar Presentation:** Check the Rule — контрол `choiceSentences`
+   (с 2026-11-05 — `contextDropdown` с пояснениями):
    номера жирные, варианты перемешиваются, пустой текст вокруг пропуска и
    Markdown дают предупреждение вместо ошибки. Ключ ответов в разделах шаблона 2:
    Task 1 Rule, Task 2, Short explanations.

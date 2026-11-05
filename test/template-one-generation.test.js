@@ -152,10 +152,11 @@ test('Template 1 rejects model answers that would break a task', () => {
     ['listening', answer => { answer.detailQuestions.pop(); }, /Listening for Detail»: нужно ровно 5/],
     ['grammar-presentation', answer => { answer.ruleSentences[1] = answer.ruleSentences[0]; }, /слова в пропусках не должны повторяться/],
     ['grammar-presentation', answer => { answer.ruleDistractors[0] = 'past'; }, /слова в пропусках и лишние варианты не должны повторяться/],
-    ['grammar-presentation', answer => { answer.checkItems[0].answer = 'flew'; }, /Check the Rule»: ответ в предложении 1 должен точно совпадать/],
-    ['grammar-focus', answer => { answer.task1Items.pop(); }, /нужно ровно 8 \(предложений\)/],
-    ['grammar-focus', answer => { answer.task1Items[0].answer = 'flew'; }, /ответ в предложении 1 должен точно совпадать/],
-    ['grammar-focus', answer => { answer.task1Items[0].options[1] = answer.task1Items[0].options[0]; }, /варианты в предложении 1 не должны повторяться/],
+    ['grammar-presentation', answer => { answer.checkChoices[0].answer = 'flew'; }, /Check the Rule»: ответ в пропуске 1 должен точно совпадать/],
+    ['grammar-presentation', answer => { answer.checkChoices[0].explanation = ' '; }, /Check the Rule»: не заполнено: пояснение в пропуске 1/],
+    ['grammar-focus', answer => { answer.task1Choices.pop(); }, /нужно ровно 8 \(пропусков\)/],
+    ['grammar-focus', answer => { answer.task1Choices[0].answer = 'flew'; }, /ответ в пропуске 1 должен точно совпадать/],
+    ['grammar-focus', answer => { answer.task1Choices[0].options[1] = answer.task1Choices[0].options[0]; }, /варианты в пропуске 1 не должны повторяться/],
     ['grammar-focus', answer => { answer.task2Dialogue = answer.task2Dialogue.replace('{{gap}}', 'went'); }, /ровно 9 маркеров \{\{gap\}\}/],
     ['guided-speaking', answer => { answer.roles.teacher.goal = 'Choose a different plan.'; }, /одна общая цель/],
     ['guided-speaking', answer => { answer.dialogue[1].speaker = 'Teacher'; }, /должны чередоваться/],
@@ -173,23 +174,22 @@ test('Template 1 only logs answers that stay usable', t => {
   const warnings = () => warn.mock.calls.splice(0).map(call => call.arguments[0]).join('\n');
 
   const { lesson } = damaged('grammar-presentation', answer => {
-    answer.checkItems[0].before = '';
-    answer.checkItems[0].after = '';
+    answer.checkChoices[0].options[0] = '*travelled*';
   })();
-  assert.match(warnings(), /Check the Rule»: в предложении 1 нет текста вокруг ответа/);
+  assert.match(warnings(), /Check the Rule»: убрана Markdown-разметка в пропуске 1/);
   const check = lesson.stages.find(stage => stage.id === 'grammar-presentation').content
     .find(item => item.id === 'grammar-presentation-check-the-rule');
-  assert.match(check.text, /^\*\*1\.\*\* \[\[choice-1\]\]\n/);
+  assert.ok(check.choices[0].options.includes('travelled'));
 
   damaged('grammar-focus', answer => {
-    answer.task1Items[0].before = 'Last month, *I* ';
+    answer.task1Choices[0].answer = '*booked*';
     answer.task2Dialogue = answer.task2Dialogue.replace('**Mia:**', 'Mia:');
     answer.modelSentence = 'Вчера я летал в Лондон.';
     answer.supportWordBank = [...answer.supportWordBank.slice(0, 6), 'unknown phrase', 'Book a ticket'];
     answer.miniSituation.imagePrompt = 'A traveler at an airport.';
   })();
   const focus = warnings();
-  for (const pattern of [/убрана Markdown-разметка в предложении 1/, /с жирными именами/, /кириллицу в английском тексте: Вчера/,
+  for (const pattern of [/убрана Markdown-разметка в пропуске 1/, /с жирными именами/, /кириллицу в английском тексте: Вчера/,
     /не из словаря в банке слов: unknown phrase/, /повтор в банке слов: Book a ticket/, /иллюстрацию без текста/]) {
     assert.match(focus, pattern);
   }

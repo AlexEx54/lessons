@@ -310,7 +310,7 @@
             "title": "Task 2 · Vocabulary in Context — Dropdown",
             "instruction": "Fill in the blanks with the correct words from the dropdown lists."
           },
-          "instructions": "Every answer and every option is a term of vocabularyItems in the form that fits the gap.\ncontextText is a topic-related story.",
+          "instructions": "Every answer and every option is a term of vocabularyItems in the form that fits the gap. Use a different answer for every gap.\ncontextText is a topic-related story.",
           "answerKey": {
             "title": "Answer Key"
           }
@@ -651,22 +651,76 @@
         {
           "id": "grammar-presentation-check-the-rule",
           "kind": "generated",
-          "control": "choiceSentences",
+          "control": "contextDropdown",
           "params": {
-            "items": 5,
-            "options": 3
+            "gaps": 5,
+            "options": 3,
+            "minWords": 30,
+            "maxWords": 60,
+            "explanations": true
           },
           "fields": {
-            "items": "checkItems"
+            "text": "checkText",
+            "choices": "checkChoices"
           },
           "chrome": {
             "title": "Task 2. Check the Rule",
             "instruction": "Choose the correct option from each drop-down list."
           },
-          "instructions": "Use varied, plausible distractors.",
+          "instructions": "checkText is a numbered list of five separate short sentences, one per line, each starting with its number in bold (**1.**) and with exactly one gap.\nThe sentences check the grammar rule of the lesson; the wrong options are typical mistakes with this grammar. Use varied, plausible distractors.",
           "answerKey": {
             "title": "Answer key",
             "layout": "columns"
+          },
+          "example": {
+            "text": "**1.** Flash Kid [[1]] curly hair.\n**2.** We [[2]] capes.\n**3.** [[3]] Moon Girl got a mask?\n**4.** They [[4]] red boots.\n**5.** Star Kid [[5]] a cape.",
+            "choices": [
+              {
+                "options": [
+                  "has got",
+                  "have got",
+                  "is got"
+                ],
+                "answer": "has got",
+                "explanation": "With he, use has got."
+              },
+              {
+                "options": [
+                  "haven’t got",
+                  "hasn’t got",
+                  "don’t got"
+                ],
+                "answer": "haven’t got",
+                "explanation": "With we, use haven’t got."
+              },
+              {
+                "options": [
+                  "Has",
+                  "Have",
+                  "Does"
+                ],
+                "answer": "Has",
+                "explanation": "Questions with she start with Has."
+              },
+              {
+                "options": [
+                  "have got",
+                  "has got",
+                  "having"
+                ],
+                "answer": "have got",
+                "explanation": "With they, use have got."
+              },
+              {
+                "options": [
+                  "hasn’t got",
+                  "haven’t got",
+                  "not got"
+                ],
+                "answer": "hasn’t got",
+                "explanation": "With he, use hasn’t got."
+              }
+            ]
           }
         }
       ]
@@ -681,7 +735,7 @@
         "Grammar topic": "$input.grammarTopic",
         "Target Vocabulary": "$var.targetVocabulary"
       },
-      "instructions": "Generate all variable content for an eight-minute Grammar Focus section in the existing template.\nThe supplied Grammar topic is authoritative. Every controlled and free-practice task must accurately practise exactly that grammar.\nUse the Lesson topic as one coherent natural context and reuse some supplied Target Vocabulary where it fits.\nAll generated lesson copy, including Teacher’s Notes, must be in English at the target CEFR level. The image prompt must be in English.\nDo not generate component titles, instructions, IDs, colors, icons, visibility settings, answer-key formatting, or sentence counts; the application adds them.\nExcept for bold speaker labels, do not use Markdown or HTML in Task 1 or Task 2 content. Never generate [[gap IDs]].",
+      "instructions": "Generate all variable content for an eight-minute Grammar Focus section in the existing template.\nThe supplied Grammar topic is authoritative. Every controlled and free-practice task must accurately practise exactly that grammar.\nUse the Lesson topic as one coherent natural context and reuse some supplied Target Vocabulary where it fits.\nAll generated lesson copy, including Teacher’s Notes, must be in English at the target CEFR level. The image prompt must be in English.\nDo not generate component titles, instructions, IDs, colors, icons, visibility settings, answer-key formatting, or sentence counts; the application adds them.\nExcept for bold speaker labels and the bold numbers of task1Text, do not use Markdown or HTML in Task 1 or Task 2 content.",
       "blocks": [
         {
           "id": "grammar-focus-teacher-note",
@@ -741,23 +795,104 @@
         {
           "id": "grammar-focus-choose-the-correct-options",
           "kind": "generated",
-          "control": "choiceSentences",
+          "control": "contextDropdown",
           "params": {
-            "items": 8,
-            "options": 3
+            "gaps": 8,
+            "options": 3,
+            "minWords": 50,
+            "maxWords": 100,
+            "explanations": true
           },
           "fields": {
-            "items": "task1Items"
+            "text": "task1Text",
+            "choices": "task1Choices"
           },
           "chrome": {
             "title": "**Task 1. Choose the correct options.**",
             "instruction": "Read each sentence and choose the correct grammar option.",
             "accentColor": "#6545F5"
           },
-          "instructions": "Include affirmative, negative, and question forms whenever the grammar topic supports them.",
+          "instructions": "task1Text is a numbered list of eight separate short sentences, one per line, each starting with its number in bold (**1.**) and with exactly one gap.\nEach gap tests a form of the grammar of the lesson; the wrong options are typical mistakes with it. Include affirmative, negative, and question forms whenever the grammar topic supports them.",
           "answerKey": {
             "title": "Answer Key & Explanations",
             "layout": "columns"
+          },
+          "example": {
+            "text": "**1.** Flash Kid [[1]] curly hair.\n**2.** We [[2]] capes.\n**3.** [[3]] Moon Girl got a mask?\n**4.** They [[4]] red boots.\n**5.** Star Kid [[5]] a cape.\n**6.** [[6]] you got a superpower?\n**7.** I [[7]] a blue mask.\n**8.** Captain Cloud [[8]] a fast car.",
+            "choices": [
+              {
+                "options": [
+                  "has got",
+                  "have got",
+                  "is got"
+                ],
+                "answer": "has got",
+                "explanation": "With he, use has got."
+              },
+              {
+                "options": [
+                  "haven’t got",
+                  "hasn’t got",
+                  "don’t got"
+                ],
+                "answer": "haven’t got",
+                "explanation": "With we, use haven’t got."
+              },
+              {
+                "options": [
+                  "Has",
+                  "Have",
+                  "Does"
+                ],
+                "answer": "Has",
+                "explanation": "Questions with she start with Has."
+              },
+              {
+                "options": [
+                  "have got",
+                  "has got",
+                  "having"
+                ],
+                "answer": "have got",
+                "explanation": "With they, use have got."
+              },
+              {
+                "options": [
+                  "hasn’t got",
+                  "haven’t got",
+                  "not got"
+                ],
+                "answer": "hasn’t got",
+                "explanation": "With he, use hasn’t got."
+              },
+              {
+                "options": [
+                  "Have",
+                  "Has",
+                  "Do"
+                ],
+                "answer": "Have",
+                "explanation": "Questions with you start with Have."
+              },
+              {
+                "options": [
+                  "have got",
+                  "has got",
+                  "am got"
+                ],
+                "answer": "have got",
+                "explanation": "With I, use have got."
+              },
+              {
+                "options": [
+                  "has got",
+                  "have got",
+                  "got"
+                ],
+                "answer": "has got",
+                "explanation": "With he, use has got."
+              }
+            ]
           }
         },
         {

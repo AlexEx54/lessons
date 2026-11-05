@@ -35,7 +35,7 @@ test('Template 2 Grammar Focus fills the synthetic structure and keeps other sta
     ...block, text: GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS[NOTE_FIELDS[index]],
   })));
   const choices = byId(content, 'grammar-focus-choose-the-correct-options');
-  assert.match(choices.text, /^\*\*1\.\*\* Last summer, we \[\[choice-1\]\] a long journey by train\./);
+  assert.match(choices.text, /^\*\*1\.\*\* Last summer, we \[\[context-1\]\] a long journey by train\./);
   // The application shuffles the options instead of trusting the model's order.
   assert.deepEqual(choices.choices[0].options, ['make', 'making', 'made']);
   assert.match(byId(content, 'grammar-focus-choose-the-correct-options-answer-key').sections[1].text, /^1\. Last summer shows/);
@@ -58,9 +58,9 @@ test('Template 2 Grammar Focus fills the synthetic structure and keeps other sta
 test('Template 2 Grammar Focus fails only on unsolvable tasks', t => {
   t.mock.method(console, 'warn', () => {});
   for (const mutate of [
-    g => g.task1Items.pop(),
-    g => { g.task1Items[0].answer = 'went'; },
-    g => { g.task1Items[0].options[1] = g.task1Items[0].options[0]; },
+    g => g.task1Choices.pop(),
+    g => { g.task1Choices[0].answer = 'went'; },
+    g => { g.task1Choices[0].options[1] = g.task1Choices[0].options[0]; },
     g => { g.correctionItems[0].corrections = ['**']; },
     g => { g.matchingItems[1].right = g.matchingItems[0].right; },
     g => { g.task2Items[0].before = 'Yesterday, I [[x]] '; },
@@ -75,7 +75,7 @@ test('Template 2 Grammar Focus fails only on unsolvable tasks', t => {
 test('Template 2 Grammar Focus logs content-quality problems instead of failing', t => {
   const warn = t.mock.method(console, 'warn', () => {});
   const soft = generated();
-  soft.task1Items[0].before = 'Last summer, *we* ';
+  soft.task1Choices[0].options[0] = '*made*';
   soft.task2Items[1] = { before: '', after: '', cue: 'leave', answer: 'left' };
   soft.correctionItems[0].corrections = ['We buyed tickets at the station.', 'We bought tickets at the station.', 'we bought tickets at the station'];
   soft.translations[0] = { ru: 'Yesterday I bought a ticket.', en: 'Вчера я купил билет' };
@@ -89,7 +89,7 @@ test('Template 2 Grammar Focus logs content-quality problems instead of failing'
   assert.match(support.text, /\*\*Word bank:\*\* ticket, platform, luggage, delay, journey, passport, suitcase\n/);
   const warnings = warn.mock.calls.map(call => call.arguments[0]).join('\n');
   for (const pattern of [
-    /Task 1\. Choose the correct options\.»: убрана Markdown-разметка в предложении 1/,
+    /Task 1\. Choose the correct options\.»: убрана Markdown-разметка в пропуске 1/,
     /Task 2\. Complete the gaps with the correct form of the verbs\.»: в предложении 2 нет текста вокруг ответа/,
     /«Task 3\. Correct the mistakes\.»: исправление в предложении 1 совпадает/,
     /в переводе 1 русское предложение без кириллицы/, /в переводе 1 английский ответ содержит кириллицу/,
@@ -102,7 +102,8 @@ test('Template 2 Grammar Focus logs content-quality problems instead of failing'
 
 test('Template 2 Grammar Focus prompt receives grammar and vocabulary', () => {
   const { messages, schema } = stageRequest('grammar-focus', { variables, profile: { ageGroup: '15-17', level: 'B1' } });
-  assert.match(messages[0].content, /exactly eight task1Items/);
+  assert.match(messages[0].content, /task1Text: 50–100 words with eight gaps/);
+  assert.match(messages[0].content, /task1Text is a numbered list of eight separate short sentences/);
   assert.match(messages[0].content, /task2Items are separate sentences, not a dialogue/);
   assert.match(messages[0].content, /exactly one mistake in the target grammar/);
   assert.match(messages[0].content, /exactly six matchingItems/);

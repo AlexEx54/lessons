@@ -28,37 +28,20 @@ const GENERATED_GRAMMAR_PRESENTATION = Object.freeze({
     title: 'NEGATIVES & QUESTIONS',
     text: '- **negative:** subject + did not + base verb\n- **question:** Did + subject + base verb?\n- **example:** “Did you buy a ticket?”',
   }],
-  checkItems: [{
-    before: 'Last year, I ',
-    after: ' to Spain.',
-    options: ['travelled', 'travel', 'am travelling'],
-    answer: 'travelled',
-    explanation: 'Last year shows a finished action in the past.',
-  }, {
-    before: 'We did not ',
-    after: ' the early train.',
-    options: ['caught', 'catch', 'catching'],
-    answer: 'catch',
-    explanation: 'After did not, we use the base verb.',
-  }, {
-    before: 'Did she ',
-    after: ' the museum?',
-    options: ['visited', 'visits', 'visit'],
-    answer: 'visit',
-    explanation: 'After Did, we use the base verb.',
-  }, {
-    before: 'The plane ',
-    after: ' at nine yesterday.',
-    options: ['leaves', 'left', 'leave'],
-    answer: 'left',
-    explanation: 'Left is the Past Simple form of leave.',
-  }, {
-    before: 'They ',
-    after: ' their tickets online.',
-    options: ['buy', 'are buying', 'bought'],
-    answer: 'bought',
-    explanation: 'Bought is the Past Simple form of buy.',
-  }],
+  checkText: [
+    '**1.** Last year, I [[1]] to Spain.',
+    '**2.** We did not [[2]] the early train.',
+    '**3.** Did she [[3]] the museum?',
+    '**4.** The plane [[4]] at nine yesterday.',
+    '**5.** They [[5]] their tickets online.',
+  ].join('\n'),
+  checkChoices: [
+    { options: ['travelled', 'travel', 'am travelling'], answer: 'travelled', explanation: 'Last year shows a finished action in the past.' },
+    { options: ['caught', 'catch', 'catching'], answer: 'catch', explanation: 'After did not, we use the base verb.' },
+    { options: ['visited', 'visits', 'visit'], answer: 'visit', explanation: 'After Did, we use the base verb.' },
+    { options: ['leaves', 'left', 'leave'], answer: 'left', explanation: 'Left is the Past Simple form of leave.' },
+    { options: ['buy', 'are buying', 'bought'], answer: 'bought', explanation: 'Bought is the Past Simple form of buy.' },
+  ],
 });
 
 module.exports = { GENERATED_GRAMMAR_PRESENTATION };
