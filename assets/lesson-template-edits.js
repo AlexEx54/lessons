@@ -265,12 +265,21 @@
   // port, answer fields the stage already holds get another name, and the links are those
   // of `plannedLinks`. A variable of an earlier stage gets a context line, as the model
   // needs it, and a task comes with its answer key. `entry` is the control's description,
-  // or for a static block `{ kind: 'static', type, sample }`. Returns the block and
+  // or for a static block `{ kind: 'static', type, sample, aiFields }`. Returns the block and
   // `addedLines`, the labels of the context lines added.
   function addBlock(definition, stage, entry, controls) {
     const id = freeName(`${stage.id}-${kebabCase(entry.type)}`, blockIds(definition), '-');
     if (entry.kind === 'static') {
       const block = { id, kind: 'static', component: JSON.parse(JSON.stringify(entry.sample)) };
+      // A text the AI writes in every lesson becomes a field of the stage, the sample's
+      // text its example.
+      const taken = answerNames(stage, controls);
+      for (const [key, { name, rule }] of Object.entries(entry.aiFields || {})) {
+        const free = freeName(name, taken);
+        taken.add(free);
+        block.slots = { ...block.slots, [free]: { rule, example: block.component[key] } };
+        block.component[key] = `{{${free}}}`;
+      }
       stage.blocks.push(block);
       return { block, addedLines: [] };
     }
@@ -381,18 +390,36 @@
   // `<block>.items[0].answer` → `<block>`.
   const slotSourceBlock = source => /^[a-z][a-z0-9-]*/.exec(String(source))?.[0];
 
+  // The fields the static blocks of `stage` other than `except` describe: their names, in
+  // stage order, to the block that describes each. The stage shares them: a static block
+  // may use any of them in its texts without describing it.
+  function stageFields(stage, except = null) {
+    const owners = new Map();
+    for (const block of flattenBlocks(stage.blocks)) {
+      if (block === except || block.kind !== 'static') continue;
+      for (const name of Object.keys(block.slots || {})) {
+        if (!owners.has(name)) owners.set(name, block);
+      }
+    }
+    return owners;
+  }
+
+  // The {{names}} a static block uses without describing them, with the block of `stage`
+  // that describes each. A name no block describes is left out: the template check tells.
+  function sharedFields(block, stage) {
+    if (block.kind !== 'static') return [];
+    const owners = stageFields(stage, block);
+    return [...placeholders(block.component)]
+      .filter(name => !block.slots?.[name] && owners.has(name))
+      .map(name => ({ name, owner: owners.get(name) }));
+  }
+
   // The blocks of `stage` a static block takes its fields from: those its slots copy
-  // (`from`) and those that describe a {{name}} it uses without describing it, since the
-  // stage shares its fields.
+  // (`from`) and those that describe a field it shares.
   function fieldSources(block, stage) {
     if (block.kind !== 'static') return [];
     const sources = Object.values(block.slots || {}).map(slot => slot?.from).filter(Boolean).map(slotSourceBlock);
-    for (const name of placeholders(block.component)) {
-      if (block.slots?.[name]) continue;
-      const owner = flattenBlocks(stage.blocks).find(other => other !== block && other.kind === 'static' && other.slots?.[name]);
-      if (owner) sources.push(owner.id);
-    }
-    return [...new Set(sources)];
+    return [...new Set([...sources, ...sharedFields(block, stage).map(({ owner }) => owner.id)])];
   }
 
   // What a block built from another block may be built from: every block of the stage
@@ -792,12 +819,12 @@
     return `aiField${number}`;
   }
 
-  // A field for the AI put at the end of a Teacher's Notes text, for a note whose editor
-  // is closed: the AI writes it, by `rule`, together with the stage.
-  function appendNoteField(block, name, rule = '') {
+  // A field put at the end of a Teacher's Notes text, for a note whose editor is closed.
+  // A new field comes with its `slot`; one another block of the stage describes, without.
+  function appendNoteField(block, name, slot) {
     const { text } = block.component;
     block.component = { ...block.component, text: text ? `${text}\n\n{{${name}}}` : `{{${name}}}` };
-    block.slots = { ...block.slots, [name]: { rule } };
+    if (slot) block.slots = { ...block.slots, [name]: slot };
   }
 
   const api = {
@@ -841,6 +868,8 @@
     newFieldName,
     appendNoteField,
     slotSourceBlock,
+    stageFields,
+    sharedFields,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.LessonTemplateEdits = api;

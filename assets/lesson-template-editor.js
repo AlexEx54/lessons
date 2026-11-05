@@ -1780,16 +1780,46 @@
     return field;
   }
 
-  // «Поля для ИИ»: the {{slots}} of a static block. A copy inserts new ones into the text.
+  // A field another block of the stage describes: its text goes here as well.
+  function sharedField(block, name, owner) {
+    const value = el('span');
+    value.append('поле блока ', linkButton(placedName(owner.id, state.blocks.get(block.id).stage.id), owner.id));
+    const field = el('div', 'template-slot');
+    field.append(fieldRow(name, value, ' ← '));
+    return field;
+  }
+
+  // Buttons that put a field of another block of the stage into the text: the block shows
+  // the same text there.
+  function stageFieldButtons(block) {
+    const names = [...Edits.stageFields(state.blocks.get(block.id).stage, block).keys()]
+      .filter(name => !block.slots?.[name]);
+    if (names.length === 0) return null;
+    const row = el('div', 'template-slot__stage-fields');
+    row.append(el('span', 'template-field__label', 'Поле другого блока этапа:'));
+    for (const name of names) {
+      const insert = button('template-slot__insert', '', () => insertField(block, name));
+      insert.append('+ ', fieldChip(name));
+      insert.title = fieldTitle(block.id, name);
+      insert.addEventListener('mousedown', event => event.preventDefault());
+      row.append(insert);
+    }
+    return row;
+  }
+
+  // «Поля для ИИ»: the {{slots}} of a static block and the fields of the stage it uses. A
+  // copy inserts new ones into the text, or fields of other blocks of the stage.
   function fieldsSection(block) {
     if (block.component.type === 'videoPlayer') return null;
     const slots = Object.entries(block.slots || {});
+    const shared = Edits.sharedFields(block, state.blocks.get(block.id).stage);
     const pending = Object.entries(state.newSlots.get(block.id) || {});
     const fields = [
       ...slots.map(([name, slot]) => {
         if (!writtenByModel(slot)) return sourceField(block, name, slot);
         return editable() ? ruleField(block, name, slot, false) : fieldRow(name, slot.rule || '—');
       }),
+      ...shared.map(({ name, owner }) => sharedField(block, name, owner)),
       ...pending.map(([name, slot]) => ruleField(block, name, slot, true)),
     ];
     if (!editable()) return fields.length > 0 ? panelSection('Поля для ИИ', ...fields) : null;
@@ -1799,7 +1829,7 @@
     const hint = pending.length > 0 || slots.some(([, slot]) => writtenByModel(slot))
       ? 'Что писать — по-английски: текст идёт в запрос к ИИ.'
       : 'Поставьте курсор в текст блока и вставьте поле: его напишет ИИ вместе с этапом.';
-    return panelSection('Поля для ИИ', el('p', 'template-panel__hint', hint), ...fields, insert);
+    return panelSection('Поля для ИИ', el('p', 'template-panel__hint', hint), ...fields, insert, stageFieldButtons(block));
   }
 
   const writable = field => field.isConnected
@@ -1820,18 +1850,22 @@
   }
 
   // At the caret of the block's open editor; into a closed Teacher's Notes, at the end of
-  // its text. The name is new in the stage, so it never takes over an answer field.
-  function insertField(block) {
+  // its text. A new field takes a name new in the stage, so it never takes over an answer
+  // field; `shared`, the name of a field of another block of the stage, is only used.
+  function insertField(block, shared = null) {
     const target = caretIn(staticFrames.get(block.id)?.frame);
     const taken = [...state.newSlots.values()].flatMap(Object.keys);
-    const name = Edits.newFieldName(currentStage(), state.controls, taken);
+    const name = shared ?? Edits.newFieldName(currentStage(), state.controls, taken);
+    const slot = shared ? null : { rule: '' };
     if (target) {
       putField(target, name);
       caret = target;
-      state.newSlots.set(block.id, { ...state.newSlots.get(block.id), [name]: { rule: '' } });
-      renderPanel();
+      if (slot) {
+        state.newSlots.set(block.id, { ...state.newSlots.get(block.id), [name]: slot });
+        renderPanel();
+      }
     } else if (block.component.type === 'teacherNote' && !state.openEdits.has(block.id)) {
-      change(() => Edits.appendNoteField(block, name));
+      change(() => Edits.appendNoteField(block, name, slot));
     } else {
       showToast('Поставьте курсор в текст блока: откройте его редактор кнопкой ✎.');
       return;
@@ -1867,11 +1901,13 @@
 
   // A chip in the text tells on hover what goes there.
   function fieldTitle(id, name) {
-    const block = state.blocks.get(id)?.block;
+    const { block, stage } = state.blocks.get(id) || {};
     const slot = block?.slots?.[name] || state.newSlots.get(id)?.[name];
-    if (!slot) return 'Поле не описано';
-    if (!writtenByModel(slot)) return `Подставляется из блока «${placedName(Edits.slotSourceBlock(slot.from), currentStage().id)}»`;
-    return `ИИ пишет: ${slot.rule || 'не сказано, что'}`;
+    if (slot && !writtenByModel(slot)) return `Подставляется из блока «${placedName(Edits.slotSourceBlock(slot.from), stage.id)}»`;
+    if (slot) return `ИИ пишет: ${slot.rule || 'не сказано, что'}`;
+    const owner = stage && Edits.stageFields(stage, block).get(name);
+    if (!owner) return 'Поле не описано';
+    return `Тот же текст, что в поле блока «${placedName(owner.id, stage.id)}». ${fieldTitle(owner.id, name)}`;
   }
 
   function blockPanel({ block, stage, row }) {
@@ -1891,7 +1927,8 @@
         part.id,
       ))));
     } else if (block.kind === 'static') {
-      const written = Object.values(block.slots || {}).some(writtenByModel);
+      const written = Object.values(block.slots || {}).some(writtenByModel)
+        || Edits.sharedFields(block, stage).some(({ owner, name }) => writtenByModel(owner.slots[name]));
       sections.push(el('p', 'template-panel__hint', written
         ? 'Попадает в урок как есть, кроме полей для ИИ: их ИИ пишет вместе с этапом.'
         : 'Попадает в урок как есть: ИИ его не меняет.'));

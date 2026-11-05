@@ -22,8 +22,10 @@
   const isStaticType = type => Object.hasOwn(STATIC_COMPONENTS, type);
 
   // How the block catalog of the template editor shows each static block, and the
-  // component a new one starts with: its text is edited in place afterwards. Groups are
-  // the control groups (CONTROL_GROUPS in lib/lesson-templates/control-catalog.js).
+  // component a new one starts with: its text is edited in place afterwards. `aiFields`
+  // are the sample's texts the AI writes in a new block instead: each one by its rule, in
+  // a field of the stage named after `name`. Groups are the control groups (CONTROL_GROUPS
+  // in lib/lesson-templates/control-catalog.js).
   const STATIC_BLOCKS = Object.freeze({
     teacherNote: {
       label: 'Заметки учителю',
@@ -113,6 +115,12 @@
         type: 'audioPlayer',
         title: 'Listen to the audio',
         script: 'Alex: Hi, Mia! Are you ready for the trip?\nMia: Yes! I packed my bag last night.',
+      },
+      aiFields: {
+        script: {
+          name: 'audioScript',
+          rule: 'Write a short audio script on the topic of the lesson. Write every spoken turn on a separate line in the plain-text format Speaker: words.',
+        },
       },
     },
   });

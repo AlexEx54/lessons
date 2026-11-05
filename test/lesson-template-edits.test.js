@@ -552,8 +552,8 @@ test('answer names the target stage holds are renamed, fields for the AI in thei
   assert.deepEqual(validateTemplate(one, CONTROL_CATALOG).errors, []);
 
   const definition = templateTwo();
-  Edits.appendNoteField(staticBlock(definition, 'lead-in', 'lead-in-teacher-note'), 'aiField1', 'Say hello.');
-  Edits.appendNoteField(staticBlock(definition, 'target-vocabulary', 'target-vocabulary-teacher-note'), 'aiField1', 'Say bye.');
+  Edits.appendNoteField(staticBlock(definition, 'lead-in', 'lead-in-teacher-note'), 'aiField1', { rule: 'Say hello.' });
+  Edits.appendNoteField(staticBlock(definition, 'target-vocabulary', 'target-vocabulary-teacher-note'), 'aiField1', { rule: 'Say bye.' });
   Edits.moveToStage(definition, 'lead-in-teacher-note', 'target-vocabulary', controls);
   const moved = stage(definition, 'target-vocabulary').blocks.at(-1);
   assert.deepEqual(moved.slots, { aiField2: { rule: 'Say hello.' } });
@@ -668,6 +668,38 @@ test('a field for the AI inserted into the open editor joins the block when its 
   assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
 });
 
+test('a static block shares the fields other static blocks of its stage describe', () => {
+  const definition = templateOne();
+  const listening = stage(definition, 'listening');
+  const [audio, again] = ['listening-audio', 'listening-audio-again'].map(id => staticBlock(definition, 'listening', id));
+  assert.deepEqual([...Edits.stageFields(listening, again)], [['listeningScript', audio]]);
+  assert.deepEqual(Edits.stageFields(listening, audio).size, 0);
+  assert.deepEqual(Edits.sharedFields(again, listening), [{ name: 'listeningScript', owner: audio }]);
+  assert.deepEqual(Edits.sharedFields(audio, listening), [], 'the block describes the field itself');
+
+  // Put into a closed Teacher's Notes, the field is only used.
+  const note = { id: 'listening-note', kind: 'static', component: { type: 'teacherNote', text: 'Play it twice.' } };
+  listening.blocks.push(note);
+  Edits.appendNoteField(note, 'listeningScript');
+  assert.equal(note.slots, undefined);
+  assert.deepEqual(Edits.sharedFields(note, listening), [{ name: 'listeningScript', owner: audio }]);
+  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
+});
+
+test('a new audio from the catalog has the AI write its script in a field of the stage', () => {
+  const definition = templateOne();
+  const entry = { kind: 'static', type: 'audioPlayer', ...STATIC_BLOCKS.audioPlayer };
+  const { block } = Edits.addBlock(definition, stage(definition, 'listening'), entry, controls);
+  assert.deepEqual(block.component, { type: 'audioPlayer', title: 'Listen to the audio', script: '{{audioScript}}' });
+  assert.deepEqual(block.slots, {
+    audioScript: { rule: STATIC_BLOCKS.audioPlayer.aiFields.script.rule, example: STATIC_BLOCKS.audioPlayer.sample.script },
+  });
+  assert.match(STATIC_BLOCKS.audioPlayer.sample.script, /^Alex:/, 'the catalog sample keeps its text');
+  const second = Edits.addBlock(definition, stage(definition, 'listening'), entry, controls).block;
+  assert.deepEqual(Object.keys(second.slots), ['audioScript2']);
+  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
+});
+
 // What instructions may refer to: the fields of the stage's answer in display order. A
 // slot copied from another block is not the model's to write.
 test('the answer fields of a stage come with the blocks that own them', () => {
@@ -688,7 +720,7 @@ test('a new field takes the first aiField name free among the stage answer names
   assert.equal(Edits.newFieldName(speaking, controls, ['aiField1']), 'aiField2');
 
   const note = staticBlock(definition, 'guided-speaking', 'guided-communication-teacher-note');
-  Edits.appendNoteField(note, 'aiField1');
+  Edits.appendNoteField(note, 'aiField1', { rule: '' });
   assert.match(note.component.text, /\n\n\{\{aiField1\}\}$/);
   assert.deepEqual(note.slots.aiField1, { rule: '' });
   assert.equal(Edits.newFieldName(speaking, controls), 'aiField2');

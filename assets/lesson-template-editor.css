@@ -477,6 +477,10 @@ textarea.template-field__input { resize: vertical; }
   font-weight: 650;
 }
 .template-slot__insert:hover { background: var(--purple-soft); }
+.template-slot__stage-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
+.template-slot__stage-fields > .template-field__label { flex-basis: 100%; }
+.template-slot__stage-fields .template-slot__insert { margin-top: 0; }
+.template-slot__stage-fields .markdown-field { font-size: 11px; }
 
 .template-refs + .template-refs { margin-top: 12px; }
 .template-refs h4 { margin: 0 0 6px; color: #5d6278; font-size: 11px; font-weight: 650; }
