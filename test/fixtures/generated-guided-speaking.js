@@ -11,7 +11,6 @@ const GENERATED_GUIDED_SPEAKING = Object.freeze({
     '- **Correct:** Help immediately only when communication stops; save other feedback for the end.',
     '- **Success:** The learner completes both mission actions and agrees on one travel plan.',
   ].join('\n'),
-  usedVocabularyTerms: ['book a ticket', 'pack a suitcase'],
   roles: {
     student: {
       want: ['Travel by train', 'Visit a city near the sea'],

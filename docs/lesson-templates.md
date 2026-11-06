@@ -222,7 +222,8 @@ module.exports = {
   тексте, подсказки в пропусках включает флажок.
   У `personalizedQuestions` указания говорят, нужны ли в вопросах слова
   урока, у `describeAndGuess` — какие слова описывать в игре, у
-  `readingText` — сколько слов урока взять в текст.
+  `readingText` — сколько слов урока взять в текст, у `roleCards` — сколько
+  слов урока взять в роли и пример диалога.
   Указания о блоке пишутся в блоке, а не в этапе: при переносе блок
   забирает их с собой.
 - **Параметры** создаются помощниками из `template-controls/helpers.js`:
@@ -401,7 +402,7 @@ warm-up, watch-and-interact — без связей
 | `readingText` | textReading | → text |
 | `choiceQuestions` | multipleChoice или checkboxChoice | |
 | `miniSituation` | miniSituation | |
-| `roleCards` | guidedRoleCards | vocabulary |
+| `roleCards` | guidedRoleCards | |
 | `roleDialogue` *derived* | markdownCard | блок roleCards |
 | `speakingSupport` | speakingSupport | |
 

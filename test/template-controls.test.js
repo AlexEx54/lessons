@@ -273,6 +273,19 @@ test('a reading text takes its lesson words from its instructions and needs no v
   assert.deepEqual(CONTROL_CATALOG.get('readingText').inputs, {});
 });
 
+test('a role-play takes its lesson words from its instructions and needs no vocabulary', () => {
+  const definition = singleBlockTemplate(CONTROL_CATALOG.get('roleCards'), { minTurns: 4, maxTurns: 6 });
+  definition.stages[1].blocks[0].instructions = 'Use 2 to 3 terms of the Target Vocabulary.';
+  const template = compileTemplate(definition, CONTROL_CATALOG);
+  const { messages, schema } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
+  const lines = messages[0].content.split('\n');
+  const dialogue = lines.indexOf('dialogue: an Example Dialogue of 4 to 6 alternating Teacher and Student turns.');
+  assert.ok(dialogue >= 0);
+  assert.equal(lines[dialogue + 1], 'Use 2 to 3 terms of the Target Vocabulary.');
+  assert.equal(schema.properties.usedVocabularyTerms, undefined);
+  assert.deepEqual(CONTROL_CATALOG.get('roleCards').inputs, {});
+});
+
 test('Drag Sentences and Type the Words blocks take their words from their instructions and need no vocabulary', () => {
   const definition = singleBlockTemplate(CONTROL_CATALOG.get('dragSentences'), { sentences: 4 });
   definition.stages[1].blocks[0].instructions = 'Every gap is a term of the Target Vocabulary.';

@@ -487,12 +487,14 @@ test('a block goes no higher than its sources and no lower than its readers', ()
   ]);
   assert.deepEqual(blockersOf(definition, 'target-vocabulary-meanings', 'wrap-up'), []);
 
-  // The role cards cannot be written in one answer with the vocabulary they take.
-  const one = templateOne();
-  assert.deepEqual(Edits.moveBlockers(one, 'guided-speaking-role-cards', 'target-vocabulary', controls).filter(({ kind }) => kind === 'input'), [
+  // The communication cards cannot be written in one answer with the vocabulary they take.
+  assert.deepEqual(Edits.moveBlockers(definition, 'guided-communication-cards', 'target-vocabulary', controls).filter(({ kind }) => kind === 'input'), [
     { kind: 'input', block: 'target-vocabulary-card', stage: 'target-vocabulary', inStage: false, type: 'vocabulary' },
   ]);
-  assert.deepEqual(blockersOf(one, 'target-vocabulary-card', 'guided-speaking').slice(-1), ['reader guided-speaking-role-cards guided-speaking']);
+  assert.deepEqual(blockersOf(definition, 'target-vocabulary-card', 'guided-speaking').slice(-1), ['reader guided-communication-cards guided-speaking']);
+  // The role cards take the lesson words from their instructions, so nothing ties them to the vocabulary.
+  const one = templateOne();
+  assert.deepEqual(Edits.moveBlockers(one, 'guided-speaking-role-cards', 'target-vocabulary', controls).filter(({ kind }) => kind === 'input'), []);
   // Reading and Listening pass the vocabulary to the model, though none of their blocks reads it.
   assert.deepEqual(blockersOf(one, 'target-vocabulary-card', 'grammar-presentation').filter(text => !text.endsWith(' target-vocabulary')), [
     'reader reading',

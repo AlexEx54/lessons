@@ -160,8 +160,6 @@ test('Template 1 rejects model answers that would break a task', () => {
     ['grammar-focus', answer => { answer.task2Dialogue = answer.task2Dialogue.replace('[[1]]', 'went'); }, /пропуски \[\[1\]\]–\[\[9\]\] по порядку/],
     ['guided-speaking', answer => { answer.roles.teacher.goal = 'Choose a different plan.'; }, /одна общая цель/],
     ['guided-speaking', answer => { answer.dialogue[1].speaker = 'Teacher'; }, /должны чередоваться/],
-    ['guided-speaking', answer => { answer.usedVocabularyTerms = ['book a ticket', 'unknown phrase']; }, /получено «unknown phrase»/],
-    ['guided-speaking', answer => { answer.usedVocabularyTerms = ['book a ticket', 'book a ticket']; }, /не должны повторяться/],
     ['wrap-up', answer => { answer.onePrompt = 'Расскажи о своей последней поездке.'; }, /только на английском/],
     ['wrap-up', answer => { answer.twoCues.pop(); }, /нужно ровно 2 \(подсказок для шага two\)/],
   ]) {

@@ -643,16 +643,10 @@
           "control": "roleCards",
           "params": {
             "minTurns": 6,
-            "maxTurns": 8,
-            "minTerms": 3,
-            "maxTerms": 4
+            "maxTurns": 8
           },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
-          },
-          "instructions": "The two roles take opposite sides of one debate question about the lesson topic: Student argues for one side, Teacher for the other.\nwant: the two main arguments of that side; avoid: what that side does not want to happen; secret: two private facts that help that side; mission: two short actions, the first of them is to use three words from the lesson.\nThe student and teacher goal strings must be exactly the same: agree on one fair solution together.\nThe Example Dialogue is a short polite debate that uses phrases like those in Speaking Support and ends with the shared solution.",
+          "instructions": "Select 3 to 4 distinct entries from the supplied Target Vocabulary and use each of them exactly and naturally in the role cards or the Example Debate.\nThe two roles take opposite sides of one debate question about the lesson topic: Student argues for one side, Teacher for the other.\nwant: the two main arguments of that side; avoid: what that side does not want to happen; secret: two private facts that help that side; mission: two short actions, the first of them is to use three words from the lesson.\nThe student and teacher goal strings must be exactly the same: agree on one fair solution together.\nThe Example Dialogue is a short polite debate that uses phrases like those in Speaking Support and ends with the shared solution.",
           "example": {
-            "usedVocabularyTerms": ["emergency", "distraction", "screen time"],
             "roles": {
               "student": {
                 "want": ["Keep your phone for an emergency", "Use phones for homework apps"],

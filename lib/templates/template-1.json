@@ -1061,14 +1061,9 @@
           "control": "roleCards",
           "params": {
             "minTurns": 6,
-            "maxTurns": 10,
-            "minTerms": 2,
-            "maxTerms": 4
+            "maxTurns": 10
           },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
-          },
-          "instructions": "The student and teacher goal strings must be exactly the same. The wants, things to avoid, and private facts should create a solvable need to discuss, suggest, react, clarify, agree or disagree, and compromise.\nThe Example Dialogue must be coherent, reflect the role-card information without exposing private facts unnaturally, demonstrate useful support phrases and selected vocabulary, and finish with the shared decision."
+          "instructions": "Select 2 to 4 distinct entries from the supplied Target Vocabulary and use each of them exactly and naturally in the role cards or the Example Dialogue.\nThe student and teacher goal strings must be exactly the same. The wants, things to avoid, and private facts should create a solvable need to discuss, suggest, react, clarify, agree or disagree, and compromise.\nThe Example Dialogue must be coherent, reflect the role-card information without exposing private facts unnaturally, demonstrate useful support phrases and selected vocabulary, and finish with the shared decision."
         },
         {
           "id": "guided-speaking-support",
