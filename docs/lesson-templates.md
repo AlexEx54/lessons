@@ -13,8 +13,8 @@
 | **Шаблон** — этапы, блоки, параметры, тексты, методические указания, связи | системные — JSON-файлы в репозитории, копии — таблица `lesson_templates` | админ |
 
 Контрол и компонент — разные вещи. Один компонент может обслуживаться
-несколькими контролами. Например, `markdownCard` собирают `vocabularyList`,
-`quickRule` и `storyGuessKey`, и у каждого из них свои данные.
+несколькими контролами. Например, `markdownCard` собирают `vocabularyList`
+и `quickRule`, и у каждого из них свои данные.
 
 ## 2. Блок
 
@@ -27,9 +27,8 @@
   собирает из них компонент. «Обвес» компонента (заголовок, инструкция, цвета,
   видимость) задаётся в шаблоне в `chrome` и нейросети не передаётся.
 - **`derived`** — компонент, который строится без нейросети из переменных или из
-  одного блока своего этапа. Примеры: ответы к догадкам Lead-In, Vocabulary
-  meanings quiz. Блок-источник задаётся в `from` своим id:
-  `"from": "target-vocabulary-stories"`.
+  одного блока своего этапа. Пример: Vocabulary meanings quiz. Блок-источник
+  задаётся в `from` своим id.
 - **`row`** — контейнер `cardRow` с вложенными блоками.
 
 Static-блок может содержать **слоты**: `{{name}}` в любом текстовом поле и описание
@@ -99,11 +98,10 @@ Concept-checking questions в Grammar Presentation обоих шаблонов) 
 У контрола есть **порты** — именованные типизированные входы и выходы:
 
 ```
-factOrMyth        out: guessStatements : statements
-vocabularyList    out: vocabulary      : vocabulary
-storyCards        in:  highlight       : vocabulary   (необязателен)
-                  in:  guesses         : statements   (необязателен)
-storyGuessKey     in:  guesses         : statements
+factOrMyth          out: guessStatements : statements
+vocabularyList      out: vocabulary      : vocabulary
+vocabularyMeanings  in:  vocabulary      : vocabulary   (с дистракторами)
+communicationCards  in:  vocabulary      : vocabulary
 ```
 
 Шаблон связывает порты через **переменные урока**:
@@ -112,8 +110,8 @@ storyGuessKey     in:  guesses         : statements
 { "id": "lead-in-fact-or-myth", "control": "factOrMyth",
   "exports": { "guessStatements": "leadInGuesses" } }
 
-{ "id": "target-vocabulary-stories", "control": "storyCards",
-  "inputs": { "highlight": "targetVocabulary", "guesses": "leadInGuesses" } }
+{ "id": "target-vocabulary-meanings", "kind": "derived", "control": "vocabularyMeanings",
+  "inputs": { "vocabulary": "targetVocabulary" } }
 ```
 
 Типов переменных немного, у каждого есть форма и способ показа в промпте:
@@ -124,41 +122,35 @@ storyGuessKey     in:  guesses         : statements
 | `statements` | `[{ number, text }]` | нумерованный список |
 | `text` | строка | как есть |
 
-`statements` хранит номер пункта в исходном упражнении. Поэтому `storyGuessKey`
-пишет «**4.** Somebody in our stories…», не зная, сколько в Lead-In
-проверочных утверждений.
+`statements` хранит номер пункта в исходном упражнении, а в промпт идёт список
+по порядку: 1., 2.
+
+Входы есть только у контролов, которые без переменной не собрать. Остальные
+контролы универсальные: что взять из урока, говорят указания блока. Они
+ссылаются на строку контекста этапа по её подписи или на поле другого блока
+этапа по имени.
 
 ### Вход из того же этапа или из более раннего
 
 Это различие поведения, а не синтаксиса:
 
 - **Переменная из более раннего этапа** уже известна. Она попадает в user message:
-  `Guess statements from the Lead-In: 1. … 2. …`.
-- **Переменная из того же этапа** генерируется в том же вызове. Контрол-потребитель
-  добавляет в system-промпт правило, которое на неё ссылается («In the stories,
-  put every vocabulary item in bold with ** exactly once…»).
+  `Guess statements from the Lead-In: 1. … 2. …`. Истории шаблона 2 отвечают на
+  эти догадки, потому что так сказано в их указаниях: «Each statement of Guess
+  statements from the Lead-In is clearly confirmed or clearly contradicted by
+  exactly one story…».
+- **Поле из того же этапа** нейросеть пишет в том же ответе. Указания ссылаются на
+  него по имени: истории Target Vocabulary выделяют жирным каждый term из
+  `vocabularyItems`. Переменную своего этапа читает только блок, который
+  собирается без нейросети, например Vocabulary meanings quiz.
 
-Пример — Target Vocabulary шаблона 2: словарь и истории генерируются вместе, а
-истории обязаны выделить каждое слово жирным ровно один раз.
+### Что производителю знать о потребителе
 
-### Обратная подсказка производителю
-
-Сейчас в промпте Lead-In прямо написано: «Later in this lesson the student reads
-four short first-person stories…». Это знание о потребителе, и в копии шаблона оно
-устареет, если истории удалить.
-
-Решение: контрол-потребитель объявляет `producerHint`. Движок добавляет его в
-промпт этапа-производителя, только если связь действительно есть.
-
-```
-storyCards.inputs.guesses.producerHint = ({ params }) =>
-  `Later in this lesson the student reads ${count(params.stories)} short
-   first-person stories: … The stories are written after you and will follow
-   your guess statements.`
-```
-
-Связь сама несёт нужные указания в обе стороны. Если удалить истории, подсказка
-исчезнет из Lead-In автоматически.
+Lead-In должен знать, что его догадки потом проверят истории. Это сказано в
+указаниях блока Fact or Myth: «The stories come later in the lesson: four
+different people talk about the lesson topic… They are written after these
+statements and answer them.» Если в копии удалить истории, эту фразу правит
+админ.
 
 ### Порядок генерации и проверки при сохранении
 
@@ -245,8 +237,8 @@ module.exports = {
   переименовывает поля: `"fields": { "questions": "gistQuestions" }`. Правила
   ссылаются на поля через `f.questions`, поэтому в промпте стоит итоговое имя.
   Имена полей и слотов в пределах этапа не должны совпадать. `schema` может не
-  вернуть поле, которое не нужно: например, `guessChecks` у историй без входа
-  `guesses`.
+  вернуть поле, которое не нужно: например, поле лишних слов у
+  `dragSentences`, когда их ноль.
 - `instructions` в блоке — редактируемая методика, может быть в несколько
   строк. При копировании шаблона копируется текущий текст.
 - **Связи, которые видит контрол** (`links` в `schema`, `rules`, `build`,
@@ -349,9 +341,12 @@ OpenRouter, метаданные урока (обложка) и описание
 
 - **Warm Up** — слово-пример в заметке берётся слотом
   `{ "from": "warm-up-odd-one-out.items[0].answer", "capitalize": true }`.
-- **Target Vocabulary** — `vocabularyList` отдаёт `targetVocabulary`; истории,
-  Dropdown, Drag, Extra Task и личные вопросы берут его из того же этапа;
-  `storyGuessKey` собирается из историй и догадок Lead-In.
+- **Target Vocabulary** — `vocabularyList` отдаёт `targetVocabulary`, его берёт
+  Vocabulary meanings quiz; указания историй, Dropdown, Drag, Extra Task и личных
+  вопросов ссылаются на `vocabularyItems`. Истории отвечают на догадки Lead-In
+  из строки контекста, а «Lead-In: Check Your Guesses» — статичная карточка
+  для учителя со слотом `guessAnswers`: правило слота задаёт вид строки
+  «**1.** догадка — **FACT** · имя: “цитата”».
 - **Watch & interact** — только статичные блоки, нейросеть не вызывается.
 - **Grammar Presentation** и **Grammar Focus** — ключ после каждого задания; у
   Check the Rule и Choose the Correct Options он из двух частей: ответы и
@@ -379,8 +374,7 @@ warm-up, watch-and-interact — без связей
 | `oddOneOut` | oddOneOut | |
 | `factOrMyth` | factOrMyth | → statements |
 | `vocabularyList` | markdownCard | → vocabulary |
-| `storyCards` | storyCards | vocabulary?, statements? |
-| `storyGuessKey` *derived* | markdownCard | блок storyCards, statements |
+| `storyCards` | storyCards | |
 | `vocabularyMeanings` *derived* | multipleChoice | vocabulary (с дистракторами) |
 | `contextDropdown` | dropdownChoice (с пояснениями — и выбор формы в предложениях) | |
 | `dragSentences` | dragWordsInText (с лишними вариантами — и «Complete the Rule») | |

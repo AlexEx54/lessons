@@ -29,8 +29,8 @@ test('generated Template 2 Target Vocabulary builds stories, guess answers and a
   ]);
   assert.equal(guesses.studentVisibility, 'teacherOnly');
   assert.equal(guesses.text, [
-    '**4.** Somebody in our stories went camping last summer. — **FACT** · Mia: “Last summer I went camping with my dad.”',
-    '**5.** Somebody in our stories lost a hat at the beach. — **MYTH** · Tom: “I wore my hat all day.”',
+    '**1.** Somebody in our stories went camping last summer. — **FACT** · Mia: “Last summer I went camping with my dad.”',
+    '**2.** Somebody in our stories lost a hat at the beach. — **MYTH** · Tom: “I wore my hat all day.”',
   ].join('\n\n'));
   assert.equal(meanings.items[0].question, 'What does “go camping” mean?');
   assert.deepEqual(meanings.items[1].options, ['wrong meaning of tent', 'meaning of tent']);
@@ -61,12 +61,7 @@ test('synthetic Template 2 Target Vocabulary answers its own Lead-In guesses', (
 
 test('generated Template 2 Target Vocabulary rejects damaged content', () => {
   assert.throws(() => buildVocabulary({ ...GENERATED, stories: GENERATED.stories.slice(1) }), /нужно ровно 4 \(историй\)/);
-  const wrongStory = structuredClone(GENERATED);
-  wrongStory.guessChecks[0].story = 'Nobody';
-  assert.throws(() => buildVocabulary(wrongStory), /дословно совпадать/);
-  const madeUpEvidence = structuredClone(GENERATED);
-  madeUpEvidence.guessChecks[1].evidence = 'I lost my hat.';
-  assert.throws(() => buildVocabulary(madeUpEvidence), /дословно совпадать/);
+  assert.throws(() => buildVocabulary({ ...GENERATED, guessAnswers: ' ' }), /Слот guessAnswers этапа target-vocabulary остался пустым/);
   const wrongAnswer = structuredClone(GENERATED);
   wrongAnswer.contextChoices[0].answer = 'campfire';
   assert.throws(() => buildVocabulary(wrongAnswer));
@@ -78,8 +73,10 @@ test('generated Template 2 Target Vocabulary rejects damaged content', () => {
 test('Template 2 Target Vocabulary prompt passes the topic, grammar and Lead-In guesses', () => {
   const { messages, schema } = stageRequest('target-vocabulary', { topic: 'Summer time', variables, profile: { ageGroup: '15-18', level: 'B1' } });
   assert.match(messages[0].content, /CEFR level: B1/);
-  assert.match(messages[0].content, /confirmed or clearly contradicted by exactly one story/);
-  assert.match(messages[0].content, /In the stories, put every vocabulary item in bold/);
+  assert.match(messages[0].content, /Use the target grammar at least twice in every story\./);
+  assert.match(messages[0].content, /Put every term of vocabularyItems in bold/);
+  assert.match(messages[0].content, /Guess statements from the Lead-In is clearly confirmed or clearly contradicted by exactly one story/);
+  assert.match(messages[0].content, /guessAnswers: One paragraph for every statement of Guess statements from the Lead-In/);
   assert.match(messages[0].content, /Never copy them/);
   assert.equal(messages[1].content, [
     'Lesson topic: Summer time',
@@ -88,8 +85,8 @@ test('Template 2 Target Vocabulary prompt passes the topic, grammar and Lead-In 
     '1. Somebody in our stories went camping last summer.',
     '2. Somebody in our stories lost a hat at the beach.',
   ].join('\n'));
-  assert.equal(schema.properties.guessChecks.minItems, 2);
-  assert.deepEqual(schema.properties.guessChecks.items.properties.answer.enum, ['fact', 'myth']);
+  assert.deepEqual(schema.properties.guessAnswers, { type: 'string', minLength: 1 });
+  assert.equal(Object.hasOwn(schema.properties, 'guessChecks'), false);
 });
 
 test('Template 2 recovery rebuilds Target Vocabulary with the recovered Lead-In guesses', () => {

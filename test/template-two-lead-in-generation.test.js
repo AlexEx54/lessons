@@ -76,8 +76,7 @@ test('Template 2 Lead-In prompt uses the topic, grammar, a neutral guess format 
   const { messages, schema } = stageRequest('lead-in', { topic: 'Summer time', profile: { ageGroup: '15-18', level: 'B1' } });
   assert.match(messages[0].content, /CEFR level: B1/);
   assert.match(messages[0].content, /Fact or Myth\? template/);
-  // The stories in Target Vocabulary ask the Lead-In to prepare guesses for them.
-  assert.match(messages[0].content, /Later in this lesson the student reads four short first-person stories/);
+  assert.match(messages[0].content, /The stories come later in the lesson: four different people/);
   assert.match(messages[0].content, /Start each with "Somebody in our stories"/);
   assert.match(messages[0].content, /Never copy them/);
   assert.equal(messages[1].content, 'Lesson topic: Summer time\nGrammar topic: Past Simple');

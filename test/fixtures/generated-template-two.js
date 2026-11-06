@@ -13,10 +13,10 @@ const GENERATED_TEMPLATE_TWO_TARGET_VOCABULARY = {
     { name: 'Leo', emoji: '🍦', text: 'Every day I ate **ice cream** in the park. I wore my new **sunglasses** because it was very sunny.' },
   ],
   vocabularyItems: TERMS.map(term => ({ term, definition: `meaning of ${term}`, distractor: `wrong meaning of ${term}` })),
-  guessChecks: [
-    { story: 'Mia', answer: 'fact', evidence: 'Last summer I went camping with my dad.' },
-    { story: 'Tom', answer: 'myth', evidence: 'I wore my hat all day.' },
-  ],
+  guessAnswers: [
+    '**1.** Somebody in our stories went camping last summer. — **FACT** · Mia: “Last summer I went camping with my dad.”',
+    '**2.** Somebody in our stories lost a hat at the beach. — **MYTH** · Tom: “I wore my hat all day.”',
+  ].join('\n\n'),
   contextText: 'Meet Sam. He [[1]] with friends. They had a [[2]]. He used [[3]] but got a [[4]]. The [[5]] were big. He found a [[6]]. He wore [[7]]. He ate [[8]].',
   contextChoices: [
     { options: ['went camping', 'tent', 'shell'], answer: 'went camping' },

@@ -101,7 +101,7 @@
           "exports": {
             "guessStatements": "leadInGuesses"
           },
-          "instructions": "checkStatements: statements about the lesson topic in general that the student can judge from everyday knowledge and explain. Include at least one fact and at least one myth. Use only common, uncontroversial knowledge: no exact dates, numbers, records, and nothing that is true only in some places or is a matter of opinion. Present Simple is fine here.\nguessStatements: statements about one concrete detail of the people in the stories. Start each with \"Somebody in our stories\". Use the target grammar. Choose details that are easy to show in a short story: appearance, things they have, actions, places, or feelings. The student cannot know the answer and must guess.\nStyle examples from other lessons. Never copy them; adapt the idea to the given topic and grammar:\n- Superheroes, have got: check \"All superheroes have got a cape.\" (myth); guess \"Somebody in our stories has got green hair.\"; support \"Spider-Man hasn’t got…\"\n- Summer time, Past Simple: check \"You can get a sunburn on a cloudy day.\" (fact); guess \"Somebody in our stories went camping last summer.\"; support \"In summer, people usually…\"",
+          "instructions": "checkStatements: statements about the lesson topic in general that the student can judge from everyday knowledge and explain. Include at least one fact and at least one myth. Use only common, uncontroversial knowledge: no exact dates, numbers, records, and nothing that is true only in some places or is a matter of opinion. Present Simple is fine here.\nguessStatements: statements about one concrete detail of the people in the stories. Start each with \"Somebody in our stories\". Use the target grammar. Choose details that are easy to show in a short story: appearance, things they have, actions, places, or feelings. The student cannot know the answer and must guess. The stories come later in the lesson: four different people talk about the lesson topic using the target grammar. They are written after these statements and answer them.\nStyle examples from other lessons. Never copy them; adapt the idea to the given topic and grammar:\n- Superheroes, have got: check \"All superheroes have got a cape.\" (myth); guess \"Somebody in our stories has got green hair.\"; support \"Spider-Man hasn’t got…\"\n- Summer time, Past Simple: check \"You can get a sunburn on a cloudy day.\" (fact); guess \"Somebody in our stories went camping last summer.\"; support \"In summer, people usually…\"",
           "answerKey": {
             "title": "Answer Keys"
           }
@@ -203,8 +203,7 @@
           "params": {
             "stories": 4,
             "minWords": 40,
-            "maxWords": 60,
-            "grammarUses": 2
+            "maxWords": 60
           },
           "chrome": {
             "title": "Task 1. Read the stories. Pay attention to the words in bold.",
@@ -215,23 +214,24 @@
               "#E2FBFB"
             ]
           },
-          "inputs": {
-            "highlight": "targetVocabulary",
-            "guesses": "leadInGuesses"
-          },
-          "instructions": "Four different people talk about the lesson topic. Choose people who fit the topic naturally.\nStyle example for a story: \"Hi! I'm Forest Elf. I've got **green hair** and two **pointed ears**. I can talk to animals.\""
+          "instructions": "Four different people talk about the lesson topic. Choose people who fit the topic naturally.\nUse the target grammar at least twice in every story.\nPut every term of vocabularyItems in bold with ** exactly once, in the form that fits the sentence. Spread two or three terms per story. Bold nothing else.\nEach statement of Guess statements from the Lead-In is clearly confirmed or clearly contradicted by exactly one story; the other stories do not mention that detail.\nStyle example for a story: \"Hi! I'm Forest Elf. I've got **green hair** and two **pointed ears**. I can talk to animals.\""
         },
         {
           "id": "target-vocabulary-guess-answers",
-          "kind": "derived",
-          "control": "storyGuessKey",
-          "from": "target-vocabulary-stories",
-          "inputs": {
-            "guesses": "leadInGuesses"
-          },
-          "chrome": {
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
             "title": "Lead-In: Check Your Guesses",
-            "accentColor": "#E5AD16"
+            "text": "{{guessAnswers}}",
+            "icon": "check",
+            "accentColor": "#E5AD16",
+            "studentVisibility": "teacherOnly"
+          },
+          "slots": {
+            "guessAnswers": {
+              "rule": "One paragraph for every statement of Guess statements from the Lead-In, in the same order, separated by blank lines, in the form “**N.** statement — **FACT** · name: “sentence””. N is the number of the statement in that list; FACT if a story confirms the statement or MYTH if it contradicts it; name is the name of that story; sentence is one sentence copied exactly from that story without the ** markers. No heading or introduction.",
+              "example": "**1.** Somebody in our stories has got green hair. — **FACT** · Forest Elf: “I've got green hair and two pointed ears.”\n\n**2.** Somebody in our stories has got a purple jacket. — **MYTH** · Moon Girl: “I've got a silver mask and a purple superhero suit.”"
+            }
           }
         },
         {

@@ -593,10 +593,7 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
       { name: 'Max', emoji: '🗺️', text: 'I walked around the city with a **map**. It was a great **journey**.' },
     ],
     vocabularyItems: terms.map(term => ({ term, definition: `meaning of ${term}`, distractor: `wrong meaning of ${term}` })),
-    guessChecks: [
-      { story: 'Kate', answer: 'fact', evidence: 'I missed a train last week.' },
-      { story: 'Ben', answer: 'myth', evidence: 'I travelled by bus to my aunt.' },
-    ],
+    guessAnswers: '**1.** Somebody in our stories missed a train. — **FACT** · Kate: “I missed a train last week.”\n\n**2.** Somebody in our stories travelled by boat. — **MYTH** · Ben: “I travelled by bus to my aunt.”',
     contextText: terms.slice(0, 8).map((term, index) => `Word [[${index + 1}]].`).join(' '),
     contextChoices: terms.slice(0, 8).map(answer => ({ options: [answer, 'map', 'bus stop'], answer })),
     dragSentences: terms.slice(0, 6).map(term => `I need a [[${term}]].`),
@@ -724,7 +721,7 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
   ]);
   assert.deepEqual(ready.content.stages[1].content[1].items.map(item => item.answer), ['fact', 'myth', 'fact', null, null]);
   assert.deepEqual(ready.content.stages[2].content[2].items.map(item => item.title), ['Kate', 'Ben', 'Eva', 'Max']);
-  assert.match(ready.content.stages[2].content[3].text, /^\*\*4\.\*\* Somebody in our stories missed a train\. — \*\*FACT\*\* · Kate/);
+  assert.match(ready.content.stages[2].content[3].text, /^\*\*1\.\*\* Somebody in our stories missed a train\. — \*\*FACT\*\* · Kate/);
   assert.deepEqual(staticStages(ready), staticStages(created));
   const focus = ready.content.stages.find(stage => stage.id === 'grammar-focus').content;
   assert.deepEqual(focus.map(component => component.type), [

@@ -31,8 +31,10 @@ test('variables are traced to the blocks that give them away', () => {
   assert.equal(guesses.block.id, 'lead-in-fact-or-myth');
   assert.equal(guesses.port, 'guessStatements');
 
-  assert.deepEqual([...Edits.contextVariablesInUse(definition, stage(definition, 'target-vocabulary'))], ['leadInGuesses']);
-  // Grammar Focus and Wrap-up pass the vocabulary to the model, but none of their blocks reads it.
+  assert.deepEqual([...Edits.contextVariablesInUse(definition, stage(definition, 'guided-speaking'))], ['targetVocabulary']);
+  // Target Vocabulary passes the guesses to the model, Grammar Focus and Wrap-up the
+  // vocabulary, but none of their blocks reads them.
+  assert.deepEqual([...Edits.contextVariablesInUse(definition, stage(definition, 'target-vocabulary'))], []);
   assert.deepEqual([...Edits.contextVariablesInUse(definition, stage(definition, 'grammar-focus'))], []);
   assert.deepEqual([...Edits.contextVariablesInUse(definition, stage(definition, 'wrap-up'))], []);
 });
@@ -193,15 +195,13 @@ test('an input takes the nearest source of its type; a source of another stage j
   assert.deepEqual(stage(definition, 'watch-and-interact').context, { 'Target vocabulary': '$var.targetVocabulary' });
   assert.deepEqual(problems(definition), []);
 
-  // Words of the stage itself come first; a generated block reads them only from a generated one.
+  // Words of the stage itself come first for a block built without the model.
   const own = addBlock(definition, 'grammar-focus', 'vocabularyList').block;
-  assert.equal(addBlock(definition, 'grammar-focus', 'storyCards').block.inputs.highlight, own.exports.vocabulary);
   assert.deepEqual(addBlock(definition, 'grammar-focus', 'vocabularyMeanings').block.inputs, { vocabulary: own.exports.vocabulary });
   assert.deepEqual(problems(definition), []);
   const sources = (kind, input) => Edits.inputSources(definition, stage(definition, 'grammar-focus'), kind, input, controls)
     .map(source => [source.variable, source.sameStage]);
   const both = [['vocabulary', true], ['targetVocabulary', false]];
-  assert.deepEqual(sources('generated', controls.get('storyCards').inputs.highlight), both);
   assert.deepEqual(sources('generated', { type: 'vocabulary' }), [['targetVocabulary', false]]);
   assert.deepEqual(sources('derived', { type: 'vocabulary' }), both);
   assert.deepEqual(sources('derived', { type: 'statements' }), [['leadInGuesses', false]]);
@@ -225,19 +225,6 @@ test('without a source an input stays unbound; a source without a required featu
   ]);
 });
 
-test('a guess key takes the nearest stories of its stage', () => {
-  const definition = templateTwo();
-  const stories = addBlock(definition, 'target-vocabulary', 'storyCards').block;
-  const key = addBlock(definition, 'target-vocabulary', 'storyGuessKey').block;
-  assert.equal(key.from, stories.id);
-  assert.deepEqual(Edits.blockLinks(definition, key, controls).source, { block: stories.id, inStage: true });
-
-  const lonely = addBlock(definition, 'watch-and-interact', 'storyGuessKey').block;
-  assert.equal(lonely.from, undefined);
-  assert.equal(Edits.blockLinks(definition, lonely, controls).source, null);
-  assert.ok(problems(definition).includes(`Блок ${lonely.id} не собирается ни из одного блока этапа.`));
-});
-
 const block = (definition, id) => definition.stages.flatMap(item => Edits.flattenBlocks(item.blocks)).find(item => item.id === id);
 
 test('a block’s links come from the definition, unbound inputs included', () => {
@@ -249,18 +236,12 @@ test('a block’s links come from the definition, unbound inputs included', () =
       guessStatements: {
         variable: 'leadInGuesses',
         type: 'statements',
-        readers: {
-          blocks: [
-            { block: 'target-vocabulary-stories', stage: 'target-vocabulary', port: 'guesses' },
-            { block: 'target-vocabulary-guess-answers', stage: 'target-vocabulary', port: 'guesses' },
-          ],
-          stages: ['target-vocabulary'],
-        },
+        readers: { blocks: [], stages: ['target-vocabulary'] },
       },
     },
   });
-  assert.deepEqual(links('target-vocabulary-stories').inputs.guesses, {
-    type: 'statements', required: false, variable: 'leadInGuesses', from: { block: 'lead-in-fact-or-myth', stage: 'lead-in' },
+  assert.deepEqual(links('target-vocabulary-meanings').inputs.vocabulary, {
+    type: 'vocabulary', required: true, variable: 'targetVocabulary', from: { block: 'target-vocabulary-card', stage: 'target-vocabulary' },
   });
 
   delete block(definition, 'target-vocabulary-meanings').inputs;
@@ -305,43 +286,22 @@ test('another source of an earlier stage joins the context; the line read before
   assert.deepEqual(problems(definition), []);
 });
 
-test('a source of the stage itself needs no line; an optional input may be left unbound', () => {
+test('a source of the stage itself needs no line; an input left unbound is the server’s problem', () => {
   const definition = templateTwo();
   const vocabulary = stage(definition, 'target-vocabulary');
   const context = structuredClone(vocabulary.context);
-  const stories = block(definition, 'target-vocabulary-stories');
-  assert.deepEqual(Edits.setInputSource(definition, vocabulary, stories, 'highlight', null), { addedLines: [], removedLines: [] });
-  assert.deepEqual(stories.inputs, { guesses: 'leadInGuesses' });
-  assert.deepEqual(Edits.setInputSource(definition, vocabulary, stories, 'highlight', 'targetVocabulary'), { addedLines: [], removedLines: [] });
-  assert.deepEqual(stories.inputs, { guesses: 'leadInGuesses', highlight: 'targetVocabulary' });
+  const meanings = block(definition, 'target-vocabulary-meanings');
+  const words = addBlock(definition, 'target-vocabulary', 'vocabularyList').block.exports.vocabulary;
+  assert.deepEqual(Edits.setInputSource(definition, vocabulary, meanings, 'vocabulary', words), { addedLines: [], removedLines: [] });
+  assert.deepEqual(meanings.inputs, { vocabulary: words });
   assert.deepEqual(vocabulary.context, context);
 
-  // A required one left unbound is the server's problem.
-  Edits.setInputSource(definition, vocabulary, block(definition, 'target-vocabulary-meanings'), 'vocabulary', null);
+  Edits.setInputSource(definition, vocabulary, meanings, 'vocabulary', null);
   assert.deepEqual(problems(definition), ['Блоку target-vocabulary-meanings нужен вход vocabulary (словарь).']);
 });
 
 const templateOne = () => structuredClone(findSystemTemplate('template-1').definition);
 const blockIds = plan => plan.blocks.map(entry => entry.block);
-
-test('a block built from one block takes another source of its stage instead', () => {
-  const definition = templateTwo();
-  const vocabulary = stage(definition, 'target-vocabulary');
-  const key = block(definition, 'target-vocabulary-guess-answers');
-  const stories = addBlock(definition, 'target-vocabulary', 'storyCards').block;
-  assert.deepEqual(Edits.sourceOptions(vocabulary, key, controls), [
-    { block: 'target-vocabulary-stories', chosen: true },
-    { block: stories.id, chosen: false },
-  ]);
-  Edits.setSource(key, stories.id);
-  assert.equal(key.from, stories.id);
-
-  // A source the stage lacks stays among the options, after the stage's own.
-  key.from = 'reading-text';
-  assert.deepEqual(Edits.sourceOptions(vocabulary, key, controls).map(option => [option.block, option.chosen]), [
-    ['target-vocabulary-stories', false], [stories.id, false], ['reading-text', true],
-  ]);
-});
 
 test('a task comes from the catalog with its answer key, which is set up and turned off in its block', () => {
   const definition = templateTwo();
@@ -368,7 +328,7 @@ test('a task comes from the catalog with its answer key, which is set up and tur
   assert.deepEqual(task.answerKey, {});
 });
 
-test('a deleted block takes required readers, sources and slots with it; optional inputs are unbound', () => {
+test('a deleted block takes required readers and slots with it', () => {
   const definition = templateTwo();
   const plan = Edits.deletionPlan(definition, { block: 'target-vocabulary-card' }, controls);
   assert.deepEqual(blockIds(plan), [
@@ -376,13 +336,11 @@ test('a deleted block takes required readers, sources and slots with it; optiona
     'target-vocabulary-meanings',
     'guided-communication-cards',
   ]);
-  assert.deepEqual(plan.unbound.map(entry => `${entry.block}.${entry.port}`), ['target-vocabulary-stories.highlight']);
+  assert.deepEqual(plan.unbound, []);
   assert.deepEqual(plan.context.map(line => line.stage), ['grammar-presentation', 'grammar-focus', 'guided-speaking', 'wrap-up']);
   assert.deepEqual(plan.stages, []);
 
   Edits.applyDeletion(definition, plan);
-  const vocabulary = stage(definition, 'target-vocabulary');
-  assert.deepEqual(vocabulary.blocks.find(block => block.id === 'target-vocabulary-stories').inputs, { guesses: 'leadInGuesses' });
   assert.deepEqual(Object.keys(stage(definition, 'wrap-up').context), ['Lesson topic', 'Grammar topic']);
 
   // A block built from a deleted one has nothing to be built from and goes too.
@@ -407,8 +365,8 @@ test('a deleted stage clears what other stages read from it', () => {
   const definition = templateTwo();
   const plan = Edits.deletionPlan(definition, { stage: 'lead-in' }, controls);
   assert.deepEqual(plan.stages, ['lead-in']);
-  assert.deepEqual(blockIds(plan).filter(id => !id.startsWith('lead-in-')), ['target-vocabulary-guess-answers']);
-  assert.deepEqual(plan.unbound.map(entry => `${entry.block}.${entry.port}`), ['target-vocabulary-stories.guesses']);
+  assert.deepEqual(blockIds(plan).filter(id => !id.startsWith('lead-in-')), []);
+  assert.deepEqual(plan.unbound, []);
   assert.deepEqual(plan.context, [{ stage: 'target-vocabulary', label: 'Guess statements from the Lead-In' }]);
 });
 
@@ -461,9 +419,6 @@ const stageBlockIds = (definition, id) => stage(definition, id).blocks.map(block
 
 test('a block built from blocks of its stage, or a source of one, stays in its stage', () => {
   const definition = templateTwo();
-  assert.deepEqual(Edits.moveBlockers(definition, 'target-vocabulary-guess-answers', 'wrap-up', controls), [
-    { kind: 'builtFrom', blocks: ['target-vocabulary-stories'] },
-  ]);
   // The teacher note reads its example word from the exercise through a slot.
   assert.deepEqual(Edits.moveBlockers(definition, 'warm-up-odd-one-out', 'wrap-up', controls), [
     { kind: 'usedBy', blocks: ['warm-up-teacher-note'] },
@@ -476,7 +431,6 @@ test('a block goes no higher than its sources and no lower than its readers', ()
   // The vocabulary may go up: its readers below then take it through the context.
   assert.deepEqual(blockersOf(definition, 'target-vocabulary-card', 'lead-in'), []);
   assert.deepEqual(blockersOf(definition, 'target-vocabulary-card', 'grammar-presentation'), [
-    'reader target-vocabulary-stories target-vocabulary',
     'reader target-vocabulary-meanings target-vocabulary',
   ]);
   assert.deepEqual(blockersOf(definition, 'target-vocabulary-meanings', 'lead-in'), [

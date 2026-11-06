@@ -89,7 +89,7 @@ test('a broken template previews as its problems only', () => {
   assert.equal(preview.lesson, null);
   assert.equal(preview.blocks, null);
   assert.equal(preview.stages, null);
-  assert.ok(preview.errors.some(error => error.block === 'target-vocabulary-stories' && /leadInGuesses/.test(error.message)));
+  assert.ok(preview.errors.some(error => error.stage === 'target-vocabulary' && /leadInGuesses/.test(error.message)));
   assert.deepEqual(previewLessonTemplate({ definition: 'nope' }).errors, [{ message: 'Определение шаблона должно быть объектом.' }]);
 });
 
@@ -107,17 +107,11 @@ test('controls are described for the editor with labelled parameters and chrome'
     type: 'integer', label: 'Слов в истории: от', min: 10, max: 150, default: 40, atMost: 'maxWords',
   });
   assert.deepEqual(stories.chrome.map(field => field.label), ['Заголовок', 'Цвета карточек']);
-  assert.deepEqual(stories.inputs, {
-    highlight: { type: 'vocabulary', required: false, requires: [], sameStage: true },
-    guesses: { type: 'statements', required: false, requires: [], sameStage: false },
-  });
-  // What the catalog needs to link a new block: features a producer turns on with a flag,
-  // features an input requires, and the blocks one built from others accepts.
+  // What the catalog needs to link a new block: features a producer turns on with a flag
+  // and features an input requires.
   const byType = type => controls.find(control => control.type === type);
   assert.deepEqual(byType('vocabularyList').outputs.vocabulary.features, { distractor: 'distractors' });
   assert.deepEqual(byType('vocabularyMeanings').inputs.vocabulary.requires, ['distractor']);
-  assert.deepEqual(byType('storyGuessKey').sources, { accepts: ['storyCards'], label: 'ответы' });
-  assert.equal(byType('contextDropdown').sources, undefined);
   // Tasks that can have an answer key, a key in two parts with its part titles.
   assert.deepEqual(byType('dragSentences').answerKey, {});
   assert.deepEqual(byType('contextDropdown').answerKey.parts.explanations, { label: 'Пояснения', title: 'Short explanations' });
@@ -134,7 +128,7 @@ test('controls are described for the editor with labelled parameters and chrome'
 
 test('every block of the catalog has a group and a description; static ones come with a sample', () => {
   const { controls, statics, groups } = describeControls();
-  assert.equal(controls.length + statics.length, 38);
+  assert.equal(controls.length + statics.length, 37);
   for (const block of [...controls, ...statics]) {
     assert.ok(groups.some(group => group.key === block.group), `${block.type}: группа ${block.group}`);
     assert.ok(block.description.trim().length > 0, block.type);
@@ -156,9 +150,8 @@ test('every control has a catalog sample built with its default parameters', () 
     // A task comes from the catalog with its answer key.
     assert.equal(answerKey?.id, typeof control.answerKey === 'function' ? 'catalog-example-answer-key' : undefined, control.type);
   }
-  // Inputs read sample variables, and a block built from others gets a source it accepts.
+  // Inputs read sample variables.
   assert.equal(controlExample('contextDropdown').component.choices.length, CONTROL_CATALOG.get('contextDropdown').params.gaps.default);
-  assert.equal(controlExample('storyGuessKey').component.type, 'markdownCard');
   assert.equal(controlExample('contextDropdown'), controlExample('contextDropdown'));
   assert.equal(controlExample('missing'), null);
 });
