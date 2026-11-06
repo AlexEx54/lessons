@@ -157,7 +157,7 @@ test('Template 1 rejects model answers that would break a task', () => {
     ['grammar-focus', answer => { answer.task1Choices.pop(); }, /нужно ровно 8 \(пропусков\)/],
     ['grammar-focus', answer => { answer.task1Choices[0].answer = 'flew'; }, /ответ в пропуске 1 должен точно совпадать/],
     ['grammar-focus', answer => { answer.task1Choices[0].options[1] = answer.task1Choices[0].options[0]; }, /варианты в пропуске 1 не должны повторяться/],
-    ['grammar-focus', answer => { answer.task2Dialogue = answer.task2Dialogue.replace('{{gap}}', 'went'); }, /ровно 9 маркеров \{\{gap\}\}/],
+    ['grammar-focus', answer => { answer.task2Dialogue = answer.task2Dialogue.replace('[[1]]', 'went'); }, /пропуски \[\[1\]\]–\[\[9\]\] по порядку/],
     ['guided-speaking', answer => { answer.roles.teacher.goal = 'Choose a different plan.'; }, /одна общая цель/],
     ['guided-speaking', answer => { answer.dialogue[1].speaker = 'Teacher'; }, /должны чередоваться/],
     ['guided-speaking', answer => { answer.usedVocabularyTerms = ['book a ticket', 'unknown phrase']; }, /получено «unknown phrase»/],
@@ -183,13 +183,13 @@ test('Template 1 only logs answers that stay usable', t => {
 
   damaged('grammar-focus', answer => {
     answer.task1Choices[0].answer = '*booked*';
-    answer.task2Dialogue = answer.task2Dialogue.replace('**Mia:**', 'Mia:');
+    answer.task2Gaps[1].answer = '*go*';
     answer.modelSentence = 'Вчера я летал в Лондон.';
     answer.supportWordBank = [...answer.supportWordBank.slice(0, 6), 'unknown phrase', 'Book a ticket'];
     answer.miniSituation.imagePrompt = 'A traveler at an airport.';
   })();
   const focus = warnings();
-  for (const pattern of [/убрана Markdown-разметка в пропуске 1/, /с жирными именами/, /кириллицу в английском тексте: Вчера/,
+  for (const pattern of [/убрана Markdown-разметка в пропуске 1/, /Task 2\. Complete the gaps.*убрана Markdown-разметка в пропуске 2/, /кириллицу в английском тексте: Вчера/,
     /не из словаря в банке слов: unknown phrase/, /повтор в банке слов: Book a ticket/, /иллюстрацию без текста/]) {
     assert.match(focus, pattern);
   }

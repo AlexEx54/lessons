@@ -63,7 +63,8 @@ test('Template 2 Grammar Focus fails only on unsolvable tasks', t => {
     g => { g.task1Choices[0].options[1] = g.task1Choices[0].options[0]; },
     g => { g.correctionItems[0].corrections = ['**']; },
     g => { g.matchingItems[1].right = g.matchingItems[0].right; },
-    g => { g.task2Items[0].before = 'Yesterday, I [[x]] '; },
+    g => { g.task2Text = g.task2Text.replace('[[1]]', '[[x]]'); },
+    g => { g.task2Gaps[0].answer = ' '; },
     g => { g.struggleTips = ' '; },
   ]) {
     const invalid = generated();
@@ -76,7 +77,7 @@ test('Template 2 Grammar Focus logs content-quality problems instead of failing'
   const warn = t.mock.method(console, 'warn', () => {});
   const soft = generated();
   soft.task1Choices[0].options[0] = '*made*';
-  soft.task2Items[1] = { before: '', after: '', cue: 'leave', answer: 'left' };
+  soft.task2Gaps[1].answer = '*left*';
   soft.correctionItems[0].corrections = ['We buyed tickets at the station.', 'We bought tickets at the station.', 'we bought tickets at the station'];
   soft.translations[0] = { ru: 'Yesterday I bought a ticket.', en: 'Вчера я купил билет' };
   soft.modelSentence = 'Вчера я купил билет.';
@@ -90,7 +91,7 @@ test('Template 2 Grammar Focus logs content-quality problems instead of failing'
   const warnings = warn.mock.calls.map(call => call.arguments[0]).join('\n');
   for (const pattern of [
     /Task 1\. Choose the correct options\.»: убрана Markdown-разметка в пропуске 1/,
-    /Task 2\. Complete the gaps with the correct form of the verbs\.»: в предложении 2 нет текста вокруг ответа/,
+    /Task 2\. Complete the gaps with the correct form of the verbs\.»: убрана Markdown-разметка в пропуске 2/,
     /«Task 3\. Correct the mistakes\.»: исправление в предложении 1 совпадает/,
     /в переводе 1 русское предложение без кириллицы/, /в переводе 1 английский ответ содержит кириллицу/,
     /«Support» содержит кириллицу в английском тексте: Вчера я купил билет\./,
@@ -104,13 +105,14 @@ test('Template 2 Grammar Focus prompt receives grammar and vocabulary', () => {
   const { messages, schema } = stageRequest('grammar-focus', { variables, profile: { ageGroup: '15-17', level: 'B1' } });
   assert.match(messages[0].content, /task1Text: 50–100 words with eight gaps/);
   assert.match(messages[0].content, /task1Text is a numbered list of eight separate short sentences/);
-  assert.match(messages[0].content, /task2Items are separate sentences, not a dialogue/);
+  assert.match(messages[0].content, /task2Text: a text with eight gaps written \[\[1\]\] to \[\[8\]\]/);
+  assert.match(messages[0].content, /task2Text is a numbered list of eight separate short sentences/);
   assert.match(messages[0].content, /exactly one mistake in the target grammar/);
   assert.match(messages[0].content, /exactly six matchingItems/);
   assert.match(messages[0].content, /exactly ten translations/);
   assert.match(messages[0].content, /Select exactly eight distinct entries from Target Vocabulary for supportWordBank/);
   assert.match(messages[0].content, /measurable success criteria for Tasks 1–4/);
-  assert.doesNotMatch(messages[0].content, /miniSituation|\{\{gap\}\} markers in reading order/);
+  assert.doesNotMatch(messages[0].content, /miniSituation/);
   assert.equal(messages[1].content, `Lesson topic: Travel\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(TRAVEL_TERMS)}`);
   assert.deepEqual(schema.required.slice(0, 4), NOTE_FIELDS);
 });

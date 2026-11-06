@@ -202,6 +202,27 @@ test('a dropdown block with explanations asks for them and keys them in a second
   assert.throws(() => control.build({ text: '**1.** He [[1]] a cape.', choices: [choice] }, context), /не заполнено: пояснение в пропуске 1/);
 });
 
+// A dialogue and numbered sentences are the same control: the look of the text is in the
+// instructions, the cues are a flag.
+test('a typed-gaps block numbers its gaps in the text and shows cues only when they are on', () => {
+  const control = CONTROL_CATALOG.get('cueGaps');
+  const context = cues => ({ id: 'gaps', params: { gaps: 2, cues }, chrome: {} });
+  const text = '**Mia:** Where [[1]] you?\n**Leo:** I [[2]] to the sea.';
+  const task = control.build({ text, gaps: [{ answer: 'were', cue: 'be' }, { answer: 'went', cue: '' }] }, context(true));
+  assert.equal(task.text, '**Mia:** Where [[gap-1]] you?\n**Leo:** I [[gap-2]] to the sea.');
+  assert.deepEqual(task.gaps, [{ id: 'gap-1', answer: 'were', example: 'be' }, { id: 'gap-2', answer: 'went' }]);
+  assert.deepEqual(control.answerKey({ component: task }).lines, ['**1.** were', '**2.** went']);
+
+  const plain = control.build({ text, gaps: [{ answer: 'were', cue: 'be' }, { answer: 'went' }] }, context(false));
+  assert.deepEqual(plain.gaps, [{ id: 'gap-1', answer: 'were' }, { id: 'gap-2', answer: 'went' }]);
+  assert.deepEqual(control.schema({ params: { gaps: 2, cues: false } }).gaps.items.required, ['answer']);
+
+  for (const broken of ['Where [[2]] you? I [[1]] to the sea.', 'Where [[1]] you?', 'Where [[1]] you? I [[x]] to the sea.']) {
+    assert.throws(() => control.build({ text: broken, gaps: [{ answer: 'were' }, { answer: 'went' }] }, context(false)),
+      /в тексте должны быть пропуски \[\[1\]\]–\[\[2\]\] по порядку/);
+  }
+});
+
 test('a Fill in the Blanks block takes its answers from its instructions and needs no vocabulary', () => {
   const definition = singleBlockTemplate(CONTROL_CATALOG.get('fillInBlanks'), { items: 4 });
   definition.stages[1].blocks[0].instructions = 'Every answer is a term of the Target Vocabulary.';

@@ -547,7 +547,7 @@
         "Grammar topic": "$input.grammarTopic",
         "Target Vocabulary": "$var.targetVocabulary"
       },
-      "instructions": "Generate all variable content for a Grammar Focus section in the existing template: four controlled-practice tasks, an extra translation task, writing support, and Teacher’s Notes.\nThe supplied Grammar topic is authoritative. Every task must accurately practise exactly that grammar.\nUse the Lesson topic as one coherent natural context and reuse some supplied Target Vocabulary where it fits.\nAll generated lesson copy, including Teacher’s Notes, must be in English at the target CEFR level. The only exception is translations[].ru, which must be natural Russian.\nDo not generate component titles, instructions, IDs, colors, icons, visibility settings, numbering (except in task1Text), or answer-key formatting; the application adds them.\nDo not use Markdown or HTML in Tasks 1–4 or translations, except the bold numbers of task1Text. Never generate {{gap}} markers.",
+      "instructions": "Generate all variable content for a Grammar Focus section in the existing template: four controlled-practice tasks, an extra translation task, writing support, and Teacher’s Notes.\nThe supplied Grammar topic is authoritative. Every task must accurately practise exactly that grammar.\nUse the Lesson topic as one coherent natural context and reuse some supplied Target Vocabulary where it fits.\nAll generated lesson copy, including Teacher’s Notes, must be in English at the target CEFR level. The only exception is translations[].ru, which must be natural Russian.\nDo not generate component titles, instructions, IDs, colors, icons, visibility settings, numbering (except in task1Text and task2Text), or answer-key formatting; the application adds them.\nDo not use Markdown or HTML in Tasks 1–4 or translations, except the bold numbers of task1Text and task2Text.",
       "blocks": [
         {
           "id": "grammar-focus-teacher-note",
@@ -712,17 +712,18 @@
           "kind": "generated",
           "control": "cueGaps",
           "params": {
-            "items": 8
+            "gaps": 8
           },
           "fields": {
-            "items": "task2Items"
+            "text": "task2Text",
+            "gaps": "task2Gaps"
           },
           "chrome": {
             "title": "Task 2. Complete the gaps with the correct form of the verbs.",
             "instruction": "Read each sentence and type the correct form of the verb.",
             "accentColor": "#2F80ED"
           },
-          "instructions": "task2Items are separate sentences, not a dialogue.",
+          "instructions": "task2Text is a numbered list of eight separate short sentences, one per line, each starting with its number in bold (**1.**) and with exactly one gap.\nEach gap tests a form of the grammar of the lesson; each cue is the base form of the verb the learner must change.",
           "answerKey": {}
         },
         {

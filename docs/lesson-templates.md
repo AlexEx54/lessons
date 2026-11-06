@@ -215,6 +215,9 @@ module.exports = {
   `contextDropdown` — и связный абзац со словами урока, и нумерованные
   предложения на грамматику (Check the Rule, Grammar Focus Task 1): как
   выглядит текст, говорят указания блока, пояснения к ответам включает флажок.
+  Так же `cueGaps` — и диалог (Grammar Focus Task 2 в шаблоне 1), и
+  нумерованные предложения или сообщения чата: пропуски `[[1]]`…`[[n]]` в
+  тексте, подсказки в пропусках включает флажок.
   У `personalizedQuestions` указания говорят, нужны ли в вопросах слова
   урока, у `describeAndGuess` — какие слова описывать в игре, у
   `readingText` — сколько слов урока взять в текст.
@@ -378,7 +381,7 @@ warm-up, watch-and-interact — без связей
 | `personalizedQuestions` | personalizedQuestions | |
 | `quickRule` | markdownCard (sections) | |
 | `correctSentences` | checkboxChoice | |
-| `cueGaps` | gapFill | |
+| `cueGaps` | gapFill (диалог или нумерованные предложения, подсказки — флажок) | |
 | `sentenceCorrection` | sentenceCorrection | |
 | `sentenceHalves` | sentenceMatching | |
 | `translationSentences` | gapFill | |
@@ -386,7 +389,7 @@ warm-up, watch-and-interact — без связей
 | `communicationCards` | guidedCommunicationCards | vocabulary (выбор N слов) |
 | `threeTwoOne` | threeTwoOne | |
 
-Шаблону 1 нужны ещё 12:
+Шаблону 1 нужны ещё 10:
 
 | Контрол | Компонент | Входы → выходы |
 |---|---|---|
@@ -396,15 +399,14 @@ warm-up, watch-and-interact — без связей
 | `describeAndGuess` | describeAndGuess | |
 | `readingText` | textReading | → text |
 | `choiceQuestions` | multipleChoice или checkboxChoice | |
-| `dialogueGaps` | gapFill | |
 | `miniSituation` | miniSituation | |
 | `roleCards` | guidedRoleCards | vocabulary |
 | `roleDialogue` *derived* | markdownCard | блок roleCards |
 | `speakingSupport` | speakingSupport | |
 
 Общие для обоих шаблонов: `vocabularyList`, `contextDropdown`,
-`personalizedQuestions`, `dragSentences`, `quickRule`,
-`wordBankSupport`, `threeTwoOne`. Всего 32 контрола.
+`personalizedQuestions`, `dragSentences`, `quickRule`, `cueGaps`,
+`wordBankSupport`, `threeTwoOne`. Всего 29 контролов.
 
 Для шаблона 3 добавлен `sentenceBuilder` (компонент sentenceBuilder, без входов):
 предложения с фразами в `[скобках]` и другими верными порядками, см.

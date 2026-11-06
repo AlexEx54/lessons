@@ -898,14 +898,12 @@
         {
           "id": "grammar-focus-complete-the-gaps",
           "kind": "generated",
-          "control": "dialogueGaps",
+          "control": "cueGaps",
           "params": {
-            "gaps": 9,
-            "minTurns": 6,
-            "maxTurns": 8
+            "gaps": 9
           },
           "fields": {
-            "dialogue": "task2Dialogue",
+            "text": "task2Dialogue",
             "gaps": "task2Gaps"
           },
           "chrome": {
@@ -913,7 +911,22 @@
             "instruction": "Read the dialogue and type the correct form of the verbs.",
             "accentColor": "#6545F5"
           },
-          "answerKey": {}
+          "instructions": "task2Dialogue is one connected dialogue of six to eight turns, one turn per line; every line starts with a speaker label formatted as **Name:**.\nEach gap tests a form of the grammar of the lesson; each cue is the base form of the verb the learner must change.",
+          "answerKey": {},
+          "example": {
+            "text": "**Mia:** Where [[1]] you last summer?\n**Leo:** I [[2]] to the sea with my family.\n**Mia:** [[3]] you swim every day?\n**Leo:** Yes, and I [[4]] a big fish!\n**Mia:** Wow! [[5]] you [[6]] a photo of it?\n**Leo:** No, my phone [[7]] in the hotel.\n**Mia:** What else [[8]] you do there?\n**Leo:** We [[9]] ice cream every evening.",
+            "gaps": [
+              { "answer": "were", "cue": "be" },
+              { "answer": "went", "cue": "go" },
+              { "answer": "Did", "cue": "do" },
+              { "answer": "saw", "cue": "see" },
+              { "answer": "Did", "cue": "do" },
+              { "answer": "take", "cue": "take" },
+              { "answer": "was", "cue": "be" },
+              { "answer": "did", "cue": "do" },
+              { "answer": "ate", "cue": "eat" }
+            ]
+          }
         },
         {
           "id": "grammar-focus-mini-situation",

@@ -501,7 +501,7 @@
         "Grammar topic": "$input.grammarTopic",
         "Target Vocabulary": "$var.targetVocabulary"
       },
-      "instructions": "This is an eight-minute Grammar Focus with three controlled-practice tasks written as chat messages: build messages from word cards, fix messages that autocorrect broke, and complete messages with the right form.\nThe supplied Grammar topic is authoritative: every task practises exactly that grammar accurately.\nUse the lesson topic as one coherent context and reuse some supplied Target Vocabulary where it fits.\nAll content must be natural English at the target CEFR level. Do not use Markdown or HTML.",
+      "instructions": "This is an eight-minute Grammar Focus with three controlled-practice tasks written as chat messages: build messages from word cards, fix messages that autocorrect broke, and complete messages with the right form.\nThe supplied Grammar topic is authoritative: every task practises exactly that grammar accurately.\nUse the lesson topic as one coherent context and reuse some supplied Target Vocabulary where it fits.\nAll content must be natural English at the target CEFR level. Do not use Markdown or HTML, except the bold numbers of gapMessages.",
       "blocks": [
         {
           "id": "grammar-focus-teacher-note",
@@ -575,26 +575,28 @@
           "kind": "generated",
           "control": "cueGaps",
           "params": {
-            "items": 6
+            "gaps": 6
           },
           "fields": {
-            "items": "gapItems"
+            "text": "gapMessages",
+            "gaps": "gapItems"
           },
           "chrome": {
             "title": "Task 3. Complete the Messages.",
             "instruction": "Type the correct form of the words in brackets.",
             "accentColor": "#2F80ED"
           },
-          "instructions": "gapItems are separate chat messages, not a dialogue.",
+          "instructions": "gapMessages is a numbered list of six separate short chat messages about the lesson topic, one per line, each starting with its number in bold (**1.**) and with exactly one gap.\nEach gap tests a form of the grammar of the lesson; each cue gives the words the learner must change, for example “not play” or “we / use”.",
           "answerKey": {},
           "example": {
-            "items": [
-              { "before": "Students ", "answer": "shouldn’t play", "after": " games during lessons.", "cue": "not play" },
-              { "before": "You ", "answer": "should keep", "after": " your phone on silent in class.", "cue": "keep" },
-              { "before": "", "answer": "Should we use", "after": " our phones for the project?", "cue": "we / use" },
-              { "before": "I think teachers ", "answer": "shouldn’t take", "after": " our phones away.", "cue": "not take" },
-              { "before": "We ", "answer": "should talk", "after": " to each other at lunch.", "cue": "talk" },
-              { "before": "Parents ", "answer": "shouldn’t call", "after": " their children during lessons.", "cue": "not call" }
+            "text": "**1.** Students [[1]] games during lessons.\n**2.** You [[2]] your phone on silent in class.\n**3.** [[3]] our phones for the project?\n**4.** I think teachers [[4]] our phones away.\n**5.** We [[5]] to each other at lunch.\n**6.** Parents [[6]] their children during lessons.",
+            "gaps": [
+              { "answer": "shouldn’t play", "cue": "not play" },
+              { "answer": "should keep", "cue": "keep" },
+              { "answer": "Should we use", "cue": "we / use" },
+              { "answer": "shouldn’t take", "cue": "not take" },
+              { "answer": "should talk", "cue": "talk" },
+              { "answer": "shouldn’t call", "cue": "not call" }
             ]
           }
         }
