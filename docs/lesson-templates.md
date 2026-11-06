@@ -69,7 +69,10 @@ Support, Challenge, Possible language, Speaking Support) — статичные
 `markdownCard` с одним слотом на весь список: число строк и вид списка задаёт
 правило слота, постоянное вступление стоит в тексте карточки перед слотом.
 Так же устроены пояснения к трудным словам в Target Vocabulary шаблона 1:
-какие слова взять и сколько, говорит правило слота.
+какие слова взять и сколько, говорит правило слота. Карточка Support (банк слов,
+образец предложения, минимальное задание) — `markdownCard` с двумя слотами в
+строках списка (`{{supportWordBank}}`, `{{modelSentence}}`): слова банка правило
+слота берёт из строки контекста «Target Vocabulary», без связи со словарём.
 Сообщение в Lead-In шаблона 1 — статичный `illustratedTextPanel`: слоты стоят и
 в тексте (`{{message}}`), и в промтах обеих картинок (`{{senderImagePrompt}}`,
 `{{symbolImagePrompt}}`). Картинок может быть одна или ни одной, а промт —
@@ -97,7 +100,6 @@ vocabularyList    out: vocabulary      : vocabulary
 storyCards        in:  highlight       : vocabulary   (необязателен)
                   in:  guesses         : statements   (необязателен)
 storyGuessKey     in:  guesses         : statements
-wordBankSupport   in:  vocabulary      : vocabulary
 ```
 
 Шаблон связывает порты через **переменные урока**:
@@ -385,7 +387,6 @@ warm-up, watch-and-interact — без связей
 | `sentenceCorrection` | sentenceCorrection | |
 | `sentenceHalves` | sentenceMatching | |
 | `translationSentences` | gapFill | |
-| `wordBankSupport` | markdownCard | vocabulary (выбор N слов) |
 | `communicationCards` | guidedCommunicationCards | vocabulary (выбор N слов) |
 | `threeTwoOne` | threeTwoOne | |
 
@@ -406,7 +407,7 @@ warm-up, watch-and-interact — без связей
 
 Общие для обоих шаблонов: `vocabularyList`, `contextDropdown`,
 `personalizedQuestions`, `dragSentences`, `quickRule`, `cueGaps`,
-`wordBankSupport`, `threeTwoOne`. Всего 29 контролов.
+`threeTwoOne`. Всего 28 контролов.
 
 Для шаблона 3 добавлен `sentenceBuilder` (компонент sentenceBuilder, без входов):
 предложения с фразами в `[скобках]` и другими верными порядками, см.
@@ -425,7 +426,7 @@ warm-up, watch-and-interact — без связей
 `lib/lesson-templates/answer-key.js`. Задание с ключом не ставится в ряд, а id
 ключа не может занимать другой блок.
 
-«Выбор N слов из словаря» (`wordBankSupport`, `communicationCards`) — общее
+«Выбор N слов из словаря» (`communicationCards`) — общее
 поведение входа `vocabulary`. Нейросеть копирует термины, контрол приводит их к
 каноническому виду из словаря и предупреждает о чужих словах.
 

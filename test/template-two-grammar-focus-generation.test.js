@@ -80,22 +80,16 @@ test('Template 2 Grammar Focus logs content-quality problems instead of failing'
   soft.task2Gaps[1].answer = '*left*';
   soft.correctionItems[0].corrections = ['We buyed tickets at the station.', 'We bought tickets at the station.', 'we bought tickets at the station'];
   soft.translations[0] = { ru: 'Yesterday I bought a ticket.', en: 'Вчера я купил билет' };
-  soft.modelSentence = 'Вчера я купил билет.';
-  soft.supportWordBank = [...TRAVEL_TERMS.slice(0, 6), 'suitcase', 'Ticket'];
   const content = build(soft);
   assert.match(byId(content, 'grammar-focus-choose-the-correct-options').text, /^\*\*1\.\*\* Last summer, we \[\[/);
   assert.deepEqual(byId(content, 'grammar-focus-correct-the-mistakes').items[0].answers,
     ['We buyed tickets at the station.', 'We bought tickets at the station.']);
-  const support = byId(byId(content, 'grammar-focus-practice-support-row').items, 'grammar-focus-support');
-  assert.match(support.text, /\*\*Word bank:\*\* ticket, platform, luggage, delay, journey, passport, suitcase\n/);
   const warnings = warn.mock.calls.map(call => call.arguments[0]).join('\n');
   for (const pattern of [
     /Task 1\. Choose the correct options\.»: убрана Markdown-разметка в пропуске 1/,
     /Task 2\. Complete the gaps with the correct form of the verbs\.»: убрана Markdown-разметка в пропуске 2/,
     /«Task 3\. Correct the mistakes\.»: исправление в предложении 1 совпадает/,
     /в переводе 1 русское предложение без кириллицы/, /в переводе 1 английский ответ содержит кириллицу/,
-    /«Support» содержит кириллицу в английском тексте: Вчера я купил билет\./,
-    /слово не из словаря в банке слов: suitcase/, /повтор в банке слов: Ticket/,
   ]) {
     assert.match(warnings, pattern);
   }
@@ -110,7 +104,7 @@ test('Template 2 Grammar Focus prompt receives grammar and vocabulary', () => {
   assert.match(messages[0].content, /exactly one mistake in the target grammar/);
   assert.match(messages[0].content, /exactly six matchingItems/);
   assert.match(messages[0].content, /exactly ten translations/);
-  assert.match(messages[0].content, /Select exactly eight distinct entries from Target Vocabulary for supportWordBank/);
+  assert.match(messages[0].content, /supportWordBank: Exactly eight distinct entries from Target Vocabulary, each copied exactly/);
   assert.match(messages[0].content, /measurable success criteria for Tasks 1–4/);
   assert.doesNotMatch(messages[0].content, /miniSituation/);
   assert.equal(messages[1].content, `Lesson topic: Travel\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(TRAVEL_TERMS)}`);

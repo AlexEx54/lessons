@@ -765,28 +765,24 @@
         },
         {
           "id": "create-support",
-          "kind": "generated",
-          "control": "wordBankSupport",
-          "params": {
-            "words": 6,
-            "minimumTask": "Write 3 sentences if you need extra support."
-          },
-          "fields": {
-            "words": "replyWords"
-          },
-          "inputs": {
-            "vocabulary": "targetVocabulary"
-          },
-          "chrome": {
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
             "title": "Support",
+            "text": "- **Word bank:** {{replyWords}}\n- **Model sentence:** “{{modelSentence}}”\n- **Minimum task:** Write 3 sentences if you need extra support.",
             "icon": "lifeRing",
             "accentColor": "#20A85B",
             "studentVisibility": "always"
           },
-          "instructions": "modelSentence: one natural sentence of a reply to the post that uses the target grammar.",
-          "example": {
-            "words": ["ban", "distraction", "emergency", "on silent", "screen time", "phone locker"],
-            "modelSentence": "I don’t agree with a phone ban, but we should keep our phones on silent in class."
+          "slots": {
+            "replyWords": {
+              "rule": "Exactly six distinct entries from Target Vocabulary, each copied exactly, separated by commas on one line. No Markdown, no full stop.",
+              "example": "ban, distraction, emergency, on silent, screen time, phone locker"
+            },
+            "modelSentence": {
+              "rule": "One natural sentence of a reply to the post that uses the target grammar, without quotation marks.",
+              "example": "I don’t agree with a phone ban, but we should keep our phones on silent in class."
+            }
           }
         }
       ]

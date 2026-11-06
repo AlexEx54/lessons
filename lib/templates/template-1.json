@@ -968,25 +968,23 @@
             },
             {
               "id": "grammar-focus-support",
-              "kind": "generated",
-              "control": "wordBankSupport",
-              "params": {
-                "words": 8,
-                "minimumTask": "Write 3 sentences if you need extra support."
-              },
-              "fields": {
-                "words": "supportWordBank"
-              },
-              "inputs": {
-                "vocabulary": "targetVocabulary"
-              },
-              "chrome": {
+              "kind": "static",
+              "component": {
+                "type": "markdownCard",
                 "title": "Support",
+                "text": "- **Word bank:** {{supportWordBank}}\n- **Model sentence:** “{{modelSentence}}”\n- **Minimum task:** Write 3 sentences if you need extra support.",
                 "icon": "lifeRing",
                 "accentColor": "#20A85B",
                 "studentVisibility": "always"
               },
-              "instructions": "Create one natural modelSentence using the target grammar and lesson context."
+              "slots": {
+                "supportWordBank": {
+                  "rule": "Exactly eight distinct entries from Target Vocabulary, each copied exactly, separated by commas on one line. No Markdown, no full stop."
+                },
+                "modelSentence": {
+                  "rule": "One natural sentence using the target grammar and lesson context, without quotation marks."
+                }
+              }
             },
             {
               "id": "grammar-focus-challenge",

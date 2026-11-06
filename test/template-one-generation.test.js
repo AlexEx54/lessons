@@ -184,13 +184,11 @@ test('Template 1 only logs answers that stay usable', t => {
   damaged('grammar-focus', answer => {
     answer.task1Choices[0].answer = '*booked*';
     answer.task2Gaps[1].answer = '*go*';
-    answer.modelSentence = 'Вчера я летал в Лондон.';
-    answer.supportWordBank = [...answer.supportWordBank.slice(0, 6), 'unknown phrase', 'Book a ticket'];
     answer.miniSituation.imagePrompt = 'A traveler at an airport.';
   })();
   const focus = warnings();
-  for (const pattern of [/убрана Markdown-разметка в пропуске 1/, /Task 2\. Complete the gaps.*убрана Markdown-разметка в пропуске 2/, /кириллицу в английском тексте: Вчера/,
-    /не из словаря в банке слов: unknown phrase/, /повтор в банке слов: Book a ticket/, /иллюстрацию без текста/]) {
+  for (const pattern of [/убрана Markdown-разметка в пропуске 1/, /Task 2\. Complete the gaps.*убрана Markdown-разметка в пропуске 2/,
+    /иллюстрацию без текста/]) {
     assert.match(focus, pattern);
   }
 });

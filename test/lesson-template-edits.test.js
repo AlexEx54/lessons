@@ -32,8 +32,8 @@ test('variables are traced to the blocks that give them away', () => {
   assert.equal(guesses.port, 'guessStatements');
 
   assert.deepEqual([...Edits.contextVariablesInUse(definition, stage(definition, 'target-vocabulary'))], ['leadInGuesses']);
-  assert.deepEqual([...Edits.contextVariablesInUse(definition, stage(definition, 'grammar-focus'))], ['targetVocabulary']);
-  // Wrap-up passes the vocabulary to the model, but none of its blocks reads it.
+  // Grammar Focus and Wrap-up pass the vocabulary to the model, but none of their blocks reads it.
+  assert.deepEqual([...Edits.contextVariablesInUse(definition, stage(definition, 'grammar-focus'))], []);
   assert.deepEqual([...Edits.contextVariablesInUse(definition, stage(definition, 'wrap-up'))], []);
 });
 
@@ -185,10 +185,10 @@ test('a block from the catalog goes to the end of the stage with an id and varia
 test('an input takes the nearest source of its type; a source of another stage joins the context', () => {
   const definition = templateTwo();
   // Grammar Focus passes the target vocabulary already.
-  let added = addBlock(definition, 'grammar-focus', 'wordBankSupport');
+  let added = addBlock(definition, 'grammar-focus', 'communicationCards');
   assert.deepEqual([added.block.inputs, added.addedLines], [{ vocabulary: 'targetVocabulary' }, []]);
   // Watch & Interact has no context at all.
-  added = addBlock(definition, 'watch-and-interact', 'wordBankSupport');
+  added = addBlock(definition, 'watch-and-interact', 'communicationCards');
   assert.deepEqual([added.block.inputs, added.addedLines], [{ vocabulary: 'targetVocabulary' }, ['Target vocabulary']]);
   assert.deepEqual(stage(definition, 'watch-and-interact').context, { 'Target vocabulary': '$var.targetVocabulary' });
   assert.deepEqual(problems(definition), []);
@@ -284,23 +284,23 @@ test('another source of an earlier stage joins the context; the line read before
   const definition = templateTwo();
   const words = addBlock(definition, 'lead-in', 'vocabularyList').block.exports.vocabulary;
   const focus = stage(definition, 'grammar-focus');
-  const support = block(definition, 'grammar-focus-support');
+  const cards = addBlock(definition, 'grammar-focus', 'communicationCards').block;
 
-  assert.deepEqual(Edits.setInputSource(definition, focus, support, 'vocabulary', words), {
+  assert.deepEqual(Edits.setInputSource(definition, focus, cards, 'vocabulary', words), {
     addedLines: ['Vocabulary'],
     removedLines: ['Target Vocabulary'],
   });
-  assert.deepEqual(support.inputs, { vocabulary: words });
+  assert.deepEqual(cards.inputs, { vocabulary: words });
   assert.deepEqual(focus.context, { 'Lesson topic': '$input.topic', 'Grammar topic': '$input.grammarTopic', Vocabulary: '$var.vocabulary' });
   assert.deepEqual(problems(definition), []);
 
   // Back again; then a line another block of the stage reads stays.
-  assert.deepEqual(addBlock(definition, 'grammar-focus', 'wordBankSupport').addedLines, ['Target vocabulary']);
-  assert.deepEqual(Edits.setInputSource(definition, focus, support, 'vocabulary', 'targetVocabulary'), {
+  assert.deepEqual(addBlock(definition, 'grammar-focus', 'communicationCards').addedLines, ['Target vocabulary']);
+  assert.deepEqual(Edits.setInputSource(definition, focus, cards, 'vocabulary', 'targetVocabulary'), {
     addedLines: [],
     removedLines: ['Vocabulary'],
   });
-  assert.deepEqual(Edits.setInputSource(definition, focus, support, 'vocabulary', words), {
+  assert.deepEqual(Edits.setInputSource(definition, focus, cards, 'vocabulary', words), {
     addedLines: ['Vocabulary'],
     removedLines: [],
   });
@@ -377,7 +377,6 @@ test('a deleted block takes required readers, sources and slots with it; optiona
   assert.deepEqual(blockIds(plan), [
     'target-vocabulary-card',
     'target-vocabulary-meanings',
-    'grammar-focus-support',
     'guided-communication-cards',
   ]);
   assert.deepEqual(plan.unbound.map(entry => `${entry.block}.${entry.port}`), ['target-vocabulary-stories.highlight']);
@@ -534,7 +533,8 @@ test('the old stage loses a line only the moved block read; a row moves whole', 
   const moved = Edits.moveToStage(definition, rowId, 'wrap-up', controls);
   assert.equal(stageBlockIds(definition, 'wrap-up').at(-1), rowId);
   assert.equal(stageBlockIds(definition, 'grammar-focus').includes(rowId), false);
-  assert.deepEqual(moved.removedLines, [{ stage: 'grammar-focus', label: 'Target Vocabulary' }]);
+  // The row's Support card writes its word bank from the context line, not through an input.
+  assert.deepEqual(moved.removedLines, []);
   assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
 });
 

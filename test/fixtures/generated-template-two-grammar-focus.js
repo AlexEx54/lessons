@@ -78,7 +78,7 @@ const GENERATED_TEMPLATE_TWO_GRAMMAR_FOCUS = Object.freeze({
     ['Автобус пришёл вовремя.', 'The bus came on time'],
   ].map(([ru, en]) => ({ ru, en })),
   writingSupport: '1. Last weekend, I ...\n2. First, we ...\n3. I did not ...\n4. Did you ...?\n5. It was ... because ...',
-  supportWordBank: TRAVEL_TERMS.slice(0, 8),
+  supportWordBank: TRAVEL_TERMS.slice(0, 8).join(', '),
   modelSentence: 'Last weekend, I bought a ticket and travelled to the sea.',
   challengeItems: [
     '- Add a negative sentence.',

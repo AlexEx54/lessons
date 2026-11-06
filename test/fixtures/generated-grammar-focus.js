@@ -45,7 +45,7 @@ const GENERATED_GRAMMAR_FOCUS = Object.freeze({
   supportWordBank: [
     'book a ticket', 'pack a suitcase', 'catch a flight', 'miss a flight',
     'go through security', 'show a passport', 'board a plane', 'take off',
-  ],
+  ].join(', '),
   modelSentence: 'Last weekend, I booked a ticket and flew to London.',
   challengeItems: [
     '- Add one negative Past Simple sentence.',
