@@ -273,16 +273,17 @@ test('a reading text takes its lesson words from its instructions and needs no v
   assert.deepEqual(CONTROL_CATALOG.get('readingText').inputs, {});
 });
 
-test('a role-play takes its lesson words from its instructions and needs no vocabulary', () => {
-  const definition = singleBlockTemplate(CONTROL_CATALOG.get('roleCards'), { minTurns: 4, maxTurns: 6 });
+test('a role-play is only its role cards and takes its lesson words from its instructions', () => {
+  const definition = singleBlockTemplate(CONTROL_CATALOG.get('roleCards'), {});
   definition.stages[1].blocks[0].instructions = 'Use 2 to 3 terms of the Target Vocabulary.';
   const template = compileTemplate(definition, CONTROL_CATALOG);
   const { messages, schema } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
   const lines = messages[0].content.split('\n');
-  const dialogue = lines.indexOf('dialogue: an Example Dialogue of 4 to 6 alternating Teacher and Student turns.');
-  assert.ok(dialogue >= 0);
-  assert.equal(lines[dialogue + 1], 'Use 2 to 3 terms of the Target Vocabulary.');
-  assert.equal(schema.properties.usedVocabularyTerms, undefined);
+  const roles = lines.findIndex(line => line.startsWith('Create complementary Student and Teacher role cards.'));
+  assert.ok(roles >= 0);
+  assert.equal(lines[roles + 1], 'Use 2 to 3 terms of the Target Vocabulary.');
+  // The example dialogue is a card of its own: a static block with a model-filled slot.
+  assert.deepEqual(Object.keys(schema.properties), ['roles']);
   assert.deepEqual(CONTROL_CATALOG.get('roleCards').inputs, {});
 });
 

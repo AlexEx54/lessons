@@ -116,7 +116,7 @@ test('controls are described for the editor with labelled parameters and chrome'
   const byType = type => controls.find(control => control.type === type);
   assert.deepEqual(byType('vocabularyList').outputs.vocabulary.features, { distractor: 'distractors' });
   assert.deepEqual(byType('vocabularyMeanings').inputs.vocabulary.requires, ['distractor']);
-  assert.deepEqual(byType('roleDialogue').sources, { accepts: ['roleCards'], label: 'диалог' });
+  assert.deepEqual(byType('storyGuessKey').sources, { accepts: ['storyCards'], label: 'ответы' });
   assert.equal(byType('contextDropdown').sources, undefined);
   // Tasks that can have an answer key, a key in two parts with its part titles.
   assert.deepEqual(byType('dragSentences').answerKey, {});
@@ -134,7 +134,7 @@ test('controls are described for the editor with labelled parameters and chrome'
 
 test('every block of the catalog has a group and a description; static ones come with a sample', () => {
   const { controls, statics, groups } = describeControls();
-  assert.equal(controls.length + statics.length, 39);
+  assert.equal(controls.length + statics.length, 38);
   for (const block of [...controls, ...statics]) {
     assert.ok(groups.some(group => group.key === block.group), `${block.type}: группа ${block.group}`);
     assert.ok(block.description.trim().length > 0, block.type);
@@ -158,7 +158,7 @@ test('every control has a catalog sample built with its default parameters', () 
   }
   // Inputs read sample variables, and a block built from others gets a source it accepts.
   assert.equal(controlExample('contextDropdown').component.choices.length, CONTROL_CATALOG.get('contextDropdown').params.gaps.default);
-  assert.equal(controlExample('roleDialogue').component.type, 'markdownCard');
+  assert.equal(controlExample('storyGuessKey').component.type, 'markdownCard');
   assert.equal(controlExample('contextDropdown'), controlExample('contextDropdown'));
   assert.equal(controlExample('missing'), null);
 });

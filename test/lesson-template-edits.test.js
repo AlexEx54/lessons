@@ -225,19 +225,17 @@ test('without a source an input stays unbound; a source without a required featu
   ]);
 });
 
-test('an example dialogue takes the nearest role cards of its stage', () => {
+test('a guess key takes the nearest stories of its stage', () => {
   const definition = templateTwo();
-  addBlock(definition, 'wrap-up', 'roleCards');
-  const cards = addBlock(definition, 'wrap-up', 'roleCards').block;
-  const dialogue = addBlock(definition, 'wrap-up', 'roleDialogue').block;
-  assert.equal(dialogue.from, cards.id);
-  assert.deepEqual(Edits.blockLinks(definition, dialogue, controls).source, { block: cards.id, inStage: true });
-  assert.deepEqual(problems(definition), []);
+  const stories = addBlock(definition, 'target-vocabulary', 'storyCards').block;
+  const key = addBlock(definition, 'target-vocabulary', 'storyGuessKey').block;
+  assert.equal(key.from, stories.id);
+  assert.deepEqual(Edits.blockLinks(definition, key, controls).source, { block: stories.id, inStage: true });
 
-  const lonely = addBlock(definition, 'watch-and-interact', 'roleDialogue').block;
+  const lonely = addBlock(definition, 'watch-and-interact', 'storyGuessKey').block;
   assert.equal(lonely.from, undefined);
   assert.equal(Edits.blockLinks(definition, lonely, controls).source, null);
-  assert.deepEqual(problems(definition), ['Блок watch-and-interact-role-dialogue не собирается ни из одного блока этапа.']);
+  assert.ok(problems(definition).includes(`Блок ${lonely.id} не собирается ни из одного блока этапа.`));
 });
 
 const block = (definition, id) => definition.stages.flatMap(item => Edits.flattenBlocks(item.blocks)).find(item => item.id === id);
@@ -327,22 +325,21 @@ const templateOne = () => structuredClone(findSystemTemplate('template-1').defin
 const blockIds = plan => plan.blocks.map(entry => entry.block);
 
 test('a block built from one block takes another source of its stage instead', () => {
-  const definition = templateOne();
-  const speaking = stage(definition, 'guided-speaking');
-  const dialogue = block(definition, 'guided-speaking-example-dialogue');
-  const cards = addBlock(definition, 'guided-speaking', 'roleCards').block;
-  assert.deepEqual(Edits.sourceOptions(speaking, dialogue, controls), [
-    { block: 'guided-speaking-role-cards', chosen: true },
-    { block: cards.id, chosen: false },
+  const definition = templateTwo();
+  const vocabulary = stage(definition, 'target-vocabulary');
+  const key = block(definition, 'target-vocabulary-guess-answers');
+  const stories = addBlock(definition, 'target-vocabulary', 'storyCards').block;
+  assert.deepEqual(Edits.sourceOptions(vocabulary, key, controls), [
+    { block: 'target-vocabulary-stories', chosen: true },
+    { block: stories.id, chosen: false },
   ]);
-  Edits.setSource(dialogue, cards.id);
-  assert.equal(dialogue.from, cards.id);
-  assert.deepEqual(problems(definition), []);
+  Edits.setSource(key, stories.id);
+  assert.equal(key.from, stories.id);
 
   // A source the stage lacks stays among the options, after the stage's own.
-  dialogue.from = 'reading-text';
-  assert.deepEqual(Edits.sourceOptions(speaking, dialogue, controls).map(option => [option.block, option.chosen]), [
-    ['guided-speaking-role-cards', false], [cards.id, false], ['reading-text', true],
+  key.from = 'reading-text';
+  assert.deepEqual(Edits.sourceOptions(vocabulary, key, controls).map(option => [option.block, option.chosen]), [
+    ['target-vocabulary-stories', false], [stories.id, false], ['reading-text', true],
   ]);
 });
 

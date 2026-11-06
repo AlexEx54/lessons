@@ -612,7 +612,7 @@
         "Lesson topic": "$input.topic",
         "Target Vocabulary": "$var.targetVocabulary"
       },
-      "instructions": "This is a ten-minute debate between the learner and the teacher about one clear question on the lesson topic. Each side has a secret role card; in the end they must agree on one fair solution.\nAll content must be natural English at the target CEFR level. Do not use Russian, Markdown or HTML.\nDo not turn the debate into a grammar exercise.",
+      "instructions": "This is a ten-minute debate between the learner and the teacher about one clear question on the lesson topic. Each side has a secret role card; in the end they must agree on one fair solution.\nAll content must be natural English at the target CEFR level. Do not use Russian or HTML, and use Markdown only where a rule asks for it.\nDo not turn the debate into a grammar exercise.",
       "blocks": [
         {
           "id": "debate-teacher-note",
@@ -641,11 +641,7 @@
           "id": "debate-role-cards",
           "kind": "generated",
           "control": "roleCards",
-          "params": {
-            "minTurns": 6,
-            "maxTurns": 8
-          },
-          "instructions": "Select 3 to 4 distinct entries from the supplied Target Vocabulary and use each of them exactly and naturally in the role cards or the Example Debate.\nThe two roles take opposite sides of one debate question about the lesson topic: Student argues for one side, Teacher for the other.\nwant: the two main arguments of that side; avoid: what that side does not want to happen; secret: two private facts that help that side; mission: two short actions, the first of them is to use three words from the lesson.\nThe student and teacher goal strings must be exactly the same: agree on one fair solution together.\nThe Example Dialogue is a short polite debate that uses phrases like those in Speaking Support and ends with the shared solution.",
+          "instructions": "Select 3 to 4 distinct entries from the supplied Target Vocabulary and use each of them exactly and naturally in the role cards and the Example Debate.\nThe two roles take opposite sides of one debate question about the lesson topic: Student argues for one side, Teacher for the other.\nwant: the two main arguments of that side; avoid: what that side does not want to happen; secret: two private facts that help that side; mission: two short actions, the first of them is to use three words from the lesson.\nThe student and teacher goal strings must be exactly the same: agree on one fair solution together.",
           "example": {
             "roles": {
               "student": {
@@ -662,15 +658,7 @@
                 "mission": ["Use three words from the lesson", "Suggest one compromise"],
                 "goal": "Agree on one fair phone rule for our school."
               }
-            },
-            "dialogue": [
-              { "speaker": "Teacher", "text": "I think phones should stay in a phone locker during lessons. They are a big distraction." },
-              { "speaker": "Student", "text": "I see your point, but what about an emergency? I should be able to call my mum." },
-              { "speaker": "Teacher", "text": "That’s fair. But students shouldn’t check messages in class." },
-              { "speaker": "Student", "text": "OK. What if we keep our phones on silent in our bags?" },
-              { "speaker": "Teacher", "text": "Good idea. And no phones at lunch, so we have less screen time." },
-              { "speaker": "Student", "text": "Deal! So we agree: phones on silent in bags, and we only use them in an emergency." }
-            ]
+            }
           }
         },
         {
@@ -700,14 +688,21 @@
         },
         {
           "id": "debate-example-dialogue",
-          "kind": "derived",
-          "control": "roleDialogue",
-          "from": "debate-role-cards",
-          "chrome": {
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
             "title": "Example Debate",
+            "text": "{{exampleDebate}}",
             "icon": "chat",
+            "headingSize": "large",
             "accentColor": "#3563D4",
             "studentVisibility": "controlled"
+          },
+          "slots": {
+            "exampleDebate": {
+              "rule": "An Example Debate of 6 to 8 turns in which Teacher and Student speak in turn. Start every turn with **Teacher:** or **Student:**, put an empty line between turns and write it in English only. It is a short polite debate that follows the role cards, uses phrases like those in Speaking Support and ends with the shared solution.",
+              "example": "**Teacher:** I think phones should stay in a phone locker during lessons. They are a big distraction.\n\n**Student:** I see your point, but what about an emergency? I should be able to call my mum.\n\n**Teacher:** That’s fair. But students shouldn’t check messages in class.\n\n**Student:** OK. What if we keep our phones on silent in our bags?\n\n**Teacher:** Good idea. And no phones at lunch, so we have less screen time.\n\n**Student:** Deal! So we agree: phones on silent in bags, and we only use them in an emergency."
+            }
           }
         }
       ]

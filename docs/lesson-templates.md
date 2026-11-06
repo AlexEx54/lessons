@@ -14,7 +14,7 @@
 
 Контрол и компонент — разные вещи. Один компонент может обслуживаться
 несколькими контролами. Например, `markdownCard` собирают `vocabularyList`,
-`quickRule` и `roleDialogue`, и у каждого из них свои данные.
+`quickRule` и `storyGuessKey`, и у каждого из них свои данные.
 
 ## 2. Блок
 
@@ -27,9 +27,9 @@
   собирает из них компонент. «Обвес» компонента (заголовок, инструкция, цвета,
   видимость) задаётся в шаблоне в `chrome` и нейросети не передаётся.
 - **`derived`** — компонент, который строится без нейросети из переменных или из
-  одного блока своего этапа. Примеры: пример диалога к ролевой игре, Vocabulary
+  одного блока своего этапа. Примеры: ответы к догадкам Lead-In, Vocabulary
   meanings quiz. Блок-источник задаётся в `from` своим id:
-  `"from": "guided-speaking-role-cards"`.
+  `"from": "target-vocabulary-stories"`.
 - **`row`** — контейнер `cardRow` с вложенными блоками.
 
 Static-блок может содержать **слоты**: `{{name}}` в любом текстовом поле и описание
@@ -73,6 +73,10 @@ Support, Challenge, Possible language, Speaking Support) — статичные
 образец предложения, минимальное задание) — `markdownCard` с двумя слотами в
 строках списка (`{{supportWordBank}}`, `{{modelSentence}}`): слова банка правило
 слота берёт из строки контекста «Target Vocabulary», без связи со словарём.
+Пример диалога к ролевой игре (Example Dialogue шаблона 1, Example Debate
+шаблона 3) — `markdownCard` с одним слотом на весь диалог: число реплик, их
+чередование и вид `**Teacher:** …` задаёт правило слота. Слот заполняется в том же
+вызове, что и роли, поэтому диалог следует карточкам ролей.
 Сообщение в Lead-In шаблона 1 — статичный `illustratedTextPanel`: слоты стоят и
 в тексте (`{{message}}`), и в промтах обеих картинок (`{{senderImagePrompt}}`,
 `{{symbolImagePrompt}}`). Картинок может быть одна или ни одной, а промт —
@@ -403,7 +407,6 @@ warm-up, watch-and-interact — без связей
 | `choiceQuestions` | multipleChoice или checkboxChoice | |
 | `miniSituation` | miniSituation | |
 | `roleCards` | guidedRoleCards | |
-| `roleDialogue` *derived* | markdownCard | блок roleCards |
 | `speakingSupport` | speakingSupport | |
 
 Общие для обоих шаблонов: `vocabularyList`, `contextDropdown`,
@@ -514,9 +517,9 @@ ALTER TABLE lesson_drafts ADD COLUMN template_snapshot_json TEXT;
    номера жирные, варианты перемешиваются, пустой текст вокруг пропуска и
    Markdown дают предупреждение вместо ошибки. Ключ ответов в разделах шаблона 2:
    Task 1 Rule, Task 2, Short explanations.
-6. **Guided Speaking:** в схеме ответа пример диалога идёт сразу после ролей,
-   перед Speaking Support: роли и диалог — один блок, карточка диалога —
-   производный блок.
+6. **Guided Speaking:** пример диалога — статичная карточка со слотом после
+   Speaking Support (с 2026-11-06; раньше его писал `roleCards`, а карточку
+   собирал производный `roleDialogue`).
 7. **id пунктов внутри заданий** короткие: `choice-1`, `item-1`, `question-1`,
    `gap-1`, `quick-rule-1`.
 8. **Журнал генерации** называет шаги по заголовкам этапов: `Warm Up` и

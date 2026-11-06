@@ -1059,11 +1059,7 @@
           "id": "guided-speaking-role-cards",
           "kind": "generated",
           "control": "roleCards",
-          "params": {
-            "minTurns": 6,
-            "maxTurns": 10
-          },
-          "instructions": "Select 2 to 4 distinct entries from the supplied Target Vocabulary and use each of them exactly and naturally in the role cards or the Example Dialogue.\nThe student and teacher goal strings must be exactly the same. The wants, things to avoid, and private facts should create a solvable need to discuss, suggest, react, clarify, agree or disagree, and compromise.\nThe Example Dialogue must be coherent, reflect the role-card information without exposing private facts unnaturally, demonstrate useful support phrases and selected vocabulary, and finish with the shared decision."
+          "instructions": "Select 2 to 4 distinct entries from the supplied Target Vocabulary and use each of them exactly and naturally in the role cards and the Example Dialogue.\nThe student and teacher goal strings must be exactly the same. The wants, things to avoid, and private facts should create a solvable need to discuss, suggest, react, clarify, agree or disagree, and compromise."
         },
         {
           "id": "guided-speaking-support",
@@ -1082,14 +1078,20 @@
         },
         {
           "id": "guided-speaking-example-dialogue",
-          "kind": "derived",
-          "control": "roleDialogue",
-          "from": "guided-speaking-role-cards",
-          "chrome": {
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
             "title": "Example Dialogue",
+            "text": "{{exampleDialogue}}",
             "icon": "chat",
+            "headingSize": "large",
             "accentColor": "#3563D4",
             "studentVisibility": "always"
+          },
+          "slots": {
+            "exampleDialogue": {
+              "rule": "An Example Dialogue of 6 to 10 turns in which Teacher and Student speak in turn. Start every turn with **Teacher:** or **Student:**, put an empty line between turns, write it in English only, and make it coherent: it reflects the role-card information without exposing private facts unnaturally, demonstrates useful support phrases and the selected vocabulary, and finishes with the shared decision."
+            }
           }
         }
       ]

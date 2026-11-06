@@ -35,19 +35,14 @@ const GENERATED_GUIDED_SPEAKING = Object.freeze({
     agreeingDisagreeing: ['I agree.', 'That makes sense.', 'I see your point, but the train is too slow.'],
     decision: ['So, we agree on the afternoon flight.', 'Let’s choose the seaside city.', 'That is the best plan for both of us.'],
   },
-  dialogue: [{
-    speaker: 'Teacher', text: 'How about flying to Brighton this weekend?',
-  }, {
-    speaker: 'Student', text: 'I see your point, but I prefer travelling by train.',
-  }, {
-    speaker: 'Teacher', text: 'Why do you prefer that?',
-  }, {
-    speaker: 'Student', text: 'It is relaxing, and I need to pack a suitcase tonight.',
-  }, {
-    speaker: 'Teacher', text: 'I found a cheap afternoon flight, but we must book a ticket today.',
-  }, {
-    speaker: 'Student', text: 'That makes sense. Let’s choose the afternoon flight to the seaside.',
-  }],
+  exampleDialogue: [
+    '**Teacher:** How about flying to Brighton this weekend?',
+    '**Student:** I see your point, but I prefer travelling by train.',
+    '**Teacher:** Why do you prefer that?',
+    '**Student:** It is relaxing, and I need to pack a suitcase tonight.',
+    '**Teacher:** I found a cheap afternoon flight, but we must book a ticket today.',
+    '**Student:** That makes sense. Let’s choose the afternoon flight to the seaside.',
+  ].join('\n\n'),
 });
 
 module.exports = { GENERATED_GUIDED_SPEAKING };
