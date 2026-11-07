@@ -10,7 +10,11 @@ const { createUser } = require('../lib/user-store.js');
 const { completeLessonDraft, createLessonDraft, updateHomeworkWriting } = require('../lib/lesson-draft-store.js');
 const { checkStaticComponent, STATIC_BLOCKS } = require('../assets/lesson-template-statics.js');
 const {
+  ACTIONS,
   ART_SRC,
+  MAX_COMMENT_LENGTH,
+  MAX_TEXT_LENGTH,
+  applyWritingAction,
   countWords,
   normalizeHomeworkWriting,
   normalizeWriting,
@@ -261,4 +265,126 @@ test('component is registered in the lesson pages, the editor and the session', 
     assert.match(read(page), /<link rel="stylesheet" href="\/assets\/components\/homework-writing\.css" \/>/);
   }
   assert.ok(fs.statSync(path.join(root, 'assets/images/homework-writing.webp')).size < 20000);
+});
+
+test('the work moves from draft to handed in, back for changes and to a grade', () => {
+  const homework = normalizeHomeworkWriting(component());
+  const apply = (writing, action) => applyWritingAction(homework, writing, action, 1000);
+  const draft = apply(undefined, { type: ACTIONS.write, text: 'I think' });
+  assert.deepEqual(draft, { text: 'I think', status: 'draft' });
+  assert.throws(() => apply(draft, { type: ACTIONS.submit, text: 'I think' }), { statusCode: 400 });
+  assert.throws(() => apply(draft, { type: ACTIONS.write, text: 'x'.repeat(MAX_TEXT_LENGTH + 1) }), { statusCode: 400 });
+  assert.throws(() => apply(draft, { type: ACTIONS.review, score: 5 }), { statusCode: 400 });
+
+  const submitted = apply(draft, { type: ACTIONS.submit, text: ENOUGH });
+  assert.deepEqual(submitted, { text: ENOUGH, status: 'submitted', submittedAt: 1000 });
+  assert.throws(() => apply(submitted, { type: ACTIONS.write, text: 'Later' }), { statusCode: 400 });
+  assert.deepEqual(apply(submitted, { type: ACTIONS.reopen }), { text: ENOUGH, status: 'draft' });
+
+  assert.throws(() => apply(submitted, { type: ACTIONS.review, score: 6 }), { statusCode: 400 });
+  assert.throws(() => apply(submitted, { type: ACTIONS.review, score: 4, comment: 'x'.repeat(MAX_COMMENT_LENGTH + 1) }), { statusCode: 400 });
+  const checked = apply(submitted, { type: ACTIONS.review, score: 4, comment: ' Good! ' });
+  assert.deepEqual(checked, { text: ENOUGH, status: 'checked', submittedAt: 1000, review: { score: 4, comment: 'Good!' } });
+  assert.throws(() => apply(checked, { type: ACTIONS.reopen }), { statusCode: 400 });
+  assert.equal(apply(checked, { type: ACTIONS.review, score: 5 }).review.score, 5);
+
+  const returned = apply(checked, { type: ACTIONS.return, comment: 'One more reason.' });
+  assert.deepEqual(returned, { text: ENOUGH, status: 'returned', review: { comment: 'One more reason.' } });
+  assert.deepEqual(apply(submitted, { type: ACTIONS.return }), { text: ENOUGH, status: 'returned' });
+  assert.deepEqual(apply(returned, { type: ACTIONS.write, text: `${ENOUGH} Also` }).review, { comment: 'One more reason.' });
+  assert.equal(apply(returned, { type: ACTIONS.submit, text: ENOUGH }).status, 'submitted');
+  assert.throws(() => apply(draft, { type: 'invented' }), { statusCode: 400 });
+});
+
+test('in a session the student writes and the teacher grades; the preview follows the same rules', () => {
+  const { applyComponentAction, clearComponentState, studentComponent } = require('../lib/class-component-handlers.js');
+  const window = { HomeworkWritingComponent: require('../assets/components/homework-writing.js') };
+  require('node:vm').runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/class-component-adapters.js'), 'utf8'), { window });
+  const homework = normalizeHomeworkWriting(component());
+  const state = {};
+  const preview = {};
+  const act = (role, action) => {
+    const full = { ...action, componentId: homework.id };
+    window.ClassComponentAdapters.preview(homework, preview, full);
+    applyComponentAction({ role, component: homework, state, action: full });
+    if (state.writings[homework.id].submittedAt) preview.writings[homework.id].submittedAt = state.writings[homework.id].submittedAt;
+    assert.equal(JSON.stringify(preview), JSON.stringify(state));
+  };
+  assert.equal(studentComponent(homework, {}), homework);
+  act('student', { type: ACTIONS.write, text: ENOUGH });
+  assert.throws(() => applyComponentAction({ role: 'teacher', component: homework, state, action: { type: ACTIONS.write, text: 'Mine' } }), { statusCode: 403 });
+  act('student', { type: ACTIONS.submit, text: ENOUGH });
+  assert.throws(() => applyComponentAction({ role: 'student', component: homework, state, action: { type: ACTIONS.review, score: 5 } }), { statusCode: 403 });
+  act('teacher', { type: ACTIONS.review, score: 5, comment: 'Great!' });
+  assert.equal(state.writings[homework.id].status, 'checked');
+
+  const stale = structuredClone(state);
+  window.ClassComponentAdapters.preview(homework, stale, { type: ACTIONS.reopen, componentId: homework.id });
+  assert.equal(JSON.stringify(stale), JSON.stringify(state), 'a preview the state no longer allows changes nothing');
+  clearComponentState({ component: homework, state });
+  assert.deepEqual(state.writings, {});
+});
+
+test('session updates keep the textarea in place and resend a save the session rejected', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const writes = [];
+  const node = render({ viewerRole: 'student', interactive: true, writing: { text: '', status: 'draft' }, onWrite: value => writes.push(value), onSubmit() {} });
+  const textarea = type(node, 'I think');
+  const body = find(node, 'homework-writing__body');
+  const paper = body.children[0];
+  t.mock.timers.tick(700);
+  assert.deepEqual(writes, ['I think']);
+  node.updateState({ text: 'I think', status: 'draft' });
+  node.setInteractive(true);
+  assert.equal(body.children[0], paper, 'the paper is not rebuilt while the student writes');
+  assert.equal(find(node, 'homework-writing__text'), textarea);
+
+  node.updateState({ text: '', status: 'draft' });
+  assert.equal(textarea.value, 'I think');
+  t.mock.timers.tick(700);
+  assert.deepEqual(writes, ['I think', 'I think']);
+
+  node.updateState({ text: 'I think', status: 'submitted', submittedAt: 1 });
+  assert.notEqual(body.children[0], paper, 'a new status repaints the card');
+});
+
+test('a card taken off the page does not save pending typing', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const writes = [];
+  const node = render({ viewerRole: 'student', interactive: true, onWrite: value => writes.push(value), onSubmit() {} });
+  type(node, 'I think');
+  node.isConnected = false;
+  t.mock.timers.tick(700);
+  assert.deepEqual(writes, []);
+});
+
+test('any stage with content opens in a session, and the homework there is saved, graded and reset', t => {
+  const crypto = require('node:crypto');
+  const { createClassSession } = require('../lib/class-store.js');
+  const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
+  const { applyAction, sessionPayload } = require('../lib/class-live-store.js');
+  const db = openDatabase(':memory:');
+  t.after(() => db.close());
+  const teacher = createUser({ email: 'homework-session@test.local', displayName: 'Homework', passwordHash: 'unused' }, db);
+  const content = syntheticLesson();
+  const homework = normalizeHomeworkWriting(component());
+  content.stages.push({ id: 'homework', number: content.stages.length + 1, title: 'Homework', icon: 'pencil', content: [homework] });
+  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
+  const session = createClassSession({ className: 'Homework', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
+  const teacherAccess = { role: 'teacher', sessionId: session.id, ownerId: teacher.id };
+  const studentAccess = { ...teacherAccess, role: 'student' };
+  let version = 0;
+  const act = (access, action) => applyAction(access, { stageId: 'homework', componentId: homework.id, expectedVersion: version++, ...action }, db);
+
+  assert.ok(sessionPayload(studentAccess, db).availableStageIds.includes('homework'));
+  act(teacherAccess, { type: 'select-stage' });
+  act(studentAccess, { type: ACTIONS.write, text: ENOUGH });
+  act(studentAccess, { type: ACTIONS.submit, text: ENOUGH });
+  const graded = act(teacherAccess, { type: ACTIONS.review, score: 4, comment: 'Nice.' });
+  assert.deepEqual(graded.writings[homework.id].review, { score: 4, comment: 'Nice.' });
+  const student = sessionPayload(studentAccess, db);
+  assert.deepEqual(student.state.writings[homework.id].review, { score: 4, comment: 'Nice.' });
+  assert.deepEqual(student.lesson.content.stages.at(-1).content, [homework]);
+  const reset = act(teacherAccess, { type: 'reset-stage' });
+  assert.equal(reset.writings[homework.id], undefined);
 });

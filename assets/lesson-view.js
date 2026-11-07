@@ -160,10 +160,14 @@
       const title = document.createElement('span');
       title.className = 'lesson-stage__title';
       title.textContent = stage.title;
-      const duration = document.createElement('span');
-      duration.className = 'lesson-stage__duration';
-      duration.textContent = `${stage.durationMinutes} min`;
-      button.append(icon, number, title, duration);
+      button.append(icon, number, title);
+      // A stage without a time, such as homework, shows no minutes.
+      if (Number.isInteger(stage.durationMinutes)) {
+        const duration = document.createElement('span');
+        duration.className = 'lesson-stage__duration';
+        duration.textContent = `${stage.durationMinutes} min`;
+        button.append(duration);
+      }
       button.disabled = !canSelect(index);
       button.addEventListener('click', () => selectStage(index));
       return button;
@@ -218,11 +222,14 @@
       section.append(icon, title, description);
       const meta = document.createElement('div');
       meta.className = 'empty-stage__meta';
-      const duration = document.createElement('span');
-      duration.textContent = `${stage.durationMinutes} min`;
       const status = document.createElement('span');
       status.textContent = 'Контент пока не добавлен';
-      meta.append(duration, status);
+      if (Number.isInteger(stage.durationMinutes)) {
+        const duration = document.createElement('span');
+        duration.textContent = `${stage.durationMinutes} min`;
+        meta.append(duration);
+      }
+      meta.append(status);
       section.append(meta);
       return section;
     }

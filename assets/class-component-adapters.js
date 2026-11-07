@@ -81,6 +81,32 @@
         node.setInteractive(canAnswer(session));
       },
     }],
+    ['homeworkWriting', {
+      options(component, session) {
+        const { ACTIONS } = window.HomeworkWritingComponent;
+        const send = (type, fields) => session.send({ type, componentId: component.id, ...fields });
+        return {
+          writing: session.state.writings?.[component.id],
+          interactive: canAnswer(session),
+          onWrite: text => send(ACTIONS.write, { text }),
+          onSubmit: text => send(ACTIONS.submit, { text }),
+          onReopen: () => send(ACTIONS.reopen),
+          onReview: review => send(ACTIONS.review, review),
+          onReturn: review => send(ACTIONS.return, review),
+        };
+      },
+      preview(state, action, component) {
+        // An action the newer state no longer allows shows nothing; the server rejects it too.
+        try {
+          const writing = window.HomeworkWritingComponent.applyWritingAction(component, state.writings?.[component.id], action);
+          state.writings = { ...state.writings, [component.id]: writing };
+        } catch {}
+      },
+      update(node, component, session) {
+        node.updateState(session.state.writings?.[component.id]);
+        node.setInteractive(canAnswer(session));
+      },
+    }],
   ]);
   for (const type of ['dragWordsInText', 'matchWords', 'sentenceBuilder', 'sentenceMatching', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'oddOneOut', 'factOrMyth', 'checkboxChoice', 'gapFill', 'miniSituation', 'sentenceCorrection']) {
     adapters.set(type, {

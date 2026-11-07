@@ -73,6 +73,62 @@
     return result;
   }
 
+  // How the work moves on: the student writes, hands in and takes the text back; the
+  // teacher grades it or returns it for changes. The server and the session's optimistic
+  // preview share these rules; who may send which action is the caller's check.
+  const ACTIONS = Object.freeze({
+    write: 'write-homework',
+    submit: 'submit-homework',
+    reopen: 'reopen-homework',
+    review: 'review-homework',
+    return: 'return-homework',
+  });
+
+  function actionFail(message) { throw Object.assign(new Error(message), { statusCode: 400 }); }
+
+  function studentText(value) {
+    if (typeof value !== 'string' || value.length > MAX_TEXT_LENGTH) actionFail('Некорректный текст.');
+    return value;
+  }
+
+  function teacherComment(value) {
+    if (value !== undefined && typeof value !== 'string') actionFail('Некорректный комментарий.');
+    const comment = (value || '').trim();
+    if (comment.length > MAX_COMMENT_LENGTH) actionFail('Комментарий слишком длинный.');
+    return comment;
+  }
+
+  function applyWritingAction(component, value, action, now = Date.now()) {
+    const writing = normalizeWriting(value);
+    const open = writing.status === 'draft' || writing.status === 'returned';
+    const handedIn = writing.status === 'submitted' || writing.status === 'checked';
+    switch (action.type) {
+      case ACTIONS.write:
+        if (!open) actionFail('Текст уже сдан.');
+        return { ...writing, text: studentText(action.text) };
+      case ACTIONS.submit: {
+        if (!open) actionFail('Текст уже сдан.');
+        const text = studentText(action.text);
+        if (countWords(text) < component.minWords) actionFail(`В тексте должно быть не меньше ${component.minWords} слов.`);
+        return { text, status: 'submitted', submittedAt: now };
+      }
+      case ACTIONS.reopen:
+        if (writing.status !== 'submitted') actionFail('Текст уже проверен.');
+        return { text: writing.text, status: 'draft' };
+      case ACTIONS.review:
+        if (!handedIn) actionFail('Ученик ещё не сдал текст.');
+        if (!SCORES.includes(action.score)) actionFail('Оценка должна быть от 1 до 5.');
+        return { ...writing, status: 'checked', review: { score: action.score, comment: teacherComment(action.comment) } };
+      case ACTIONS.return: {
+        if (!handedIn) actionFail('Ученик ещё не сдал текст.');
+        const comment = teacherComment(action.comment);
+        return { text: writing.text, status: 'returned', ...(comment ? { review: { comment } } : {}) };
+      }
+      default:
+        return actionFail('Неизвестное действие.');
+    }
+  }
+
   function svg(doc, paths, className) {
     const node = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
     node.setAttribute('viewBox', '0 0 24 24');
@@ -244,6 +300,8 @@
     function flushText() {
       clearTimeout(autosaveTimer);
       autosaveTimer = null;
+      // A card the lesson has already taken off the page has nowhere to save to.
+      if (section.isConnected === false) return;
       if (canWrite() && localText !== writing.text) settings.onWrite(localText);
     }
 
@@ -421,20 +479,31 @@
       body.replaceChildren(...(role === 'student' ? studentBody() : teacherBody()));
     }
 
-    // Session updates. The student's unsent typing wins over an older saved text.
+    // Session updates come with every change in the lesson, so the card repaints only what
+    // changed: the textarea and the teacher's comment keep their focus. While the text
+    // stays open, the student's own typing wins; a save the session rejected goes again.
     section.updateState = (next) => {
       const previous = writing;
       writing = normalizeWriting(next);
-      const typing = canWrite() && localText !== previous.text && autosaveTimer !== null;
-      if (!typing) localText = writing.text;
+      const stillOpen = canWrite() && writing.status === previous.status;
+      if (!stillOpen) localText = writing.text;
+      else if (localText !== writing.text && autosaveTimer === null) autosaveTimer = setTimeout(flushText, AUTOSAVE_DELAY_MS);
       if (textarea.value !== localText) textarea.value = localText;
-      if (writing.status !== previous.status || JSON.stringify(writing.review) !== JSON.stringify(previous.review)) {
+      const reviewChanged = JSON.stringify(writing.review) !== JSON.stringify(previous.review);
+      if (writing.status !== previous.status || reviewChanged) {
         reviewScore = writing.review?.score || 0;
         reviewComment = writing.review?.comment || '';
       }
-      paint();
+      if (stillOpen && !reviewChanged) {
+        paintMeter();
+        paintSaved();
+        paintHandIn();
+      } else if (JSON.stringify(writing) !== JSON.stringify(previous)) {
+        paint();
+      }
     };
     section.setInteractive = (value) => {
+      if (interactive === Boolean(value)) return;
       interactive = Boolean(value);
       paint();
     };
@@ -558,12 +627,14 @@
   }
 
   const api = {
+    ACTIONS,
     ART_SRC,
     MAX_COMMENT_LENGTH,
     MAX_TEXT_LENGTH,
     SCORES,
     STATUSES,
     WORD_LIMITS,
+    applyWritingAction,
     countWords,
     normalizeHomeworkWriting,
     normalizeWriting,
