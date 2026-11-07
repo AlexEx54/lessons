@@ -213,8 +213,7 @@
     return parts.join(', ') || 'никто не читает';
   }
 
-  // Link chips of one block: what it reads or is built from (← source) and what it gives
-  // away (→ readers). In a copy an input chip opens the choice of its source; in a system
+  // Link chips of one block: what it reads (← source) and what it gives away (→ readers). In a copy an input chip opens the choice of its source; in a system
   // template it leads to the source.
   function linkChips(id) {
     const { block, stage } = state.blocks.get(id);
@@ -224,7 +223,7 @@
       const type = capitalize(typeLabel(link.type));
       if (!editable() && !link.from) return null;
       const chip = button(
-        `template-chip template-chip--input${link.from ? '' : ` template-chip--${link.required ? 'missing' : 'unbound'}`}`,
+        `template-chip template-chip--input${link.from ? '' : ' template-chip--missing'}`,
         `${type} ← ${link.from ? placedName(link.from.block, stage.id) : 'не подключено'}`,
         event => {
           event.stopPropagation();
@@ -239,7 +238,6 @@
       if (editable()) chip.setAttribute('aria-haspopup', 'dialog');
       return chip;
     }).filter(Boolean);
-    const sources = links.source !== undefined ? sourceChips(block, stage, links.source) : [];
     const exports = Object.values(links.exports).map(output => button(
       'template-chip template-chip--output',
       `${capitalize(typeLabel(output.type))} → ${readersText(output.readers)}`,
@@ -248,30 +246,7 @@
         selectBlock(id);
       },
     ));
-    return [...inputs, ...sources, ...exports];
-  }
-
-  // A block built from another block of its stage: a chip for its source. In a copy the
-  // chip opens the choice of the source.
-  function sourceChips(block, stage, source) {
-    const { label } = state.controls.get(block.control).sources;
-    const chip = (text, missing, onSystem) => {
-      const className = `template-chip template-chip--input${missing ? ' template-chip--missing' : ''}`;
-      const element = button(className, `${capitalize(label)} ← ${text}`, event => {
-        event.stopPropagation();
-        if (!editable()) {
-          onSystem();
-          return;
-        }
-        selectBlock(block.id);
-        openFromPicker(element, block.id);
-      });
-      if (editable()) element.setAttribute('aria-haspopup', 'dialog');
-      return element;
-    };
-    if (!source) return editable() ? [chip('не подключено', true)] : [];
-    if (source.inStage) return [chip(placedName(source.block, stage.id), false, () => selectBlock(source.block, { scroll: true }))];
-    return editable() ? [chip(source.block, true)] : [];
+    return [...inputs, ...exports];
   }
 
   // Where the block's `port` may read from: blocks of its stage and earlier ones that give
@@ -352,52 +327,9 @@
         choose: () => connectInput(id, port, source.variable),
       };
     });
-    options.push({
-      title: el('span', '', 'Не подключать'),
-      notes: link.required ? ['Этот вход обязателен.'] : [],
-      checked: link.variable === null,
-      disabled: link.required,
-      choose: () => connectInput(id, port, null),
-    });
     openPicker(chip, `Откуда брать ${type}`, options, choices.length > 0
       ? `Блоки, которые отдают ${type}, из этого и более ранних этапов.`
       : `Подходящих блоков нет: добавьте в этот или более ранний этап блок, который отдаёт ${type}.`);
-  }
-
-  const fromSourceName = (item, stage) => (state.blocks.get(item.block) ? placedName(item.block, stage.id) : item.block);
-
-  // The block's title tells two blocks of one kind apart.
-  function fromSourceNotes(item, stage) {
-    const entry = state.blocks.get(item.block);
-    if (entry?.stage !== stage) return ['Этого блока нет в этапе.'];
-    return plainTitle(entry.block) ? [plainTitle(entry.block)] : [];
-  }
-
-  // Without a block to be built from, the stage needs one the control takes.
-  function noSourcesText(block) {
-    const { accepts } = state.controls.get(block.control).sources;
-    return accepts.length === 1
-      ? `Подходящих блоков нет: добавьте в этап блок «${state.controls.get(accepts[0]).label}».`
-      : 'Подходящих блоков в этапе нет.';
-  }
-
-  function setBlockSource(id, sourceId) {
-    const { block } = state.blocks.get(id);
-    change(() => Edits.setSource(block, sourceId));
-  }
-
-  // The one block a repeated audio, an example dialogue or a guess check is built from.
-  function openFromPicker(chip, id) {
-    const { block, stage } = state.blocks.get(id);
-    const options = Edits.sourceOptions(stage, block, state.controls).map(option => ({
-      title: el('b', '', fromSourceName(option, stage)),
-      notes: fromSourceNotes(option, stage),
-      checked: option.chosen,
-      choose: () => setBlockSource(id, option.block),
-    }));
-    openPicker(chip, `Откуда брать ${state.controls.get(block.control).sources.label}`, options, options.length > 0
-      ? `Блоки этого этапа, из которых собирается «${blockName(block)}».`
-      : noSourcesText(block));
   }
 
   // The picker sits in the top layer, so it follows its chip on screen by itself; a chip
@@ -1083,10 +1015,8 @@
     const select = el('select', 'template-field__input');
     const choices = inputChoices(id, port);
     if (link.variable === null) {
-      select.append(new Option(link.required ? 'не подключено' : 'Не подключать', '', true, true));
-      if (link.required) select.options[0].disabled = true;
-    } else if (!link.required) {
-      select.append(new Option('Не подключать', ''));
+      select.append(new Option('не подключено', '', true, true));
+      select.options[0].disabled = true;
     }
     // A source that is out of reach now stays shown: the problems tell what is wrong.
     if (link.variable !== null && !choices.some(source => source.variable === link.variable)) {
@@ -1094,35 +1024,9 @@
       select.append(new Option(link.from ? placedName(link.from.block, stage.id) : link.variable, link.variable, true, true));
     }
     select.append(...choices.map(source => new Option(sourceName(source).join(' · '), source.variable, false, source.variable === link.variable)));
-    select.addEventListener('change', () => connectInput(id, port, select.value || null));
+    select.addEventListener('change', () => connectInput(id, port, select.value));
     const field = fieldGroup('label', `Берёт ${typeLabel(link.type)} из`, select);
     return link.from ? [field, linkButton(`Перейти к «${blockName(state.blocks.get(link.from.block).block)}» →`, link.from.block)] : [field];
-  }
-
-  // The one source of a block built from one block is chosen like an input's.
-  function fromSourceField(block) {
-    const { stage } = state.blocks.get(block.id);
-    const { label } = state.controls.get(block.control).sources;
-    const options = Edits.sourceOptions(stage, block, state.controls);
-    const current = options.find(option => option.chosen);
-    const linked = current && state.blocks.get(current.block)?.stage === stage ? current.block : null;
-    if (!editable()) {
-      return [settingRow(`Берёт: ${label}`, linked
-        ? linkButton(`← ${placedName(linked, stage.id)}`, linked)
-        : el('small', '', 'не подключено'))];
-    }
-    const select = el('select', 'template-field__input');
-    if (!current) {
-      select.append(new Option('не подключено', '', true, true));
-      select.options[0].disabled = true;
-    }
-    // Two blocks of one kind differ by their titles.
-    const optionText = option => [fromSourceName(option, stage), ...fromSourceNotes(option, stage).map(note => `«${note}»`)].join(' ');
-    select.append(...options.map((option, number) => new Option(optionText(option), String(number), false, option === current)));
-    select.addEventListener('change', () => setBlockSource(block.id, options[Number(select.value)].block));
-    const field = fieldGroup('label', `Берёт ${label} из`, select);
-    if (options.length === 0) field.append(el('small', 'template-panel__hint', noSourcesText(block)));
-    return linked ? [field, linkButton(`Перейти к «${blockName(state.blocks.get(linked).block)}» →`, linked)] : [field];
   }
 
   function linksSection(block) {
@@ -1139,7 +1043,6 @@
         link.from ? linkButton(`← ${placedName(link.from.block, stage.id)}`, link.from.block) : el('small', '', 'не подключено'),
       ));
     }
-    if (links.source !== undefined) rows.push(...fromSourceField(block));
     for (const output of Object.values(links.exports)) {
       const readers = el('div', 'template-readers');
       for (const reader of output.readers.blocks) readers.append(linkButton(placedName(reader.block, stage.id), reader.block));
@@ -2206,7 +2109,7 @@
   // Deletion is worked out from the working copy, so it works while the template has
   // problems too. Only the target goes at once; anything else that would go or change is
   // listed in a dialog first. Either way the toast offers «Вернуть».
-  const deletionPlan = target => Edits.deletionPlan(state.template.definition, target, state.controls);
+  const deletionPlan = target => Edits.deletionPlan(state.template.definition, target);
 
   // A deletion that would leave no stage is not offered.
   function deleteSection(label, target) {
@@ -2244,10 +2147,6 @@
   // only the target goes.
   function deletionEffects(plan) {
     const stageId = plan.target.stage || state.blocks.get(plan.target.block).stage.id;
-    const portType = ({ block, port }) => {
-      const { control } = state.blocks.get(block).block;
-      return typeLabel(state.controls.get(control).inputs[port].type);
-    };
     return [
       ['Удалятся вместе с ним', plan.blocks
         .filter(entry => !ownBlock(plan, entry))
@@ -2255,8 +2154,6 @@
       ['Опустеют и удалятся этапы', plan.stages
         .filter(id => id !== plan.target.stage)
         .map(id => `«${stageTitle(stageById(id))}»`)],
-      ['Изменятся', plan.unbound
-        .map(entry => `${blockLine(entry.block, stageId)}: больше не берёт ${portType(entry)}`)],
       ['Уйдут строки контекста', plan.context
         .map(line => `«${line.label}» — этап «${stageTitle(stageById(line.stage))}»`)],
     ].filter(([, items]) => items.length > 0);
@@ -2339,13 +2236,11 @@
       const source = planned.inputs[port];
       const label = `Берёт: ${typeLabel(input.type)}`;
       if (!source) {
-        if (input.required) {
-          rows.push({
-            label,
-            value: 'не подключено',
-            warning: `В этом и прошлых этапах нет блока, который отдаёт ${typeLabel(input.type)}: вход останется не подключён.`,
-          });
-        }
+        rows.push({
+          label,
+          value: 'не подключено',
+          warning: `В этом и прошлых этапах нет блока, который отдаёт ${typeLabel(input.type)}: вход останется не подключён.`,
+        });
         continue;
       }
       const { block } = state.blocks.get(source.block);
@@ -2359,21 +2254,6 @@
         row.warning = `Включите ${quoted(missingFlags(source))} в блоке «${blockName(block)}»: без этого блок не соберётся.`;
       }
       rows.push(row);
-    }
-    if (entry.sources) {
-      const { accepts, label } = entry.sources;
-      if (planned.from) {
-        const name = blockName(state.blocks.get(planned.from).block);
-        rows.push({ label: `Берёт: ${label}`, value: quoted([name]), chip: `${capitalize(label)} ← ${name}` });
-      } else {
-        rows.push({
-          label: `Берёт: ${label}`,
-          value: 'не подключено',
-          warning: accepts.length === 1
-            ? `Нужен блок «${state.controls.get(accepts[0]).label}» в этом этапе.`
-            : 'В этапе нет блоков, из которых он собирается.',
-        });
-      }
     }
     for (const output of Object.values(entry.outputs)) {
       rows.push({ label: 'Отдаёт', value: typeLabel(output.type), chip: `Отдаёт ${typeLabel(output.type)}`, output: true });

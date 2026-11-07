@@ -157,8 +157,8 @@ test('a new stage goes after the given one and is the only problem until it gets
     { message: 'Этап 4 «New Stage» пуст: добавьте блок или удалите этап.', stage: 'new-stage-2' },
   ]);
 
-  const plan = Edits.deletionPlan(definition, { stage: 'new-stage' }, controls);
-  assert.deepEqual([plan.blocks, plan.stages, plan.unbound, plan.context], [[], ['new-stage'], [], []]);
+  const plan = Edits.deletionPlan(definition, { stage: 'new-stage' });
+  assert.deepEqual([plan.blocks, plan.stages, plan.context], [[], ['new-stage'], []]);
 });
 
 const { STATIC_BLOCKS } = require('../assets/lesson-template-statics.js');
@@ -227,7 +227,7 @@ test('without a source an input stays unbound; a source without a required featu
 
 const block = (definition, id) => definition.stages.flatMap(item => Edits.flattenBlocks(item.blocks)).find(item => item.id === id);
 
-test('a block’s links come from the definition, unbound inputs included', () => {
+test('a block’s links come from the definition, unconnected inputs included', () => {
   const definition = templateTwo();
   const links = id => Edits.blockLinks(definition, block(definition, id), controls);
   assert.deepEqual(links('lead-in-fact-or-myth'), {
@@ -241,11 +241,11 @@ test('a block’s links come from the definition, unbound inputs included', () =
     },
   });
   assert.deepEqual(links('target-vocabulary-meanings').inputs.vocabulary, {
-    type: 'vocabulary', required: true, variable: 'targetVocabulary', from: { block: 'target-vocabulary-card', stage: 'target-vocabulary' },
+    type: 'vocabulary', variable: 'targetVocabulary', from: { block: 'target-vocabulary-card', stage: 'target-vocabulary' },
   });
 
   delete block(definition, 'target-vocabulary-meanings').inputs;
-  assert.deepEqual(links('target-vocabulary-meanings').inputs.vocabulary, { type: 'vocabulary', required: true, variable: null, from: null });
+  assert.deepEqual(links('target-vocabulary-meanings').inputs.vocabulary, { type: 'vocabulary', variable: null, from: null });
   block(definition, 'target-vocabulary-meanings').inputs = { vocabulary: 'gone' };
   assert.equal(links('target-vocabulary-meanings').inputs.vocabulary.from, null);
 });
@@ -286,7 +286,7 @@ test('another source of an earlier stage joins the context; the line read before
   assert.deepEqual(problems(definition), []);
 });
 
-test('a source of the stage itself needs no line; an input left unbound is the server’s problem', () => {
+test('a source of the stage itself needs no line; an unconnected input is the server’s problem', () => {
   const definition = templateTwo();
   const vocabulary = stage(definition, 'target-vocabulary');
   const context = structuredClone(vocabulary.context);
@@ -296,7 +296,7 @@ test('a source of the stage itself needs no line; an input left unbound is the s
   assert.deepEqual(meanings.inputs, { vocabulary: words });
   assert.deepEqual(vocabulary.context, context);
 
-  Edits.setInputSource(definition, vocabulary, meanings, 'vocabulary', null);
+  delete meanings.inputs;
   assert.deepEqual(problems(definition), ['Блоку target-vocabulary-meanings нужен вход vocabulary (словарь).']);
 });
 
@@ -328,31 +328,30 @@ test('a task comes from the catalog with its answer key, which is set up and tur
   assert.deepEqual(task.answerKey, {});
 });
 
-test('a deleted block takes required readers and slots with it', () => {
+test('a deleted block takes its readers and slots with it', () => {
   const definition = templateTwo();
-  const plan = Edits.deletionPlan(definition, { block: 'target-vocabulary-card' }, controls);
+  const plan = Edits.deletionPlan(definition, { block: 'target-vocabulary-card' });
   assert.deepEqual(blockIds(plan), [
     'target-vocabulary-card',
     'target-vocabulary-meanings',
     'guided-communication-cards',
   ]);
-  assert.deepEqual(plan.unbound, []);
   assert.deepEqual(plan.context.map(line => line.stage), ['grammar-presentation', 'grammar-focus', 'guided-speaking', 'wrap-up']);
   assert.deepEqual(plan.stages, []);
 
   Edits.applyDeletion(definition, plan);
   assert.deepEqual(Object.keys(stage(definition, 'wrap-up').context), ['Lesson topic', 'Grammar topic']);
 
-  // A block built from a deleted one has nothing to be built from and goes too.
+  // A block that uses the fields of a deleted one goes too.
   const one = templateOne();
-  const audio = Edits.deletionPlan(one, { block: 'listening-audio' }, controls);
+  const audio = Edits.deletionPlan(one, { block: 'listening-audio' });
   assert.deepEqual(blockIds(audio), ['listening-audio', 'listening-audio-again']);
 });
 
 test('a stage emptied by the cascade goes too; nothing is changed before applyDeletion', () => {
   const definition = templateTwo();
   const before = JSON.stringify(definition);
-  const plan = Edits.deletionPlan(definition, { block: 'warm-up-odd-one-out' }, controls);
+  const plan = Edits.deletionPlan(definition, { block: 'warm-up-odd-one-out' });
   // The teacher note reads its example word from the exercise through a slot.
   assert.deepEqual(blockIds(plan), ['warm-up-teacher-note', 'warm-up-odd-one-out']);
   assert.deepEqual(plan.stages, ['warm-up']);
@@ -363,10 +362,9 @@ test('a stage emptied by the cascade goes too; nothing is changed before applyDe
 
 test('a deleted stage clears what other stages read from it', () => {
   const definition = templateTwo();
-  const plan = Edits.deletionPlan(definition, { stage: 'lead-in' }, controls);
+  const plan = Edits.deletionPlan(definition, { stage: 'lead-in' });
   assert.deepEqual(plan.stages, ['lead-in']);
   assert.deepEqual(blockIds(plan).filter(id => !id.startsWith('lead-in-')), []);
-  assert.deepEqual(plan.unbound, []);
   assert.deepEqual(plan.context, [{ stage: 'target-vocabulary', label: 'Guess statements from the Lead-In' }]);
 });
 
@@ -375,23 +373,23 @@ test('a row keeps two parts, turns into its last part and goes as a whole', () =
   const row = definition => stage(definition, 'grammar-focus').blocks.find(block => block.id === rowId);
 
   const definition = templateOne();
-  Edits.applyDeletion(definition, Edits.deletionPlan(definition, { block: 'grammar-focus-support' }, controls));
+  Edits.applyDeletion(definition, Edits.deletionPlan(definition, { block: 'grammar-focus-support' }));
   assert.deepEqual(row(definition).blocks.map(part => part.id), ['grammar-focus-writing-support', 'grammar-focus-challenge']);
-  Edits.applyDeletion(definition, Edits.deletionPlan(definition, { block: 'grammar-focus-challenge' }, controls));
+  Edits.applyDeletion(definition, Edits.deletionPlan(definition, { block: 'grammar-focus-challenge' }));
   assert.equal(row(definition), undefined);
   assert.equal(stage(definition, 'grammar-focus').blocks.filter(block => block.id === 'grammar-focus-writing-support').length, 1);
 
   const whole = templateOne();
-  const plan = Edits.deletionPlan(whole, { block: rowId }, controls);
+  const plan = Edits.deletionPlan(whole, { block: rowId });
   assert.deepEqual(blockIds(plan), ['grammar-focus-writing-support', 'grammar-focus-support', 'grammar-focus-challenge']);
 });
 
 test('the last stage cannot go, by itself or by a cascade', () => {
   const definition = templateTwo();
   definition.stages = [stage(definition, 'warm-up')];
-  assert.equal(Edits.deletionPlan(definition, { stage: 'warm-up' }, controls).emptiesTemplate, true);
-  assert.equal(Edits.deletionPlan(definition, { block: 'warm-up-odd-one-out' }, controls).emptiesTemplate, true);
-  assert.equal(Edits.deletionPlan(definition, { block: 'warm-up-teacher-note' }, controls).emptiesTemplate, false);
+  assert.equal(Edits.deletionPlan(definition, { stage: 'warm-up' }).emptiesTemplate, true);
+  assert.equal(Edits.deletionPlan(definition, { block: 'warm-up-odd-one-out' }).emptiesTemplate, true);
+  assert.equal(Edits.deletionPlan(definition, { block: 'warm-up-teacher-note' }).emptiesTemplate, false);
 });
 
 test('deleting any block or stage of a system template leaves a valid template', () => {
@@ -404,7 +402,7 @@ test('deleting any block or stage of a system template leaves a valid template',
     ];
     for (const target of targets) {
       const definition = structuredClone(base);
-      const plan = Edits.deletionPlan(definition, target, controls);
+      const plan = Edits.deletionPlan(definition, target);
       assert.equal(plan.emptiesTemplate, false);
       Edits.applyDeletion(definition, plan);
       const { errors } = validateTemplate(definition, CONTROL_CATALOG);

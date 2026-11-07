@@ -16,7 +16,7 @@ const CONTROLS = [
     fields: ['checks', 'guesses'],
     params: { checks: integer('Проверок', 1, 4, 2), guesses: integer('Догадок', 1, 3, 1) },
     chrome: ['title'],
-    outputs: { guesses: { type: 'statements', field: 'guesses' } },
+    outputs: { guesses: 'statements' },
     schema: ({ params }) => ({ checks: stringArray(params.checks), guesses: stringArray(params.guesses) }),
     rules: ({ params, f }) => [`${f.checks}: exactly ${params.checks} statements.`, `${f.guesses}: exactly ${params.guesses} statements.`],
     defaultInstructions: 'Statements must be short.',
@@ -34,7 +34,7 @@ const CONTROLS = [
     type: 'wordList',
     fields: ['words'],
     params: { count: integer('Слов', 2, 10, 3), distractors: flag('Отвлекающие варианты', false) },
-    outputs: { vocabulary: { type: 'vocabulary', field: 'words', features: { distractor: 'distractors' } } },
+    outputs: { vocabulary: { type: 'vocabulary', features: { distractor: 'distractors' } } },
     schema: ({ params }) => ({ words: { type: 'array', minItems: params.count, maxItems: params.count, items: { type: 'object' } } }),
     rules: ({ params, f }) => [`${f.words}: exactly ${params.count} items.`],
     defaultInstructions: 'Useful words for the topic.',
@@ -50,58 +50,30 @@ const CONTROLS = [
     type: 'stories',
     fields: ['stories'],
     params: { count: integer('Историй', 1, 6, 2) },
-    inputs: {
-      highlight: {
-        type: 'vocabulary',
-        required: true,
-        sameStageRule: ({ source }) => `Put every item of ${source.field} in bold exactly once.`,
-      },
-      guesses: {
-        type: 'statements',
-        producerHint: ({ params }) => `Later the student reads ${params.count} stories that answer the guesses.`,
-      },
-    },
+    inputs: { guesses: 'statements' },
     schema: ({ params }) => ({ stories: stringArray(params.count) }),
-    rules: ({ params, f }) => [`${f.stories}: exactly ${params.count} stories.`],
+    rules: ({ params, links, f }) => [`${f.stories}: exactly ${params.count} stories that answer ${links.guesses.label}.`],
     build: (data, { id, links }) => {
-      const text = data.stories.join(' ');
-      for (const item of links.highlight.value) {
-        if (!text.includes(`**${item.term}**`)) throw new Error(`Story misses ${item.term}.`);
-      }
-      return { type: 'storyCards', id, stories: data.stories, guesses: links.guesses?.value.map(guess => guess.number) };
+      data.stories.forEach((story, index) => {
+        if (!story.trim()) throw new Error(`Story ${index + 1} is empty.`);
+      });
+      return { type: 'storyCards', id, stories: data.stories, guesses: links.guesses.value.map(guess => guess.number) };
     },
-    example: ({ params, links }) => ({
-      stories: Array.from({ length: params.count }, (_, index) => (index === 0
-        ? links.highlight.value.map(item => `**${item.term}**`).join(' ')
-        : `Story ${index + 1}.`)),
-    }),
+    example: ({ params }) => ({ stories: Array.from({ length: params.count }, (_, index) => `Story ${index + 1}.`) }),
   },
   {
     type: 'meaningsQuiz',
     kind: 'derived',
-    inputs: { vocabulary: { type: 'vocabulary', required: true, requires: ['distractor'] } },
+    inputs: { vocabulary: { type: 'vocabulary', requires: ['distractor'] } },
     build: (_data, { id, links }) => ({ type: 'multipleChoice', id, items: links.vocabulary.value.map(item => item.term) }),
   },
   {
     type: 'pickWords',
     kind: 'derived',
-    inputs: { vocabulary: { type: 'vocabulary', required: true } },
+    inputs: { vocabulary: 'vocabulary' },
     outputs: { vocabulary: 'vocabulary' },
     build: (_data, { id, links }) => ({ type: 'markdownCard', id, items: links.vocabulary.value.slice(0, 2) }),
     exports: component => ({ vocabulary: component.items }),
-  },
-  {
-    type: 'checksCard',
-    kind: 'derived',
-    chrome: ['title'],
-    acceptsSource: control => (control.type === 'guessGame' ? null : `у ${control.type} нет проверок.`),
-    sourceLabel: 'проверки',
-    build: ({ source }, { id, chrome }) => ({
-      type: 'markdownCard',
-      id,
-      title: chrome.title || 'Checks',
-      text: source.component.items.join(' / '),
-    }),
   },
   {
     type: 'bullets',
@@ -147,14 +119,13 @@ function definition() {
             slots: { firstCheck: { from: 'guess-game.items[0]' }, success: { rule: 'One measurable sentence.' } } },
           { id: 'guess-game', kind: 'generated', control: 'guessGame', params: { checks: 2 }, chrome: { title: 'Fact or Myth?' },
             exports: { guesses: 'guesses' }, answerKey: { title: 'Answers' } },
-          { id: 'guess-checks', kind: 'derived', control: 'checksCard', from: 'guess-game' },
         ],
       },
       {
         id: 'vocabulary', title: 'Vocabulary', durationMinutes: 8,
         context: { 'Lesson topic': '$input.topic', 'Guess statements': '$var.guesses' },
         blocks: [
-          { id: 'vocabulary-stories', kind: 'generated', control: 'stories', inputs: { highlight: 'lessonWords', guesses: 'guesses' } },
+          { id: 'vocabulary-stories', kind: 'generated', control: 'stories', inputs: { guesses: 'guesses' } },
           { id: 'vocabulary-list', kind: 'generated', control: 'wordList', params: { distractors: true },
             fields: { words: 'vocabularyItems' }, exports: { vocabulary: 'lessonWords' }, instructions: 'Words about the topic.' },
           { id: 'vocabulary-support', kind: 'row', blocks: [
@@ -219,7 +190,6 @@ test('stage request assembles the prompt, the flat schema and the context', () =
     'Target learner: A2',
     'You design one-to-one English lessons.',
     'Generate a Fact or Myth warm-up.',
-    'Later the student reads 2 stories that answer the guesses.',
     'checks: exactly 2 statements.',
     'guesses: exactly 1 statements.',
     'Statements must be short.',
@@ -239,8 +209,7 @@ test('stage request assembles the prompt, the flat schema and the context', () =
   });
   assert.equal(vocabulary.messages[0].content, [
     'You design one-to-one English lessons.',
-    'stories: exactly 2 stories.',
-    'Put every item of vocabularyItems in bold exactly once.',
+    'stories: exactly 2 stories that answer Guess statements.',
     'vocabularyItems: exactly 3 items.',
     'Words about the topic.',
     'sentenceStarters: exactly 2 items.',
@@ -263,14 +232,13 @@ test('apply builds stages in display order, fills slots and passes variables on'
   const state = runAll(plan, { guess: GUESS_ANSWER, vocabulary: VOCABULARY_ANSWER });
   const [, recap, guess, vocabulary] = state.lesson.stages;
 
-  assert.deepEqual(guess.content.map(component => component.id), ['guess-note', 'guess-game', 'guess-game-answer-key', 'guess-checks']);
+  assert.deepEqual(guess.content.map(component => component.id), ['guess-note', 'guess-game', 'guess-game-answer-key']);
   assert.equal(guess.content[0].text, 'Say "Cats can swim." first. Success: The student explains two answers.');
   assert.deepEqual(guess.content[2], {
     type: 'markdownCard', id: 'guess-game-answer-key', title: 'Answers',
     text: '1. Cats can swim.\n2. Dogs fly.\n3. Somebody in our stories has a red hat.',
     icon: 'check', accentColor: '#20A85B', studentVisibility: 'teacherOnly',
   });
-  assert.equal(guess.content[3].text, 'Cats can swim. / Dogs fly. / Somebody in our stories has a red hat.');
 
   assert.deepEqual(vocabulary.content.map(component => component.id), ['vocabulary-stories', 'vocabulary-list', 'vocabulary-support']);
   assert.deepEqual(vocabulary.content[0].guesses, [3]);
@@ -316,8 +284,8 @@ test('apply rejects an answer without a required field and control validation er
 
   const guessed = plan.apply('guess', state, GUESS_ANSWER);
   assert.throws(
-    () => plan.apply('vocabulary', guessed, { ...VOCABULARY_ANSWER, stories: ['No bold words.', 'None here.'] }),
-    /Story misses hat/,
+    () => plan.apply('vocabulary', guessed, { ...VOCABULARY_ANSWER, stories: ['A hat.', ' '] }),
+    /Story 2 is empty/,
   );
   assert.throws(() => plan.apply('recap', state), /lessonWords ещё не готова/);
 });
@@ -339,8 +307,8 @@ test('an example run takes the template examples and falls back when one no long
   block(withExamples, 'vocabulary', 'vocabulary-list').example = {
     words: ['hat', 'scarf', 'boots'].map(term => ({ term, definition: `A ${term}.`, distractor: `Not a ${term}.` })),
   };
-  // The stories do not bold the words, so the block falls back to the control's sample.
-  block(withExamples, 'vocabulary', 'vocabulary-stories').example = { stories: ['No words here.', 'None here.'] };
+  // A story is empty, so the block falls back to the control's sample.
+  block(withExamples, 'vocabulary', 'vocabulary-stories').example = { stories: ['A hat.', ' '] };
 
   const plan = compileTemplate(withExamples, catalog);
   let state = { lesson: plan.createSkeleton(), variables: {} };
@@ -351,10 +319,10 @@ test('an example run takes the template examples and falls back when one no long
   assert.deepEqual(content('guess')[1].items, ['Cats can swim.', 'Dogs fly.', 'Somebody has a red hat.']);
   assert.deepEqual(state.variables.guesses, [{ number: 3, text: 'Somebody has a red hat.' }]);
   assert.deepEqual(content('recap')[0].items, ['hat', 'scarf', 'boots']);
-  assert.deepEqual(content('vocabulary')[0].stories, ['**hat** **scarf** **boots**', 'Story 2.']);
+  assert.deepEqual(content('vocabulary')[0].stories, ['Story 1.', 'Story 2.']);
   assert.deepEqual(content('vocabulary')[2].items.map(item => item.text), ['Item 1\nItem 2', 'Item 1\nItem 2']);
   assert.deepEqual(warn.mock.calls.map(call => call.arguments[0]), [
-    'Пример блока vocabulary-stories не подошёл, взят пример контрола: Story misses hat.',
+    'Пример блока vocabulary-stories не подошёл, взят пример контрола: Story 2 is empty.',
   ]);
 });
 
@@ -364,13 +332,13 @@ test('example problems name the slot or the block', () => {
     note.slots.success.example = 7;
     note.slots.firstCheck.example = 'A check.';
     block(template, 'guess', 'guess-game').example = ['Cats can swim.'];
-    block(template, 'guess', 'guess-checks').example = { text: 'Checks' };
+    block(template, 'recap', 'recap-quiz').example = { text: 'Checks' };
     block(template, 'vocabulary', 'vocabulary-list').example = { words: [], terms: [] };
   }).join('\n');
   assert.match(messages, /Пример слота success блока guess-note должен быть текстом рядом с rule/);
   assert.match(messages, /Пример слота firstCheck блока guess-note должен быть текстом рядом с rule/);
   assert.match(messages, /Пример блока guess-game должен быть объектом с полями контрола/);
-  assert.match(messages, /Блоку guess-checks пример не нужен: его не пишет ИИ/);
+  assert.match(messages, /Блоку recap-quiz пример не нужен: его не пишет ИИ/);
   assert.match(messages, /В примере блока vocabulary-list лишнее поле terms/);
 });
 
@@ -436,8 +404,8 @@ test('validation reports broken links between blocks', () => {
     /lessonWords отдают два блока/,
   );
   assert.match(
-    errorsAfter(template => { delete block(template, 'vocabulary', 'vocabulary-stories').inputs.highlight; }).join('\n'),
-    /нужен вход highlight \(словарь\)/,
+    errorsAfter(template => { delete block(template, 'vocabulary', 'vocabulary-stories').inputs; }).join('\n'),
+    /нужен вход guesses \(утверждения\)/,
   );
 });
 
@@ -451,10 +419,10 @@ test('validation reports cycles, same-stage limits and answer field collisions',
   assert.match(
     errorsAfter(template => {
       const vocabulary = stage(template, 'vocabulary');
-      vocabulary.blocks.push({ id: 'vocabulary-picked', kind: 'derived', control: 'pickWords', inputs: { vocabulary: 'lessonWords' }, exports: { vocabulary: 'pickedWords' } });
-      vocabulary.blocks.push({ id: 'vocabulary-more', kind: 'generated', control: 'stories', inputs: { highlight: 'pickedWords' } });
+      vocabulary.blocks.push({ id: 'vocabulary-game', kind: 'generated', control: 'guessGame', exports: { guesses: 'moreGuesses' } });
+      vocabulary.blocks.push({ id: 'vocabulary-more', kind: 'generated', control: 'stories', fields: { stories: 'moreStories' }, inputs: { guesses: 'moreGuesses' } });
     }).join('\n'),
-    /vocabulary-more генерируется до того, как собран vocabulary-picked/,
+    /vocabulary-more генерируется в одном ответе с vocabulary-game: перенесите его в следующий этап/,
   );
   assert.match(
     errorsAfter(template => { block(template, 'vocabulary', 'vocabulary-list').fields = { words: 'stories' }; }).join('\n'),
@@ -474,13 +442,8 @@ test('validation reports block-level mistakes', () => {
     block(template, 'guess', 'guess-game').chrome.accentColor = '#fff';
     block(template, 'guess', 'guess-note').component.text += ' {{unknown}}';
     block(template, 'guess', 'guess-note').slots.unused = { rule: 'Never used.' };
-    guess.blocks.push({ id: 'guess-checks-2', kind: 'derived', control: 'checksCard', from: 'vocabulary-list' });
     guess.blocks.push({ id: 'guess-starters', kind: 'generated', control: 'bullets', answerKey: {} });
-    guess.blocks.push({ id: 'guess-starters-checks', kind: 'derived', control: 'checksCard', from: 'guess-starters' });
-    guess.blocks.push({ id: 'guess-checks-4', kind: 'derived', control: 'checksCard', from: ['guess-game'] });
-    guess.blocks.push({ id: 'guess-recap', kind: 'derived', control: 'meaningsQuiz', from: 'guess-game' });
     guess.blocks.push({ id: 'guess-mystery', kind: 'generated', control: 'mystery' });
-    guess.blocks.push({ id: 'guess-checks-3', kind: 'derived', control: 'checksCard' });
     guess.blocks.push({ id: 'guess-game', kind: 'static', component: { type: 'teacherNote' } });
     guess.blocks.push({ id: 'guess-empty-note', kind: 'static', component: { type: 'teacherNote', text: ' ' } });
     guess.blocks.push({ id: 'guess-quiz', kind: 'static', component: { type: 'oddOneOut', items: [] } });
@@ -490,13 +453,8 @@ test('validation reports block-level mistakes', () => {
   assert.match(messages, /не поддерживает оформление accentColor/);
   assert.match(messages, /поле \{\{unknown\}\} не описано ни в нём, ни в другом блоке этапа/);
   assert.match(messages, /Слот unused блока guess-note не используется/);
-  assert.match(messages, /собирается из vocabulary-list, а такого блока нет в этапе guess/);
-  assert.match(messages, /у bullets нет проверок/);
   assert.match(messages, /Блок guess-starters, ключ ответов: bullets не даёт ключ ответов\./);
   assert.match(messages, /неизвестный контрол mystery/);
-  assert.match(messages, /Блок guess-checks-3 не собирается ни из одного блока этапа/);
-  assert.match(messages, /Источник блока guess-checks-4 должен быть id блока/);
-  assert.match(messages, /Блок guess-recap не собирается из других блоков: from ему не нужен/);
   assert.match(messages, /Блок guess-game повторяется/);
   assert.match(messages, /Блок guess-empty-note: содержимое не подходит компоненту: TeacherNote requires text/);
   assert.match(messages, /Компонент oddOneOut не может быть статичным блоком \(guess-quiz\)/);
@@ -505,18 +463,18 @@ test('validation reports block-level mistakes', () => {
 test('answer key problems name the setting that is wrong', () => {
   const broken = definition();
   block(broken, 'guess', 'guess-game').answerKey = { title: ' ', layout: 'grid', colour: 'red', partTitles: { answers: 'A' } };
-  block(broken, 'guess', 'guess-checks').answerKey = {};
+  block(broken, 'recap', 'recap-quiz').answerKey = {};
   stage(broken, 'guess').blocks.push({ id: 'guess-game-answer-key', kind: 'static', component: { type: 'teacherNote', text: 'Taken.' } });
   block(broken, 'vocabulary', 'vocabulary-support').blocks.push({ id: 'vocabulary-game', kind: 'generated', control: 'guessGame', answerKey: {} });
   const problems = validateTemplate(broken, catalog).errors
     .filter(error => /ключ/.test(error.message))
     .map(({ block: id, answerKey, detail, message }) => [id, answerKey, detail ?? message]);
   assert.deepEqual(problems, [
+    ['recap-quiz', null, 'meaningsQuiz не даёт ключ ответов'],
     ['guess-game', 'title', 'Заголовок: нужен непустой текст'],
     ['guess-game', 'layout', 'Расположение: нужно одно из: Колонками, Друг под другом'],
     ['guess-game', 'colour', 'colour: такой настройки у ключа нет'],
     ['guess-game', 'partTitles', 'заголовки частей задаются только у ключа из нескольких частей'],
-    ['guess-checks', null, 'checksCard не даёт ключ ответов'],
     ['vocabulary-game', undefined, 'Задание vocabulary-game с ключом ответов нельзя ставить в ряд.'],
     ['guess-game', undefined, 'Id guess-game-answer-key занят: так называется ключ ответов блока guess-game.'],
   ]);
@@ -572,9 +530,6 @@ test('the catalog rejects incomplete controls', () => {
   }]);
   assert.throws(withFeatures({ sparkle: 'distractors' }), /у типа vocabulary нет возможности sparkle/);
   assert.throws(withFeatures({ distractor: 'count' }), /возможность distractor должна включаться флагом/);
-  const checksCard = CONTROLS.find(control => control.type === 'checksCard');
-  assert.throws(() => createControlCatalog([{ ...checksCard, sourceLabel: undefined }]), /acceptsSource и sourceLabel задаются только вместе/);
-  assert.throws(() => createControlCatalog([{ ...CONTROLS[0], sourceLabel: 'ответы' }]), /acceptsSource и sourceLabel задаются только вместе/);
   const withParts = (control, answerKeyParts) => () => createControlCatalog([{ ...control, answerKeyParts }]);
   const keyed = CONTROLS.find(control => typeof control.answerKey === 'function');
   const answers = { label: 'Ответы', title: 'Answers' };
@@ -582,7 +537,7 @@ test('the catalog rejects incomplete controls', () => {
   assert.throws(withParts(keyed, { answers }), /подпись и заголовок хотя бы двух частей/);
   assert.throws(withParts(keyed, { answers, explanations: { label: 'Пояснения' } }), /подпись и заголовок хотя бы двух частей/);
   assert.throws(withParts(keyed, { answers, explanations: 'Пояснения' }), /подпись и заголовок хотя бы двух частей/);
-  assert.throws(withParts(checksCard, { answers, explanations }), /только вместе с answerKey/);
+  assert.throws(withParts(CONTROLS.find(control => control.type === 'bullets'), { answers, explanations }), /только вместе с answerKey/);
   assert.doesNotThrow(withParts(keyed, { answers, explanations }));
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], group: 'misc' }]), /неизвестная группа misc/);
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], description: ' ' }]), /описание должно быть непустой строкой/);

@@ -209,8 +209,8 @@
 
   // Where a block of `kind` at the end of `stage` may take its `input` from: blocks of this
   // and earlier stages that give away a variable of its type, the nearest first. A
-  // generated block takes a variable of its own stage only when the control can, and only
-  // from another generated block, which the model writes in the same answer. `missing`
+  // generated block takes none of its own stage: the model writes the stage in one answer,
+  // so its variables are not there yet. `missing`
   // lists the features the input requires and the producer has off. A block already in
   // the stage passes itself as `except`: it cannot read its own variables.
   function inputSources(definition, stage, kind, input, controls, except = null) {
@@ -221,7 +221,7 @@
       const index = definition.stages.indexOf(producer.stage);
       const type = controls.get(producer.block.control)?.outputs[producer.port]?.type;
       if (type !== input.type || index > stageIndex) continue;
-      if (index === stageIndex && kind === 'generated' && !(input.sameStage && producer.block.kind === 'generated')) continue;
+      if (index === stageIndex && kind === 'generated') continue;
       const features = producerFeatures(producer, controls);
       sources.push({
         variable,
@@ -238,26 +238,16 @@
       .map(({ order, ...source }) => source);
   }
 
-  // Blocks of the stage a block built from another block may take as its source
-  // (`sources` of its control description), in stage order.
-  function stageSources(stage, sources) {
-    return flattenBlocks(stage.blocks)
-      .filter(block => block.kind !== 'static' && sources.accepts.includes(block.control))
-      .map(block => block.id);
-  }
-
   // What a block of the catalog gets once added at the end of the stage: for every input
   // the nearest source with all the features it needs, or else the nearest one, which
-  // the server then reports; for a block built from another block the nearest such
-  // block. `entry` is the control's description.
+  // the server then reports. `entry` is the control's description.
   function plannedLinks(definition, stage, entry, controls) {
     const inputs = {};
     for (const [port, input] of Object.entries(entry.inputs || {})) {
       const sources = inputSources(definition, stage, entry.kind, input, controls);
       inputs[port] = sources.find(source => source.missing.length === 0) || sources[0] || null;
     }
-    const from = entry.sources ? stageSources(stage, entry.sources).at(-1) ?? null : null;
-    return { inputs, from };
+    return { inputs };
   }
 
   // «+ Блок»: a block of the catalog at the end of the stage. Its id comes from the stage
@@ -303,7 +293,6 @@
       const passed = contextLines(stage).some(line => line.source === 'var' && line.name === source.variable);
       if (!source.sameStage && !passed) addedLines.push(addContextLine(stage, 'var', source.variable));
     }
-    if (links.from) block.from = links.from;
     const variables = new Set(variableProducers(definition).keys());
     const ports = Object.keys(entry.outputs || {});
     if (ports.length > 0) {
@@ -321,8 +310,7 @@
   // while the template has problems too. An input reads `variable` from the block `from`;
   // both are null while it is not connected, and `from` is null for a variable nobody
   // gives away. An output's readers are the blocks that read its variable and the stages
-  // whose context passes it. A block built from another block has its `source`, null
-  // while there is none; `inStage` is false for an id its stage lacks.
+  // whose context passes it.
   function blockLinks(definition, block, controls) {
     const control = controls.get(block.control);
     const producers = variableProducers(definition);
@@ -332,7 +320,6 @@
       const producer = producers.get(variable);
       inputs[port] = {
         type: spec.type,
-        required: spec.required,
         variable,
         from: producer ? { block: producer.block.id, stage: producer.stage.id } : null,
       };
@@ -350,31 +337,21 @@
       }
       exports[port] = { variable, type: control?.outputs[port]?.type, readers };
     }
-    if (!control?.sources) return { inputs, exports };
-    const stageBlocks = flattenBlocks(definition.stages.find(stage => flattenBlocks(stage.blocks).includes(block))?.blocks || []);
-    const source = block.from === undefined ? null
-      : { block: block.from, inStage: stageBlocks.some(other => other.id === block.from && other !== block) };
-    return { inputs, exports, source };
+    return { inputs, exports };
   }
 
-  // Connects the block's `port` to `variable`, or disconnects it when that is null. A
-  // variable of an earlier stage gets a context line, as the model needs it; the line of
-  // the variable read before goes once no block of the stage reads it, while lines only
-  // the model reads stay. Returns the labels of the lines added and removed.
+  // Connects the block's `port` to `variable`. A variable of an earlier stage gets a
+  // context line, as the model needs it; the line of the variable read before goes once
+  // no block of the stage reads it, while lines only the model reads stay. Returns the
+  // labels of the lines added and removed.
   function setInputSource(definition, stage, block, port, variable) {
     const previous = block.inputs?.[port] ?? null;
-    if (variable === null) {
-      const { [port]: _removed, ...inputs } = block.inputs || {};
-      if (Object.keys(inputs).length > 0) block.inputs = inputs;
-      else delete block.inputs;
-    } else {
-      block.inputs = { ...block.inputs, [port]: variable };
-    }
+    block.inputs = { ...block.inputs, [port]: variable };
 
     const producers = variableProducers(definition);
     const passes = name => contextLines(stage).some(line => line.source === 'var' && line.name === name);
     const addedLines = [];
-    if (variable !== null && producers.get(variable)?.stage !== stage && !passes(variable)) {
+    if (producers.get(variable)?.stage !== stage && !passes(variable)) {
       addedLines.push(addContextLine(stage, 'var', variable));
     }
     let removedLines = [];
@@ -422,23 +399,6 @@
     return [...new Set([...sources, ...sharedFields(block, stage).map(({ owner }) => owner.id)])];
   }
 
-  // What a block built from another block may be built from: every block of the stage
-  // its control takes, in stage order, then its `from` when that is none of them.
-  // `chosen` marks the block's own source.
-  function sourceOptions(stage, block, controls) {
-    const current = block.from;
-    const accepts = controls.get(block.control)?.sources?.accepts || [];
-    const ids = flattenBlocks(stage.blocks)
-      .filter(candidate => candidate !== block && candidate.kind !== 'static' && accepts.includes(candidate.control))
-      .map(candidate => candidate.id);
-    if (current !== undefined && !ids.includes(current)) ids.push(current);
-    return ids.map(id => ({ block: id, chosen: id === current }));
-  }
-
-  function setSource(block, id) {
-    block.from = id;
-  }
-
   // A task's answer key is on or off; turned on, it starts with the defaults.
   function setAnswerKey(block, on) {
     if (on) block.answerKey = block.answerKey || {};
@@ -464,14 +424,11 @@
   // What goes away with a block, a row or a stage (`target` is `{ block }` or `{ stage }`;
   // a row is a block). A deleted block takes its variables with it, and the loop goes on
   // until nothing else breaks:
-  //   - a required input reading a gone variable takes its block too; an optional one is
-  //     unbound;
-  //   - a block built from a deleted block goes;
+  //   - a block whose input reads a gone variable goes;
   //   - a static block whose slot reads a deleted block, or that uses a field of one, goes.
   // Then emptied rows and stages go, and context lines lose the gone variables.
-  // `controls` maps a control type to `{ inputs: { <port>: { required } } }`.
   // The definition is not changed: `applyDeletion` does it once the user agrees.
-  function deletionPlan(definition, target, controls) {
+  function deletionPlan(definition, target) {
     const entries = [];
     for (const stage of definition.stages) {
       for (const block of stage.blocks) {
@@ -488,11 +445,9 @@
     const goneVariables = () => new Set(entries
       .filter(({ block }) => deleted.has(block.id))
       .flatMap(({ block }) => Object.values(block.exports || {})));
-    const isRequired = (block, port) => controls.get(block.control)?.inputs?.[port]?.required !== false;
     const breaks = (block, stage, gone) => {
       if (block.kind === 'static') return fieldSources(block, stage).some(source => deleted.has(source));
-      return Object.entries(block.inputs || {}).some(([port, variable]) => gone.has(variable) && isRequired(block, port))
-        || deleted.has(block.from);
+      return Object.values(block.inputs || {}).some(variable => gone.has(variable));
     };
     let grown = true;
     while (grown) {
@@ -518,9 +473,6 @@
       blocks: entries.filter(({ block }) => deleted.has(block.id))
         .map(({ block, stage }) => ({ block: block.id, stage: stage.id })),
       stages,
-      unbound: kept.flatMap(({ block, stage }) => Object.entries(block.inputs || {})
-        .filter(([, variable]) => gone.has(variable))
-        .map(([port, variable]) => ({ block: block.id, stage: stage.id, port, variable }))),
       context: keptStages.flatMap(stage => contextLines(stage)
         .filter(line => line.source === 'var' && gone.has(line.name))
         .map(line => ({ stage: stage.id, label: line.label }))),
@@ -542,12 +494,6 @@
       });
     }
 
-    const blocks = new Map(definition.stages.flatMap(stage => flattenBlocks(stage.blocks)).map(block => [block.id, block]));
-    for (const { block: id, port } of plan.unbound) {
-      const block = blocks.get(id);
-      delete block.inputs[port];
-      if (Object.keys(block.inputs).length === 0) delete block.inputs;
-    }
     for (const stage of definition.stages) {
       const labels = new Set(plan.context.filter(line => line.stage === stage.id).map(line => line.label));
       if (labels.size > 0) setContextLines(stage, contextLines(stage).filter(line => !labels.has(line.label)));
@@ -563,17 +509,13 @@
     throw new Error(`No block ${id} among the stage blocks.`);
   }
 
-  // Whether `reader` may read a variable of `producer` in one stage: a generated block
-  // reads only a generated one, which the model writes in the same answer, and only when
-  // its control can (`sameStage` of the input).
-  function readsInStage(reader, port, producer, controls) {
-    if (reader.kind !== 'generated') return true;
-    return producer.kind === 'generated' && controls.get(reader.control)?.inputs?.[port]?.sameStage === true;
-  }
+  // Whether `reader` may read a variable of its own stage: a generated block may not, as
+  // the model writes the stage in one answer.
+  const readsInStage = reader => reader.kind !== 'generated';
 
   // What keeps the block or row `id` out of the stage `targetId`, links within a row aside:
-  //   - `builtFrom`: it is built from blocks of its stage (`from`, a slot's `from` or a
-  //     field another block describes);
+  //   - `builtFrom`: it is built from blocks of its stage (a slot's `from` or a field
+  //     another block describes);
   //   - `usedBy`: blocks of its stage are built from it;
   //   - `input`: its input reads a block of a later stage, or of the target one where the
   //     block cannot read it (`inStage` tells whether that stage would do);
@@ -589,14 +531,11 @@
     const target = position(targetId);
     const blockers = [];
 
-    const builtFrom = blocks.flatMap(block => [
-      ...(block.from === undefined ? [] : [block.from]),
-      ...fieldSources(block, home),
-    ]).filter(source => !ids.has(source));
+    const builtFrom = blocks.flatMap(block => fieldSources(block, home)).filter(source => !ids.has(source));
     if (builtFrom.length > 0) blockers.push({ kind: 'builtFrom', blocks: [...new Set(builtFrom)] });
     const usedBy = flattenBlocks(home.blocks)
       .filter(block => !ids.has(block.id))
-      .filter(block => ids.has(block.from) || fieldSources(block, home).some(source => ids.has(source)))
+      .filter(block => fieldSources(block, home).some(source => ids.has(source)))
       .map(block => block.id);
     if (usedBy.length > 0) blockers.push({ kind: 'usedBy', blocks: usedBy });
 
@@ -606,11 +545,11 @@
       return controls.get(producer.block.control)?.outputs?.[producer.port]?.type;
     };
     for (const block of blocks) {
-      for (const [port, variable] of Object.entries(block.inputs || {})) {
+      for (const variable of Object.values(block.inputs || {})) {
         const producer = producers.get(variable);
         if (!producer || ids.has(producer.block.id)) continue;
         const at = position(producer.stage.id);
-        const inStage = readsInStage(block, port, producer.block, controls);
+        const inStage = readsInStage(block);
         if (at > target || (at === target && !inStage)) {
           blockers.push({ kind: 'input', block: producer.block.id, stage: producer.stage.id, inStage, type: typeOf(variable) });
         }
@@ -623,10 +562,10 @@
       let readByBlock = false;
       for (const reader of flattenBlocks(stage.blocks)) {
         if (ids.has(reader.id)) continue;
-        for (const [port, variable] of Object.entries(reader.inputs || {})) {
+        for (const variable of Object.values(reader.inputs || {})) {
           if (!variables.has(variable)) continue;
           readByBlock = true;
-          const inStage = readsInStage(reader, port, producers.get(variable).block, controls);
+          const inStage = readsInStage(reader);
           if (at < target || (at === target && !inStage)) {
             blockers.push({ kind: 'reader', block: reader.id, stage: stage.id, inStage, type: typeOf(variable) });
           }
@@ -853,8 +792,6 @@
     plannedLinks,
     blockLinks,
     setInputSource,
-    sourceOptions,
-    setSource,
     setAnswerKey,
     setAnswerKeySetting,
     setAnswerKeyPartTitle,
