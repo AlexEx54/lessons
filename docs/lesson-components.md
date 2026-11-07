@@ -470,6 +470,39 @@ review-редакторе администратор может менять т�
 Для стадии Wrap-Up типичный порядок такой: `teacherNote`, `threeTwoOne`,
 `selfAssessment`, затем `markdownCard` с `Possible language:`.
 
+## Homework Writing
+
+`homeworkWriting` — письменная домашка: ученик пишет текст заданного объёма и
+сдаёт его, учитель ставит от 1 до 5 звёзд с комментарием или возвращает текст на
+доработку. Иллюстрация общая для всех уроков (`/assets/images/homework-writing.webp`),
+в JSON её нет.
+
+```json
+{
+  "type": "homeworkWriting",
+  "id": "homework-comment",
+  "title": "Post Your Comment",
+  "instruction": "Write your text, then hand it in. Your teacher will check it.",
+  "task": "Write a comment of 50–70 words for your class group chat: *Should our school ban phones?*",
+  "minWords": 50,
+  "maxWords": 70
+}
+```
+
+Поля:
+
+- `type` — строго `homeworkWriting`.
+- `id` — обязательный уникальный lowercase kebab-case идентификатор.
+- `title`, `instruction` — обязательные непустые однострочные строки без HTML.
+- `task` — обязательный Markdown задания; в шаблоне может содержать `{{поле}}` для ИИ.
+- `minWords`, `maxWords` — целые от 10 до 400, `minWords` не больше `maxWords`.
+  Ученик сдаёт текст, когда набрал `minWords` слов; больше `maxWords` можно, счётчик
+  тогда жёлтый.
+
+Работа ученика живёт в состоянии занятия, не в уроке. В review-редакторе
+администратор меняет заголовок, инструкцию, задание и объём; `type` и `id`
+неизменяемы.
+
 ## Text Panel
 
 `textPanel` показывает простой текстовый блок с настраиваемыми цветами фона и

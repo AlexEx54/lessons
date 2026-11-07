@@ -17,6 +17,7 @@
     audioPlayer: ['AudioPlayerComponent', 'normalizeAudioPlayer', './components/audio-player.js'],
     howToPlay: ['HowToPlayComponent', 'normalizeHowToPlay', './components/how-to-play.js'],
     selfAssessment: ['SelfAssessmentComponent', 'normalizeSelfAssessment', './components/self-assessment.js'],
+    homeworkWriting: ['HomeworkWritingComponent', 'normalizeHomeworkWriting', './components/homework-writing.js'],
   };
 
   const isStaticType = type => Object.hasOwn(STATIC_COMPONENTS, type);
@@ -88,6 +89,25 @@
       group: 'notes',
       description: 'Ученик оценивает, как прошёл урок.',
       sample: { type: 'selfAssessment', title: 'How do you feel about today’s lesson?' },
+    },
+    homeworkWriting: {
+      label: 'Домашнее письмо',
+      group: 'notes',
+      description: 'Ученик пишет и сдаёт текст, учитель ставит оценку и пишет комментарий.',
+      sample: {
+        type: 'homeworkWriting',
+        title: 'Your Homework',
+        instruction: 'Write your text, then hand it in. Your teacher will check it.',
+        task: 'Write a short text about the topic of the lesson.',
+        minWords: 50,
+        maxWords: 70,
+      },
+      aiFields: {
+        task: {
+          name: 'homeworkTask',
+          rule: 'A short homework writing task on the topic of the lesson that reviews its grammar and words. Name the target grammar form in **bold**. No heading.',
+        },
+      },
     },
     multipleChoice: {
       label: 'Выбор ответа',

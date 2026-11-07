@@ -265,6 +265,14 @@
       },
       onError: showToast,
     }),
+    homeworkWriting: () => ({
+      onSave: state.draftStatus === 'review' ? saveHomeworkWriting : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+      onError: showToast,
+    }),
     textPanel: () => ({
       onSave: state.draftStatus === 'review' ? saveTextPanel : undefined,
       onDirtyChange: (dirty, panelId) => {
@@ -522,6 +530,10 @@
 
   function findSelfAssessment(lesson, componentId) {
     return findComponent(lesson, 'selfAssessment', componentId);
+  }
+
+  function findHomeworkWriting(lesson, componentId) {
+    return findComponent(lesson, 'homeworkWriting', componentId);
   }
 
   function thisOrThatImageUrl(componentId, itemId, optionId) {
@@ -1430,6 +1442,31 @@
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить Self-assessment.');
+      throw error;
+    }
+  }
+
+  async function saveHomeworkWriting(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/homework-writing/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить домашнее задание.');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findHomeworkWriting(state.lesson, componentId);
+      if (!saved) throw new Error('Сохранённое домашнее задание не найдено в черновике.');
+      showToast('Домашнее задание сохранено.');
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить домашнее задание.');
       throw error;
     }
   }

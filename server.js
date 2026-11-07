@@ -73,6 +73,7 @@ const {
   updateSpeakingSupport,
   updateThreeTwoOne,
   updateSelfAssessment,
+  updateHomeworkWriting,
   updateFillInBlanks,
   updateDragWordsInText,
   updateDropdownChoice,
@@ -858,6 +859,19 @@ function getSpeakingSupportRouteParams(pathname) {
 
 function getThreeTwoOneRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/three-two-one\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getHomeworkWritingRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/homework-writing\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -2391,6 +2405,7 @@ async function handleRequest(req, res) {
     const speakingSupportRoute = getSpeakingSupportRouteParams(pathname);
     const threeTwoOneRoute = getThreeTwoOneRouteParams(pathname);
     const selfAssessmentRoute = getSelfAssessmentRouteParams(pathname);
+    const homeworkWritingRoute = getHomeworkWritingRouteParams(pathname);
     const textPanelRoute = getTextPanelRouteParams(pathname);
     const illustratedTextPanelRoute = getIllustratedTextPanelRouteParams(pathname);
     const guidedCommunicationCardsRoute = getGuidedCommunicationCardsRouteParams(pathname);
@@ -2419,6 +2434,7 @@ async function handleRequest(req, res) {
       && (!speakingSupportRoute || !speakingSupportRoute.draftId || !speakingSupportRoute.componentId)
       && (!threeTwoOneRoute || !threeTwoOneRoute.draftId || !threeTwoOneRoute.componentId)
       && (!selfAssessmentRoute || !selfAssessmentRoute.draftId || !selfAssessmentRoute.componentId)
+      && (!homeworkWritingRoute || !homeworkWritingRoute.draftId || !homeworkWritingRoute.componentId)
       && (!textPanelRoute || !textPanelRoute.draftId || !textPanelRoute.panelId)
       && (!illustratedTextPanelRoute || !illustratedTextPanelRoute.draftId || !illustratedTextPanelRoute.panelId)
       && (!guidedCommunicationCardsRoute || !guidedCommunicationCardsRoute.draftId || !guidedCommunicationCardsRoute.componentId)
@@ -2623,6 +2639,17 @@ async function handleRequest(req, res) {
           ownerAdminId: user.id,
           componentId: selfAssessmentRoute.componentId,
           title: body.title,
+        }, database);
+      } else if (homeworkWritingRoute) {
+        draft = updateHomeworkWriting({
+          id: homeworkWritingRoute.draftId,
+          ownerAdminId: user.id,
+          componentId: homeworkWritingRoute.componentId,
+          title: body.title,
+          instruction: body.instruction,
+          task: body.task,
+          minWords: body.minWords,
+          maxWords: body.maxWords,
         }, database);
       } else if (textPanelRoute) {
         draft = updateTextPanel({

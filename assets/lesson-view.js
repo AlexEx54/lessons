@@ -20,6 +20,7 @@
     speakingSupport: ['SpeakingSupportComponent', 'renderSpeakingSupport'],
     threeTwoOne: ['ThreeTwoOneComponent', 'renderThreeTwoOne'],
     selfAssessment: ['SelfAssessmentComponent', 'renderSelfAssessment'],
+    homeworkWriting: ['HomeworkWritingComponent', 'renderHomeworkWriting'],
     textPanel: ['TextPanelComponent', 'renderTextPanel'],
     illustratedTextPanel: ['IllustratedTextPanelComponent', 'renderIllustratedTextPanel'],
     miniSituation: ['MiniSituationComponent', 'renderMiniSituation'],
