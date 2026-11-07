@@ -33,7 +33,10 @@ test('generated Template 2 Target Vocabulary builds stories, guess answers and a
     '**2.** Somebody in our stories lost a hat at the beach. — **MYTH** · Tom: “I wore my hat all day.”',
   ].join('\n\n'));
   assert.equal(meanings.items[0].question, 'What does “go camping” mean?');
-  assert.deepEqual(meanings.items[1].options, ['wrong meaning of tent', 'meaning of tent']);
+  assert.equal(meanings.variant, 'compact');
+  assert.deepEqual([...meanings.items[1].options].sort(), ['meaning of tent', 'wrong meaning of tent']);
+  assert.equal(meanings.items[1].answer, 'meaning of tent');
+  assert.equal(Object.hasOwn(meanings.items[1], 'explanation'), false);
   assert.match(context.text, /^Meet Sam\. He \[\[context-1\]\] with friends\./);
   assert.ok(context.choices.every((choice, index) => choice.answer === GENERATED.contextChoices[index].answer
     && choice.options.includes(choice.answer)));

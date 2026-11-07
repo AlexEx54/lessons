@@ -202,6 +202,36 @@ test('a dropdown block with explanations asks for them and keys them in a second
   assert.throws(() => control.build({ text: '**1.** He [[1]] a cape.', choices: [choice] }, context), /не заполнено: пояснение в пропуске 1/);
 });
 
+// Questions on the words of the lesson: no explanations, the compact look; a checkbox
+// choice has no compact look and keeps its explanations for the key.
+test('a choice questions block without explanations asks for none and keys the letters only', () => {
+  const control = CONTROL_CATALOG.get('choiceQuestions');
+  const run = (params, chrome) => {
+    const definition = singleBlockTemplate(control, { questions: 2, options: 2, ...params });
+    definition.stages[1].blocks[0].chrome = chrome;
+    const template = compileTemplate(definition, CONTROL_CATALOG);
+    const { schema, messages } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
+    const [task, key] = exampleRun(template).lesson.stages[1].content;
+    return { schema, system: messages[0].content, task, key: key.sections.map(section => section.text) };
+  };
+  const plain = run({ explanations: false }, { variant: 'compact' });
+  assert.deepEqual(plain.schema.properties.questions.items.required, ['question', 'options', 'answer']);
+  assert.doesNotMatch(plain.system, /explanation/);
+  assert.equal(plain.task.variant, 'compact');
+  assert.equal(plain.task.items.some(item => Object.hasOwn(item, 'explanation')), false);
+  assert.deepEqual(plain.key.map(text => text.replace(/[AB]/, '?')), ['1?', '2?']);
+
+  const explained = run({}, {});
+  assert.deepEqual(explained.schema.properties.questions.items.required, ['question', 'options', 'answer', 'explanation']);
+  assert.equal(explained.task.variant, undefined);
+  assert.match(explained.key[0], /^1[AB] — The text says so/);
+
+  const checkboxes = run({ options: 3, maxAnswers: 2 }, { variant: 'compact' });
+  assert.equal(checkboxes.task.type, 'checkboxChoice');
+  assert.equal(Object.hasOwn(checkboxes.task, 'variant'), false);
+  assert.match(checkboxes.key[0], / — The text says so/);
+});
+
 // A dialogue and numbered sentences are the same control: the look of the text is in the
 // instructions, the cues are a flag.
 test('a typed-gaps block numbers its gaps in the text and shows cues only when they are on', () => {

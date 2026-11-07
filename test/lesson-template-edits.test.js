@@ -195,34 +195,18 @@ test('an input takes the nearest source of its type; a source of another stage j
   assert.deepEqual(stage(definition, 'watch-and-interact').context, { 'Target vocabulary': '$var.targetVocabulary' });
   assert.deepEqual(problems(definition), []);
 
-  // Words of the stage itself come first for a block built without the model.
-  const own = addBlock(definition, 'grammar-focus', 'vocabularyList').block;
-  assert.deepEqual(addBlock(definition, 'grammar-focus', 'vocabularyMeanings').block.inputs, { vocabulary: own.exports.vocabulary });
-  assert.deepEqual(problems(definition), []);
-  const sources = (kind, input) => Edits.inputSources(definition, stage(definition, 'grammar-focus'), kind, input, controls)
+  // The model writes the words of the stage itself in the same answer: they are no source.
+  addBlock(definition, 'grammar-focus', 'vocabularyList');
+  const sources = Edits.inputSources(definition, stage(definition, 'grammar-focus'), 'generated', { type: 'vocabulary' }, controls)
     .map(source => [source.variable, source.sameStage]);
-  const both = [['vocabulary', true], ['targetVocabulary', false]];
-  assert.deepEqual(sources('generated', { type: 'vocabulary' }), [['targetVocabulary', false]]);
-  assert.deepEqual(sources('derived', { type: 'vocabulary' }), both);
-  assert.deepEqual(sources('derived', { type: 'statements' }), [['leadInGuesses', false]]);
+  assert.deepEqual(sources, [['targetVocabulary', false]]);
 });
 
-test('without a source an input stays unbound; a source without a required feature is linked and reported', () => {
+test('without a source an input stays unbound', () => {
   const definition = templateTwo();
-  const early = addBlock(definition, 'lead-in', 'vocabularyMeanings').block;
+  const early = addBlock(definition, 'lead-in', 'communicationCards').block;
   assert.equal(early.inputs, undefined);
-
-  stage(definition, 'target-vocabulary').blocks.find(block => block.id === 'target-vocabulary-card').params.distractors = false;
-  const links = Edits.plannedLinks(definition, stage(definition, 'wrap-up'), controls.get('vocabularyMeanings'), controls);
-  assert.deepEqual(links.inputs.vocabulary.missing, ['distractor']);
-  const meanings = addBlock(definition, 'wrap-up', 'vocabularyMeanings').block;
-  assert.deepEqual(meanings.inputs, { vocabulary: 'targetVocabulary' });
-
-  assert.deepEqual(problems(definition), [
-    'Блоку lead-in-vocabulary-meanings нужен вход vocabulary (словарь).',
-    'Вход vocabulary блока target-vocabulary-meanings требует у targetVocabulary: distractor.',
-    'Вход vocabulary блока wrap-up-vocabulary-meanings требует у targetVocabulary: distractor.',
-  ]);
+  assert.deepEqual(problems(definition), ['Блоку lead-in-communication-cards нужен вход vocabulary (словарь).']);
 });
 
 const block = (definition, id) => definition.stages.flatMap(item => Edits.flattenBlocks(item.blocks)).find(item => item.id === id);
@@ -240,14 +224,14 @@ test('a block’s links come from the definition, unconnected inputs included', 
       },
     },
   });
-  assert.deepEqual(links('target-vocabulary-meanings').inputs.vocabulary, {
+  assert.deepEqual(links('guided-communication-cards').inputs.vocabulary, {
     type: 'vocabulary', variable: 'targetVocabulary', from: { block: 'target-vocabulary-card', stage: 'target-vocabulary' },
   });
 
-  delete block(definition, 'target-vocabulary-meanings').inputs;
-  assert.deepEqual(links('target-vocabulary-meanings').inputs.vocabulary, { type: 'vocabulary', variable: null, from: null });
-  block(definition, 'target-vocabulary-meanings').inputs = { vocabulary: 'gone' };
-  assert.equal(links('target-vocabulary-meanings').inputs.vocabulary.from, null);
+  delete block(definition, 'guided-communication-cards').inputs;
+  assert.deepEqual(links('guided-communication-cards').inputs.vocabulary, { type: 'vocabulary', variable: null, from: null });
+  block(definition, 'guided-communication-cards').inputs = { vocabulary: 'gone' };
+  assert.equal(links('guided-communication-cards').inputs.vocabulary.from, null);
 });
 
 test('a block never lists itself among the sources of its input', () => {
@@ -286,18 +270,10 @@ test('another source of an earlier stage joins the context; the line read before
   assert.deepEqual(problems(definition), []);
 });
 
-test('a source of the stage itself needs no line; an unconnected input is the server’s problem', () => {
+test('an unconnected input is the server’s problem', () => {
   const definition = templateTwo();
-  const vocabulary = stage(definition, 'target-vocabulary');
-  const context = structuredClone(vocabulary.context);
-  const meanings = block(definition, 'target-vocabulary-meanings');
-  const words = addBlock(definition, 'target-vocabulary', 'vocabularyList').block.exports.vocabulary;
-  assert.deepEqual(Edits.setInputSource(definition, vocabulary, meanings, 'vocabulary', words), { addedLines: [], removedLines: [] });
-  assert.deepEqual(meanings.inputs, { vocabulary: words });
-  assert.deepEqual(vocabulary.context, context);
-
-  delete meanings.inputs;
-  assert.deepEqual(problems(definition), ['Блоку target-vocabulary-meanings нужен вход vocabulary (словарь).']);
+  delete block(definition, 'guided-communication-cards').inputs;
+  assert.deepEqual(problems(definition), ['Блоку guided-communication-cards нужен вход vocabulary (словарь).']);
 });
 
 const templateOne = () => structuredClone(findSystemTemplate('template-1').definition);
@@ -333,7 +309,6 @@ test('a deleted block takes its readers and slots with it', () => {
   const plan = Edits.deletionPlan(definition, { block: 'target-vocabulary-card' });
   assert.deepEqual(blockIds(plan), [
     'target-vocabulary-card',
-    'target-vocabulary-meanings',
     'guided-communication-cards',
   ]);
   assert.deepEqual(plan.context.map(line => line.stage), ['grammar-presentation', 'grammar-focus', 'guided-speaking', 'wrap-up']);
@@ -428,13 +403,11 @@ test('a block goes no higher than its sources and no lower than its readers', ()
   const definition = templateTwo();
   // The vocabulary may go up: its readers below then take it through the context.
   assert.deepEqual(blockersOf(definition, 'target-vocabulary-card', 'lead-in'), []);
-  assert.deepEqual(blockersOf(definition, 'target-vocabulary-card', 'grammar-presentation'), [
-    'reader target-vocabulary-meanings target-vocabulary',
-  ]);
-  assert.deepEqual(blockersOf(definition, 'target-vocabulary-meanings', 'lead-in'), [
+  assert.deepEqual(blockersOf(definition, 'target-vocabulary-card', 'grammar-presentation'), []);
+  assert.deepEqual(blockersOf(definition, 'guided-communication-cards', 'lead-in'), [
     'input target-vocabulary-card target-vocabulary',
   ]);
-  assert.deepEqual(blockersOf(definition, 'target-vocabulary-meanings', 'wrap-up'), []);
+  assert.deepEqual(blockersOf(definition, 'guided-communication-cards', 'wrap-up'), []);
 
   // The communication cards cannot be written in one answer with the vocabulary they take.
   assert.deepEqual(Edits.moveBlockers(definition, 'guided-communication-cards', 'target-vocabulary', controls).filter(({ kind }) => kind === 'input'), [
@@ -455,20 +428,11 @@ test('a moved block goes to the end of the stage; context lines follow its links
   const definition = templateTwo();
   const moved = Edits.moveToStage(definition, 'target-vocabulary-card', 'lead-in', controls);
   assert.equal(stageBlockIds(definition, 'lead-in').at(-1), 'target-vocabulary-card');
-  assert.deepEqual(moved, {
-    addedLines: [{ stage: 'target-vocabulary', label: 'Target vocabulary' }],
-    removedLines: [],
-  });
+  // Its readers in later stages take it through the lines they have already.
+  assert.deepEqual(moved, { addedLines: [], removedLines: [] });
   assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
 
-  // Back home: a line on the stage's own variable goes.
-  assert.deepEqual(Edits.moveToStage(definition, 'target-vocabulary-card', 'target-vocabulary', controls), {
-    addedLines: [],
-    removedLines: [{ stage: 'target-vocabulary', label: 'Target vocabulary' }],
-  });
-  assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
-
-  const watch = Edits.moveToStage(definition, 'target-vocabulary-meanings', 'watch-and-interact', controls);
+  const watch = Edits.moveToStage(definition, 'guided-communication-cards', 'watch-and-interact', controls);
   assert.deepEqual(watch.addedLines, [{ stage: 'watch-and-interact', label: 'Target vocabulary' }]);
 });
 

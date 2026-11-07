@@ -592,8 +592,11 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
       { name: 'Eva', emoji: '✈️', text: 'I flew to Spain. I showed my **passport** and found my **seat** by the window.' },
       { name: 'Max', emoji: '🗺️', text: 'I walked around the city with a **map**. It was a great **journey**.' },
     ],
-    vocabularyItems: terms.map(term => ({ term, definition: `meaning of ${term}`, distractor: `wrong meaning of ${term}` })),
+    vocabularyItems: terms.map(term => ({ term, definition: `meaning of ${term}` })),
     guessAnswers: '**1.** Somebody in our stories missed a train. — **FACT** · Kate: “I missed a train last week.”\n\n**2.** Somebody in our stories travelled by boat. — **MYTH** · Ben: “I travelled by bus to my aunt.”',
+    meaningQuestions: terms.map(term => ({
+      question: `What does “${term}” mean?`, options: [`meaning of ${term}`, `wrong meaning of ${term}`], answer: `meaning of ${term}`,
+    })),
     contextText: terms.slice(0, 8).map((term, index) => `Word [[${index + 1}]].`).join(' '),
     contextChoices: terms.slice(0, 8).map(answer => ({ options: [answer, 'map', 'bus stop'], answer })),
     dragSentences: terms.slice(0, 6).map(term => `I need a [[${term}]].`),

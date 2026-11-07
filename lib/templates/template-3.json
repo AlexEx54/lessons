@@ -124,8 +124,7 @@
           "kind": "generated",
           "control": "vocabularyList",
           "params": {
-            "items": 8,
-            "distractors": false
+            "items": 8
           },
           "fields": {
             "items": "vocabularyItems"

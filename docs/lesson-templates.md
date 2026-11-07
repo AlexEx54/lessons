@@ -27,7 +27,7 @@
   собирает из них компонент. «Обвес» компонента (заголовок, инструкция, цвета,
   видимость) задаётся в шаблоне в `chrome` и нейросети не передаётся.
 - **`derived`** — компонент, который строится без нейросети из переменных.
-  Пример: Vocabulary meanings quiz.
+  Сейчас таких контролов нет.
 - **`row`** — контейнер `cardRow` с вложенными блоками.
 
 Static-блок может содержать **слоты**: `{{name}}` в любом текстовом поле и описание
@@ -99,7 +99,6 @@ Concept-checking questions в Grammar Presentation обоих шаблонов) 
 ```
 factOrMyth          out: guessStatements : statements
 vocabularyList      out: vocabulary      : vocabulary
-vocabularyMeanings  in:  vocabulary      : vocabulary   (с дистракторами)
 communicationCards  in:  vocabulary      : vocabulary
 ```
 
@@ -109,7 +108,7 @@ communicationCards  in:  vocabulary      : vocabulary
 { "id": "lead-in-fact-or-myth", "control": "factOrMyth",
   "exports": { "guessStatements": "leadInGuesses" } }
 
-{ "id": "target-vocabulary-meanings", "kind": "derived", "control": "vocabularyMeanings",
+{ "id": "guided-communication-cards", "control": "communicationCards",
   "inputs": { "vocabulary": "targetVocabulary" } }
 ```
 
@@ -117,7 +116,7 @@ communicationCards  in:  vocabulary      : vocabulary
 
 | Тип | Форма | В промпте |
 |---|---|---|
-| `vocabulary` | `[{ term, definition, distractor? }]` | `Target Vocabulary: ["…", …]` (только термины) |
+| `vocabulary` | `[{ term, definition }]` | `Target Vocabulary: ["…", …]` (только термины) |
 | `statements` | `[{ number, text }]` | нумерованный список |
 | `text` | строка | как есть |
 
@@ -140,8 +139,9 @@ communicationCards  in:  vocabulary      : vocabulary
   exactly one story…».
 - **Поле из того же этапа** нейросеть пишет в том же ответе. Указания ссылаются на
   него по имени: истории Target Vocabulary выделяют жирным каждый term из
-  `vocabularyItems`. Переменную своего этапа читает только блок, который
-  собирается без нейросети, например Vocabulary meanings quiz.
+  `vocabularyItems`, а значения слов (`choiceQuestions`) спрашивают о каждом
+  term из `vocabularyItems` и берут из него definition как ответ. Переменную
+  своего этапа читает только `derived`-блок.
 
 ### Что производителю знать о потребителе
 
@@ -165,8 +165,7 @@ statements and answer them.» Если в копии удалить истори
   берёт переменные только из более ранних этапов: свой этап нейросеть пишет
   одним ответом.
 - Между этапами нет циклов.
-- Типы портов совпадают. Например, `vocabularyMeanings` требует `vocabulary` с
-  дистракторами, то есть `vocabularyList` с `distractors: true`.
+- Типы портов совпадают. Например, `communicationCards` ждёт `vocabulary`.
 - Параметры укладываются в пределы, заданные контролом.
 - Удалённый блок забирает с собой блоки, которые читают его переменную;
   редактор перечисляет их в диалоге удаления.
@@ -215,6 +214,9 @@ module.exports = {
   Так же `cueGaps` — и диалог (Grammar Focus Task 2 в шаблоне 1), и
   нумерованные предложения или сообщения чата: пропуски `[[1]]`…`[[n]]` в
   тексте, подсказки в пропусках включает флажок.
+  `choiceQuestions` — и вопросы к тексту или аудио, и значения слов урока:
+  вопрос на каждое слово, ответ — его определение; пояснения к ответам
+  выключает флажок, компактный вид без букв задаёт оформление.
   У `personalizedQuestions` указания говорят, нужны ли в вопросах слова
   урока, у `describeAndGuess` — какие слова описывать в игре, у
   `readingText` — сколько слов урока взять в текст, у `roleCards` — сколько
@@ -336,8 +338,8 @@ OpenRouter, метаданные урока (обложка) и описание
 
 - **Warm Up** — слово-пример в заметке берётся слотом
   `{ "from": "warm-up-odd-one-out.items[0].answer", "capitalize": true }`.
-- **Target Vocabulary** — `vocabularyList` отдаёт `targetVocabulary`, его берёт
-  Vocabulary meanings quiz; указания историй, Dropdown, Drag, Extra Task и личных
+- **Target Vocabulary** — `vocabularyList` отдаёт `targetVocabulary` следующим
+  этапам; указания историй, значений слов, Dropdown, Drag, Extra Task и личных
   вопросов ссылаются на `vocabularyItems`. Истории отвечают на догадки Lead-In
   из строки контекста, а «Lead-In: Check Your Guesses» — статичная карточка
   для учителя со слотом `guessAnswers`: правило слота задаёт вид строки
@@ -370,7 +372,7 @@ warm-up, watch-and-interact — без связей
 | `factOrMyth` | factOrMyth | → statements |
 | `vocabularyList` | markdownCard | → vocabulary |
 | `storyCards` | storyCards | |
-| `vocabularyMeanings` *derived* | multipleChoice | vocabulary (с дистракторами) |
+| `choiceQuestions` | multipleChoice или checkboxChoice (в шаблоне 2 — значения слов: без пояснений, компактный вид) | |
 | `contextDropdown` | dropdownChoice (с пояснениями — и выбор формы в предложениях) | |
 | `dragSentences` | dragWordsInText (с лишними вариантами — и «Complete the Rule») | |
 | `translationHints` | gapFill | |
@@ -384,7 +386,7 @@ warm-up, watch-and-interact — без связей
 | `communicationCards` | guidedCommunicationCards | vocabulary (выбор N слов) |
 | `threeTwoOne` | threeTwoOne | |
 
-Шаблону 1 нужны ещё 10:
+Шаблону 1 нужны ещё 8:
 
 | Контрол | Компонент | Входы → выходы |
 |---|---|---|
@@ -393,14 +395,13 @@ warm-up, watch-and-interact — без связей
 | `fillInBlanks` | fillInBlanks | |
 | `describeAndGuess` | describeAndGuess | |
 | `readingText` | textReading | → text |
-| `choiceQuestions` | multipleChoice или checkboxChoice | |
 | `miniSituation` | miniSituation | |
 | `roleCards` | guidedRoleCards | |
 | `speakingSupport` | speakingSupport | |
 
-Общие для обоих шаблонов: `vocabularyList`, `contextDropdown`,
+Общие для обоих шаблонов: `vocabularyList`, `choiceQuestions`, `contextDropdown`,
 `personalizedQuestions`, `dragSentences`, `quickRule`, `cueGaps`,
-`threeTwoOne`. Всего 28 контролов.
+`threeTwoOne`. Всего 25 контролов.
 
 Для шаблона 3 добавлен `sentenceBuilder` (компонент sentenceBuilder, без входов):
 предложения с фразами в `[скобках]` и другими верными порядками, см.

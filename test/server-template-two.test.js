@@ -239,7 +239,6 @@ test('template two creation and editing update the answer key atomically', async
   assert.equal(meanings.variant, 'compact');
   assert.equal(meanings.items.length, 10);
   assert.ok(meanings.items.every(item => item.options.length === 2 && item.options.includes(item.answer)));
-  assert.equal(meanings.items.filter(item => item.options[0] === item.answer).length, 5);
   assert.equal(context.choices.length, 8);
   const { normalizeDropdownChoice } = require('../assets/components/dropdown-choice.js');
   assert.deepEqual(normalizeDropdownChoice(context), context);

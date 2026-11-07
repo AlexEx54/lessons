@@ -242,8 +242,7 @@
           "kind": "generated",
           "control": "vocabularyList",
           "params": {
-            "items": 10,
-            "distractors": false
+            "items": 10
           },
           "fields": {
             "items": "vocabularyItems"

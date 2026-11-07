@@ -179,8 +179,7 @@
           "kind": "generated",
           "control": "vocabularyList",
           "params": {
-            "items": 10,
-            "distractors": true
+            "items": 10
           },
           "fields": {
             "items": "vocabularyItems"
@@ -236,14 +235,106 @@
         },
         {
           "id": "target-vocabulary-meanings",
-          "kind": "derived",
-          "control": "vocabularyMeanings",
-          "inputs": {
-            "vocabulary": "targetVocabulary"
+          "kind": "generated",
+          "control": "choiceQuestions",
+          "params": {
+            "questions": 10,
+            "options": 2,
+            "maxAnswers": 1,
+            "explanations": false
+          },
+          "fields": {
+            "questions": "meaningQuestions"
           },
           "chrome": {
             "title": "Task 2. Choose the correct meaning for the words from the text.",
-            "instruction": "Choose one answer for each question."
+            "instruction": "Choose one answer for each question.",
+            "variant": "compact"
+          },
+          "instructions": "One question for each term of vocabularyItems, in the same order: What does “term” mean? with the term exactly as in vocabularyItems.\nThe answer is the definition of the term copied exactly from vocabularyItems; the other option is a plausible but wrong definition of similar length.",
+          "example": {
+            "questions": [
+              {
+                "question": "What does “curly hair” mean?",
+                "options": [
+                  "hair with curls",
+                  "hair with no curls"
+                ],
+                "answer": "hair with curls"
+              },
+              {
+                "question": "What does “big eyes” mean?",
+                "options": [
+                  "large eyes",
+                  "very small eyes"
+                ],
+                "answer": "large eyes"
+              },
+              {
+                "question": "What does “long straight hair” mean?",
+                "options": [
+                  "long hair without curls",
+                  "short hair with lots of curls"
+                ],
+                "answer": "long hair without curls"
+              },
+              {
+                "question": "What does “silver mask” mean?",
+                "options": [
+                  "a silver cover for your face",
+                  "silver shoes for your feet"
+                ],
+                "answer": "a silver cover for your face"
+              },
+              {
+                "question": "What does “superhero suit” mean?",
+                "options": [
+                  "special clothes a superhero wears",
+                  "a superhero’s house"
+                ],
+                "answer": "special clothes a superhero wears"
+              },
+              {
+                "question": "What does “boots” mean?",
+                "options": [
+                  "shoes that cover your ankles or legs",
+                  "clothes you wear on your hands"
+                ],
+                "answer": "shoes that cover your ankles or legs"
+              },
+              {
+                "question": "What does “gloves” mean?",
+                "options": [
+                  "clothes that cover your hands",
+                  "clothes for your head"
+                ],
+                "answer": "clothes that cover your hands"
+              },
+              {
+                "question": "What does “belt” mean?",
+                "options": [
+                  "something you wear around your waist",
+                  "something you wear around your neck"
+                ],
+                "answer": "something you wear around your waist"
+              },
+              {
+                "question": "What does “green hair” mean?",
+                "options": [
+                  "hair that is green",
+                  "hair that is very long"
+                ],
+                "answer": "hair that is green"
+              },
+              {
+                "question": "What does “pointed ears” mean?",
+                "options": [
+                  "ears with narrow tips",
+                  "very round ears"
+                ],
+                "answer": "ears with narrow tips"
+              }
+            ]
           }
         },
         {

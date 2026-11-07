@@ -107,11 +107,7 @@ test('controls are described for the editor with labelled parameters and chrome'
     type: 'integer', label: 'Слов в истории: от', min: 10, max: 150, default: 40, atMost: 'maxWords',
   });
   assert.deepEqual(stories.chrome.map(field => field.label), ['Заголовок', 'Цвета карточек']);
-  // What the catalog needs to link a new block: features a producer turns on with a flag
-  // and features an input requires.
   const byType = type => controls.find(control => control.type === type);
-  assert.deepEqual(byType('vocabularyList').outputs.vocabulary.features, { distractor: 'distractors' });
-  assert.deepEqual(byType('vocabularyMeanings').inputs.vocabulary.requires, ['distractor']);
   // Tasks that can have an answer key, a key in two parts with its part titles.
   assert.deepEqual(byType('dragSentences').answerKey, {});
   assert.deepEqual(byType('contextDropdown').answerKey.parts.explanations, { label: 'Пояснения', title: 'Short explanations' });
@@ -128,7 +124,7 @@ test('controls are described for the editor with labelled parameters and chrome'
 
 test('every block of the catalog has a group and a description; static ones come with a sample', () => {
   const { controls, statics, groups } = describeControls();
-  assert.equal(controls.length + statics.length, 37);
+  assert.equal(controls.length + statics.length, 36);
   for (const block of [...controls, ...statics]) {
     assert.ok(groups.some(group => group.key === block.group), `${block.type}: группа ${block.group}`);
     assert.ok(block.description.trim().length > 0, block.type);
