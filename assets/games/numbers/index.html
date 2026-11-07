@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#15192a">
+  <title>Salta Números — Spanish numbers listening game | EasyClass</title>
+  <meta name="description" content="Listen to numbers in Spanish and hop onto the right islands with the fox. Ten levels of listening practice.">
+  <link rel="icon" href="/assets/images/easyclass-mark-cropped.png">
+  <link rel="stylesheet" href="/assets/games/numbers/game.css">
+  <script type="module" src="/assets/games/numbers/game.mjs"></script>
+</head>
+<body>
+  <svg class="icons" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .3c0 1.9-2.5 2-2.5 4m0 2.7v.2"/></symbol>
+    <symbol id="i-audio" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16 8a5 5 0 0 1 0 8m3-11a9 9 0 0 1 0 14"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4m0 1c5-5 9 5 15 0v10c-6 5-10-5-15 0"/></symbol>
+    <symbol id="i-game" viewBox="0 0 24 24"><path d="M7 6h10c2 0 3 2 3.5 4l1.2 6c.7 3.5-2 4.8-4.2 2.7L15 16H9l-2.5 2.7c-2.2 2.1-4.9.8-4.2-2.7l1.2-6C4 8 5 6 7 6zM5.5 11h5m-2.5-2.5v5m7.5-2.5h.1m2.3 2h.1"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 3v18l14-9z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5m6 0h5v5m0 6v5h-5m-6 0H4v-5"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h3v14H7zm7 0h3v14h-3z" fill="currentColor"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m3 8 9-5 9 5-9 5zm0 4 9 5 9-5m-18 5 9 5 9-5"/></symbol>
+    <symbol id="i-keys" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M6 9h.2m3.8 0h.2m3.8 0h.2m3.8 0h.2M6 12h.2m3.8 0h.2m3.8 0h.2m3.8 0h.2M8 15h8"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 15 13"><path fill="currentColor" stroke="none" d="M1 1h4v1h1v1h2V2h1V1h4v1h1v1h1v4h-1v1h-1v1h-1v1h-1v1H9v1H8v1H7v-1H6v-1H4v-1H3V9H2V8H1V7H0V3h1z"/></symbol>
+  </svg>
+  <header class="site-header"><div class="wrap header-inner">
+    <div class="brand-row"><a class="brand" href="/"><img src="/assets/images/easyclass-mark-cropped.png" alt="" width="36" height="30">EasyClass</a><span class="divider"></span><span class="category"><svg class="icon"><use href="#i-game"/></svg> Games</span></div>
+    <button id="help" class="help"><svg class="icon"><use href="#i-help"/></svg> How to play</button>
+  </div></header>
+  <main class="wrap content">
+    <section class="console" id="console" aria-label="Salta Números game">
+      <header class="hud">
+        <div class="level-info"><svg class="icon"><use href="#i-flag"/></svg><strong id="level-label">Level 01</strong><span class="hud-separator"></span><span id="level-name"></span></div>
+        <div class="stats"><span class="score">Jumps <b id="score">0/10</b></span><span class="hud-separator"></span><span id="hearts" class="hearts" role="img" aria-label="Lives left: 3"></span></div>
+      </header>
+      <div id="stage" class="stage" data-view="menu">
+        <div class="scenery"></div><div class="scrim"></div>
+        <div id="home-island" class="island home-island" aria-hidden="true"></div>
+        <div id="choices" class="choices" role="group" aria-label="Number islands"></div>
+        <div id="fox" class="fox" aria-hidden="true"><img src="/assets/games/numbers/fox.png" alt=""></div>
+        <div id="splash" class="splash">
+          <div class="eyebrow"><span class="wave" aria-hidden="true">▂▆█▄▂</span> SPANISH BY EAR</div>
+          <h1 lang="es">Salta <em>Números</em></h1>
+          <p>Listen to numbers in Spanish and help the fox hop onto the right islands.</p>
+          <button id="start" class="primary"><svg class="icon"><use href="#i-play"/></svg> Start game</button>
+        </div>
+        <div id="prompt" class="prompt" hidden>
+          <button id="listen" class="listen"><svg class="icon"><use href="#i-audio"/></svg> Replay number</button>
+          <span id="caption" lang="es" hidden></span>
+        </div>
+        <div id="feedback" class="feedback" role="status" hidden></div>
+        <div class="timer" id="timer" hidden><span></span></div>
+        <div id="result" class="result" hidden>
+          <div class="result-card"><svg class="icon flag"><use href="#i-flag"/></svg><h2 id="result-title"></h2><p id="result-summary"></p><button id="again" class="primary"></button><button id="to-menu" class="secondary">Back to levels</button></div>
+        </div>
+      </div>
+      <footer class="controls">
+        <div class="shortcuts"><svg class="icon"><use href="#i-keys"/></svg><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <span class="key-label">Jump</span></span><span><kbd>Space</kbd> <span class="key-label">Replay</span></span></div>
+        <span class="touch-hint">Tap an island to jump</span>
+        <div class="tools"><button id="words" class="tool-btn" aria-pressed="false"><span class="cc" aria-hidden="true">CC</span> Subtitles</button><button id="pause" class="tool-btn icon-btn" aria-label="Pause" title="Pause" hidden><svg class="icon"><use href="#i-pause"/></svg></button><button id="fullscreen" class="tool-btn icon-btn" aria-label="Fullscreen" title="Fullscreen" hidden><svg class="icon"><use href="#i-expand"/></svg></button></div>
+      </footer>
+      <dialog id="dialog" aria-labelledby="dialog-title"><div class="dialog-body"><h2 id="dialog-title"></h2><p id="dialog-text"></p><button id="dismiss" class="primary">Got it</button><button id="quit" class="secondary" hidden>End game</button></div></dialog>
+    </section>
+    <section class="level-section" aria-labelledby="level-heading">
+      <h2 id="level-heading"><svg class="icon"><use href="#i-layers"/></svg> Choose a level</h2>
+      <div class="level-groups"><div class="level-group"><h3>Basic</h3><div id="basic" class="level-grid"></div></div><div class="level-group"><h3>Advanced</h3><div id="advanced" class="level-grid"></div></div></div>
+    </section>
+    <noscript>Enable JavaScript to play.</noscript>
+  </main>
+</body>
+</html>

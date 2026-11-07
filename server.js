@@ -431,6 +431,7 @@ function getContentType(filePath) {
   if (ext === '.html') return 'text/html; charset=utf-8';
   if (ext === '.js' || ext === '.mjs') return 'text/javascript; charset=utf-8';
   if (ext === '.css') return 'text/css; charset=utf-8';
+  if (ext === '.ttf') return 'font/ttf';
   if (ext === '.json') return 'application/json; charset=utf-8';
   if (ext === '.svg') return 'image/svg+xml';
   if (ext === '.png') return 'image/png';
@@ -1194,6 +1195,11 @@ async function handleRequest(req, res) {
 
   if (req.method === 'GET' && LEGAL_PAGES.has(pathname)) {
     serveStatic(`${pathname}.html`, res);
+    return;
+  }
+
+  if (['GET', 'HEAD'].includes(req.method) && (pathname === '/games/numbers/' || pathname === '/games/numbers')) {
+    serveStatic('/assets/games/numbers/index.html', res);
     return;
   }
 
