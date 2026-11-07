@@ -602,7 +602,7 @@
             "accentColor": "#6545F5",
             "studentVisibility": "always"
           },
-          "instructions": "Use concise Markdown bullet points to cover meaning, affirmative form, and relevant negative/question forms, with an example at the target CEFR level where useful."
+          "instructions": "Use concise Markdown bullet points (each starting with \"- \") to cover meaning, affirmative form, and relevant negative/question forms, with an example at the target CEFR level where useful."
         },
         {
           "id": "grammar-presentation-check-the-rule",
@@ -947,7 +947,7 @@
               },
               "slots": {
                 "challengeItems": {
-                  "rule": "Exactly five concise conditions as a Markdown bulleted list, one per line, including a negative, a question, a reason, target vocabulary, and linked ideas when compatible with the grammar. No heading or introduction."
+                  "rule": "Exactly five concise conditions as a Markdown bulleted list (each item starting with \"- \"), one per line, including a negative, a question, a reason, target vocabulary, and linked ideas when compatible with the grammar. No heading or introduction."
                 }
               }
             }

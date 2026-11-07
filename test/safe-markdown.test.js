@@ -107,6 +107,16 @@ test('safe markdown treats spaced asterisks as unordered list markers', () => {
   ].join('\n'));
 });
 
+test('safe markdown reads bullet characters as unordered list markers and writes dashes back', () => {
+  const blocks = parseMarkdown('• First question?\n• Second question?');
+
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].type, 'list');
+  assert.equal(blocks[0].ordered, false);
+  assert.equal(blocks[0].items.length, 2);
+  assert.equal(serializeMarkdownBlocks(blocks), '- First question?\n- Second question?');
+});
+
 test('safe markdown round-trips size markers through blocks', () => {
   const markdown = [
     'Start {s}small{/s} and {muted}{xl}**quiet**{/xl}{/muted}.',

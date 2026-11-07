@@ -447,7 +447,7 @@
             "accentColor": "#6545F5",
             "studentVisibility": "always"
           },
-          "instructions": "Use concise Markdown bullet points to cover meaning, affirmative form, and relevant negative/question forms, with an example from the lesson topic where useful.",
+          "instructions": "Use concise Markdown bullet points (each starting with \"- \") to cover meaning, affirmative form, and relevant negative/question forms, with an example from the lesson topic where useful.",
           "example": {
             "sections": [
               { "title": "SHOULD", "text": "- **meaning:** advice, a good idea\n- **form:** should + base verb\n- **example:** “You should put your phone on silent.”" },
@@ -755,7 +755,7 @@
             "instruction": "Write your reply to the post in 4–6 sentences. Your answer will be checked by the teacher.",
             "backgroundColor": "#FFF4E8"
           },
-          "instructions": "replyTask.prompt asks the learner to reply to the hot-take post from the Warm-Up without quoting the post or naming its author: one short opening line, a blank line, then exactly four Markdown bullet points in this order: say if you agree or disagree; give two reasons; one instruction to use the target grammar with the key form in **bold**; use words from the lesson.\nreplyTask.imagePrompt shows a teenager typing a reply under a social-media post on a smartphone.",
+          "instructions": "replyTask.prompt asks the learner to reply to the hot-take post from the Warm-Up without quoting the post or naming its author: one short opening line, a blank line, then exactly four Markdown bullet points (each starting with \"- \") in this order: say if you agree or disagree; give two reasons; one instruction to use the target grammar with the key form in **bold**; use words from the lesson.\nreplyTask.imagePrompt shows a teenager typing a reply under a social-media post on a smartphone.",
           "example": {
             "situation": {
               "prompt": "Remember the hot take about phones at school? Now it’s your turn to reply.\n\n- Say if you agree or disagree.\n- Give two reasons.\n- Give one piece of advice with **should** or **shouldn’t**.\n- Use words from the lesson.",

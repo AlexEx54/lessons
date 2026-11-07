@@ -42,7 +42,7 @@
           },
           "slots": {
             "teacherNotes": {
-              "rule": "Write teacherNotes as exactly three Markdown bullet points followed by a separate Say paragraph, in this order:\n1. In English, briefly explain the purpose of the opening question, then provide the exact question for the learner in natural English at the target CEFR level; it must summarize the main Warm-Up topic and guide the learner toward the task.\n2. In English, explain whether the learner should answer with one word or short phrases.\n3. In English, state what kind of answer the teacher should accept.\nAfter the three bullet points, add a blank line and then give the teacher a ready-to-say opening phrase in natural English at the target CEFR level using exactly this Markdown format: **Say:** *English opening phrase*.\nThe Say paragraph must not be a bullet point; only the English opening phrase after **Say:** must be italic.\nThe opening phrase must start the Warm-Up without presenting its topic as the topic of the whole lesson. Do not use phrases such as “Today we will talk about...”."
+              "rule": "Write teacherNotes as exactly three Markdown bullet points (each starting with \"- \") followed by a separate Say paragraph, in this order:\n1. In English, briefly explain the purpose of the opening question, then provide the exact question for the learner in natural English at the target CEFR level; it must summarize the main Warm-Up topic and guide the learner toward the task.\n2. In English, explain whether the learner should answer with one word or short phrases.\n3. In English, state what kind of answer the teacher should accept.\nAfter the three bullet points, add a blank line and then give the teacher a ready-to-say opening phrase in natural English at the target CEFR level using exactly this Markdown format: **Say:** *English opening phrase*.\nThe Say paragraph must not be a bullet point; only the English opening phrase after **Say:** must be italic.\nThe opening phrase must start the Warm-Up without presenting its topic as the topic of the whole lesson. Do not use phrases such as “Today we will talk about...”."
             }
           }
         },
@@ -86,10 +86,10 @@
           },
           "slots": {
             "followUpQuestions": {
-              "rule": "Two or three follow-up questions for the learner about their This or That choices, in natural English at the target CEFR level, as a Markdown bulleted list with one question per line. Questions only: no heading or introduction."
+              "rule": "Two or three follow-up questions for the learner about their This or That choices, in natural English at the target CEFR level, as a Markdown bulleted list (each item starting with \"- \") with one question per line. Questions only: no heading or introduction."
             },
             "possibleLanguage": {
-              "rule": "Three to five short sentence starters the learner can use to answer the follow-up questions, in natural English at the target CEFR level, as a Markdown bulleted list; end each starter with “…” where the learner continues. No heading or introduction."
+              "rule": "Three to five short sentence starters the learner can use to answer the follow-up questions, in natural English at the target CEFR level, as a Markdown bulleted list (each item starting with \"- \"); end each starter with “…” where the learner continues. No heading or introduction."
             }
           }
         }
@@ -645,7 +645,7 @@
             "accentColor": "#6545F5",
             "studentVisibility": "always"
           },
-          "instructions": "Use concise Markdown bullet points to cover meaning, affirmative form, and relevant negative/question forms, with an example at the target CEFR level where useful."
+          "instructions": "Use concise Markdown bullet points (each starting with \"- \") to cover meaning, affirmative form, and relevant negative/question forms, with an example at the target CEFR level where useful."
         },
         {
           "id": "grammar-presentation-check-the-rule",
@@ -998,7 +998,7 @@
               },
               "slots": {
                 "challengeItems": {
-                  "rule": "Exactly five concise conditions as a Markdown bulleted list, one per line, including a negative, a question, a reason, target vocabulary, and linked ideas when compatible with the grammar. No heading or introduction."
+                  "rule": "Exactly five concise conditions as a Markdown bulleted list (each item starting with \"- \"), one per line, including a negative, a question, a reason, target vocabulary, and linked ideas when compatible with the grammar. No heading or introduction."
                 }
               }
             }
