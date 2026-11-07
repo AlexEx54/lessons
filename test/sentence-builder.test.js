@@ -186,6 +186,8 @@ test('paw animates each fresh transfer, ignores acknowledgements/restoration and
   node.updateState(state);
   assert.equal(played.length, 2);
   assert.equal(node.querySelector('.sentence-builder__paw').hidden, false);
+  // Without a held end frame the paw flashes at its resting spot if the hide timer fires late.
+  assert.equal(played.find(entry => entry.node.className === 'sentence-builder__paw').options.fill, 'forwards');
   node.updateState(structuredClone(state), { pending: false });
   assert.equal(played.length, 2);
   node.updateState({ ...state, motion: { ...state.motion, id: 'transfer-two', sequence: 2 } });

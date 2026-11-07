@@ -81,7 +81,9 @@
       animations.push(paw.animate([
         { transform: off, offset: 0 }, { transform: point(from), offset: .18 },
         { transform: point(to), offset: .78 }, { transform: off, offset: 1 },
-      ], { duration, easing: 'cubic-bezier(.22,.7,.25,1)' }));
+        // The timer below hides the paw on its own clock and may fire a frame late.
+        // Hold the off-screen keyframe so the paw never shows at its resting top-left spot.
+      ], { duration, easing: 'cubic-bezier(.22,.7,.25,1)', fill: 'forwards' }));
       animationTimer = root.setTimeout(() => { stopAnimation(); controls(); }, duration);
     }
     function makeCard(token, placed) {
