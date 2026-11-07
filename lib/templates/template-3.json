@@ -794,18 +794,16 @@
       "durationMinutes": 2,
       "icon": "check",
       "context": {
-        "Lesson topic": "$input.topic",
-        "Grammar topic": "$input.grammarTopic",
-        "Target Vocabulary": "$var.targetVocabulary"
+        "Lesson topic": "$input.topic"
       },
-      "instructions": "This is a two-minute Wrap-Up: the learner rates the lesson and gets a homework task that reviews the lesson topic, grammar and words.\nAll copy must be natural English at the target CEFR level.",
+      "instructions": "This is a two-minute Wrap-Up: the learner rates the lesson and hears that the homework comes in the next stage.\nAll copy must be natural English at the target CEFR level.",
       "blocks": [
         {
           "id": "wrap-up-teacher-note",
           "kind": "static",
           "component": {
             "type": "teacherNote",
-            "text": "**Say:** “Great debate today! How do you feel about the lesson? Choose an answer for each line.”\n\n**Then:** Read the homework together and make sure the student knows what to do.\n\n**Positive ending:** Praise one good argument the student made in the debate."
+            "text": "**Say:** “Great debate today! How do you feel about the lesson? Choose an answer for each line.”\n\n**Then:** Tell the student that the homework is in the next stage. Open it together, read the task and show where to write and how to hand it in.\n\n**Positive ending:** Praise one good argument the student made in the debate."
           }
         },
         {
@@ -817,20 +815,76 @@
           }
         },
         {
-          "id": "wrap-up-homework",
+          "id": "wrap-up-coming-up",
           "kind": "static",
           "component": {
             "type": "markdownCard",
-            "title": "Homework",
-            "text": "{{homework}}",
+            "title": "Coming Up: Homework",
+            "text": "Your homework is in the next stage. You will write a short comment for your class group chat and hand it in. Your teacher will check it and give you feedback.",
             "icon": "pencil",
             "accentColor": "#6545F5",
             "studentVisibility": "always"
+          }
+        }
+      ]
+    },
+    {
+      "id": "homework",
+      "title": "Homework",
+      "subtitle": "Post Your Comment",
+      "icon": "pencil",
+      "context": {
+        "Lesson topic": "$input.topic",
+        "Grammar topic": "$input.grammarTopic",
+        "Target Vocabulary": "$var.targetVocabulary"
+      },
+      "instructions": "This is the homework stage, done after the lesson: the learner writes a comment for the class group chat that reviews the lesson topic, grammar and words, and hands it in; the teacher grades it later.\nAll copy must be natural English at the target CEFR level.",
+      "blocks": [
+        {
+          "id": "homework-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**In class:** Read the task together and check that the student understands the question. Show the word counter and the **Hand in** button.\n\n**After the lesson:** The student writes at home and hands the comment in. Open this stage, read the comment, give 1–5 stars and write one thing that is good and one thing to fix.\n\n**Needs changes:** If the comment is off-topic or has no target grammar, return it with a short note instead of a grade."
+          }
+        },
+        {
+          "id": "homework-comment",
+          "kind": "static",
+          "component": {
+            "type": "homeworkWriting",
+            "title": "Post Your Comment",
+            "instruction": "Write your comment, then hand it in. Your teacher will check it.",
+            "task": "{{homeworkTask}}",
+            "minWords": 50,
+            "maxWords": 70
           },
           "slots": {
-            "homework": {
+            "homeworkTask": {
               "rule": "A short homework task for the learner: write a comment of 50–70 words for the class group chat about a question on the lesson topic, using the target grammar at least three times and three words from the Target Vocabulary. Name the grammar form in **bold**. Two short paragraphs separated by a blank line; no heading or list.",
               "example": "Write a comment of 50–70 words for your class group chat: *Should our school ban phones?*\n\nUse **should** or **shouldn’t** at least three times and three words from today’s lesson."
+            }
+          }
+        },
+        {
+          "id": "homework-support",
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
+            "title": "Support",
+            "text": "- **Word bank:** {{homeworkWords}}\n- **Start like this:** “{{homeworkStarter}}”",
+            "icon": "lifeRing",
+            "accentColor": "#20A85B",
+            "studentVisibility": "always"
+          },
+          "slots": {
+            "homeworkWords": {
+              "rule": "Exactly six distinct entries from Target Vocabulary, each copied exactly, separated by commas on one line. No Markdown, no full stop.",
+              "example": "ban, emergency, distraction, screen time, check messages, group chat"
+            },
+            "homeworkStarter": {
+              "rule": "The opening sentence of a group-chat comment that answers the homework question and uses the target grammar, without quotation marks.",
+              "example": "I think our school shouldn’t ban phones, but we should use them only at break."
             }
           }
         }
