@@ -194,42 +194,21 @@
     return `${base}${separator}${number}`;
   }
 
-  // Optional parts of an output's items that the producing block has on: a feature is
-  // turned on by a flag parameter, which takes its default while the block leaves it out.
+  // Where a block at the end of `stage` may take its `input` from: blocks of earlier
+  // stages that give away a variable of its type, the nearest first. None of its own
+  // stage: the model writes the stage in one answer, so its variables are not there yet.
   // `controls` maps a control type to its description from /api/template-controls.
-  function producerFeatures(producer, controls) {
-    const control = controls.get(producer.block.control);
-    const features = control?.outputs[producer.port]?.features || {};
-    return Object.keys(features).filter(feature => {
-      const param = features[feature];
-      const value = Object.hasOwn(producer.block.params || {}, param) ? producer.block.params[param] : control.params[param]?.default;
-      return value === true;
-    });
-  }
-
-  // Where a block of `kind` at the end of `stage` may take its `input` from: blocks of this
-  // and earlier stages that give away a variable of its type, the nearest first. A
-  // generated block takes none of its own stage: the model writes the stage in one answer,
-  // so its variables are not there yet. `missing`
-  // lists the features the input requires and the producer has off. A block already in
-  // the stage passes itself as `except`: it cannot read its own variables.
-  function inputSources(definition, stage, kind, input, controls, except = null) {
+  function inputSources(definition, stage, input, controls) {
     const stageIndex = definition.stages.indexOf(stage);
     const sources = [];
     for (const [variable, producer] of variableProducers(definition)) {
-      if (producer.block === except) continue;
       const index = definition.stages.indexOf(producer.stage);
       const type = controls.get(producer.block.control)?.outputs[producer.port]?.type;
-      if (type !== input.type || index > stageIndex) continue;
-      if (index === stageIndex && kind === 'generated') continue;
-      const features = producerFeatures(producer, controls);
+      if (type !== input.type || index >= stageIndex) continue;
       sources.push({
         variable,
         block: producer.block.id,
-        port: producer.port,
         stage: producer.stage.id,
-        sameStage: index === stageIndex,
-        missing: (input.requires || []).filter(feature => !features.includes(feature)),
         order: [index, flattenBlocks(producer.stage.blocks).indexOf(producer.block)],
       });
     }
@@ -239,13 +218,11 @@
   }
 
   // What a block of the catalog gets once added at the end of the stage: for every input
-  // the nearest source with all the features it needs, or else the nearest one, which
-  // the server then reports. `entry` is the control's description.
+  // the nearest source. `entry` is the control's description.
   function plannedLinks(definition, stage, entry, controls) {
     const inputs = {};
     for (const [port, input] of Object.entries(entry.inputs || {})) {
-      const sources = inputSources(definition, stage, entry.kind, input, controls);
-      inputs[port] = sources.find(source => source.missing.length === 0) || sources[0] || null;
+      inputs[port] = inputSources(definition, stage, input, controls)[0] || null;
     }
     return { inputs };
   }
@@ -291,7 +268,7 @@
     if (inputs.length > 0) block.inputs = Object.fromEntries(inputs.map(([port, source]) => [port, source.variable]));
     for (const [, source] of inputs) {
       const passed = contextLines(stage).some(line => line.source === 'var' && line.name === source.variable);
-      if (!source.sameStage && !passed) addedLines.push(addContextLine(stage, 'var', source.variable));
+      if (!passed) addedLines.push(addContextLine(stage, 'var', source.variable));
     }
     const variables = new Set(variableProducers(definition).keys());
     const ports = Object.keys(entry.outputs || {});
@@ -509,18 +486,14 @@
     throw new Error(`No block ${id} among the stage blocks.`);
   }
 
-  // Whether `reader` may read a variable of its own stage: a generated block may not, as
-  // the model writes the stage in one answer.
-  const readsInStage = reader => reader.kind !== 'generated';
-
   // What keeps the block or row `id` out of the stage `targetId`, links within a row aside:
   //   - `builtFrom`: it is built from blocks of its stage (a slot's `from` or a field
   //     another block describes);
   //   - `usedBy`: blocks of its stage are built from it;
-  //   - `input`: its input reads a block of a later stage, or of the target one where the
-  //     block cannot read it (`inStage` tells whether that stage would do);
-  //   - `reader`: a block of an earlier stage reads its variable, or one of the target
-  //     stage that cannot; `block` is null for a context line of an earlier stage.
+  //   - `input`: its input reads a block of the target stage or a later one: the model
+  //     writes a stage in one answer;
+  //   - `reader`: a block of the target stage or an earlier one reads its variable;
+  //     `block` is null for a context line of an earlier stage.
   // `input` and `reader` carry the variable's `type`.
   // Stages run in data-flow order, but the editor keeps the links pointing down the list,
   // as its source picker does. An empty list means the block may go there.
@@ -548,10 +521,8 @@
       for (const variable of Object.values(block.inputs || {})) {
         const producer = producers.get(variable);
         if (!producer || ids.has(producer.block.id)) continue;
-        const at = position(producer.stage.id);
-        const inStage = readsInStage(block);
-        if (at > target || (at === target && !inStage)) {
-          blockers.push({ kind: 'input', block: producer.block.id, stage: producer.stage.id, inStage, type: typeOf(variable) });
+        if (position(producer.stage.id) >= target) {
+          blockers.push({ kind: 'input', block: producer.block.id, stage: producer.stage.id, type: typeOf(variable) });
         }
       }
     }
@@ -565,15 +536,12 @@
         for (const variable of Object.values(reader.inputs || {})) {
           if (!variables.has(variable)) continue;
           readByBlock = true;
-          const inStage = readsInStage(reader);
-          if (at < target || (at === target && !inStage)) {
-            blockers.push({ kind: 'reader', block: reader.id, stage: stage.id, inStage, type: typeOf(variable) });
-          }
+          if (at <= target) blockers.push({ kind: 'reader', block: reader.id, stage: stage.id, type: typeOf(variable) });
         }
       }
       const passed = contextLines(stage).find(line => line.source === 'var' && variables.has(line.name));
       if (passed && !readByBlock && at < target) {
-        blockers.push({ kind: 'reader', block: null, stage: stage.id, inStage: true, type: typeOf(passed.name) });
+        blockers.push({ kind: 'reader', block: null, stage: stage.id, type: typeOf(passed.name) });
       }
     }
     return blockers;

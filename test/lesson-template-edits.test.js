@@ -195,11 +195,13 @@ test('an input takes the nearest source of its type; a source of another stage j
   assert.deepEqual(stage(definition, 'watch-and-interact').context, { 'Target vocabulary': '$var.targetVocabulary' });
   assert.deepEqual(problems(definition), []);
 
-  // The model writes the words of the stage itself in the same answer: they are no source.
+  // The model writes the words of the stage itself in the same answer: they are no source,
+  // nor is the vocabulary to the block that gives it away.
   addBlock(definition, 'grammar-focus', 'vocabularyList');
-  const sources = Edits.inputSources(definition, stage(definition, 'grammar-focus'), 'generated', { type: 'vocabulary' }, controls)
-    .map(source => [source.variable, source.sameStage]);
-  assert.deepEqual(sources, [['targetVocabulary', false]]);
+  const sources = stageId => Edits.inputSources(definition, stage(definition, stageId), { type: 'vocabulary' }, controls)
+    .map(source => source.variable);
+  assert.deepEqual(sources('grammar-focus'), ['targetVocabulary']);
+  assert.deepEqual(sources('target-vocabulary'), []);
 });
 
 test('without a source an input stays unbound', () => {
@@ -232,15 +234,6 @@ test('a block’s links come from the definition, unconnected inputs included', 
   assert.deepEqual(links('guided-communication-cards').inputs.vocabulary, { type: 'vocabulary', variable: null, from: null });
   block(definition, 'guided-communication-cards').inputs = { vocabulary: 'gone' };
   assert.equal(links('guided-communication-cards').inputs.vocabulary.from, null);
-});
-
-test('a block never lists itself among the sources of its input', () => {
-  const definition = templateTwo();
-  const card = block(definition, 'target-vocabulary-card');
-  const sources = except => Edits.inputSources(definition, stage(definition, 'target-vocabulary'), 'derived', { type: 'vocabulary' }, controls, except)
-    .map(source => source.variable);
-  assert.deepEqual(sources(null), ['targetVocabulary']);
-  assert.deepEqual(sources(card), []);
 });
 
 test('another source of an earlier stage joins the context; the line read before goes once no block reads it', () => {
@@ -411,7 +404,7 @@ test('a block goes no higher than its sources and no lower than its readers', ()
 
   // The communication cards cannot be written in one answer with the vocabulary they take.
   assert.deepEqual(Edits.moveBlockers(definition, 'guided-communication-cards', 'target-vocabulary', controls).filter(({ kind }) => kind === 'input'), [
-    { kind: 'input', block: 'target-vocabulary-card', stage: 'target-vocabulary', inStage: false, type: 'vocabulary' },
+    { kind: 'input', block: 'target-vocabulary-card', stage: 'target-vocabulary', type: 'vocabulary' },
   ]);
   assert.deepEqual(blockersOf(definition, 'target-vocabulary-card', 'guided-speaking').slice(-1), ['reader guided-communication-cards guided-speaking']);
   // The role cards take the lesson words from their instructions, so nothing ties them to the vocabulary.

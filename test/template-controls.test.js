@@ -52,11 +52,10 @@ const extremes = (control, side) => Object.fromEntries(Object.entries(control.pa
   .filter(([, spec]) => spec[side] !== undefined)
   .map(([name, spec]) => [name, spec[side]]));
 
-test('every generated control builds its example with default, smallest and largest parameters', t => {
+test('every control builds its example with default, smallest and largest parameters', t => {
   t.mock.method(console, 'warn', () => {});
-  const generated = [...CONTROL_CATALOG.values()].filter(control => control.kind === 'generated');
-  assert.ok(generated.length > 20);
-  for (const control of generated) {
+  assert.ok(CONTROL_CATALOG.size > 20);
+  for (const control of CONTROL_CATALOG.values()) {
     for (const params of [{}, extremes(control, 'min'), extremes(control, 'max')]) {
       const template = compileTemplate(singleBlockTemplate(control, params), CONTROL_CATALOG);
       assert.doesNotThrow(() => exampleRun(template), `${control.type} ${JSON.stringify(params)}`);

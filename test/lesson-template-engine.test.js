@@ -33,17 +33,15 @@ const CONTROLS = [
   {
     type: 'wordList',
     fields: ['words'],
-    params: { count: integer('Слов', 2, 10, 3), distractors: flag('Отвлекающие варианты', false) },
-    outputs: { vocabulary: { type: 'vocabulary', features: { distractor: 'distractors' } } },
+    params: { count: integer('Слов', 2, 10, 3) },
+    outputs: { vocabulary: 'vocabulary' },
     schema: ({ params }) => ({ words: { type: 'array', minItems: params.count, maxItems: params.count, items: { type: 'object' } } }),
     rules: ({ params, f }) => [`${f.words}: exactly ${params.count} items.`],
     defaultInstructions: 'Useful words for the topic.',
     build: (data, { id }) => ({ type: 'markdownCard', id, items: data.words }),
     exports: component => ({ vocabulary: component.items }),
     example: ({ params }) => ({
-      words: Array.from({ length: params.count }, (_, index) => ({
-        term: `word${index + 1}`, definition: `meaning ${index + 1}`, distractor: `wrong ${index + 1}`,
-      })),
+      words: Array.from({ length: params.count }, (_, index) => ({ term: `word${index + 1}`, definition: `meaning ${index + 1}` })),
     }),
   },
   {
@@ -63,17 +61,12 @@ const CONTROLS = [
   },
   {
     type: 'meaningsQuiz',
-    kind: 'derived',
-    inputs: { vocabulary: { type: 'vocabulary', requires: ['distractor'] } },
-    build: (_data, { id, links }) => ({ type: 'multipleChoice', id, items: links.vocabulary.value.map(item => item.term) }),
-  },
-  {
-    type: 'pickWords',
-    kind: 'derived',
+    fields: ['title'],
     inputs: { vocabulary: 'vocabulary' },
-    outputs: { vocabulary: 'vocabulary' },
-    build: (_data, { id, links }) => ({ type: 'markdownCard', id, items: links.vocabulary.value.slice(0, 2) }),
-    exports: component => ({ vocabulary: component.items }),
+    schema: () => ({ title: { type: 'string', minLength: 1 } }),
+    rules: ({ links, f }) => [`${f.title}: a title for a quiz on ${links.vocabulary.label}.`],
+    build: (data, { id, links }) => ({ type: 'multipleChoice', id, title: data.title, items: links.vocabulary.value.map(item => item.term) }),
+    example: () => ({ title: 'Quiz' }),
   },
   {
     type: 'bullets',
@@ -107,7 +100,7 @@ function definition() {
         id: 'recap', title: 'Recap', durationMinutes: 3,
         context: { 'Target Vocabulary': '$var.lessonWords' },
         blocks: [
-          { id: 'recap-quiz', kind: 'derived', control: 'meaningsQuiz', inputs: { vocabulary: 'lessonWords' } },
+          { id: 'recap-quiz', kind: 'generated', control: 'meaningsQuiz', inputs: { vocabulary: 'lessonWords' } },
         ],
       },
       {
@@ -126,7 +119,7 @@ function definition() {
         context: { 'Lesson topic': '$input.topic', 'Guess statements': '$var.guesses' },
         blocks: [
           { id: 'vocabulary-stories', kind: 'generated', control: 'stories', inputs: { guesses: 'guesses' } },
-          { id: 'vocabulary-list', kind: 'generated', control: 'wordList', params: { distractors: true },
+          { id: 'vocabulary-list', kind: 'generated', control: 'wordList',
             fields: { words: 'vocabularyItems' }, exports: { vocabulary: 'lessonWords' }, instructions: 'Words about the topic.' },
           { id: 'vocabulary-support', kind: 'row', blocks: [
             { id: 'vocabulary-starters', kind: 'generated', control: 'bullets', fields: { items: 'sentenceStarters' } },
@@ -146,13 +139,15 @@ const GUESS_ANSWER = {
 const VOCABULARY_ANSWER = {
   stories: ['I have a **hat** and a **scarf**.', 'My **boots** are new.'],
   vocabularyItems: [
-    { term: 'hat', definition: 'You wear it on your head.', distractor: 'You wear it on your feet.' },
-    { term: 'scarf', definition: 'You wear it round your neck.', distractor: 'You eat it.' },
-    { term: 'boots', definition: 'Strong shoes.', distractor: 'A kind of bread.' },
+    { term: 'hat', definition: 'You wear it on your head.' },
+    { term: 'scarf', definition: 'You wear it round your neck.' },
+    { term: 'boots', definition: 'Strong shoes.' },
   ],
   sentenceStarters: ['I like…', 'My favourite…'],
   challengeItems: ['Use a negative.', 'Ask a question.'],
 };
+const RECAP_ANSWER = { title: 'Word quiz' };
+const ANSWERS = { guess: GUESS_ANSWER, vocabulary: VOCABULARY_ANSWER, recap: RECAP_ANSWER };
 
 function runAll(plan, answers) {
   const inputs = plan.resolveInputs({ topic: 'Clothes' });
@@ -168,7 +163,7 @@ function runAll(plan, answers) {
 test('steps follow data flow while the skeleton keeps display order', () => {
   const plan = compileTemplate(definition(), catalog);
   assert.deepEqual(plan.steps.map(step => [step.key, step.needsModel]), [
-    ['guess', true], ['vocabulary', true], ['recap', false],
+    ['guess', true], ['vocabulary', true], ['recap', true],
   ]);
 
   const skeleton = plan.createSkeleton({ topic: 'Clothes' });
@@ -225,11 +220,16 @@ test('stage request assembles the prompt, the flat schema and the context', () =
     '2. Somebody is cold.',
   ].join('\n'));
   assert.deepEqual(vocabulary.schema.required, ['stories', 'vocabularyItems', 'sentenceStarters', 'challengeItems']);
+
+  // A variable of an earlier stage reaches the model by its context label.
+  const recap = plan.request('recap', { inputs: plan.resolveInputs({ topic: 'Clothes' }), variables: { lessonWords: VOCABULARY_ANSWER.vocabularyItems } });
+  assert.match(recap.messages[0].content, /^title: a title for a quiz on Target Vocabulary\.$/m);
+  assert.equal(recap.messages[1].content, 'Target Vocabulary: ["hat","scarf","boots"]');
 });
 
 test('apply builds stages in display order, fills slots and passes variables on', () => {
   const plan = compileTemplate(definition(), catalog);
-  const state = runAll(plan, { guess: GUESS_ANSWER, vocabulary: VOCABULARY_ANSWER });
+  const state = runAll(plan, ANSWERS);
   const [, recap, guess, vocabulary] = state.lesson.stages;
 
   assert.deepEqual(guess.content.map(component => component.id), ['guess-note', 'guess-game', 'guess-game-answer-key']);
@@ -250,7 +250,7 @@ test('apply builds stages in display order, fills slots and passes variables on'
       { type: 'markdownCard', id: 'vocabulary-challenge', text: 'Use a negative.\nAsk a question.' },
     ],
   });
-  assert.deepEqual(recap.content, [{ type: 'multipleChoice', id: 'recap-quiz', items: ['hat', 'scarf', 'boots'] }]);
+  assert.deepEqual(recap.content, [{ type: 'multipleChoice', id: 'recap-quiz', title: 'Word quiz', items: ['hat', 'scarf', 'boots'] }]);
   assert.deepEqual(Object.keys(state.variables), ['guesses', 'lessonWords']);
   assert.deepEqual(state.variables.guesses, [{ number: 3, text: 'Somebody in our stories has a red hat.' }]);
 });
@@ -261,7 +261,7 @@ test('a static block may use a field another static block of its stage describes
     { id: 'guess-recap-note', kind: 'static', component: { type: 'teacherNote', text: 'Again: {{success}} Start with "{{firstCheck}}".' } },
   );
   const plan = compileTemplate(shared, catalog);
-  const guess = runAll(plan, { guess: GUESS_ANSWER, vocabulary: VOCABULARY_ANSWER }).lesson.stages[2];
+  const guess = runAll(plan, ANSWERS).lesson.stages[2];
   assert.equal(guess.content.at(-1).text, 'Again: The student explains two answers. Start with "Cats can swim.".');
   // The model writes a shared field once.
   assert.deepEqual(plan.request('guess', { inputs: plan.resolveInputs({ topic: 'Clothes' }) }).schema.required.filter(key => key === 'success'), ['success']);
@@ -287,7 +287,7 @@ test('apply rejects an answer without a required field and control validation er
     () => plan.apply('vocabulary', guessed, { ...VOCABULARY_ANSWER, stories: ['A hat.', ' '] }),
     /Story 2 is empty/,
   );
-  assert.throws(() => plan.apply('recap', state), /lessonWords ещё не готова/);
+  assert.throws(() => plan.apply('recap', state, RECAP_ANSWER), /lessonWords ещё не готова/);
 });
 
 test('example run builds every stage without the model', () => {
@@ -305,7 +305,7 @@ test('an example run takes the template examples and falls back when one no long
   block(withExamples, 'guess', 'guess-note').slots.success.example = ' The student explains both answers. ';
   block(withExamples, 'guess', 'guess-game').example = { checks: ['Cats can swim.', 'Dogs fly.'], guesses: ['Somebody has a red hat.'] };
   block(withExamples, 'vocabulary', 'vocabulary-list').example = {
-    words: ['hat', 'scarf', 'boots'].map(term => ({ term, definition: `A ${term}.`, distractor: `Not a ${term}.` })),
+    words: ['hat', 'scarf', 'boots'].map(term => ({ term, definition: `A ${term}.` })),
   };
   // A story is empty, so the block falls back to the control's sample.
   block(withExamples, 'vocabulary', 'vocabulary-stories').example = { stories: ['A hat.', ' '] };
@@ -338,7 +338,7 @@ test('example problems name the slot or the block', () => {
   assert.match(messages, /Пример слота success блока guess-note должен быть текстом рядом с rule/);
   assert.match(messages, /Пример слота firstCheck блока guess-note должен быть текстом рядом с rule/);
   assert.match(messages, /Пример блока guess-game должен быть объектом с полями контрола/);
-  assert.match(messages, /Блоку recap-quiz пример не нужен: его не пишет ИИ/);
+  assert.match(messages, /В примере блока recap-quiz лишнее поле text/);
   assert.match(messages, /В примере блока vocabulary-list лишнее поле terms/);
 });
 
@@ -392,10 +392,6 @@ test('validation reports broken links between blocks', () => {
     /ждёт словарь, а guesses — утверждения/,
   );
   assert.match(
-    errorsAfter(template => { block(template, 'vocabulary', 'vocabulary-list').params.distractors = false; }).join('\n'),
-    /требует у lessonWords: distractor/,
-  );
-  assert.match(
     errorsAfter(template => { delete stage(template, 'vocabulary').context['Guess statements']; }).join('\n'),
     /читает guesses из этапа guess: добавьте её в context этапа vocabulary/,
   );
@@ -409,7 +405,7 @@ test('validation reports broken links between blocks', () => {
   );
 });
 
-test('validation reports cycles, same-stage limits and answer field collisions', () => {
+test('validation reports cycles, variables of the own stage and answer field collisions', () => {
   assert.match(
     errorsAfter(template => {
       stage(template, 'guess').context.Words = '$var.lessonWords';
@@ -422,7 +418,13 @@ test('validation reports cycles, same-stage limits and answer field collisions',
       vocabulary.blocks.push({ id: 'vocabulary-game', kind: 'generated', control: 'guessGame', exports: { guesses: 'moreGuesses' } });
       vocabulary.blocks.push({ id: 'vocabulary-more', kind: 'generated', control: 'stories', fields: { stories: 'moreStories' }, inputs: { guesses: 'moreGuesses' } });
     }).join('\n'),
-    /vocabulary-more генерируется в одном ответе с vocabulary-game: перенесите его в следующий этап/,
+    /vocabulary-more читает moreGuesses своего этапа: этап пишется одним ответом, перенесите блок в следующий этап/,
+  );
+  assert.match(
+    errorsAfter(template => {
+      stage(template, 'vocabulary').blocks.push({ id: 'vocabulary-quiz', kind: 'generated', control: 'meaningsQuiz', inputs: { vocabulary: 'lessonWords' } });
+    }).join('\n'),
+    /vocabulary-quiz читает lessonWords своего этапа/,
   );
   assert.match(
     errorsAfter(template => { block(template, 'vocabulary', 'vocabulary-list').fields = { words: 'stories' }; }).join('\n'),
@@ -524,12 +526,7 @@ test('the catalog rejects incomplete controls', () => {
     /должен связывать два целых/,
   );
   assert.throws(() => createControlCatalog([{ ...CONTROLS[0], chrome: ['sparkle'] }]), /неизвестный ключ оформления sparkle/);
-  const wordList = CONTROLS.find(control => control.type === 'wordList');
-  const withFeatures = features => () => createControlCatalog([{
-    ...wordList, outputs: { vocabulary: { ...wordList.outputs.vocabulary, features } },
-  }]);
-  assert.throws(withFeatures({ sparkle: 'distractors' }), /у типа vocabulary нет возможности sparkle/);
-  assert.throws(withFeatures({ distractor: 'count' }), /возможность distractor должна включаться флагом/);
+  assert.throws(() => createControlCatalog([{ ...CONTROLS[1], outputs: { vocabulary: 'wordCloud' } }]), /output vocabulary имеет неизвестный тип wordCloud/);
   const withParts = (control, answerKeyParts) => () => createControlCatalog([{ ...control, answerKeyParts }]);
   const keyed = CONTROLS.find(control => typeof control.answerKey === 'function');
   const answers = { label: 'Ответы', title: 'Answers' };

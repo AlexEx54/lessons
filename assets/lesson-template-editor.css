@@ -215,7 +215,6 @@
   text-transform: uppercase;
 }
 .template-kind--generated { color: #5030c9; background: #eee9ff; }
-.template-kind--derived { color: #0f766e; background: #e6f7f4; }
 
 .template-chip {
   padding: 4px 9px;

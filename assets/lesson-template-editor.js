@@ -7,7 +7,7 @@
   // controls run only there. A copy is edited in place and saved explicitly; a system
   // template is read-only.
 
-  const KIND_LABELS = { static: 'Статичный', generated: 'Генерирует ИИ', derived: 'Собирается сам', row: 'Ряд' };
+  const KIND_LABELS = { static: 'Статичный', generated: 'Генерирует ИИ', row: 'Ряд' };
   const NARROW_LAYOUT = window.matchMedia('(max-width: 1180px)');
   // On phones the catalog takes the whole screen and shows the example under its card.
   const PHONE_LAYOUT = window.matchMedia('(max-width: 700px)');
@@ -249,37 +249,26 @@
     return [...inputs, ...exports];
   }
 
-  // Where the block's `port` may read from: blocks of its stage and earlier ones that give
-  // away a variable of the input's type, the nearest first (`Edits.inputSources`).
+  // Where the block's `port` may read from: blocks of earlier stages that give away a
+  // variable of the input's type, the nearest first (`Edits.inputSources`).
   function inputChoices(id, port) {
     const { block, stage } = state.blocks.get(id);
     const input = state.controls.get(block.control).inputs[port];
-    return Edits.inputSources(state.template.definition, stage, block.kind, input, state.controls, block);
+    return Edits.inputSources(state.template.definition, stage, input, state.controls);
   }
 
   function sourceName(source) {
     const { block, stageIndex } = state.blocks.get(source.block);
-    return [blockName(block), source.sameStage ? 'этот этап' : `${stageIndex + 1}. ${stageTitle(state.template.definition.stages[stageIndex])}`];
+    return [blockName(block), `${stageIndex + 1}. ${stageTitle(state.template.definition.stages[stageIndex])}`];
   }
 
-  // What choosing the source brings: a context line for a variable of an earlier stage,
-  // and the features the input needs that the source has off, named by their flags.
+  // What choosing the source brings: a context line for the variable, if the stage has none.
   function sourceNotes(id, source) {
     const { stage } = state.blocks.get(id);
-    const notes = [];
     const passed = Edits.contextLines(stage).some(line => line.source === 'var' && line.name === source.variable);
-    if (!source.sameStage && !passed) {
-      const label = Edits.uniqueContextLabel(stage, Edits.defaultContextLabel(source.variable));
-      notes.push(`В контекст этапа добавится строка «${label}».`);
-    }
-    if (source.missing.length > 0) notes.push(`В нём нужно включить ${quoted(missingFlags(source))}.`);
-    return notes;
-  }
-
-  // The flags of the source block that turn on the features an input misses.
-  function missingFlags(source) {
-    const producer = state.controls.get(state.blocks.get(source.block).block.control);
-    return source.missing.map(feature => producer.params[producer.outputs[source.port].features[feature]].label);
+    if (passed) return [];
+    const label = Edits.uniqueContextLabel(stage, Edits.defaultContextLabel(source.variable));
+    return [`В контекст этапа добавится строка «${label}».`];
   }
 
   // The choice of a source, under its chip. Choosing applies at once. An option is
@@ -328,8 +317,8 @@
       };
     });
     openPicker(chip, `Откуда брать ${type}`, options, choices.length > 0
-      ? `Блоки, которые отдают ${type}, из этого и более ранних этапов.`
-      : `Подходящих блоков нет: добавьте в этот или более ранний этап блок, который отдаёт ${type}.`);
+      ? `Блоки более ранних этапов, которые отдают ${type}.`
+      : `Подходящих блоков нет: добавьте в более ранний этап блок, который отдаёт ${type}.`);
   }
 
   // The picker sits in the top layer, so it follows its chip on screen by itself; a chip
@@ -1538,7 +1527,7 @@
   function moveBlockerTexts(blockers) {
     const groups = new Map();
     for (const blocker of blockers) {
-      const key = JSON.stringify([blocker.kind, blocker.stage, blocker.inStage, blocker.type, blocker.blocks]);
+      const key = JSON.stringify([blocker.kind, blocker.stage, blocker.type, blocker.blocks]);
       const group = groups.get(key) || { ...blocker, others: new Set() };
       if (blocker.block) group.others.add(blocker.block);
       groups.set(key, group);
@@ -1553,11 +1542,11 @@
         case 'usedBy':
           return `Из него собираются блоки своего этапа: ${someNames(group.blocks)}.`;
         case 'input':
-          return `${group.inStage ? `Выше этапа ${where}` : `В этап ${where} и выше`} нельзя: он берёт ${type} из ${someNames(others)} этого этапа.`;
+          return `В этап ${where} и выше нельзя: он берёт ${type} из ${someNames(others)} этого этапа.`;
         default: {
-          const below = group.inStage ? `Ниже этапа ${where}` : `В этап ${where} и ниже`;
-          if (others.length === 0) return `${below} нельзя: его ${type} передаётся в контекст этого этапа.`;
-          return `${below} нельзя: его ${type} ${others.length === 1 ? 'читает' : 'читают'} ${someNames(others)} этого этапа.`;
+          // A context line goes with the move into its own stage, a reading block does not.
+          if (others.length === 0) return `Ниже этапа ${where} нельзя: его ${type} передаётся в контекст этого этапа.`;
+          return `В этап ${where} и ниже нельзя: его ${type} ${others.length === 1 ? 'читает' : 'читают'} ${someNames(others)} этого этапа.`;
         }
       }
     });
@@ -2239,21 +2228,17 @@
         rows.push({
           label,
           value: 'не подключено',
-          warning: `В этом и прошлых этапах нет блока, который отдаёт ${typeLabel(input.type)}: вход останется не подключён.`,
+          warning: `В прошлых этапах нет блока, который отдаёт ${typeLabel(input.type)}: вход останется не подключён.`,
         });
         continue;
       }
       const { block } = state.blocks.get(source.block);
-      const row = {
+      rows.push({
         label,
         value: blockName(block),
         chip: `${capitalize(typeLabel(input.type))} ← ${placedName(source.block, currentStage().id)}`,
-        note: source.sameStage ? 'этот этап' : `этап «${stageTitle(stageById(source.stage))}»`,
-      };
-      if (source.missing.length > 0) {
-        row.warning = `Включите ${quoted(missingFlags(source))} в блоке «${blockName(block)}»: без этого блок не соберётся.`;
-      }
-      rows.push(row);
+        note: `этап «${stageTitle(stageById(source.stage))}»`,
+      });
     }
     for (const output of Object.values(entry.outputs)) {
       rows.push({ label: 'Отдаёт', value: typeLabel(output.type), chip: `Отдаёт ${typeLabel(output.type)}`, output: true });
