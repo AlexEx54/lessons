@@ -79,6 +79,11 @@
       ['path', { d: 'M9.4 9.5a2.6 2.6 0 1 1 4.4 1.9c-.8.6-1.5 1.1-1.5 2.4' }],
       ['circle', { cx: '12.3', cy: '16.6', r: '.85', fill: 'currentColor', stroke: 'none' }],
     ],
+    home: [
+      ['path', { d: 'm3.6 11.2 8.4-7 8.4 7' }],
+      ['path', { d: 'M5.8 9.4v9.4a1.6 1.6 0 0 0 1.6 1.6h9.2a1.6 1.6 0 0 0 1.6-1.6V9.4' }],
+      ['path', { d: 'M10 20.4v-5.2a2 2 0 0 1 4 0v5.2' }],
+    ],
   };
   const stageIconAliases = {
     sparkles: 'sparkles',
@@ -92,6 +97,7 @@
     chat: 'chat',
     check: 'question',
     question: 'question',
+    home: 'home',
   };
 
   function createStageIcon(name) {

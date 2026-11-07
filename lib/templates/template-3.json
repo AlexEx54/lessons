@@ -832,7 +832,7 @@
       "id": "homework",
       "title": "Homework",
       "subtitle": "Post Your Comment",
-      "icon": "pencil",
+      "icon": "home",
       "context": {
         "Lesson topic": "$input.topic",
         "Grammar topic": "$input.grammarTopic",

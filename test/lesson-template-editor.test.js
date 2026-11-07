@@ -98,7 +98,7 @@ test('controls are described for the editor with labelled parameters and chrome'
   assert.equal(controls.length, CONTROL_CATALOG.size);
   assert.deepEqual(JSON.parse(JSON.stringify(controls)), controls, 'plain data only');
   assert.equal(variableTypes.vocabulary, 'словарь');
-  assert.equal(Object.keys(stageIcons.icons).length, 9);
+  assert.equal(Object.keys(stageIcons.icons).length, 10);
   assert.equal(stageIcons.icons.cap, 'Шапочка');
   assert.deepEqual(stageIcons.aliases, { compass: 'pencil', check: 'question' });
 
