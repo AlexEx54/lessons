@@ -607,22 +607,47 @@
         {
           "id": "grammar-presentation-check-the-rule",
           "kind": "generated",
-          "control": "correctSentences",
+          "control": "choiceQuestions",
           "params": {
-            "sentences": 8,
-            "correct": 4
+            "questions": 1,
+            "options": 8,
+            "maxAnswers": 4,
+            "explanations": true
           },
           "fields": {
-            "items": "checkItems"
+            "questions": "checkQuestions"
           },
           "chrome": {
             "title": "Task 2. Tick the sentences that are correct.",
-            "instruction": "Read the sentences and tick the grammatically correct ones.",
-            "question": "Which four sentences are grammatically correct?"
+            "instruction": "Read the sentences and tick the grammatically correct ones."
           },
+          "instructions": "One question: \"Which four sentences are grammatically correct?\"\nThe options are eight sentences that check the grammar rule of the lesson. Exactly four are grammatically correct; each of the other four has one clear, typical error in the target grammar. The answers are the four correct sentences.\nexplanation: start with the line \"Incorrect sentences:\", then a numbered Markdown list, one item per incorrect sentence in any order: the sentence in italics — what is wrong and the corrected sentence. Example item: *They has got gloves.* — With they, use have got: They have got gloves.\nDo not use Markdown in the question or options.",
           "answerKey": {
-            "title": "Answer key",
-            "layout": "columns"
+            "title": "Answer key"
+          },
+          "example": {
+            "questions": [
+              {
+                "question": "Which four sentences are grammatically correct?",
+                "options": [
+                  "Flash Kid has got curly hair.",
+                  "Moon Girl have got a silver mask.",
+                  "Have you got a superhero suit?",
+                  "They has got gloves.",
+                  "Fire Boy hasn’t got a cape.",
+                  "I hasn’t got a belt.",
+                  "Has she got pointed ears?",
+                  "Do he has got boots?"
+                ],
+                "answers": [
+                  "Flash Kid has got curly hair.",
+                  "Have you got a superhero suit?",
+                  "Fire Boy hasn’t got a cape.",
+                  "Has she got pointed ears?"
+                ],
+                "explanation": "Incorrect sentences:\n1. *Moon Girl have got a silver mask.* — With she, use has got: Moon Girl has got a silver mask.\n2. *They has got gloves.* — With they, use have got: They have got gloves.\n3. *I hasn’t got a belt.* — With I, use haven’t got: I haven’t got a belt.\n4. *Do he has got boots?* — Questions start with Has: Has he got boots?"
+              }
+            ]
           }
         }
       ]

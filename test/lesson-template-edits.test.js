@@ -274,7 +274,7 @@ const blockIds = plan => plan.blocks.map(entry => entry.block);
 
 test('a task comes from the catalog with its answer key, which is set up and turned off in its block', () => {
   const definition = templateTwo();
-  const task = addBlock(definition, 'grammar-focus', 'correctSentences').block;
+  const task = addBlock(definition, 'grammar-focus', 'contextDropdown').block;
   assert.deepEqual(task.answerKey, {});
   assert.equal(Object.hasOwn(addBlock(definition, 'grammar-focus', 'quickRule').block, 'answerKey'), false);
 

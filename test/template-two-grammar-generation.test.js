@@ -6,6 +6,7 @@ const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { recoverLessonGeneration } = require('../lib/lesson-generation-recovery.js');
 const { GENERATED_TEMPLATE_TWO_GRAMMAR_PRESENTATION: generated } = require('./fixtures/generated-template-two-grammar-presentation.js');
 const { TEMPLATE_TWO_OUTPUT_BEFORE_GRAMMAR } = require('./fixtures/generated-template-two.js');
+const { parseMarkdown } = require('../assets/components/safe-markdown.js');
 const { applyStage, byId, stageContent, stageRequest, templateTwoPlan, templateTwoSkeleton } = require('./helpers/template-two.js');
 
 const vocabularyItems = Array.from({ length: 10 }, (_, index) => ({ term: `travel word ${index}`, definition: 'meaning' }));
@@ -23,25 +24,31 @@ test('Template 2 generates discovery and checkbox grammar while preserving stati
   assert.deepEqual(byId(content, 'grammar-presentation-teacher-note'), byId(byId(synthetic.stages, 'grammar-presentation').content, 'grammar-presentation-teacher-note'));
   const task = byId(content, 'grammar-presentation-check-the-rule');
   // The application shuffles the sentences instead of trusting the model's order.
-  assert.deepEqual(task.items[0].options, [1, 2, 3, 4, 5, 6, 7, 0].map(index => generated.checkItems[index].sentence));
-  assert.equal(task.items[0].answers.length, 4);
+  const [question] = generated.checkQuestions;
+  assert.equal(task.items[0].question, question.question);
+  assert.deepEqual(task.items[0].options, [1, 2, 3, 4, 5, 6, 7, 0].map(index => question.options[index]));
+  assert.deepEqual(task.items[0].answers, question.answers);
   // Each task's key follows it.
   const ruleKey = byId(content, 'grammar-presentation-complete-the-rule-answer-key');
   assert.equal(ruleKey.studentVisibility, 'teacherOnly');
   assert.match(ruleKey.sections[0].text, /^1 /);
   const key = byId(content, 'grammar-presentation-check-the-rule-answer-key');
-  assert.deepEqual(key.sections.map(section => section.title), ['Answers', 'Short explanations']);
-  assert.equal(byId(key.sections, 'answers').text, 'Correct sentences: 2, 3, 6, 8.');
-  assert.match(byId(key.sections, 'explanations').text, /^- \*We did not caught the train\.\* — After did not, use catch/);
+  assert.deepEqual(key.sections.map(section => section.id), ['answers-left']);
+  assert.equal(key.sections[0].text, `B, C, F, H — ${question.explanation}`);
+  // The lead-in line keeps the explanations a list of their own.
+  const [lead, list] = parseMarkdown(key.sections[0].text);
+  assert.equal(lead.type, 'paragraph');
+  assert.deepEqual([list.type, list.ordered, list.items.length], ['list', true, 4]);
 });
 
-test('Template 2 grammar validates counts, booleans, explanations, duplicates and shared discovery rules', () => {
+test('Template 2 grammar validates counts, answers, explanations, duplicates and shared discovery rules', () => {
   for (const mutate of [
-    g => g.checkItems.pop(),
-    g => { g.checkItems[0].isCorrect = false; },
-    g => { g.checkItems[0].isCorrect = 'true'; },
-    g => { g.checkItems[1].sentence = g.checkItems[0].sentence; },
-    g => { g.checkItems[1].explanation = ''; },
+    g => g.checkQuestions[0].options.pop(),
+    g => { g.checkQuestions[0].answers.push(g.checkQuestions[0].options[1]); },
+    g => { g.checkQuestions[0].answers[0] = 'I visit London last summer.'; },
+    g => { g.checkQuestions[0].options[1] = g.checkQuestions[0].options[0]; },
+    g => { g.checkQuestions[0].explanation = ''; },
+    g => g.checkQuestions.push(structuredClone(g.checkQuestions[0])),
     g => { g.ruleDistractors[0] = 'past'; },
   ]) {
     const invalid = structuredClone(generated);
@@ -52,8 +59,9 @@ test('Template 2 grammar validates counts, booleans, explanations, duplicates an
 
 test('Template 2 Grammar Presentation prompt receives vocabulary and grammar and asks for checkbox sentences', () => {
   const { messages } = stageRequest('grammar-presentation', { variables, profile: { ageGroup: '15-17', level: 'B1' } });
-  assert.match(messages[0].content, /Exactly four sentences/);
-  assert.match(messages[0].content, /Leave explanation empty for correct sentences/);
+  assert.match(messages[0].content, /One question: "Which four sentences are grammatically correct\?"/);
+  assert.match(messages[0].content, /Exactly four are grammatically correct/);
+  assert.match(messages[0].content, /start with the line "Incorrect sentences:", then a numbered Markdown list/);
   assert.match(messages[0].content, /Inflection is allowed/);
   assert.doesNotMatch(messages[0].content, /five checkItems|three distinct options/);
   assert.equal(messages[1].content, `Lesson topic: Travel\nGrammar topic: Past Simple\nTarget Vocabulary: ${JSON.stringify(vocabularyItems.map(item => item.term))}`);
@@ -87,5 +95,5 @@ test('Template 2 plan sends the stage prompt with structured output and validate
   });
   const result = await plan.generate('grammar-presentation', state, connection(generated));
   assert.deepEqual(result.generated, generated);
-  await assert.rejects(plan.generate('grammar-presentation', state, connection({ ...generated, checkItems: [] })), /нужно ровно 8/);
+  await assert.rejects(plan.generate('grammar-presentation', state, connection({ ...generated, checkQuestions: [] })), /нужно ровно 1/);
 });

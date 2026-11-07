@@ -213,7 +213,10 @@ module.exports = {
   тексте, подсказки в пропусках включает флажок.
   `choiceQuestions` — и вопросы к тексту или аудио, и значения слов урока:
   вопрос на каждое слово, ответ — его определение; пояснения к ответам
-  выключает флажок, компактный вид без букв задаёт оформление.
+  выключает флажок, компактный вид без букв задаёт оформление. Он же —
+  «Tick the correct sentences» (Check the Rule в шаблонах 2 и 3): один вопрос,
+  варианты — предложения, ответы — верные из них, а пояснение — Markdown-список
+  ошибок неверных предложений.
   У `personalizedQuestions` указания говорят, нужны ли в вопросах слова
   урока, у `describeAndGuess` — какие слова описывать в игре, у
   `readingText` — сколько слов урока взять в текст, у `roleCards` — сколько
@@ -343,8 +346,7 @@ OpenRouter, метаданные урока (обложка) и описание
   «**1.** догадка — **FACT** · имя: “цитата”».
 - **Watch & interact** — только статичные блоки, нейросеть не вызывается.
 - **Grammar Presentation** и **Grammar Focus** — ключ после каждого задания; у
-  Check the Rule и Choose the Correct Options он из двух частей: ответы и
-  пояснения. Заметка Grammar Focus — четыре подблока, текст каждого — слот `rule`.
+  Choose the Correct Options он из двух частей: ответы и пояснения. Заметка Grammar Focus — четыре подблока, текст каждого — слот `rule`.
 - **Guided Communication** — success criteria — слот `rule` в статичной заметке.
 - **Wrap-Up** — заметка списком из трёх слотов `rule`, 3–2–1 и статичная
   карточка Possible language, слот которой — строка через « / ».
@@ -369,13 +371,12 @@ warm-up, watch-and-interact — без связей
 | `factOrMyth` | factOrMyth | → statements |
 | `vocabularyList` | markdownCard | → vocabulary |
 | `storyCards` | storyCards | |
-| `choiceQuestions` | multipleChoice или checkboxChoice (в шаблоне 2 — значения слов: без пояснений, компактный вид) | |
+| `choiceQuestions` | multipleChoice или checkboxChoice (в шаблоне 2 — значения слов: без пояснений, компактный вид; Check the Rule в шаблонах 2 и 3 — один вопрос, верные предложения среди неверных) | |
 | `contextDropdown` | dropdownChoice (с пояснениями — и выбор формы в предложениях) | |
 | `dragSentences` | dragWordsInText (с лишними вариантами — и «Complete the Rule») | |
 | `translationHints` | gapFill | |
 | `personalizedQuestions` | personalizedQuestions | |
 | `quickRule` | markdownCard (sections) | |
-| `correctSentences` | checkboxChoice | |
 | `cueGaps` | gapFill (диалог или нумерованные предложения, подсказки — флажок) | |
 | `sentenceCorrection` | sentenceCorrection | |
 | `sentenceHalves` | sentenceMatching | |
@@ -398,7 +399,7 @@ warm-up, watch-and-interact — без связей
 
 Общие для обоих шаблонов: `vocabularyList`, `choiceQuestions`, `contextDropdown`,
 `personalizedQuestions`, `dragSentences`, `quickRule`, `cueGaps`,
-`threeTwoOne`. Всего 25 контролов.
+`threeTwoOne`. Всего 24 контрола.
 
 Для шаблона 3 добавлен `sentenceBuilder` (компонент sentenceBuilder, без входов):
 предложения с фразами в `[скобках]` и другими верными порядками, см.
@@ -483,7 +484,8 @@ ALTER TABLE lesson_drafts ADD COLUMN template_snapshot_json TEXT;
 8. **Правка Check the Rule в черновике** (с шага 0c-3): число предложений и
    правильных ответов нельзя менять относительно сгенерированного. Раньше
    проверялось ровно 8 и 4, что не подошло бы копиям с другими параметрами.
-   Строку Task 2 в ключе ответов пересчитывает контрол `correctSentences`.
+   С 2026-11-07 Check the Rule — обычный `choiceQuestions`: задание правится
+   свободно, ключ ответов — вручную, как у других заданий с вариантами.
 
 Для шаблона 1 после шага 0c (проверки старых сборщиков перенесены как есть):
 

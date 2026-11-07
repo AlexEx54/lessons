@@ -1277,9 +1277,6 @@
       const saved = findCheckboxChoice(state.lesson, componentId);
       if (!saved) throw new Error('Сохранённый Checkbox Choice не найден в черновике.');
       showToast('Checkbox Choice сохранён.');
-      if (componentId === 'grammar-presentation-check-the-rule') {
-        window.setTimeout(() => renderStageContent(state.lesson.stages[state.activeIndex], true), 0);
-      }
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить Checkbox Choice.');

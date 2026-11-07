@@ -743,18 +743,19 @@ test('Template 2 generates Warm-Up, Lead-In, Target Vocabulary, Grammar Presenta
     .content.find(component => component.id === id);
   const task = grammarComponent(ready, 'grammar-presentation-check-the-rule');
   assert.equal(task.items[0].answers.length, 4);
+  // Task 2 is an ordinary checkbox choice: the teacher may change its answers, and the key
+  // stays as it is until edited by hand.
   const changed = structuredClone(task);
-  const [item] = changed.items;
-  const incorrect = item.options.filter(option => !item.answers.includes(option));
-  item.options = [...item.answers, 'I go to Spain yesterday.', ...incorrect.slice(1)];
+  changed.items[0].answers.pop();
   const edit = await fetch(`${baseUrl}/api/lesson-drafts/${created.id}/checkbox-choice/${changed.id}`, {
     method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' },
     body: JSON.stringify({ title: changed.title, instruction: changed.instruction, items: changed.items }),
   });
   assert.equal(edit.status, 200);
-  const previousKey = grammarComponent(ready, 'grammar-presentation-check-the-rule-answer-key');
-  const key = grammarComponent((await edit.json()).draft, 'grammar-presentation-check-the-rule-answer-key');
-  assert.deepEqual(key.sections, previousKey.sections.map(section => (
-    section.id === 'answers' ? { ...section, text: 'Correct sentences: 1, 2, 3, 4.' } : section
-  )));
+  const edited = (await edit.json()).draft;
+  assert.equal(grammarComponent(edited, 'grammar-presentation-check-the-rule').items[0].answers.length, 3);
+  assert.deepEqual(
+    grammarComponent(edited, 'grammar-presentation-check-the-rule-answer-key'),
+    grammarComponent(ready, 'grammar-presentation-check-the-rule-answer-key'),
+  );
 });

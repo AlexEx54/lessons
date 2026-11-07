@@ -200,36 +200,23 @@ test('template two creation and editing update the answer key atomically', async
     method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   });
   const grammarChanges = { title: grammarTask.title, instruction: grammarTask.instruction, items: structuredClone(grammarTask.items) };
+  // Task 2 is an ordinary checkbox choice: any change is saved and the key is edited by hand.
   grammarChanges.items[0].options.reverse();
+  grammarChanges.items[0].answers.pop();
   const grammarSavedResponse = await grammarPatch(grammarChanges);
   assert.equal(grammarSavedResponse.status, 200);
   const grammarSaved = (await grammarSavedResponse.json()).draft.content.stages[4].content;
-  assert.equal(grammarSaved[6].sections[1].text, 'Correct sentences: 3, 5, 6, 8.');
-  assert.equal(grammarSaved[6].sections[2].text, grammar[6].sections[2].text);
-  assert.deepEqual(grammarSaved[6].sections[0], grammar[6].sections[0]);
-  for (const mutate of [
-    item => { item.answers.pop(); },
-    item => { item.options.splice(item.options.indexOf('They got used to wake up early.'), 1); },
-  ]) {
-    const invalid = structuredClone(grammarChanges);
-    mutate(invalid.items[0]);
-    assert.equal((await grammarPatch(invalid)).status, 400);
-  }
-  const grammarKeyPatch = sections => fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/markdown-cards/${grammar[6].id}`, {
+  assert.deepEqual(grammarSaved[5].items[0].options, grammarChanges.items[0].options);
+  assert.equal(grammarSaved[5].items[0].answers.length, grammarTask.items[0].answers.length - 1);
+  assert.deepEqual(grammarSaved[6], grammar[6]);
+  const sections = structuredClone(grammar[6].sections);
+  sections[1].text = 'Correct sentences: 3, 5, 6.';
+  const grammarKeyResponse = await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/markdown-cards/${grammar[6].id}`, {
     method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' },
     body: JSON.stringify({ title: grammar[6].title, sections }),
   });
-  const sections = structuredClone(grammarSaved[6].sections);
-  sections[1].text = 'Incorrect key';
-  assert.equal((await grammarKeyPatch(sections)).status, 409);
-  sections[1].text = grammarSaved[6].sections[1].text;
-  sections[2].text = 'Custom teacher explanations.';
-  assert.equal((await grammarKeyPatch(sections)).status, 200);
-  const titleOnly = await grammarPatch({ ...grammarChanges, title: 'Check the sentences' });
-  assert.equal(titleOnly.status, 200);
-  const titleOnlyContent = (await titleOnly.json()).draft.content.stages[4].content;
-  assert.equal(titleOnlyContent[6].sections[2].text, 'Custom teacher explanations.');
-  assert.deepEqual(titleOnlyContent[5].items, grammarSaved[5].items);
+  assert.equal(grammarKeyResponse.status, 200);
+  assert.deepEqual((await grammarKeyResponse.json()).draft.content.stages[4].content[6].sections, sections);
   const vocabulary = draft.content.stages[2].content;
   assert.deepEqual(vocabulary.map(c => c.type), ['teacherNote', 'markdownCard', 'storyCards', 'markdownCard', 'multipleChoice', 'dropdownChoice', 'dragWordsInText', 'gapFill', 'personalizedQuestions', 'markdownCard']);
   assert.equal(vocabulary[3].studentVisibility, 'teacherOnly');

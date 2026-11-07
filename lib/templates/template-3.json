@@ -459,31 +459,43 @@
         {
           "id": "grammar-presentation-check-the-rule",
           "kind": "generated",
-          "control": "correctSentences",
+          "control": "choiceQuestions",
           "params": {
-            "sentences": 6,
-            "correct": 3
+            "questions": 1,
+            "options": 6,
+            "maxAnswers": 3,
+            "explanations": true
           },
           "fields": {
-            "items": "checkItems"
+            "questions": "checkQuestions"
           },
           "chrome": {
             "title": "Check the Rule. Tick the correct sentences.",
-            "instruction": "Read the sentences and tick the grammatically correct ones.",
-            "question": "Which three sentences are grammatically correct?"
+            "instruction": "Read the sentences and tick the grammatically correct ones."
           },
+          "instructions": "One question: \"Which three sentences are grammatically correct?\"\nThe options are six sentences that check the grammar rule of the lesson. Exactly three are grammatically correct; each of the other three has one clear, typical error in the target grammar. The answers are the three correct sentences.\nexplanation: start with the line \"Incorrect sentences:\", then a numbered Markdown list, one item per incorrect sentence in any order: the sentence in italics — what is wrong and the corrected sentence. Example item: *He shoulds ask his teacher first.* — Should doesn’t change: He should ask his teacher first.\nDo not use Markdown in the question or options.",
           "answerKey": {
-            "title": "Answer key",
-            "layout": "columns"
+            "title": "Answer key"
           },
           "example": {
-            "items": [
-              { "sentence": "You should keep your phone in your bag.", "isCorrect": true, "explanation": "" },
-              { "sentence": "Students shouldn’t use phones in tests.", "isCorrect": true, "explanation": "" },
-              { "sentence": "Should we talk to the head teacher?", "isCorrect": true, "explanation": "" },
-              { "sentence": "He shoulds ask his teacher first.", "isCorrect": false, "explanation": "Should doesn’t change: He should ask his teacher first." },
-              { "sentence": "We should to put our phones on silent.", "isCorrect": false, "explanation": "Use the base form after should: We should put our phones on silent." },
-              { "sentence": "You don’t should check messages in class.", "isCorrect": false, "explanation": "The negative is shouldn’t: You shouldn’t check messages in class." }
+            "questions": [
+              {
+                "question": "Which three sentences are grammatically correct?",
+                "options": [
+                  "You should keep your phone in your bag.",
+                  "He shoulds ask his teacher first.",
+                  "Students shouldn’t use phones in tests.",
+                  "We should to put our phones on silent.",
+                  "Should we talk to the head teacher?",
+                  "You don’t should check messages in class."
+                ],
+                "answers": [
+                  "You should keep your phone in your bag.",
+                  "Students shouldn’t use phones in tests.",
+                  "Should we talk to the head teacher?"
+                ],
+                "explanation": "Incorrect sentences:\n1. *He shoulds ask his teacher first.* — Should doesn’t change: He should ask his teacher first.\n2. *We should to put our phones on silent.* — Use the base form after should: We should put our phones on silent.\n3. *You don’t should check messages in class.* — The negative is shouldn’t: You shouldn’t check messages in class."
+              }
             ]
           }
         }
