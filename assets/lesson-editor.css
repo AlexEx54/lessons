@@ -202,7 +202,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
   .lesson-header__actions { grid-column: 1 / -1; margin-top: 12px; }
   .lesson-layout { min-height: calc(100vh - 142px - var(--image-generation-banner-height)); }
   .lesson-plan { top: 0; height: 100vh; }
-  .show-plan { position: absolute; top: 16px; z-index: 16; }
+  /* The header scrolls away here, so the button sticks to the viewport top, sharing the content's grid cell. */
+  .show-plan { position: sticky; top: 16px; z-index: 16; }
+  .lesson-plan-hidden .show-plan, .lesson-plan-hidden .lesson-content { grid-area: 1 / 1; }
   .lesson-connection { top: 16px; }
 }
 
