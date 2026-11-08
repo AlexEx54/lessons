@@ -44,10 +44,12 @@ test('Template 3 builds its synthetic lesson from its examples without warnings'
   const builder = byId(byId(lesson.stages, 'grammar-focus').content, 'grammar-focus-build-the-message');
   assert.equal(builder.items.length, 6);
   assert.equal(builder.completionText, 'Message sent! Well done!');
+  const question = byId(byId(lesson.stages, 'debate').content, 'debate-question');
+  assert.match(question.text, /\*\*Debate question:\*\* Should our school ban phones\?/);
   const task = byId(byId(lesson.stages, 'create').content, 'create-reply-task');
   assert.equal(task.type, 'miniSituation');
   assert.equal(task.sentenceCount, 6);
-  assert.match(task.situation.text, /- Give one piece of advice with \*\*should\*\* or \*\*shouldn’t\*\*\./);
+  assert.match(task.situation.text, /- Use \*\*should\*\* or \*\*shouldn’t\*\* in at least three sentences\./);
 });
 
 test('Wrap-Up only announces the homework; the Homework stage holds the task to write and hand in', () => {
