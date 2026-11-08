@@ -507,7 +507,7 @@
         "Grammar topic": "$input.grammarTopic",
         "Target Vocabulary": "$var.targetVocabulary"
       },
-      "instructions": "This is an eight-minute Grammar Focus with three controlled-practice tasks written as chat messages: build messages from word cards, fix messages that autocorrect broke, and complete messages with the right form.\nThe supplied Grammar topic is authoritative: every task practises exactly that grammar accurately.\nUse the lesson topic as one coherent context and reuse some supplied Target Vocabulary where it fits.\nAll content must be natural English at the target CEFR level. Do not use Markdown or HTML, except the bold numbers of gapMessages.",
+      "instructions": "This is an eight-minute Grammar Focus with three controlled-practice tasks written as chat messages: build messages from word cards, fix messages that autocorrect broke, and complete messages with the right form.\nThe supplied Grammar topic is authoritative: every task practises exactly that grammar accurately.\nUse the lesson topic as one coherent context and reuse some supplied Target Vocabulary where it fits.\nEach task has its own situations: do not repeat a message or a situation from another task.\nAll content must be natural English at the target CEFR level. Do not use Markdown or HTML, except the bold numbers of gapMessages.",
       "blocks": [
         {
           "id": "grammar-focus-teacher-note",
@@ -592,7 +592,7 @@
             "instruction": "Type the correct form of the words in brackets.",
             "accentColor": "#2F80ED"
           },
-          "instructions": "gapMessages is a numbered list of six separate short chat messages about the lesson topic, one per line, each starting with its number in bold (**1.**) and with exactly one gap.\nEach gap tests a form of the grammar of the lesson; each cue gives the words the learner must change, for example “not play” or “we / use”.",
+          "instructions": "gapMessages is a numbered list of six separate short chat messages about the lesson topic, one per line, each starting with its number in bold (**1.**) and with exactly one gap.\nEach gap tests a form of the grammar of the lesson. Include affirmative, negative, and question forms whenever the grammar topic supports them.\nEach cue gives the words the learner must change, for example “play”, “not play” or “you / play”.",
           "answerKey": {},
           "example": {
             "text": "**1.** Students [[1]] games during lessons.\n**2.** You [[2]] your phone on silent in class.\n**3.** [[3]] our phones for the project?\n**4.** I think teachers [[4]] our phones away.\n**5.** We [[5]] to each other at lunch.\n**6.** Parents [[6]] their children during lessons.",
@@ -618,7 +618,7 @@
         "Lesson topic": "$input.topic",
         "Target Vocabulary": "$var.targetVocabulary"
       },
-      "instructions": "This is a ten-minute debate between the learner and the teacher about debateQuestion, one clear question on the lesson topic. Each side has a secret role card; in the end they must agree on one fair solution.\nAll content must be natural English at the target CEFR level. Do not use Russian or HTML, and use Markdown only where a rule asks for it.\nDo not turn the debate into a grammar exercise.",
+      "instructions": "This is a ten-minute debate between the learner and the teacher about debateQuestion, one decision on the lesson topic. Each side has a secret role card; in the end they must agree on one fair solution.\nAll content must be natural English at the target CEFR level. Do not use Russian or HTML, and use Markdown only where a rule asks for it.\nDo not turn the debate into a grammar exercise.",
       "blocks": [
         {
           "id": "debate-teacher-note",
@@ -640,7 +640,7 @@
           },
           "slots": {
             "debateQuestion": {
-              "rule": "The debate question: one short yes/no question about the lesson topic with two clear sides that teenagers can argue about. Plain text ending with a question mark, no Markdown.",
+              "rule": "The debate question: one short yes/no question about a decision on the lesson topic that a family, class or school has to make, so that the two sides can argue and then agree on one fair solution, for example “Should our class get a pet?”. Not a question of taste such as “Are dogs better than cats?”. Plain text ending with a question mark, no Markdown.",
               "example": "Should our school ban phones?"
             }
           }
@@ -792,8 +792,8 @@
               "example": "ban, distraction, emergency, on silent, screen time, phone locker"
             },
             "modelSentence": {
-              "rule": "One natural sentence that gives an opinion on the lesson topic with a reason and uses the target grammar, without quotation marks. It must fit any reply, so it does not say whether the writer agrees with the post.",
-              "example": "I don’t agree with a phone ban, but we should keep our phones on silent in class."
+              "rule": "One natural sentence about the lesson topic that gives a reason and uses the target grammar, without quotation marks. It must fit a reply on either side, so it takes no side: it does not say whether the writer agrees with the post and does not call one side better, good or bad.",
+              "example": "Phones are useful in an emergency, but they shouldn’t distract us in class."
             }
           }
         }
