@@ -50,6 +50,23 @@ test('safe markdown parses muted tone with nested size and bold markers', () => 
   }]);
 });
 
+test('safe markdown nests bold inside italics', () => {
+  const text = value => ({ type: 'text', value });
+  const strong = value => ({ type: 'strong', children: [text(value)] });
+  assert.deepEqual(parseInlineMarkdown("*Errors **weren't noticed**.*"), [
+    { type: 'emphasis', children: [text('Errors '), strong("weren't noticed"), text('.')] },
+  ]);
+  assert.deepEqual(parseInlineMarkdown('***Is** the quiz **graded** instantly?*'), [
+    { type: 'emphasis', children: [strong('Is'), text(' the quiz '), strong('graded'), text(' instantly?')] },
+  ]);
+  assert.deepEqual(parseInlineMarkdown('***both***'), [{ type: 'strongEmphasis', children: [text('both')] }]);
+  assert.deepEqual(parseInlineMarkdown('**bold *italic***'), [
+    { type: 'strong', children: [text('bold '), { type: 'emphasis', children: [text('italic')] }] },
+  ]);
+  const source = '*a **b** c* and ***d** e*';
+  assert.equal(serializeMarkdownBlocks(parseMarkdown(source)), source);
+});
+
 test('safe markdown leaves unclosed size markers as plain text', () => {
   assert.deepEqual(parseInlineMarkdown('{l}open and {s}small{/s}'), [
     { type: 'text', value: '{l}open and ' },

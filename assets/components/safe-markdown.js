@@ -21,11 +21,53 @@
     else tokens.push({ type: 'text', value });
   }
 
+  const EMPHASIS_TYPES = { '***': 'strongEmphasis', '**': 'strong', '*': 'emphasis' };
+  const MAX_EMPHASIS_DEPTH = 8;
+
+  function starRunLength(source, index) {
+    let end = index;
+    while (source[end] === '*') end += 1;
+    return end - index;
+  }
+
+  // A run of stars closes the open marker when it is at least as long, except that `**`
+  // inside italics opens bold: `*Errors **weren't noticed**.*`.
+  function closesMarker(run, closer) {
+    if (!closer || run < closer.length) return false;
+    return !(closer === '*' && run === 2);
+  }
+
+  // `***` opens bold italics, or italics that start with bold: `***Is** it graded?*`.
+  function openEmphasis(source, index, run, memo, depth) {
+    if (depth >= MAX_EMPHASIS_DEPTH) return null;
+    const markers = run >= 3 ? ['***', '*', '**'] : run === 2 ? ['**'] : ['*'];
+    for (const marker of markers) {
+      const inner = parseInlineRange(source, index + marker.length, marker, memo, depth + 1);
+      if (inner.closed) return { token: { type: EMPHASIS_TYPES[marker], children: inner.tokens }, end: inner.end };
+    }
+    return null;
+  }
+
   function parseInlineMarkdown(value) {
-    const source = String(value || '');
+    return parseInlineRange(String(value || ''), 0, '', new Map(), 0).tokens;
+  }
+
+  // Unclosed markers make openEmphasis try every way to pair them; the memo parses each
+  // range once, so that stays polynomial instead of exponential.
+  function parseInlineRange(source, start, closer, memo, depth) {
+    const key = `${start}:${closer}:${depth}`;
+    if (!memo.has(key)) memo.set(key, scanInlineRange(source, start, closer, memo, depth));
+    return memo.get(key);
+  }
+
+  function scanInlineRange(source, start, closer, memo, depth) {
     const tokens = [];
-    let index = 0;
+    let index = start;
     while (index < source.length) {
+      const run = starRunLength(source, index);
+      if (index > start && closesMarker(run, closer)) {
+        return { tokens, end: index + closer.length, closed: true };
+      }
       const sizeMatch = source.slice(index).match(SIZE_OPEN);
       if (sizeMatch) {
         const size = sizeMatch[1];
@@ -54,22 +96,16 @@
           continue;
         }
       }
-      const marker = source.startsWith('***', index) ? '***'
-        : source.startsWith('**', index) ? '**'
-          : source[index] === '*' ? '*' : '';
-      if (marker) {
-        const closing = source.indexOf(marker, index + marker.length);
-        if (closing > index + marker.length) {
-          const type = marker === '***' ? 'strongEmphasis' : marker === '**' ? 'strong' : 'emphasis';
-          tokens.push({ type, children: parseInlineMarkdown(source.slice(index + marker.length, closing)) });
-          index = closing + marker.length;
-          continue;
-        }
+      const emphasis = run ? openEmphasis(source, index, run, memo, depth) : null;
+      if (emphasis) {
+        tokens.push(emphasis.token);
+        index = emphasis.end;
+        continue;
       }
       appendTextToken(tokens, source[index]);
       index += 1;
     }
-    return tokens;
+    return { tokens, end: index, closed: false };
   }
 
   function parseMarkdown(value) {
