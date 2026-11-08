@@ -1,14 +1,13 @@
 (() => {
   'use strict';
-  if (/^\/sessions\//.test(window.location.pathname)) return;
+  // Live classes and the library preview have their own scripts.
+  if (/^\/(sessions|library)\//.test(window.location.pathname)) return;
 
   const state = {
     lesson: null,
     draftId: '',
     draftStatus: '',
     activeIndex: 0,
-    elapsedSeconds: 0,
-    timer: null,
     dirtyComponents: new Set(),
     imageGeneration: null,
     imagePollTimer: null,
@@ -138,13 +137,11 @@
       onError: showToast,
     }),
     thisOrThat: () => ({
-      showImagePrompts: state.draftStatus !== 'readonly',
       onUpload: state.draftStatus === 'review' ? uploadThisOrThatImage : undefined,
       onDelete: state.draftStatus === 'review' ? deleteThisOrThatImage : undefined,
       onMessage: showToast,
     }),
     matchWords: () => ({
-      showImagePrompts: state.draftStatus !== 'readonly',
       onUpload: state.draftStatus === 'review' ? uploadMatchWordsImage : undefined,
       onDelete: state.draftStatus === 'review' ? deleteMatchWordsImage : undefined,
       onMessage: showToast,
@@ -1479,21 +1476,12 @@
   }
 
   async function loadLesson() {
-    const libraryMatch = window.location.pathname.match(/^\/library\/([^/]+)\/?$/);
-    const match = libraryMatch || window.location.pathname.match(/^\/lesson-drafts\/([^/]+)\/edit\/?$/);
+    const match = window.location.pathname.match(/^\/lesson-drafts\/([^/]+)\/edit\/?$/);
     if (!match) return showError('Некорректная ссылка на урок.');
     try {
-      const response = await fetch(`/api/${libraryMatch ? 'library' : 'lesson-drafts'}/${encodeURIComponent(decodeURIComponent(match[1]))}`, { cache: 'no-store' });
+      const response = await fetch(`/api/lesson-drafts/${encodeURIComponent(decodeURIComponent(match[1]))}`, { cache: 'no-store' });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Черновик урока не найден.');
-      if (libraryMatch) {
-        state.draftStatus = 'readonly';
-        document.querySelector('.end-lesson').href = '/library.html';
-        document.querySelector('.end-lesson span').textContent = 'В библиотеку';
-        render(payload.lesson.content);
-        window.LessonNotes.mount({ mode: 'library', content: payload.lesson.content.notes });
-        return;
-      }
       if (!payload.draft?.content?.stages?.length) throw new Error('В черновике пока нет структуры урока.');
       state.draftId = payload.draft.id;
       byId('publish-lesson').hidden = payload.draft.status !== 'review';
@@ -1502,6 +1490,8 @@
       state.imageGeneration = payload.draft.imageGeneration;
       render(payload.draft.content);
       window.LessonNotes.mount({ mode: 'draft', id: state.draftId });
+      // Drafts have no second participant, so reactions only play locally as a preview.
+      window.ClassReactions?.create();
       updateImageGenerationBanner();
       scheduleImageGenerationPoll();
     } catch (error) {
@@ -1520,21 +1510,9 @@
   imageGenerationStop.addEventListener('click', () => changeImageGeneration('stop', imageGenerationStop));
   imageGenerationStart.addEventListener('click', () => changeImageGeneration('start', imageGenerationStart));
   window.addEventListener('resize', syncImageGenerationBannerHeight);
-  byId('lesson-timer').addEventListener('click', () => {
-    if (state.timer) {
-      window.clearInterval(state.timer);
-      state.timer = null;
-      byId('timer-icon').textContent = '▶';
-      return;
-    }
-    byId('timer-icon').textContent = 'Ⅱ';
-    state.timer = window.setInterval(() => {
-      state.elapsedSeconds += 1;
-      byId('elapsed-time').textContent = formatTime(state.elapsedSeconds);
-    }, 1000);
-  });
+  const lessonTimer = window.LessonTimer.create({ formatTime });
   window.addEventListener('pagehide', () => {
-    window.clearInterval(state.timer);
+    lessonTimer.stop();
     window.clearTimeout(state.imagePollTimer);
   });
   window.addEventListener('beforeunload', (event) => {

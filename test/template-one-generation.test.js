@@ -146,7 +146,6 @@ test('Template 1 rejects model answers that would break a task', () => {
     ['reading', answer => { answer.gistQuestions[0].options[1] = answer.gistQuestions[0].options[0]; }, /варианты в вопросе 1 не должны повторяться/],
     ['reading', answer => { answer.detailQuestions[0].answer = 'An answer outside the options.'; }, /должен точно совпадать с вариантом/],
     ['reading', answer => { answer.text = 'A very short reading text.'; }, /от 180 до 230 слов, получено 5/],
-    ['reading', answer => { answer.textImagePrompt = 'Students arrive at an airport.'; }, /иллюстрацию без текста/],
     ['listening', answer => { answer.listeningScript = `**Maya:** ${answer.listeningScript}`; }, /Блок listening-audio: AudioPlayer does not allow HTML or Markdown in script/],
     ['listening', answer => { answer.gistQuestions.pop(); }, /Listening for Gist»: нужно ровно 2/],
     ['listening', answer => { answer.detailQuestions.pop(); }, /Listening for Detail»: нужно ровно 5/],
@@ -185,6 +184,8 @@ test('Template 1 only logs answers that stay usable', t => {
     answer.miniSituation.imagePrompt = 'A traveler at an airport.';
   })();
   const focus = warnings();
+  damaged('reading', answer => { answer.textImagePrompt = 'Students arrive at an airport.'; })();
+  assert.match(warnings(), /reading-text: картинки не требуют явно иллюстрацию без текста/);
   for (const pattern of [/убрана Markdown-разметка в пропуске 1/, /Task 2\. Complete the gaps.*убрана Markdown-разметка в пропуске 2/,
     /иллюстрацию без текста/]) {
     assert.match(focus, pattern);

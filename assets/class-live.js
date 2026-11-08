@@ -4,26 +4,33 @@
   if (!match) return;
   const sessionId = match[1], role = match[2] ? 'student' : 'teacher';
   const byId = id => document.getElementById(id);
-  let socket, reconnectTimer, toastTimer, lessonTimer, stopped = false, connected = false, slotTaken = false;
-  let elapsedSeconds = 0;
+  let socket, reconnectTimer, toastTimer, stopped = false, connected = false, slotTaken = false;
   let confirmed, inFlight = false, pending = [], reconnectDelay = 500;
   const viewState = { lesson: null, activeIndex: 0 };
+  // The student may look at a stage other than the teacher's shared `activeStageId`.
+  const viewedStageId = () => viewState.lesson?.stages[viewState.activeIndex]?.id;
+  const stageIndex = stageId => viewState.lesson.stages.findIndex(stage => stage.id === stageId);
   let availableStageIds = [];
   let peerPresent = false;
+  // Playback is synchronised only on the teacher's stage; elsewhere the video plays locally.
   function sendMedia(message) {
-    if (connected && socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ ...message, stageId: confirmed.activeStageId }));
+    if (connected && socket?.readyState === WebSocket.OPEN && viewedStageId() === confirmed.activeStageId) socket.send(JSON.stringify({ ...message, stageId: confirmed.activeStageId }));
   }
   let feedback = false;
   let pointerComponentIds = [];
-  const pointer = window.ClassPointer?.create({ role, notify, send: message => {
+  const sendEphemeral = message => {
     if (connected && socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
-  } });
+  };
+  const pointer = window.ClassPointer?.create({ role, notify, send: sendEphemeral });
+  const reactions = window.ClassReactions?.create({ send: sendEphemeral });
+  const panel = window.SessionPanel?.create({ sessionId, role, notify });
   const adapters = window.ClassComponentAdapters;
   const status = byId('teacher-screen');
   status.disabled = true;
   const statusLabel = status.querySelector('span');
   const setStatus = (text, state) => {
     statusLabel.textContent = text;
+    status.title = text;
     if (state) status.dataset.state = state;
     else delete status.dataset.state;
   };
@@ -42,12 +49,21 @@
     if (!connected || !confirmed || pending.length) return;
     enqueue({ type: 'reset-stage', stageId: confirmed.activeStageId });
   });
-  const timerButton = byId('lesson-timer');
-  timerButton.hidden = role !== 'teacher';
+  const follow = byId('lesson-follow');
+  byId('lesson-follow-return').addEventListener('click', () => showTeacherStage());
+  byId('lesson-timer-card').hidden = role !== 'teacher';
   document.querySelector('.teacher-version').textContent = role === 'teacher' ? 'Teacher version' : 'Student version';
   const exit = document.querySelector('.end-lesson');
   if (role === 'teacher') { exit.href = '/schedule'; exit.querySelector('span').textContent = 'В расписание'; }
   else { exit.hidden = true; document.querySelector('.lesson-brand').href = window.location.pathname; }
+  // The student leaves a session for the class home and its list of sessions.
+  function showClassLinks(classPath) {
+    document.querySelector('.lesson-brand').href = classPath;
+    exit.href = `${classPath}/sessions`;
+    exit.querySelector('span').textContent = 'Все занятия';
+    exit.classList.add('end-lesson--classes');
+    exit.hidden = false;
+  }
   function notify(message) {
     const toast = byId('lesson-toast');
     toast.textContent = message;
@@ -71,41 +87,36 @@
   function session(state = confirmed) { return { role, connected, peerPresent, sendMedia, state, send: enqueue, pendingActions: pending, feedback }; }
   function enqueue(action) {
     if (!connected) { paint(); return; }
-    pending.push({ ...action, stageId: action.stageId || confirmed.activeStageId });
+    pending.push({ ...action, stageId: action.stageId || viewedStageId() });
     paint();
     flush();
   }
   const view = window.LessonView.create({
     state: viewState,
     initialStageId: () => confirmed?.activeStageId,
-    canSelect: index => role === 'teacher' && connected && availableStageIds.includes(viewState.lesson?.stages[index]?.id),
+    canSelect: index => connected && availableStageIds.includes(viewState.lesson?.stages[index]?.id),
+    // The student browses locally; the teacher's choice becomes shared only after the server confirms it.
     beforeSelect: index => {
+      if (role !== 'teacher') return true;
       const stageId = viewState.lesson.stages[index].id;
       if (stageId !== confirmed.activeStageId) enqueue({ type: 'select-stage', stageId });
       return false;
     },
     componentOptions: component => adapters.options(component, session()),
+    onSelect: () => paint(),
   });
-  if (role === 'teacher') timerButton.addEventListener('click', () => {
-    if (lessonTimer) {
-      window.clearInterval(lessonTimer);
-      lessonTimer = null;
-      byId('timer-icon').textContent = '▶';
-      return;
-    }
-    byId('timer-icon').textContent = 'Ⅱ';
-    lessonTimer = window.setInterval(() => {
-      elapsedSeconds += 1;
-      byId('elapsed-time').textContent = view.formatTime(elapsedSeconds);
-    }, 1000);
-  });
+  function showTeacherStage() {
+    view.selectStage(stageIndex(confirmed.activeStageId), true);
+    paint();
+  }
+  const lessonTimer = role === 'teacher' && window.LessonTimer.create({ formatTime: view.formatTime });
   function paint() {
     resetButton.disabled = !connected || !confirmed || pending.length > 0;
     if (!confirmed || !viewState.lesson) return;
     const state = structuredClone(confirmed);
     for (const action of pending) {
       const component = componentFor(action);
-      if (component && action.stageId === confirmed.activeStageId) adapters.preview(component, state, action);
+      if (component && action.stageId === viewedStageId()) adapters.preview(component, state, action);
     }
     const stage = viewState.lesson.stages[viewState.activeIndex];
     for (const component of stage?.content || []) {
@@ -113,19 +124,28 @@
       if (node) adapters.update(node, component, session(state));
     }
     view.refreshNavigation();
-    pointer?.update({ connected, stageId: confirmed.activeStageId, componentIds: pointerComponentIds });
+    pointer?.update({ connected, stageId: viewedStageId(), componentIds: pointerComponentIds });
+    // Without the teacher (e.g. homework) there is no one to return to.
+    follow.hidden = role !== 'student' || !connected || !peerPresent || viewedStageId() === confirmed.activeStageId;
+    byId('lesson-follow-text').textContent = `Учитель на этапе «${viewState.lesson.stages[stageIndex(confirmed.activeStageId)].title}»`;
   }
   function receiveState(payload) {
     feedback = payload.type === 'action';
     const previousStage = viewState.lesson?.stages[viewState.activeIndex];
+    const previousTeacherStageId = confirmed?.activeStageId;
     confirmed = payload.state;
     pointerComponentIds = payload.pointerComponentIds || [];
     availableStageIds = payload.availableStageIds;
     viewState.lesson = payload.lesson.content;
-    const index = viewState.lesson.stages.findIndex(stage => stage.id === confirmed.activeStageId);
+    // The student stays on the stage they opened until the teacher moves to another one.
+    const followTeacher = role === 'teacher' || previousTeacherStageId !== confirmed.activeStageId;
+    const index = stageIndex(followTeacher ? confirmed.activeStageId : previousStage.id);
     const stage = viewState.lesson.stages[index];
     if (index < 0) throw new Error('Активная стадия не найдена.');
-    if (previousStage?.id !== stage.id) view.selectStage(index, true);
+    if (previousStage.id !== stage.id) {
+      view.selectStage(index, true);
+      if (role === 'student' && previousStage.id !== previousTeacherStageId) notify(`Учитель перешёл на этап «${stage.title}».`);
+    }
     else if (payload.resetStageId === stage.id) view.renderStageContent(stage);
     else if (JSON.stringify(previousStage.content) !== JSON.stringify(stage.content)) view.renderStageContent(stage, true);
     paint();
@@ -139,16 +159,30 @@
   function connect() {
     if (stopped) return;
     if (!slotTaken) setStatus('Подключаемся…', 'connecting');
-    socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/sessions/${sessionId}?role=${role}`);
+    const socketPath = `/ws/sessions/${sessionId}?role=${role}`;
+    socket = new WebSocket(window.ClassConnectionDiagnostics?.url(socketPath)
+      || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}${socketPath}`);
+    window.ClassConnectionDiagnostics?.attach(socket, 'sessions');
+    const current = socket;
+    window.ClassSocketLiveness?.watch(current, () => { if (socket === current) disconnected({ code: 4000 }); });
     socket.addEventListener('message', event => {
+      if (socket !== current) return;
       const message = JSON.parse(event.data);
       if (['media-command', 'media-align', 'media-status'].includes(message.type)) {
-        if (message.stageId === confirmed?.activeStageId) view.mounted.get(message.componentId)?.receiveMedia?.(message);
+        if (message.stageId === viewedStageId()) view.mounted.get(message.componentId)?.receiveMedia?.(message);
         return;
       }
       if (message.type === 'media-error') { notify(message.error); return; }
-      if (message.type === 'pointer') { pointer?.receive(message); return; }
+      if (message.type === 'pointer') {
+        // The teacher points only at their own stage, so a fresh pointer brings the student there first.
+        if (role === 'student' && message.target && !message.replay && message.stageId !== viewedStageId()) showTeacherStage();
+        pointer?.receive(message);
+        return;
+      }
       if (message.type === 'pointer-error') { notify(message.error); return; }
+      if (message.type === 'reaction') { reactions?.receive(message); return; }
+      if (message.type === 'call-presence') { panel?.presence(message); return; }
+      if (message.type === 'chat-message') { panel?.receiveChat(message.message); return; }
       if (message.type === 'presence') {
         peerPresent = message.peerPresent;
         paint();
@@ -159,7 +193,7 @@
         return;
       }
       if (!['snapshot', 'action', 'action-error'].includes(message.type)) return;
-      if (message.type === 'snapshot') { connected = true; reconnectDelay = 500; slotTaken = false; showNotice(null); }
+      if (message.type === 'snapshot') { connected = true; reconnectDelay = 500; slotTaken = false; showNotice(null); panel?.presence(message.callPresence); panel?.syncChat(); }
       if (inFlight && ((message.type === 'action' && message.actorRole === role) || message.type === 'action-error')) {
         pending.shift();
         inFlight = false;
@@ -169,36 +203,50 @@
       if (message.type === 'action' && message.resetStageId && role === 'teacher') notify('Прогресс на этой странице сброшен.');
       flush();
     });
-    socket.addEventListener('close', event => {
-      connected = false;
-      peerPresent = false;
-      pointer?.disconnect();
-      if (pending.length) notify('Связь прервалась. Неподтверждённый выбор нужно повторить после подключения.');
-      pending = [];
-      inFlight = false;
-      paint();
-      if (stopped) return;
-      // The student slot is held by another device; it may free up, so keep polling instead of giving up.
-      if (event.code === 4003) {
-        slotTaken = true;
-        setStatus('Место ученика занято', 'lost');
-        showNotice(slotTakenNotice, 'waiting');
-        reconnectTimer = window.setTimeout(connect, 5000);
-        return;
-      }
-      if ([4001, 4004, 4008].includes(event.code)) {
-        stopped = true;
-        setStatus(event.reason || 'Подключение закрыто', 'closed');
-        showNotice(event.reason || 'Подключение закрыто. Откройте ссылку заново.', 'closed');
-        return;
-      }
-      slotTaken = false;
-      setStatus('Связь потеряна. Подключаемся…', 'lost');
-      showNotice('Связь потеряна. Подключаемся…', 'lost');
-      reconnectTimer = window.setTimeout(connect, reconnectDelay);
-      reconnectDelay = Math.min(reconnectDelay * 2, 10000);
-    });
+    // A replaced or abandoned socket may close long after its successor opened.
+    socket.addEventListener('close', event => { if (socket === current) disconnected(event); });
   }
+  function scheduleReconnect(delay) {
+    reconnectTimer = window.setTimeout(() => { reconnectTimer = null; connect(); }, delay);
+  }
+  function disconnected(event) {
+    socket = null;
+    connected = false;
+    peerPresent = false;
+    pointer?.disconnect();
+    if (pending.length) notify('Связь прервалась. Неподтверждённый выбор нужно повторить после подключения.');
+    pending = [];
+    inFlight = false;
+    paint();
+    if (stopped) return;
+    // The student slot is held by another device; it may free up, so keep polling instead of giving up.
+    if (event.code === 4003) {
+      slotTaken = true;
+      setStatus('Место ученика занято', 'lost');
+      showNotice(slotTakenNotice, 'waiting');
+      scheduleReconnect(5000);
+      return;
+    }
+    if ([4001, 4004, 4008].includes(event.code)) {
+      stopped = true;
+      setStatus(event.reason || 'Подключение закрыто', 'closed');
+      showNotice(event.reason || 'Подключение закрыто. Откройте ссылку заново.', 'closed');
+      return;
+    }
+    slotTaken = false;
+    setStatus('Связь потеряна. Подключаемся…', 'lost');
+    showNotice('Связь потеряна. Подключаемся…', 'lost');
+    scheduleReconnect(reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+  }
+  // The network or the tab is back: skip the remaining backoff instead of waiting up to 10 s.
+  window.ClassSocketLiveness?.onWake(() => {
+    if (!reconnectTimer || slotTaken || stopped) return;
+    window.clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    reconnectDelay = 500;
+    connect();
+  });
   async function load() {
     try {
       const response = await fetch(`/api/sessions/${sessionId}/live?role=${role}`, { cache: 'no-store' });
@@ -207,6 +255,7 @@
       confirmed = payload.state;
       pointerComponentIds = payload.pointerComponentIds || [];
       availableStageIds = payload.availableStageIds;
+      if (payload.classPath) showClassLinks(payload.classPath);
       view.render(payload.lesson.content);
       window.LessonNotes?.mount({ mode: 'class', id: sessionId, role });
       paint();
@@ -215,7 +264,7 @@
   }
   window.addEventListener('pagehide', () => {
     stopped = true;
-    window.clearInterval(lessonTimer);
+    if (lessonTimer) lessonTimer.stop();
     window.clearTimeout(reconnectTimer);
     window.clearTimeout(toastTimer);
     socket?.close();

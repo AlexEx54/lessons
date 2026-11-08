@@ -84,8 +84,9 @@ function pipelineHarness() {
     getSettings() { return {width:640,height:480}; }
   }
   const camera = new Track();
+  const clock = { now: 1000 };
   const context = vm.createContext({
-    URL, DOMException, camera, events,
+    URL, DOMException, camera, events, performance: { now: () => clock.now },
     Worker: class {
       messages = []; terminated = false;
       constructor() { workers.push(this); }
@@ -100,11 +101,33 @@ function pipelineHarness() {
   const source = fs.readFileSync(require.resolve('../assets/video-background-pipeline.mjs'), 'utf8')
     .replaceAll('export function', 'function').replaceAll('import.meta.url', "'http://localhost/assets/video-background-pipeline.mjs'");
   vm.runInContext(source + `\n session = createBackgroundPipeline({camera,
-    config:{maxWidth:640,targetFps:18},onDiagnostic:(event,details)=>events.push({event,...details}),
+    config:{maxWidth:640,targetFps:18},onStage:stage=>events.push({stage}),onDiagnostic:(event,details)=>events.push({event,...details}),
     onFailure:error=>events.push({failure:error.message})});`, context);
-  return {context, worker:workers[0], camera, timers};
+  return {context, worker:workers[0], camera, timers, clock};
 }
 const flush = () => new Promise(resolve=>setImmediate(resolve));
+
+test('pipeline forwards preparation stages and reports their time since start', async () => {
+  const {context,worker,clock} = pipelineHarness();
+  clock.now = 5300;
+  worker.onmessage({data:{type:'stage',stage:'segmenter'}});
+  await flush();
+  assert.deepEqual(context.events.filter(event=>event.stage).map(event=>event.stage), ['segmenter']);
+  const report = context.events.find(event=>event.event==='background-effect-stage');
+  assert.equal(report.state,'segmenter');
+  assert.equal(report.sinceStartMs,4300);
+  context.session.ready.catch(()=>{});
+  context.session.stop();
+  worker.onmessage({data:{type:'stopped'}});
+});
+
+test('renderer and worker announce preparation stages in loading order', () => {
+  const renderer = fs.readFileSync(require.resolve('../assets/video-background-renderer.mjs'), 'utf8');
+  const worker = fs.readFileSync(require.resolve('../assets/video-background-worker.js'), 'utf8');
+  assert.match(renderer, /onStage\?\.\('wasm'\)[\s\S]*vision_bundle[\s\S]*onStage\?\.\('segmenter'\)[\s\S]*createFromOptions[\s\S]*onStage\?\.\('background-image'\)/);
+  assert.match(worker, /onStage: stage => send\('stage', \{ stage \}\)/);
+  assert.match(worker, /if \(stopped\) \{ renderer\.close\(\); return; \}\n  send\('stage', \{ stage: 'first-frame' \}\)/);
+});
 
 test('pipeline resolves only on processed readiness and stopping never stops original camera', async () => {
   const {context,worker,camera} = pipelineHarness();

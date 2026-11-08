@@ -62,10 +62,12 @@ async function initialize(data) {
   inputTrack = data.track;
   const { createEffectRenderer } = await import('./video-background-renderer.mjs');
   renderer = await createEffectRenderer({ ...data.config,
+    onStage: stage => send('stage', { stage }),
     onStats: details => send('stats', { details }),
     onDelegateFallback: error => send('diagnostic', { state: 'cpu-fallback', errorText: errorText(error) }),
   });
   if (stopped) { renderer.close(); return; }
+  send('stage', { stage: 'first-frame' });
   statsTimer = setInterval(() => {
     renderer.report();
     send('health', { details: { receivedFrames, emittedFrames, skippedFrames,

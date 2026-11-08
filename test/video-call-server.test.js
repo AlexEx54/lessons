@@ -76,6 +76,23 @@ test('video call diagnostics retain bounded background-effect measurements', () 
   }), { event: 'background-effect-stats' });
 });
 
+test('background preparation stages keep their state and time since start', () => {
+  assert.deepEqual(sanitizeVideoCallDiagnostic({
+    event: 'background-effect-stage', state: 'background-image', sinceStartMs: 4300, transport: 'worker-track',
+  }), { event: 'background-effect-stage', state: 'background-image', sinceStartMs: 4300, transport: 'worker-track' });
+  assert.deepEqual(sanitizeVideoCallDiagnostic({ event: 'background-effect-stage', sinceStartMs: 700_000 }),
+    { event: 'background-effect-stage' });
+});
+
+test('media preparation diagnostics keep the browser answer, its wait and known error names', () => {
+  assert.deepEqual(sanitizeVideoCallDiagnostic({
+    event: 'media-prepared', state: 'failed', mediaWaitMs: 1840, errorName: 'NotReadableError',
+  }), { event: 'media-prepared', state: 'failed', mediaWaitMs: 1840, errorName: 'NotReadableError' });
+  assert.deepEqual(sanitizeVideoCallDiagnostic({
+    event: 'socket-open', mediaPreparation: 'pending', mediaWaitMs: -1, errorName: 'Camera of Jane',
+  }), { event: 'socket-open', mediaPreparation: 'pending' });
+});
+
 test('background timing diagnostics accept known numeric fields and reject invalid values', () => {
   const fields = {
     pipelineVersion: 2, targetFps: 24, blurWidth: 240, blurHeight: 135,
@@ -211,6 +228,14 @@ test('a permanent room lets the student wait for the teacher, survives ending a 
   assert.deepEqual(await publicRoom.json(), { call: { id: created.id }, iceServers: [{ urls: ['stun:stun.example.test:3478'] }] });
   assert.equal((await fetch(`${baseUrl}${created.guestPath}`)).status, 200);
   assert.equal((await fetch(`${baseUrl}/call/not-valid`)).status, 404);
+  const teacherRoom = await fetch(`${baseUrl}/video-calls/${created.id}`, { headers: { Cookie: cookie } });
+  assert.equal(teacherRoom.status, 200);
+  assert.match(await teacherRoom.text(), /id="prejoin"/);
+  // A student who got the teacher's own address learns to ask for the invite instead of seeing JSON.
+  const teacherRoomAsGuest = await fetch(`${baseUrl}/video-calls/${created.id}`);
+  assert.equal(teacherRoomAsGuest.status, 401);
+  assert.match(teacherRoomAsGuest.headers.get('content-type'), /text\/html/);
+  assert.match(await teacherRoomAsGuest.text(), /Это ссылка преподавателя/);
   assert.equal((await fetch(`${baseUrl}/api/public/video-calls/not-valid`)).status, 404);
 
   // The link is permanent, so the student may come before the teacher and wait.
@@ -240,6 +265,10 @@ test('a permanent room lets the student wait for the teacher, survives ending a 
   assert.deepEqual(await relayedState, {
     type: 'media-state', audio: true, video: false, recording: true, from: 'teacher',
   });
+
+  const relayedRestart = nextMessage(guestSocket, 'restart-connection');
+  teacherSocket.send(JSON.stringify({ type: 'restart-connection' }));
+  assert.deepEqual(await relayedRestart, { type: 'restart-connection', from: 'teacher' });
 
   const liveChat = nextMessage(guestSocket, 'chat-message');
   const chatResponse = await fetch(`${baseUrl}/api/video-calls/${created.id}/chat`, {
@@ -296,6 +325,8 @@ test('a permanent room lets the student wait for the teacher, survives ending a 
   const malformedClosed = new Promise(resolve => malformedGuest.once('close', resolve));
   malformedGuest._socket.write(Buffer.from([0x89, 0x00]));
   await malformedClosed;
+  const malformedLog = await waitForLog(row => row.state === 'close' && row.cause === 'socket-error');
+  assert.match(malformedLog.errorText, /MASK/);
   assert.equal((await fetch(`${baseUrl}/api/public/video-calls/${guestToken}`)).status, 200);
 
   const nextDayGuest = connectGuest();

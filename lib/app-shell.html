@@ -8,12 +8,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/assets/week-grid.css" />
-  <link rel="stylesheet" href="/assets/slot-picker.css" />
+{{CLASS_MODAL_STYLESHEETS}}
   <link rel="stylesheet" href="{{PAGE_STYLESHEET}}" />
-  <link rel="stylesheet" href="/assets/class-modal.css" />
   <link rel="stylesheet" href="/assets/app-shell.css" />
   <link rel="stylesheet" href="/assets/lesson-publication.css" />
+  <link rel="stylesheet" href="/assets/support-chat.css" />
 </head>
 <body data-page="{{PAGE_ID}}" data-auth-state="{{AUTH_STATE}}" data-user-role="{{USER_ROLE}}">
   <div class="app-shell">
@@ -48,10 +47,7 @@
         </a>
       </nav>
 
-      <a class="support-card" href="{{SUPPORT_URL}}" target="_blank" rel="noopener">
-        <span class="support-card__icon" aria-hidden="true">?</span>
-        <span><strong>Нужна помощь?</strong><small>Напишите нам в поддержку</small></span>
-      </a>
+{{SUPPORT_CARD}}
     </aside>
 
     <main class="content {{CONTENT_CLASS}}">
@@ -63,18 +59,31 @@
           <img class="brand__mark" src="/assets/images/easyclass-mark-cropped.png" alt="" width="20" height="17" />
           <span>Easy<span>Class</span></span>
         </a>
-        <div class="mobile-profile-wrap">
-          <button class="mobile-avatar" id="mobile-profile-button" type="button" aria-label="Открыть профиль" aria-haspopup="menu" aria-expanded="false">
-            <img src="{{USER_AVATAR_URL}}" alt="" width="42" height="42" data-user-avatar />
-          </button>
-          <div class="mobile-profile-menu" id="mobile-profile-menu" role="menu" hidden>
-            <div class="mobile-profile-menu__identity">
-              <strong data-user-name>{{USER_DISPLAY_NAME}}</strong>
-              <small>{{USER_EMAIL}}</small>
-            </div>
-            <a class="profile-menu__login" href="/login" role="menuitem">Войти</a>
+        <div class="mobile-header__actions">
+          <div class="notifications-wrap" data-notifications>
+            <button class="notification-button" id="mobile-notifications-button" type="button" aria-label="Уведомления" aria-controls="mobile-notifications-panel" aria-expanded="false">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4"/></svg>
+              <span class="notification-button__badge" data-notifications-badge hidden></span>
+            </button>
+            <section class="notifications-panel" id="mobile-notifications-panel" aria-labelledby="mobile-notifications-title" hidden>
+              <h2 id="mobile-notifications-title">Уведомления</h2>
+              <ul class="notifications-list" data-notifications-list></ul>
+              <p class="notifications-panel__empty" data-notifications-empty>Пока уведомлений нет</p>
+            </section>
+          </div>
+          <div class="mobile-profile-wrap">
+            <button class="mobile-avatar" id="mobile-profile-button" type="button" aria-label="Открыть профиль" aria-haspopup="menu" aria-expanded="false">
+              <img src="{{USER_AVATAR_URL}}" alt="" width="42" height="42" data-user-avatar />
+            </button>
+            <div class="mobile-profile-menu" id="mobile-profile-menu" role="menu" hidden>
+              <div class="mobile-profile-menu__identity">
+                <strong data-user-name>{{USER_DISPLAY_NAME}}</strong>
+                <small>{{USER_EMAIL}}</small>
+              </div>
+              <a class="profile-menu__login" href="/login" role="menuitem">Войти</a>
 {{MOBILE_TEACHER_MENU_ITEMS}}
-            <button class="profile-menu__logout" id="mobile-logout-button" type="button" role="menuitem">Выйти</button>
+              <button class="profile-menu__logout" id="mobile-logout-button" type="button" role="menuitem">Выйти</button>
+            </div>
           </div>
         </div>
       </header>
@@ -85,13 +94,15 @@
           <p>{{PAGE_SUBTITLE}}</p>
         </div>
         <div class="account-actions">
-          <div class="notifications-wrap">
+          <div class="notifications-wrap" data-notifications>
           <button class="notification-button" id="notifications-button" type="button" aria-label="Уведомления" aria-controls="notifications-panel" aria-expanded="false">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4"/></svg>
+            <span class="notification-button__badge" data-notifications-badge hidden></span>
           </button>
           <section class="notifications-panel" id="notifications-panel" aria-labelledby="notifications-title" hidden>
             <h2 id="notifications-title">Уведомления</h2>
-            <p class="notifications-panel__empty">Пока уведомлений нет</p>
+            <ul class="notifications-list" data-notifications-list></ul>
+            <p class="notifications-panel__empty" data-notifications-empty>Пока уведомлений нет</p>
           </section>
           </div>
           <div class="profile-menu-wrap">
@@ -115,15 +126,11 @@
 
 {{NEW_LESSON_MODAL}}
 {{CLASS_MODAL}}
-{{SLOT_PICKER}}
+{{SUPPORT_CHAT}}
   <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   <script src="/assets/app-shell.js" defer></script>
   <script src="/assets/lesson-publication.js" defer></script>
-  <script src="/assets/class-invite.js" defer></script>
-  <script src="/assets/schedule-calendar.js" defer></script>
-  <script src="/assets/week-grid.js" defer></script>
-  <script src="/assets/slot-picker.js" defer></script>
-  <script src="/assets/class-modal.js" defer></script>
+{{CLASS_MODAL_SCRIPTS}}
 {{TEACHER_SCRIPTS}}
 {{PAGE_SCRIPTS}}
 </body>

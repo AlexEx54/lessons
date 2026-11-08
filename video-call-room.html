@@ -32,6 +32,13 @@
           <p>Камера выключена</p>
         </div>
         <span class="prejoin__label">Вы</span>
+        <div class="effect-progress" role="status" hidden>
+          <span class="effect-progress__indicator" aria-hidden="true"></span>
+          <span class="effect-progress__text"><span class="effect-progress__title"></span><span class="effect-progress__stage"></span></span>
+          <button type="button" data-effect-action="cancel">Отменить</button>
+          <button type="button" data-effect-action="retry" hidden>Повторить</button>
+          <button class="effect-progress__close" type="button" data-effect-action="close" aria-label="Скрыть сообщение" hidden>×</button>
+        </div>
       </div>
       <div class="prejoin__content">
         <p class="prejoin__eyebrow">Личная комната</p>
@@ -54,6 +61,7 @@
         </section>
         <p class="prejoin__error" id="prejoin-error" role="alert" hidden></p>
         <button class="prejoin__join" id="join-call" type="button">Войти в звонок</button>
+        <button class="invite-copy invite-copy--prejoin" id="prejoin-invite" type="button" hidden>Скопировать ссылку для ученика</button>
       </div>
     </section>
 
@@ -64,6 +72,7 @@
           <div class="video-placeholder" id="remote-placeholder">
             <span aria-hidden="true">…</span>
             <p id="remote-placeholder-text">Подключаемся к комнате…</p>
+            <button class="invite-copy" id="remote-invite" type="button" hidden>Скопировать ссылку для ученика</button>
           </div>
           <div class="video-tile__label">
             <span id="remote-name">Участник</span>
@@ -78,6 +87,13 @@
           </div>
           <div class="video-tile__label"><span>Вы</span></div>
         </article>
+        <div class="effect-progress" role="status" hidden>
+          <span class="effect-progress__indicator" aria-hidden="true"></span>
+          <span class="effect-progress__text"><span class="effect-progress__title"></span><span class="effect-progress__stage"></span></span>
+          <button type="button" data-effect-action="cancel">Отменить</button>
+          <button type="button" data-effect-action="retry" hidden>Повторить</button>
+          <button class="effect-progress__close" type="button" data-effect-action="close" aria-label="Скрыть сообщение" hidden>×</button>
+        </div>
       </div>
 
       <p id="screen-audio-status" class="screen-audio-status" role="status" hidden></p>
@@ -128,9 +144,13 @@
     </section>
   </main>
 
+  <script src="/assets/copy-text.js" defer></script>
   <script src="/assets/call-chat-links.js" defer></script>
+  <script src="/assets/call-chat.js" defer></script>
   <script src="/assets/video-call-chat.js" defer></script>
   <script src="/assets/call-recorder.js" defer></script>
+  <script src="/assets/call-media.js" defer></script>
+  <script src="/assets/call-connection.js" defer></script>
   <script src="/assets/video-call-room.js" defer></script>
 </body>
 </html>

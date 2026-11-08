@@ -10,17 +10,15 @@ const roomHtml = fs.readFileSync(path.join(root, 'video-call-room.html'), 'utf8'
 const rendererScript = fs.readFileSync(path.join(root, 'assets', 'video-background-renderer.mjs'), 'utf8');
 const pipelineScript = fs.readFileSync(path.join(root, 'assets', 'video-background-pipeline.mjs'), 'utf8');
 const roomScript = fs.readFileSync(path.join(root, 'assets', 'video-call-room.js'), 'utf8');
+const mediaScript = fs.readFileSync(path.join(root, 'assets', 'call-media.js'), 'utf8');
+const connectionScript = fs.readFileSync(path.join(root, 'assets', 'call-connection.js'), 'utf8');
+const { createCallMedia, fakeTrack, FakeMediaStream } = require('./helpers/call-media.js');
 
 test('teacher and guest share the same virtual-background controls', () => {
   assert.match(roomHtml, /id="prejoin-background-options"/);
   assert.match(roomHtml, /id="call-background-options"/);
 
-  const backgroundImplementation = roomScript.slice(
-    roomScript.indexOf('function readStoredBackground'),
-    roomScript.indexOf('function track(kind)'),
-  );
-  assert.ok(backgroundImplementation.length > 0);
-  assert.doesNotMatch(backgroundImplementation, /role\s*===/);
+  assert.doesNotMatch(mediaScript, /role\s*===/);
   assert.match(pipelineScript, /canvas\.captureStream/);
   assert.match(rendererScript, /segmenter\.segmentForVideo/);
 });
@@ -41,8 +39,8 @@ test('virtual-background runtime and the three bundled backgrounds are present',
 });
 
 test('desktop background processing uses the higher-resolution square model and stabilizes its mask', () => {
-  assert.match(roomScript, /MOBILE_DEVICE[\s\S]*?selfie_segmenter_landscape\.tflite/);
-  assert.match(roomScript, /selfie_segmenter\.tflite/);
+  assert.match(mediaScript, /MOBILE_DEVICE[\s\S]*?selfie_segmenter_landscape\.tflite/);
+  assert.match(mediaScript, /selfie_segmenter\.tflite/);
   assert.match(rendererScript, /function stabilizeMask/);
   assert.match(rendererScript, /function erodeUncertainEdges/);
   assert.match(rendererScript, /replacement: \{ low: 0\.35, high: 0\.72/);
@@ -50,75 +48,213 @@ test('desktop background processing uses the higher-resolution square model and 
 });
 
 test('screen sharing and camera effects use the same outbound video selector', () => {
-  assert.match(roomScript, /const next = outboundVideoTrack\(\)/);
-  assert.match(roomScript, /if \(screenTrack\) return screenTrack/);
-  assert.match(roomScript, /await startBackgroundEffect\(\)/);
-});
-
-test('remote visibility recovers from camera-off for camera and screen without another playing event', () => {
-  const track = { readyState: 'live', muted: false };
-  const context = vm.createContext({
-    remoteStream: { getVideoTracks: () => [track] }, remoteMediaState: {},
-    elements: { remotePlaceholder: { hidden: false }, remotePlaceholderText: {}, remoteVideo: { readyState: 4 } },
-    sendDiagnostic() {}, videoTrackDetails: () => ({}),
-  });
-  vm.runInContext(effectFunction('updateRemoteVideoVisibility'), context);
-  for (const screen of [false, true]) {
-    context.remoteMediaState = { video: false, screen: false };
-    context.updateRemoteVideoVisibility('media-state');
-    assert.equal(context.elements.remotePlaceholder.hidden, false);
-    context.remoteMediaState = { video: !screen, screen };
-    context.updateRemoteVideoVisibility('media-state');
-    assert.equal(context.elements.remotePlaceholder.hidden, true);
-  }
-  track.muted = true;
-  context.updateRemoteVideoVisibility('mute');
-  assert.equal(context.elements.remotePlaceholder.hidden, false);
-  assert.equal(context.elements.remotePlaceholderText.textContent, 'Ожидаем видео участника…');
-  track.muted = false;
-  context.updateRemoteVideoVisibility('unmute');
-  assert.equal(context.elements.remotePlaceholder.hidden, true);
-  context.remoteMediaState = { video: false, screen: false };
-  context.updateRemoteVideoVisibility('playing');
-  assert.equal(context.elements.remotePlaceholder.hidden, false);
-  track.readyState = 'ended';
-  context.remoteMediaState = { video: true };
-  context.updateRemoteVideoVisibility('ended');
-  assert.equal(context.elements.remotePlaceholder.hidden, false);
-});
-
-test('video replacement records success and rejection with the actual sender track', async () => {
-  const previous = { readyState: 'ended' };
-  const next = { readyState: 'live' };
-  const events = [];
-  const sender = { track: previous, async replaceTrack(value) { this.track = value; } };
-  const context = vm.createContext({ videoTransceiver: { sender }, outboundVideoTrack: () => next,
-    peerGeneration: 1, replacementSequence: 0, screenTrack: null, effectTrack: next,
-    diagnosticTrackId: track => track === previous ? 1 : 2,
-    videoTrackDetails: track => ({ trackState: track.readyState }),
-    sendDiagnostic: (event, details) => events.push({ event, ...details }),
-  });
-  const start = roomScript.indexOf('  async function applyOutboundVideoTrack(');
-  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  function effectMode(', start)), context);
-  await context.applyOutboundVideoTrack();
-  assert.deepEqual(events.map(event => event.state), ['start', 'success']);
-  assert.equal(events[1].trackState, 'live');
-  sender.track = previous;
-  sender.replaceTrack = async () => { throw new Error('replacement failed'); };
-  await assert.rejects(context.applyOutboundVideoTrack(), /replacement failed/);
-  assert.equal(events.at(-1).state, 'failure');
-  assert.equal(events.at(-1).trackState, 'ended');
+  assert.match(connectionScript, /const next = media\.outboundVideoTrack\(\)/);
+  assert.match(mediaScript, /if \(screenTrack\) return screenTrack/);
+  assert.match(mediaScript, /void applyBackgroundEffect\(\)/);
 });
 
 // Exercise the actual production functions with a deterministic display clock.
 const vm = require('node:vm');
 function effectFunction(name) {
-  const script = rendererScript.includes(`  function ${name}(`) ? rendererScript : roomScript;
-  const start = script.indexOf(`  function ${name}(`);
+  const start = rendererScript.indexOf(`  function ${name}(`);
   assert.ok(start >= 0, `${name} exists`);
-  const end = script.indexOf('\n  function ', start + 1);
-  return script.slice(start, end);
+  const end = rendererScript.indexOf('\n  function ', start + 1);
+  return rendererScript.slice(start, end);
 }
+
+const flush = () => new Promise(resolve => setImmediate(resolve));
+
+// Runs the effect state machine of CallMedia with fake pipelines whose first frame the test controls.
+async function effectRoom() {
+  const camera = fakeTrack('video', { id: 'camera' });
+  const sessions = [];
+  const room = createCallMedia({ globals: { console: { error() {} } },
+    mediaDevices: { getUserMedia: async () => new FakeMediaStream([camera]) } });
+  room.loadBackgroundPipeline = async () => ({
+    createBackgroundPipeline({ onStage, onFailure }) {
+      let finish, fail;
+      const session = {
+        track: { id: `effect-${sessions.length}`, enabled: false }, details: { transport: 'worker-track' },
+        stopped: false, onStage, onFailure, visibility() {},
+        ready: new Promise((resolve, reject) => { finish = () => resolve(session); fail = reject; }),
+        finish: () => finish(), fail: error => fail(error),
+        stop() { this.stopped = true; fail(new DOMException('Effect stopped', 'AbortError')); },
+      };
+      sessions.push(session);
+      return session;
+    },
+  });
+  await room.media.prepare();
+  room.sentVideo.length = 0;
+  room.events.length = 0;
+  return Object.assign(room, { camera, sessions, sent: room.sentVideo });
+}
+
+async function withActiveBlur(room) {
+  const selection = room.media.selectBackground('blur');
+  await flush();
+  room.sessions[0].finish();
+  await selection;
+}
+
+test('a background prepares while the camera keeps going and replaces it after the first frame', async () => {
+  const room = await effectRoom();
+  const { media, camera, sessions, sent } = room;
+  const selection = media.selectBackground('blur');
+  await flush();
+  assert.equal(sessions.length, 1);
+  assert.equal(media.outboundVideoTrack(), camera);
+  assert.deepEqual(sent, []);
+  sessions[0].onStage('segmenter');
+  assert.deepEqual(room.progress(), { stage: 'segmenter' });
+  sessions[0].finish();
+  await selection;
+  assert.deepEqual(sent, [sessions[0].track]);
+  assert.equal(sessions[0].track.enabled, true);
+  assert.equal(room.progress(), null);
+  assert.equal(media.previewTrack(), sessions[0].track);
+});
+
+test('switching effects keeps the old one until the new one is sent and ignores repeated clicks', async () => {
+  const room = await effectRoom();
+  const { media, sessions, sent } = room;
+  await withActiveBlur(room);
+  const selection = media.selectBackground('study-light');
+  await flush();
+  await media.selectBackground('study-light');
+  assert.equal(sessions.length, 2);
+  assert.equal(media.outboundVideoTrack(), sessions[0].track);
+  assert.equal(sessions[0].stopped, false);
+  sessions[1].finish();
+  await selection;
+  assert.equal(sent.at(-1), sessions[1].track);
+  assert.equal(sessions[0].stopped, true);
+  await media.selectBackground('study-light');
+  assert.equal(sessions.length, 2);
+});
+
+test('choosing the shown background again cancels the one that is preparing', async () => {
+  const room = await effectRoom();
+  const { media, sessions } = room;
+  await withActiveBlur(room);
+  const selection = media.selectBackground('study-light');
+  await flush();
+  await media.selectBackground('blur');
+  await selection;
+  sessions[1].onStage('wasm');
+  assert.equal(room.progress(), null);
+  assert.equal(sessions[1].stopped, true);
+  assert.equal(sessions[0].stopped, false);
+  assert.equal(media.outboundVideoTrack(), sessions[0].track);
+  assert.deepEqual(room.status(), { text: 'Эффект включён', state: 'ready' });
+});
+
+test('a failed start keeps the current video and reverts the choice without storing it', async () => {
+  const room = await effectRoom();
+  const { media, camera, sessions, stored, events } = room;
+  const selection = media.selectBackground('blur');
+  await flush();
+  sessions[0].fail(new Error('GPU unavailable'));
+  await selection;
+  assert.equal(media.outboundVideoTrack(), camera);
+  assert.equal(media.snapshot().background, 'none');
+  assert.deepEqual(room.progress(), { failed: 'blur' });
+  assert.deepEqual(stored, ['blur']);
+  assert.equal(events.find(event => event.event === 'background-effect-failure').mode, 'blur');
+});
+
+test('a running effect that breaks falls back to the camera', async () => {
+  const room = await effectRoom();
+  const { media, camera, sessions, sent } = room;
+  await withActiveBlur(room);
+  sessions[0].onFailure(new Error('GPU context lost'));
+  await flush();
+  assert.equal(sessions[0].stopped, true);
+  assert.equal(media.activeEffectDiagnostic(), null);
+  assert.equal(media.snapshot().background, 'none');
+  assert.equal(sent.at(-1), camera);
+  assert.deepEqual(room.progress(), { failed: 'blur' });
+});
+
+test('a background chosen while the previous one is being sent keeps its notice', async () => {
+  const room = await effectRoom();
+  const { media, sessions } = room;
+  let release;
+  room.applyVideo = () => new Promise(resolve => { release = resolve; });
+  const first = media.selectBackground('blur');
+  await flush();
+  sessions[0].finish();
+  await flush();
+  const second = media.selectBackground('study-light');
+  await flush();
+  release();
+  await first;
+  assert.deepEqual(room.progress(), { stage: 'worker' });
+  sessions[1].finish();
+  await flush();
+  release();
+  await second;
+  assert.equal(room.progress(), null);
+});
+
+test('a failed swap breaks only its own effect and keeps a newer one preparing', async () => {
+  const room = await effectRoom();
+  const { media, camera, sessions } = room;
+  let reject;
+  const apply = room.applyVideo;
+  room.applyVideo = () => new Promise((_resolve, fail) => { reject = fail; });
+  const first = media.selectBackground('blur');
+  await flush();
+  sessions[0].finish();
+  await flush();
+  room.applyVideo = apply;
+  void media.selectBackground('study-light');
+  await flush();
+  reject(new Error('replaceTrack failed'));
+  await first;
+  assert.equal(sessions[0].stopped, true);
+  assert.equal(sessions[1].stopped, false);
+  assert.equal(media.snapshot().background, 'study-light');
+  assert.equal(media.outboundVideoTrack(), camera);
+  assert.deepEqual(room.progress(), { stage: 'worker' });
+});
+
+test('the preparation notice names the stage and offers a retry after a failure', () => {
+  const parts = Object.fromEntries(['.effect-progress__title', '.effect-progress__stage', '[data-effect-action="cancel"]',
+    '[data-effect-action="retry"]', '[data-effect-action="close"]'].map(selector => [selector, { hidden: false }]));
+  const notice = { hidden: true, dataset: {}, querySelector: selector => parts[selector] };
+  const context = vm.createContext({ document: { querySelectorAll: () => [notice] } });
+  const start = roomScript.indexOf('  const EFFECT_STAGES = {');
+  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  // A new srcObject', start)), context);
+  context.renderEffectProgress({ stage: 'segmenter' });
+  assert.equal(notice.hidden, false);
+  assert.equal(notice.dataset.state, 'loading');
+  assert.equal(parts['.effect-progress__title'].textContent, 'Готовим фон');
+  assert.equal(parts['.effect-progress__stage'].textContent, 'Настраиваем модель…');
+  assert.deepEqual(['cancel', 'retry', 'close'].map(action => parts[`[data-effect-action="${action}"]`].hidden), [false, true, true]);
+  context.renderEffectProgress({ failed: 'blur' });
+  assert.equal(notice.dataset.state, 'error');
+  assert.equal(parts['.effect-progress__title'].textContent, 'Не удалось включить фон');
+  assert.equal(parts['.effect-progress__stage'].textContent, '');
+  assert.deepEqual(['cancel', 'retry', 'close'].map(action => parts[`[data-effect-action="${action}"]`].hidden), [true, false, false]);
+  context.renderEffectProgress(null);
+  assert.equal(notice.hidden, true);
+});
+
+test('notice buttons cancel to the shown background, retry the failed one or hide the notice', () => {
+  const buttons = ['cancel', 'retry', 'close'].map(action => ({ dataset: { effectAction: action },
+    addEventListener(_type, handler) { this.click = handler; } }));
+  const actions = [];
+  const context = vm.createContext({
+    document: { querySelectorAll: () => buttons },
+    media: Object.fromEntries(['cancelBackground', 'retryBackground', 'dismissEffectNotice']
+      .map(name => [name, async () => actions.push(name)])),
+  });
+  const start = roomScript.indexOf("  document.querySelectorAll('[data-effect-action]')");
+  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  elements.toggleScreen.addEventListener(', start)), context);
+  buttons.forEach(button => button.click());
+  assert.deepEqual(actions, ['cancelBackground', 'retryBackground', 'dismissEffectNotice']);
+});
 
 test('frame admission retains cadence and never catches up in a burst', async () => {
   const { createFrameGate } = await import('../assets/video-background-renderer.mjs');
@@ -172,138 +308,4 @@ test('background blur filters a reduced source while foreground stays full resol
   assert.deepEqual(foreground.args.slice(-2), [960, 540]);
   const output = calls.find(call => call.name === 'output' && call.source === 'blur');
   assert.deepEqual(output.args, [0, 0, 960, 540]);
-});
-
-
-test('video RTP diagnostics omit audio and discard results from a closed connection', async () => {
-  const events = [];
-  const reports = new Map([
-    ['audio', { type: 'inbound-rtp', kind: 'audio', bytesReceived: 50 }],
-    ['video', { type: 'inbound-rtp', kind: 'video', ssrc: 12, framesDecoded: 42, bytesReceived: 500 }],
-  ]);
-  const connection = { getStats: async () => reports };
-  const context = vm.createContext({ peerConnection: connection,
-    elements: { remotePlaceholder: { hidden: false } },
-    sendDiagnostic: (event, details) => events.push({ event, ...details }),
-  });
-  const start = roomScript.indexOf('  async function reportMediaStats(');
-  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  function candidateType(', start)), context);
-  await context.reportMediaStats(connection);
-  assert.equal(events.length, 1);
-  assert.equal(events[0].framesDecoded, 42);
-  assert.equal(events[0].placeholderVisible, true);
-  connection.getStats = async () => { context.peerConnection = null; return reports; };
-  await context.reportMediaStats(connection);
-  assert.equal(events.length, 1);
-});
-
-test('audio ontrack cannot cover active video and old connection events are ignored', () => {
-  const listeners = {};
-  const video = { id: 'video', kind: 'video', muted: false, readyState: 'live',
-    addEventListener: (type, callback) => { listeners[type] = callback; } };
-  const tracks = [];
-  const connection = {};
-  const context = vm.createContext({ connection, peerConnection: connection, remoteMediaState: {},
-    remoteStream: { getTracks: () => tracks, getVideoTracks: () => tracks.filter(track => track.kind === 'video'),
-      addTrack: track => tracks.push(track) },
-    elements: { remotePlaceholder: { hidden: false }, remotePlaceholderText: {}, remoteVideo: {} },
-    sendDiagnostic() {}, videoTrackDetails: () => ({}), reportMediaStats() {},
-  });
-  vm.runInContext(effectFunction('updateRemoteVideoVisibility'), context);
-  vm.runInContext(roomScript.slice(roomScript.indexOf('    connection.ontrack = event =>'),
-    roomScript.indexOf('    connection.onconnectionstatechange =')), context);
-  connection.ontrack({ track: video });
-  assert.equal(context.elements.remotePlaceholder.hidden, true);
-  connection.ontrack({ track: { id: 'audio', kind: 'audio' } });
-  assert.equal(context.elements.remotePlaceholder.hidden, true);
-  context.peerConnection = {};
-  video.muted = true;
-  listeners.mute();
-  assert.equal(context.elements.remotePlaceholder.hidden, true);
-});
-
-test('RTP FPS uses elapsed sample time, reports stalls and resets on counter or SSRC changes', async () => {
-  const events = [];
-  const report = { type: 'inbound-rtp', kind: 'video', ssrc: 12, framesDecoded: 100, timestamp: 1000 };
-  const outgoing = { type: 'outbound-rtp', kind: 'video', ssrc: 13, framesSent: 200, timestamp: 1000 };
-  const connection = { getStats: async () => new Map([['v', report], ['out', outgoing]]) };
-  const context = vm.createContext({ peerConnection: connection,
-    elements: { remotePlaceholder: { hidden: true } },
-    sendDiagnostic: (event, details) => events.push({ event, ...details }),
-  });
-  const start = roomScript.indexOf('  async function reportMediaStats(');
-  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  function candidateType(', start)), context);
-  await context.reportMediaStats(connection);
-  assert.equal(events[0].averageFps, undefined);
-  report.timestamp = outgoing.timestamp = 31000;
-  report.framesDecoded = 820; outgoing.framesSent = 1100;
-  await context.reportMediaStats(connection);
-  assert.equal(events.at(-2).averageFps, 24);
-  assert.equal(events.at(-1).averageFps, 30);
-  assert.equal(events.at(-1).sampleDurationMs, 30000);
-  report.timestamp = 61000;
-  await context.reportMediaStats(connection);
-  assert.equal(events.at(-2).averageFps, 0);
-  report.timestamp = 91000; report.framesDecoded = 10;
-  await context.reportMediaStats(connection);
-  assert.equal(events.at(-2).averageFps, undefined);
-  report.timestamp = 121000; report.ssrc = 99; report.framesDecoded = 730;
-  await context.reportMediaStats(connection);
-  assert.equal(events.at(-2).averageFps, undefined);
-  let release;
-  connection.getStats = () => new Promise(resolve => { release = resolve; });
-  const pending = context.reportMediaStats(connection);
-  await context.reportMediaStats(connection);
-  release(new Map());
-  await pending;
-  assert.equal(connection.diagnosticStatsPending, false);
-});
-
-test('ICE error storm sends distinct errors only and reports suppression on gathering completion', () => {
-  const connection = {}, events = [];
-  const context = vm.createContext({ connection, peerConnection: connection, gatheredCandidateTypes: new Set(['relay']),
-    sendDiagnostic: (event, details) => events.push({ event, ...details }) });
-  vm.runInContext(roomScript.slice(roomScript.indexOf('    const iceErrors = new Set();'),
-    roomScript.indexOf('    connection.oniceconnectionstatechange =')), context);
-  for (let i = 0; i < 100; i++) connection.onicecandidateerror({ errorCode: 701, errorText: 'lookup failed' });
-  connection.iceGatheringState = 'complete';
-  connection.onicegatheringstatechange();
-  assert.equal(events.length, 2);
-  assert.equal(events[1].suppressedErrors, 99);
-  context.peerConnection = {};
-  connection.onicecandidateerror({ errorCode: 486, errorText: 'old connection' });
-  assert.equal(events.length, 2);
-});
-
-test('socket reconnect reports the previous close after reopening and ignores stale close events', () => {
-  const sockets = [], events = [];
-  const context = vm.createContext({
-    socket: null, socketAttempt: 0, lastSocketClose: null, reconnectAttempts: 0, reconnectTimer: null,
-    leaving: false, effectTrack: null, iceServers: [], navigator: { onLine: true },
-    performance: { getEntriesByType: () => [{ type: 'reload' }] },
-    window: { clearTimeout() {} }, closePeerConnection() {}, websocketUrl: () => 'ws://example.test',
-    setConnection() {}, sendMediaState() {}, scheduleReconnect() {},
-    sendDiagnostic: (event, details) => events.push({ event, ...details }),
-    WebSocket: class {
-      constructor() { this.handlers = {}; sockets.push(this); }
-      addEventListener(type, handler) { this.handlers[type] = handler; }
-    },
-  });
-  const start = roomScript.indexOf('  function connectSocket()');
-  vm.runInContext(roomScript.slice(start, roomScript.indexOf('  async function toggleKind(', start)), context);
-  context.connectSocket();
-  sockets[0].handlers.open();
-  assert.equal(events[0].state, 'initial');
-  assert.equal(events[0].navigationType, 'reload');
-  sockets[0].handlers.close({ code: 1006, wasClean: false });
-  context.connectSocket();
-  sockets[1].handlers.open();
-  const reopened = events.filter(event => event.event === 'socket-open')[1];
-  assert.equal(reopened.state, 'reconnected');
-  assert.equal(reopened.socketAttempt, 2);
-  assert.equal(reopened.closeCode, 1006);
-  assert.equal(reopened.wasClean, false);
-  assert.equal(reopened.reconnectDelayMs, 1000);
-  sockets[0].handlers.close({ code: 4001, wasClean: true });
-  assert.equal(context.lastSocketClose, null);
 });

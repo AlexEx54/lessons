@@ -12,8 +12,18 @@
   const peerTitle = role === 'teacher' ? 'Ученик' : 'Преподаватель';
   const waitingStatus = role === 'teacher' ? 'Ждём ученика' : 'Ждём преподавателя';
   const callEndedText = role === 'teacher' ? 'Вы завершили видеозвонок.' : 'Преподаватель завершил видеозвонок.';
-  // TURN credentials live at least five minutes, and a participant may wait much longer.
-  const ICE_REFRESH_MS = 4 * 60 * 1000;
+  const STATUS_TEXT = {
+    connecting: ['Подключаемся к комнате…'],
+    waiting: [waitingStatus],
+    'peer-joining': [`${peerTitle} подключается…`],
+    connected: ['Соединение установлено', 'connected'],
+    interrupted: ['Соединение прервано, восстанавливаем…', 'error'],
+    'peer-left': [`${peerTitle} вышел`],
+    offline: ['Нет соединения с сервером', 'error'],
+    'socket-error': ['Ошибка соединения', 'error'],
+    unsupported: ['Браузер не смог создать медиасоединение', 'error'],
+    'negotiation-failed': ['Не удалось настроить медиасоединение', 'error'],
+  };
   const elements = {
     brand: document.getElementById('room-brand'),
     connection: document.getElementById('room-connection'),
@@ -33,6 +43,8 @@
     remoteVideo: document.getElementById('remote-video'),
     remotePlaceholder: document.getElementById('remote-placeholder'),
     remotePlaceholderText: document.getElementById('remote-placeholder-text'),
+    prejoinInvite: document.getElementById('prejoin-invite'),
+    remoteInvite: document.getElementById('remote-invite'),
     remoteName: document.getElementById('remote-name'),
     remoteMuted: document.getElementById('remote-muted'),
     toggleMic: document.getElementById('toggle-mic'),
@@ -46,99 +58,44 @@
     leave: document.getElementById('leave-call'),
     leaveLabel: document.getElementById('leave-label'),
     ended: document.getElementById('room-ended'),
+    endedTitle: document.getElementById('room-ended-title'),
     endedMessage: document.getElementById('room-ended-message'),
     rejoinLink: document.getElementById('room-rejoin-link'),
     exitLink: document.getElementById('room-exit-link'),
   };
 
-  const BACKGROUND_STORAGE_KEY = 'easyclass.videoBackground';
-  const BACKGROUND_OPTIONS = [
-    { id: 'none', label: 'Без фона', previewClass: 'background-option__preview--none' },
-    { id: 'blur', label: 'Размытие', previewClass: 'background-option__preview--blur' },
-    { id: 'study-light', label: 'Кабинет', src: '/assets/images/video-backgrounds/study-light.jpg' },
-    { id: 'library-plum', label: 'Библиотека', src: '/assets/images/video-backgrounds/library-plum.jpg' },
-    { id: 'classroom-soft', label: 'Класс', src: '/assets/images/video-backgrounds/classroom-soft.jpg' },
-  ];
-  const BACKGROUND_IDS = new Set(BACKGROUND_OPTIONS.map(option => option.id));
-  const MEDIAPIPE_BASE = '/assets/vendor/mediapipe-1.0.1';
-  const MOBILE_DEVICE = navigator.userAgentData?.mobile === true
-    || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-    || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
-  const SEGMENTER_MODEL = MOBILE_DEVICE
-    ? { id: 'landscape', filename: 'selfie_segmenter_landscape.tflite' }
-    : { id: 'square', filename: 'selfie_segmenter.tflite' };
-  const EFFECT_FRAME_INTERVAL_MS = MOBILE_DEVICE ? 1000 / 18 : 1000 / 24;
-
-
   const recordingButton = document.getElementById('toggle-recording');
   const recordingStatus = document.getElementById('recording-status');
-  let recording = null;
-  let recordingBusy = false;
-  let recordingActive = false;
-  let recordingDone = null;
-
-  function recordingMessage(message) {
-    if (role !== 'teacher') return;
-    recordingStatus.hidden = !message;
-    recordingStatus.textContent = message;
-  }
+  const recorder = window.CallRecorder.control({
+    getSources: recordingSources, canStart: () => !leaving, onChange: renderRecording,
+  });
+  let recordingPublished = false;
 
   function recordingSources() {
+    const remote = connection.remote();
+    const remoteStream = connection.remoteStream;
     return {
-      localVideo: outboundVideoTrack(),
-      remoteVideo: (remoteMediaState.screen || remoteMediaState.video !== false)
-        ? remoteStream.getVideoTracks()[0] : null,
-      localScreen: Boolean(screenTrack),
-      remoteScreen: Boolean(remoteMediaState.screen),
+      localVideo: media.outboundVideoTrack(),
+      remoteVideo: (remote.screen || remote.video !== false) ? remoteStream.getVideoTracks()[0] : null,
+      localScreen: media.sentState().screen,
+      remoteScreen: remote.screen,
       remoteName: elements.remoteName.textContent,
-      audio: [screenAudioMixer?.destination.stream.getAudioTracks()[0] || track('audio'),
-        ...remoteStream.getAudioTracks()],
+      audio: [media.outboundAudioTrack(), ...remoteStream.getAudioTracks()],
     };
   }
 
-  async function stopRecording() {
-    if (!recording) return;
-    recordingActive = false;
-    recordingButton.setAttribute('aria-pressed', 'false');
-    recordingButton.disabled = true;
-    recordingMessage('Сохраняем запись… Не закрывайте вкладку.');
-    sendMediaState();
-    void recording.stop().catch(() => {});
-    await recordingDone;
-  }
-
-  async function toggleRecording() {
-    if (role !== 'teacher' || leaving || recordingBusy) return;
-    if (recording) { await stopRecording(); return; }
-    recordingBusy = true;
-    recordingButton.disabled = true;
-    try {
-      const session = await window.CallRecorder.start({
-        getSources: recordingSources, canStart: () => !leaving,
-      });
-      recording = session;
-      recordingActive = true;
-      recordingButton.querySelector('span').textContent = 'Остановить запись';
-      recordingButton.setAttribute('aria-pressed', 'true');
-      recordingMessage('');
-      sendMediaState();
-      recordingDone = session.finished.then(() => {
-        recordingMessage('Запись сохранена на компьютере.');
-      }, error => {
-        recordingMessage(`Запись не сохранена: ${error.message || 'ошибка записи на диск'}`);
-      }).finally(() => {
-        recording = null;
-        recordingActive = false;
-        recordingButton.disabled = leaving;
-        recordingButton.setAttribute('aria-pressed', 'false');
-        recordingButton.querySelector('span').textContent = 'Записать';
-        sendMediaState();
-      });
-    } catch (error) {
-      if (error.name !== 'AbortError') recordingMessage(error.message || 'Не удалось начать запись.');
-    } finally {
-      recordingBusy = false;
-      recordingButton.disabled = leaving;
+  function renderRecording() {
+    if (role !== 'teacher') return;
+    const state = recorder.state();
+    recordingButton.disabled = leaving || state.busy || !window.CallRecorder.supported();
+    recordingButton.setAttribute('aria-pressed', String(state.recording));
+    recordingButton.querySelector('span').textContent = state.recording ? 'Остановить запись' : 'Записать';
+    recordingStatus.hidden = !state.message;
+    recordingStatus.textContent = state.message;
+    // The recording flag goes out with this side's media state.
+    if (state.recording !== recordingPublished) {
+      recordingPublished = state.recording;
+      connection.publishMediaState();
     }
   }
 
@@ -151,99 +108,64 @@
     recordingButton.disabled = true;
     recordingButton.title = 'Для записи нужен настольный Chrome или Edge';
   }
-  recordingButton.addEventListener('click', toggleRecording);
+  recordingButton.addEventListener('click', () => { if (role === 'teacher' && !leaving) void recorder.toggle(); });
   window.addEventListener('beforeunload', event => {
-    if (recording || recordingBusy) { event.preventDefault(); event.returnValue = ''; }
+    if (recorder.state().unsaved) { event.preventDefault(); event.returnValue = ''; }
   });
 
   let room = null;
-  let iceServers = [];
-  let localStream = new MediaStream();
-  let remoteStream = new MediaStream();
-  let remoteMediaState = {};
-  let mediaStatsTimer = null;
-  let peerGeneration = 0;
-  let replacementSequence = 0;
-  const diagnosticTrackIds = new WeakMap();
-  let diagnosticTrackSequence = 0;
-  let screenTrack = null;
-  let displayStream = null;
-  let screenAudioMixer = null;
-  let screenShareBusy = false;
-  let socket = null;
-  const pageSession = crypto.randomUUID();
-  let socketAttempt = 0;
-  let lastSocketClose = null;
-  let peerConnection = null;
-  let audioTransceiver = null;
-  let videoTransceiver = null;
-  let selectedBackground = readStoredBackground();
-  let backgroundEffectGeneration = 0;
-  let effectSession = null;
-  let effectTrack = null;
-  let effectStartController = null;
   let joined = false;
-  let mediaPrepared = false;
   let leaving = false;
-  let reconnectAttempts = 0;
-  let reconnectTimer = null;
-  let makingOffer = false;
-  let ignoreOffer = false;
-  let isSettingRemoteAnswerPending = false;
-  const gatheredCandidateTypes = new Set();
-  const polite = role === 'guest';
-  const mediaState = { audio: true, video: true, screen: false };
+  const media = window.CallMedia.create({
+    diagnostic: (event, details) => connection.diagnostic(event, details),
+    applyAudio: () => connection.applyAudio(),
+    applyVideo: () => connection.applyVideo(),
+    publish: () => connection.publishMediaState(),
+    onChange: renderMedia,
+  });
+  const connection = window.CallConnection.create({
+    role,
+    socketUrl: websocketUrl,
+    iceEndpoint: roomEndpoint,
+    media,
+    localDetails: () => ({
+      recording: role === 'teacher' && recorder.state().recording,
+      // Without a typed name the teacher keeps the room name as the student's label.
+      name: role === 'guest' ? elements.participantName.value.trim() : 'Преподаватель',
+    }),
+    remoteVideo: elements.remoteVideo,
+    onStatus: renderStatus,
+    onRemote: renderRemote,
+    onMessage: message => {
+      if (message.type === 'chat-message') window.RoomChat?.receive(message.message);
+      else if (message.type === 'connected') window.RoomChat?.sync();
+    },
+    onEnded: reason => (reason === 'elsewhere'
+      ? finishCall('Звонок продолжается в другой вкладке или на другом устройстве. '
+        + 'Чтобы вернуть его сюда, нажмите «Подключиться снова».', 'Звонок открыт в другом месте')
+      : finishCall(callEndedText)),
+  });
 
   elements.brand.href = exitPath;
   elements.exitLink.href = exitPath;
   elements.exitLink.textContent = role === 'teacher' ? 'К списку звонков' : 'На главную';
   elements.leaveLabel.textContent = role === 'teacher' ? 'Завершить' : 'Выйти';
   elements.guestNameField.hidden = role !== 'guest';
-  elements.remoteName.textContent = peerTitle;
-  elements.remoteVideo.addEventListener('playing', () => {
-    updateRemoteVideoVisibility('playing');
-  });
-  document.addEventListener('visibilitychange', () => {
-    effectSession?.visibility(document.hidden);
-    reportMediaStats(peerConnection, 'visibility');
-  });
+  document.addEventListener('visibilitychange', () => media.setPageHidden(document.hidden));
 
   function setConnection(text, state = '') {
     elements.connection.dataset.state = state;
     elements.connection.lastChild.textContent = ` ${text}`;
   }
 
-  function showPrejoinError(message) {
-    elements.prejoinError.textContent = message;
-    elements.prejoinError.hidden = !message;
-  }
-
-  function readStoredBackground() {
-    try {
-      const stored = window.localStorage.getItem(BACKGROUND_STORAGE_KEY);
-      return BACKGROUND_IDS.has(stored) ? stored : 'none';
-    } catch (_error) {
-      return 'none';
-    }
-  }
-
-  function writeStoredBackground(value) {
-    try {
-      window.localStorage.setItem(BACKGROUND_STORAGE_KEY, value);
-    } catch (_error) {
-      // The choice still works for this call when storage is unavailable.
-    }
-  }
-
   function renderBackgroundOptions(container) {
     const fragment = document.createDocumentFragment();
-    BACKGROUND_OPTIONS.forEach(option => {
+    window.CallMedia.BACKGROUND_OPTIONS.forEach(option => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'background-option';
       button.dataset.backgroundOption = option.id;
       button.setAttribute('role', 'radio');
-      button.setAttribute('aria-checked', String(option.id === selectedBackground));
       button.setAttribute('aria-label', option.label);
 
       const preview = document.createElement('span');
@@ -252,618 +174,99 @@
       const label = document.createElement('span');
       label.textContent = option.label;
       button.append(preview, label);
-      button.addEventListener('click', () => selectVideoBackground(option.id));
+      button.addEventListener('click', () => media.selectBackground(option.id));
       fragment.append(button);
     });
     container.replaceChildren(fragment);
   }
 
-  function updateBackgroundControls() {
-    document.querySelectorAll('[data-background-option]').forEach(button => {
-      button.setAttribute('aria-checked', String(button.dataset.backgroundOption === selectedBackground));
+  const EFFECT_STAGES = {
+    worker: 'Запускаем обработку',
+    wasm: 'Загружаем модель',
+    segmenter: 'Настраиваем модель',
+    'background-image': 'Загружаем фон',
+    'first-frame': 'Обрабатываем первый кадр',
+  };
+
+  // progress: null hides the notice, { stage } shows preparation, { failed: background } offers a retry.
+  function renderEffectProgress(progress) {
+    document.querySelectorAll('.effect-progress').forEach(notice => {
+      notice.hidden = !progress;
+      if (!progress) return;
+      const failed = Boolean(progress.failed);
+      notice.dataset.state = failed ? 'error' : 'loading';
+      notice.querySelector('.effect-progress__title').textContent = failed ? 'Не удалось включить фон' : 'Готовим фон';
+      notice.querySelector('.effect-progress__stage').textContent = failed
+        ? '' : `${EFFECT_STAGES[progress.stage] || EFFECT_STAGES.worker}…`;
+      notice.querySelector('[data-effect-action="cancel"]').hidden = failed;
+      notice.querySelector('[data-effect-action="retry"]').hidden = !failed;
+      notice.querySelector('[data-effect-action="close"]').hidden = !failed;
     });
-    elements.toggleBackground.setAttribute('aria-pressed', String(selectedBackground !== 'none'));
   }
 
-  function setBackgroundStatus(message, state = '') {
-    document.querySelectorAll('.background-picker__status').forEach(status => {
-      status.textContent = message;
-      status.dataset.state = state;
-    });
-  }
-
-  function backgroundOption(value = selectedBackground) {
-    return BACKGROUND_OPTIONS.find(option => option.id === value) || BACKGROUND_OPTIONS[0];
-  }
-
-  function backgroundEffectsSupported() {
-    return Boolean(window.WebAssembly && window.Worker);
-  }
-
-  function stopBackgroundEffect() {
-    effectStartController?.abort();
-    effectStartController = null;
-    effectSession?.stop();
-    effectSession = null;
-    effectTrack = null;
-  }
-
-  function cameraTrack() {
-    return localStream.getVideoTracks()[0];
-  }
-
-  function outboundVideoTrack() {
-    if (screenTrack) return screenTrack;
-    if (!mediaState.video || !cameraTrack()?.enabled) return null;
-    return selectedBackground === 'none' ? cameraTrack() : effectTrack;
-  }
-
-  async function applyOutboundVideoTrack() {
-    if (!videoTransceiver) return;
-    const sender = videoTransceiver.sender;
-    const next = outboundVideoTrack();
-    const operation = ++replacementSequence;
-    const details = { peerGeneration, operation, previousTrack: diagnosticTrackId(sender.track),
-      nextTrack: diagnosticTrackId(next), source: !next ? 'none' : next === screenTrack ? 'screen' : next === effectTrack ? 'effect' : 'camera' };
-    sendDiagnostic('video-track-replace', { ...details, state: 'start' });
-    try {
-      await sender.replaceTrack(next);
-      sendDiagnostic('video-track-replace', { ...details, state: 'success', ...videoTrackDetails(sender.track) });
-    } catch (error) {
-      sendDiagnostic('video-track-replace', { ...details, state: 'failure',
-        ...videoTrackDetails(sender.track), errorText: `${error.name}: ${error.message}` });
-      throw error;
-    }
-  }
-
-  function effectMode() {
-    return selectedBackground === 'blur' ? 'blur' : 'replacement';
-  }
-
-  function effectDiagnosticDetails(extra = {}) {
-    return { pipelineVersion: 3, effectGeneration: backgroundEffectGeneration, mode: effectMode(), model: SEGMENTER_MODEL.id,
-      ...effectSession?.details, ...extra };
-  }
-
-  function handleEffectFailure(error) {
-    if (error?.name === 'AbortError') return;
-    console.error('Video background processing failed:', error);
-    sendDiagnostic('background-effect-failure', effectDiagnosticDetails({ state: 'failed',
-      errorText: `${error?.name || 'Error'}: ${error?.message || 'Background processing failed'}` }));
-    backgroundEffectGeneration += 1;
-    stopBackgroundEffect();
-    setBackgroundStatus('Эффект недоступен — видео приостановлено. Выберите фон повторно или «Без фона».', 'error');
-    void applyOutboundVideoTrack().catch(error => console.error('Video replacement failed:', error));
-    updateLocalPreview();
-  }
-
-  async function startBackgroundEffect() {
-    const generation = ++backgroundEffectGeneration;
-    stopBackgroundEffect();
-    const controller = new AbortController();
-    effectStartController = controller;
-    try {
-      await applyOutboundVideoTrack();
-      updateLocalPreview();
-      if (controller.signal.aborted || generation !== backgroundEffectGeneration) return;
-      if (selectedBackground === 'none' || !mediaState.video || !cameraTrack()?.enabled || screenTrack) return;
-      if (!backgroundEffectsSupported()) throw new Error('Браузер не поддерживает обработку видеофона.');
-      setBackgroundStatus('Готовим эффект…');
-      const { createBackgroundPipeline } = await import('/assets/video-background-pipeline.mjs');
-      if (controller.signal.aborted || generation !== backgroundEffectGeneration) return;
-      const session = createBackgroundPipeline({
-        camera: cameraTrack(),
-        config: { model: SEGMENTER_MODEL, mode: selectedBackground,
-          backgroundUrl: backgroundOption().src, targetFps: 1000 / EFFECT_FRAME_INTERVAL_MS,
-          maxWidth: MOBILE_DEVICE ? 640 : 960, hidden: document.hidden },
-        onDiagnostic: (event, details) => {
-          if (generation === backgroundEffectGeneration && !controller.signal.aborted) sendDiagnostic(event, { ...details, effectGeneration: generation });
-        },
-        onFailure: error => {
-          if (generation === backgroundEffectGeneration && !controller.signal.aborted) handleEffectFailure(error);
-        },
-      });
-      effectSession = session;
-      try { await session.ready; }
-      catch (error) {
-        session.stop();
-        if (generation === backgroundEffectGeneration && !controller.signal.aborted) throw error;
-        return;
-      }
-      if (generation !== backgroundEffectGeneration || controller.signal.aborted) { session.stop(); return; }
-      effectTrack = session.track;
-      effectTrack.enabled = mediaState.video;
-      await applyOutboundVideoTrack();
-      if (generation !== backgroundEffectGeneration || controller.signal.aborted) return;
-      updateLocalPreview();
-      sendDiagnostic('background-effect-ready', effectDiagnosticDetails({ state: 'ready' }));
-      setBackgroundStatus(session.details.transport === 'canvas-worker'
-        ? 'Эффект включён — совместимый режим' : 'Эффект включён', 'ready');
-    } catch (error) {
-      if (generation === backgroundEffectGeneration && !controller.signal.aborted) throw error;
-    }
-  }
-
-  async function selectVideoBackground(value, { persist = true } = {}) {
-    if (!BACKGROUND_IDS.has(value)) value = 'none';
-    sendDiagnostic('video-background-selection', { state: value === 'none' ? 'none' : value === 'blur' ? 'blur' : 'replacement' });
-    selectedBackground = value;
-    if (persist) writeStoredBackground(value);
-    updateBackgroundControls();
-    if (value === 'none') {
-      backgroundEffectGeneration += 1;
-      stopBackgroundEffect();
-      setBackgroundStatus('');
-      await applyOutboundVideoTrack();
-      updateLocalPreview();
-      return;
-    }
-    if (!mediaState.video || !cameraTrack()?.enabled) {
-      setBackgroundStatus('Включите камеру, чтобы применить эффект');
-      return;
-    }
-    if (screenTrack) {
-      setBackgroundStatus('Фон включится после демонстрации экрана');
-      return;
-    }
-    try {
-      await startBackgroundEffect();
-    } catch (error) {
-      handleEffectFailure(error);
-    }
-  }
-
-  function track(kind) {
-    return kind === 'audio' ? localStream.getAudioTracks()[0] : localStream.getVideoTracks()[0];
-  }
-
+  // A new srcObject restarts the video element, so the preview is replaced only with its track.
+  let previewTrack;
   function updateLocalPreview() {
-    const previewTrack = screenTrack || (mediaState.video && cameraTrack()?.enabled ? outboundVideoTrack() : null);
-    const previewStream = previewTrack ? new MediaStream([previewTrack]) : new MediaStream();
+    const next = media.previewTrack() || null;
+    if (next === previewTrack) return;
+    previewTrack = next;
+    const previewStream = next ? new MediaStream([next]) : new MediaStream();
     elements.previewVideo.srcObject = previewStream;
     elements.localVideo.srcObject = previewStream;
-    const cameraVisible = Boolean(previewTrack);
-    elements.previewPlaceholder.hidden = cameraVisible;
-    elements.localPlaceholder.hidden = cameraVisible;
+    elements.previewPlaceholder.hidden = Boolean(next);
+    elements.localPlaceholder.hidden = Boolean(next);
   }
 
-  function updateButtons() {
-    const micEnabled = Boolean(track('audio')?.enabled) && mediaState.audio;
-    const cameraEnabled = Boolean(track('video')?.enabled) && mediaState.video;
-    elements.prejoinMic.setAttribute('aria-pressed', String(micEnabled));
-    elements.prejoinMic.textContent = micEnabled ? 'Микрофон включён' : 'Микрофон выключен';
-    elements.prejoinCamera.setAttribute('aria-pressed', String(cameraEnabled));
-    elements.prejoinCamera.textContent = cameraEnabled ? 'Камера включена' : 'Камера выключена';
-    elements.toggleMic.setAttribute('aria-pressed', String(micEnabled));
-    elements.toggleCamera.setAttribute('aria-pressed', String(cameraEnabled));
-    elements.toggleScreen.setAttribute('aria-pressed', String(Boolean(screenTrack)));
-    updateBackgroundControls();
+  function renderMedia() {
+    const state = media.snapshot();
+    elements.prejoinMic.setAttribute('aria-pressed', String(state.microphone));
+    elements.prejoinMic.textContent = state.microphone ? 'Микрофон включён' : 'Микрофон выключен';
+    elements.prejoinCamera.setAttribute('aria-pressed', String(state.camera));
+    elements.prejoinCamera.textContent = state.camera ? 'Камера включена' : 'Камера выключена';
+    elements.toggleMic.setAttribute('aria-pressed', String(state.microphone));
+    elements.toggleCamera.setAttribute('aria-pressed', String(state.camera));
+    elements.toggleScreen.setAttribute('aria-pressed', String(state.screen));
+    elements.localVideo.dataset.screen = String(state.screen);
+    elements.toggleScreen.disabled = state.screenShareBusy;
+    elements.screenAudioStatus.hidden = !state.screenAudioStatus;
+    elements.screenAudioStatus.textContent = state.screenAudioStatus;
+    document.querySelectorAll('[data-background-option]').forEach(button => {
+      button.setAttribute('aria-checked', String(button.dataset.backgroundOption === state.background));
+    });
+    elements.toggleBackground.setAttribute('aria-pressed', String(state.background !== 'none'));
+    document.querySelectorAll('.background-picker__status').forEach(status => {
+      status.textContent = state.backgroundStatus.text;
+      status.dataset.state = state.backgroundStatus.state;
+    });
+    renderEffectProgress(state.effectProgress);
+    elements.prejoinError.textContent = state.error;
+    elements.prejoinError.hidden = !state.error;
     updateLocalPreview();
   }
 
-  async function acquireTrack(kind) {
-    const constraints = kind === 'audio'
-      ? { audio: { echoCancellation: true, noiseSuppression: true }, video: false }
-      : { audio: false, video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } };
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    const newTrack = kind === 'audio' ? stream.getAudioTracks()[0] : stream.getVideoTracks()[0];
-    if (!newTrack) throw new Error(`Браузер не предоставил ${kind === 'audio' ? 'микрофон' : 'камеру'}.`);
-    if (kind === 'video') {
-      backgroundEffectGeneration += 1;
-      stopBackgroundEffect();
+  function renderStatus(status, details) {
+    if (status === 'reconnecting') setConnection(`Переподключение ${details.attempt}/${details.attempts}…`, 'error');
+    else if (STATUS_TEXT[status]) setConnection(...STATUS_TEXT[status]);
+    renderRemote();
+  }
+
+  function remotePlaceholderText(remote) {
+    if (remote.present) {
+      return remote.video === false && !remote.screen ? 'Камера участника выключена' : 'Ожидаем видео участника…';
     }
-    localStream.getTracks().filter(item => item.kind === kind).forEach(item => {
-      localStream.removeTrack(item);
-      item.stop();
-    });
-    localStream.addTrack(newTrack);
-    if (kind === 'audio') {
-      connectMixerMicrophone();
-      await applyOutboundAudioTrack();
-    }
-    return newTrack;
+    if (connection.status === 'peer-left') return `${waitingStatus} — звонок возобновится автоматически.`;
+    if (connection.status === 'waiting') return `${peerTitle} ещё не подключился. Звонок начнётся автоматически.`;
+    return 'Подключаемся к комнате…';
   }
 
-  async function prepareMedia() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      showPrejoinError('Этот браузер не поддерживает доступ к камере и микрофону.');
-      mediaState.audio = false;
-      mediaState.video = false;
-      updateButtons();
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-      });
-      localStream = stream;
-      showPrejoinError('');
-    } catch (_error) {
-      mediaState.audio = false;
-      mediaState.video = false;
-      showPrejoinError('Камера или микрофон недоступны. Можно войти без них и включить позже.');
-    }
-    updateButtons();
-    if (mediaState.video && cameraTrack()?.enabled && selectedBackground !== 'none') {
-      try {
-        await startBackgroundEffect();
-      } catch (error) {
-        handleEffectFailure(error);
-      }
-    }
-  }
-
-  function send(message) {
-    if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
-  }
-
-  function sendDiagnostic(event, details = {}) {
-    // Server logs have second precision; elapsedMs orders events within one connection attempt.
-    const elapsedMs = peerConnection ? Math.round(performance.now() - peerConnection.diagnosticCreatedAt) : undefined;
-    send({ type: 'diagnostic', event, pageSession, peerGeneration, pageHidden: document.hidden, elapsedMs, ...details });
-  }
-
-  function diagnosticTrackId(track) {
-    if (!track) return 0;
-    if (!diagnosticTrackIds.has(track)) diagnosticTrackIds.set(track, ++diagnosticTrackSequence);
-    return diagnosticTrackIds.get(track);
-  }
-
-  function videoTrackDetails(track) {
-    return { trackNumber: diagnosticTrackId(track), trackState: track?.readyState || 'absent',
-      trackMuted: Boolean(track?.muted), trackEnabled: Boolean(track?.enabled) };
-  }
-
-  function updateRemoteVideoVisibility(reason) {
-    const tracks = remoteStream.getVideoTracks();
-    const active = tracks.find(track => track.readyState === 'live' && !track.muted);
-    const explicitlyOff = remoteMediaState.video === false && !remoteMediaState.screen;
-    elements.remotePlaceholder.hidden = !explicitlyOff && Boolean(active);
-    if (!elements.remotePlaceholder.hidden) {
-      elements.remotePlaceholderText.textContent = explicitlyOff
-        ? 'Камера участника выключена' : 'Ожидаем видео участника…';
-    }
-    sendDiagnostic('remote-video-state', { state: reason, video: remoteMediaState.video,
-      screen: remoteMediaState.screen, placeholderVisible: !elements.remotePlaceholder.hidden,
-      ...videoTrackDetails(active || tracks[0]), videoReadyState: elements.remoteVideo.readyState });
-  }
-
-  async function reportMediaStats(connection, reason = 'periodic') {
-    if (!connection || connection !== peerConnection) return;
-    if (connection.diagnosticStatsPending) return;
-    connection.diagnosticStatsPending = true;
-    try {
-      const reports = await connection.getStats();
-      if (connection !== peerConnection) return;
-      const nextSamples = new Map();
-      reports.forEach(report => {
-        if ((report.kind || report.mediaType) !== 'video' || !['inbound-rtp', 'outbound-rtp'].includes(report.type)) return;
-        const details = { state: reason, direction: report.type, ssrc: report.ssrc,
-          placeholderVisible: !elements.remotePlaceholder.hidden };
-        for (const field of ['framesEncoded', 'framesSent', 'framesReceived', 'framesDecoded', 'bytesSent', 'bytesReceived', 'packetsLost']) {
-          if (Number.isFinite(report[field]) && report[field] >= 0) details[field] = Math.round(report[field]);
-        }
-        const frames = report.type === 'inbound-rtp' ? report.framesDecoded : report.framesSent;
-        const key = `${report.type}:${report.ssrc}`;
-        const previous = connection.diagnosticSamples?.get(key);
-        if (Number.isFinite(frames) && Number.isFinite(report.timestamp)) {
-          nextSamples.set(key, { frames, timestamp: report.timestamp });
-          const elapsed = report.timestamp - (previous?.timestamp ?? report.timestamp);
-          if (previous && elapsed >= 1000 && elapsed <= 86_400_000 && frames >= previous.frames) {
-            details.averageFps = Math.round((frames - previous.frames) * 10_000 / elapsed) / 10;
-            details.sampleDurationMs = Math.round(elapsed);
-          } else if (previous && elapsed >= 0 && elapsed < 1000 && frames >= previous.frames) {
-            nextSamples.set(key, previous);
-          }
-        }
-        sendDiagnostic('video-rtp-stats', details);
-      });
-      connection.diagnosticSamples = nextSamples;
-    } catch (error) {
-      if (connection === peerConnection) sendDiagnostic('stats-error', { state: 'video', errorText: error.message });
-    } finally { connection.diagnosticStatsPending = false; }
-  }
-
-  function candidateType(candidate) {
-    if (candidate?.candidateType) return candidate.candidateType;
-    if (candidate?.type) return candidate.type;
-    return String(candidate?.candidate || '').match(/\btyp\s+(host|srflx|prflx|relay)\b/)?.[1] || '';
-  }
-
-  function normalizeIceServers(servers) {
-    if (!Array.isArray(servers)) return [];
-    return servers.flatMap(server => {
-      const urls = Array.isArray(server?.urls) ? server.urls : [server?.urls];
-      return urls.filter(Boolean).map(url => {
-        const normalized = { urls: url };
-        if (server.username && server.credential) {
-          normalized.username = server.username;
-          normalized.credential = server.credential;
-          normalized.credentialType = server.credentialType || 'password';
-        }
-        return normalized;
-      });
-    });
-  }
-
-  async function reportSelectedCandidate(connection) {
-    try {
-      const stats = await connection.getStats();
-      const reports = new Map();
-      stats.forEach(report => reports.set(report.id, report));
-      const transport = [...reports.values()].find(report => (
-        report.type === 'transport' && report.selectedCandidatePairId
-      ));
-      let pair = transport ? reports.get(transport.selectedCandidatePairId) : null;
-      if (!pair) {
-        pair = [...reports.values()].find(report => (
-          report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated
-        ));
-      }
-      if (!pair) {
-        sendDiagnostic('selected-candidate-unavailable', { state: connection.iceConnectionState });
-        return;
-      }
-      const local = reports.get(pair.localCandidateId);
-      const remote = reports.get(pair.remoteCandidateId);
-      sendDiagnostic('selected-candidate', {
-        state: connection.iceConnectionState,
-        localCandidateType: candidateType(local),
-        remoteCandidateType: candidateType(remote),
-        protocol: local?.protocol || '',
-        relayProtocol: local?.relayProtocol || '',
-      });
-    } catch (error) {
-      sendDiagnostic('stats-error', { errorText: error?.message || 'getStats failed' });
-    }
-  }
-
-  function sendMediaState() {
-    sendDiagnostic('local-media-state', { video: Boolean(track('video')?.enabled) && mediaState.video, screen: Boolean(screenTrack) });
-    send({
-      type: 'media-state',
-      recording: role === 'teacher' && recordingActive,
-      audio: Boolean(track('audio')?.enabled) && mediaState.audio,
-      video: Boolean(track('video')?.enabled) && mediaState.video,
-      screen: Boolean(screenTrack),
-      // Without a typed name the teacher keeps the room name as the student's label.
-      name: role === 'guest' ? elements.participantName.value.trim() : 'Преподаватель',
-    });
-  }
-
-  function closePeerConnection() {
-    window.clearInterval(mediaStatsTimer);
-    mediaStatsTimer = null;
-    remoteMediaState = {};
-    if (peerConnection) {
-      window.clearTimeout(peerConnection.diagnosticSnapshotTimer);
-      if (!peerConnection.diagnosticConnected) {
-        sendDiagnostic('peer-connection-snapshot', { state: 'closed-unconnected', ...connectionSnapshot(peerConnection) });
-      }
-    }
-    peerConnection?.close();
-    peerConnection = null;
-    audioTransceiver = null;
-    videoTransceiver = null;
-    remoteStream = new MediaStream();
-    elements.remoteVideo.srcObject = remoteStream;
-    elements.remotePlaceholder.hidden = false;
-  }
-
-  // Synchronous part of the snapshot, so it can still be collected right before close().
-  function connectionSnapshot(connection) {
-    const transceivers = connection.getTransceivers();
-    const iceTransports = new Set(transceivers.map(item => item.sender.transport?.iceTransport).filter(Boolean));
-    return {
-      signalingState: connection.signalingState,
-      iceGatheringState: connection.iceGatheringState,
-      iceConnectionState: connection.iceConnectionState,
-      connectionState: connection.connectionState,
-      transceivers: transceivers.length,
-      iceTransports: [...iceTransports].map(transport => `${transport.state}/${transport.gatheringState}`),
-      localCandidates: connection.diagnosticCandidates.local,
-      remoteCandidates: connection.diagnosticCandidates.remote,
-      remoteCandidateErrors: connection.diagnosticCandidates.remoteErrors,
-      candidateTypes: [...gatheredCandidateTypes],
-    };
-  }
-
-  async function reportConnectionSnapshot(connection, reason) {
-    if (connection !== peerConnection || connection.diagnosticConnected) return;
-    const details = { state: reason, ...connectionSnapshot(connection) };
-    try {
-      const pairStates = new Set();
-      const remoteTypes = new Set();
-      let pairs = 0;
-      (await connection.getStats()).forEach(report => {
-        if (report.type === 'candidate-pair') {
-          pairs += 1;
-          pairStates.add(report.state);
-        } else if (report.type === 'remote-candidate') {
-          remoteTypes.add(candidateType(report));
-        }
-      });
-      Object.assign(details, { candidatePairs: pairs, candidatePairStates: [...pairStates],
-        remoteCandidateTypes: [...remoteTypes] });
-    } catch (error) {
-      details.errorText = `${error?.name || 'Error'}: ${error?.message || 'getStats failed'}`;
-    }
-    if (connection === peerConnection) sendDiagnostic('peer-connection-snapshot', details);
-  }
-
-  async function createPeerConnection() {
-    if (peerConnection) return peerConnection;
-    gatheredCandidateTypes.clear();
-    const createdAt = performance.now();
-    let connection;
-    try {
-      connection = new RTCPeerConnection({ iceServers });
-    } catch (error) {
-      sendDiagnostic('peer-connection-error', {
-        state: 'constructor',
-        errorText: `${error?.name || 'Error'}: ${error?.message || 'RTCPeerConnection failed'}`,
-      });
-      setConnection('Браузер не смог создать медиасоединение', 'error');
-      throw error;
-    }
-    peerConnection = connection;
-    peerGeneration += 1;
-    Object.assign(connection, { diagnosticCreatedAt: createdAt, diagnosticSetupPending: true,
-      diagnosticCandidates: { local: 0, remote: 0, remoteErrors: 0 } });
-    sendDiagnostic('peer-connection-setup', { state: 'created' });
-    connection.diagnosticSnapshotTimer = window.setTimeout(() => reportConnectionSnapshot(connection, 'stalled'), 15_000);
-    mediaStatsTimer = window.setInterval(() => reportMediaStats(connection), 30_000);
-    makingOffer = false;
-    ignoreOffer = false;
-    isSettingRemoteAnswerPending = false;
-    remoteStream = new MediaStream();
-    elements.remoteVideo.srcObject = remoteStream;
-
-    connection.onicecandidate = event => {
-      if (event.candidate) {
-        connection.diagnosticCandidates.local += 1;
-        const type = candidateType(event.candidate);
-        if (type) gatheredCandidateTypes.add(type);
-        send({ type: 'signal', candidate: event.candidate });
-      } else {
-        sendDiagnostic('ice-candidates-complete', {
-          state: connection.iceGatheringState,
-          candidateTypes: [...gatheredCandidateTypes],
-        });
-      }
-    };
-    const iceErrors = new Set();
-    let suppressedIceErrors = 0;
-    connection.onicecandidateerror = event => {
-      if (connection !== peerConnection) return;
-      const key = `${event.errorCode}:${event.errorText}`;
-      if (iceErrors.has(key) || iceErrors.size >= 10) { suppressedIceErrors++; return; }
-      iceErrors.add(key);
-      sendDiagnostic('ice-candidate-error', {
-        errorCode: event.errorCode,
-        errorText: event.errorText || 'ICE candidate error',
-      });
-    };
-    connection.onicegatheringstatechange = () => {
-      if (connection !== peerConnection) return;
-      sendDiagnostic('ice-gathering-state', {
-        state: connection.iceGatheringState,
-        suppressedErrors: suppressedIceErrors,
-        candidateTypes: [...gatheredCandidateTypes],
-      });
-    };
-    connection.oniceconnectionstatechange = () => {
-      sendDiagnostic('ice-connection-state', { state: connection.iceConnectionState });
-      if (['connected', 'completed', 'failed'].includes(connection.iceConnectionState)) {
-        reportSelectedCandidate(connection);
-      }
-    };
-    connection.ontrack = event => {
-      if (peerConnection !== connection) return;
-      if (!remoteStream.getTracks().some(item => item.id === event.track.id)) remoteStream.addTrack(event.track);
-      if (elements.remoteVideo.srcObject !== remoteStream) elements.remoteVideo.srcObject = remoteStream;
-      if (event.track.kind === 'video') {
-        for (const type of ['unmute', 'mute', 'ended']) {
-          event.track.addEventListener(type, () => {
-            if (peerConnection !== connection) return;
-            updateRemoteVideoVisibility(type);
-            reportMediaStats(connection, type);
-          });
-        }
-      }
-      updateRemoteVideoVisibility(event.track.kind === 'video' ? 'video-track' : 'audio-track');
-    };
-    connection.onconnectionstatechange = () => {
-      if (peerConnection !== connection) return;
-      sendDiagnostic('peer-connection-state', { state: connection.connectionState });
-      if (connection.connectionState === 'connected') {
-        connection.diagnosticConnected = true;
-        window.clearTimeout(connection.diagnosticSnapshotTimer);
-        setConnection('Соединение установлено', 'connected');
-        updateRemoteVideoVisibility('connected');
-        window.setTimeout(() => reportSelectedCandidate(connection), 500);
-      } else if (['failed', 'disconnected'].includes(connection.connectionState)) {
-        setConnection('Соединение прервано, восстанавливаем…', 'error');
-      }
-    };
-    connection.onsignalingstatechange = () => {
-      if (peerConnection !== connection) return;
-      sendDiagnostic('signaling-state', { state: connection.signalingState,
-        transceivers: connection.getTransceivers().length });
-    };
-    connection.onnegotiationneeded = async () => {
-      try {
-        makingOffer = true;
-        await connection.setLocalDescription();
-        // An answer here means a remote offer was applied before this negotiation started.
-        if (connection === peerConnection) sendDiagnostic('negotiation', {
-          state: `local-${connection.localDescription.type}`, trigger: 'negotiationneeded',
-        });
-        send({ type: 'signal', description: connection.localDescription });
-      } catch (error) {
-        if (connection === peerConnection) sendDiagnostic('peer-connection-error', {
-          state: 'negotiation', errorText: `${error.name}: ${error.message}`,
-        });
-        console.error('WebRTC negotiation failed:', error);
-      } finally {
-        makingOffer = false;
-      }
-    };
-    // Chromium may dispatch negotiationneeded while replaceTrack() yields. Register
-    // every handler before adding transceivers so the initial offer cannot be lost.
-    audioTransceiver = connection.addTransceiver('audio', { direction: 'sendrecv' });
-    videoTransceiver = connection.addTransceiver('video', { direction: 'sendrecv' });
-    try {
-      await applyOutboundAudioTrack();
-      await applyOutboundVideoTrack();
-    } finally {
-      connection.diagnosticSetupPending = false;
-    }
-    if (connection === peerConnection) sendDiagnostic('peer-connection-setup', { state: 'complete' });
-    return connection;
-  }
-
-  async function handleSignal(message) {
-    const connection = await createPeerConnection();
-    try {
-      if (message.description) {
-        const readyForOffer = !makingOffer
-          && (connection.signalingState === 'stable' || isSettingRemoteAnswerPending);
-        const offerCollision = message.description.type === 'offer' && !readyForOffer;
-        ignoreOffer = !polite && offerCollision;
-        sendDiagnostic('negotiation', {
-          state: ignoreOffer ? 'offer-ignored' : `remote-${message.description.type}`,
-          setupPending: connection.diagnosticSetupPending, collision: offerCollision,
-        });
-        if (ignoreOffer) return;
-        isSettingRemoteAnswerPending = message.description.type === 'answer';
-        await connection.setRemoteDescription(message.description);
-        isSettingRemoteAnswerPending = false;
-        if (message.description.type === 'offer') {
-          await connection.setLocalDescription();
-          if (connection === peerConnection) sendDiagnostic('negotiation', {
-            state: `local-${connection.localDescription.type}`, trigger: 'remote-offer',
-          });
-          send({ type: 'signal', description: connection.localDescription });
-        }
-      } else if (message.candidate) {
-        try {
-          await connection.addIceCandidate(message.candidate);
-          connection.diagnosticCandidates.remote += 1;
-        } catch (error) {
-          connection.diagnosticCandidates.remoteErrors += 1;
-          if (!ignoreOffer) throw error;
-        }
-      }
-    } catch (error) {
-      if (connection === peerConnection) sendDiagnostic('peer-connection-error', {
-        state: message.description ? 'remote-description' : 'remote-candidate',
-        errorText: `${error.name}: ${error.message}`,
-      });
-      console.error('Cannot apply WebRTC signal:', error);
-      setConnection('Не удалось настроить медиасоединение', 'error');
-    }
+  function renderRemote() {
+    const remote = connection.remote();
+    elements.remoteName.textContent = remote.name || room?.name || peerTitle;
+    elements.remoteMuted.hidden = remote.audio !== false;
+    elements.remotePlaceholder.hidden = remote.videoVisible;
+    elements.remotePlaceholderText.textContent = remotePlaceholderText(remote);
+    // The room address opens only for its teacher, so the student's invite is offered right here.
+    elements.remoteInvite.hidden = remote.present || !room?.guestPath;
   }
 
   function websocketUrl() {
@@ -873,328 +276,35 @@
     return `${protocol}//${window.location.host}/ws/video-calls/${encodeURIComponent(room.id)}?${params}`;
   }
 
-  function scheduleReconnect() {
-    if (leaving || !joined || reconnectAttempts >= 5) {
-      if (!leaving) setConnection('Нет соединения с сервером', 'error');
-      return;
-    }
-    reconnectAttempts += 1;
-    setConnection(`Переподключение ${reconnectAttempts}/5…`, 'error');
-    reconnectTimer = window.setTimeout(connectSocket, Math.min(5000, reconnectAttempts * 1000));
-  }
-
-  function connectSocket() {
-    window.clearTimeout(reconnectTimer);
-    closePeerConnection();
-    socket = new WebSocket(websocketUrl());
-    const currentSocket = socket;
-    socketAttempt++;
-    setConnection('Подключаемся к комнате…');
-    socket.addEventListener('open', () => {
-      if (socket !== currentSocket) return;
-      sendDiagnostic('socket-open', { state: lastSocketClose ? 'reconnected' : 'initial',
-        socketAttempt, navigationType: performance.getEntriesByType('navigation')[0]?.type || 'unknown',
-        online: navigator.onLine, ...lastSocketClose });
-      lastSocketClose = null;
-      reconnectAttempts = 0;
-      const configuredUrls = iceServers.map(server => server.urls).filter(Boolean);
-      const turnServers = iceServers.filter(server => String(server.urls).startsWith('turn'));
-      const turnHasCredentials = turnServers.length > 0
-        && turnServers.every(server => Boolean(server.username && server.credential));
-      sendDiagnostic('ice-config', {
-        state: configuredUrls.some(url => String(url).startsWith('turns:'))
-          ? (turnHasCredentials ? 'turn-tls-auth' : 'turn-tls-no-auth')
-          : (turnServers.length > 0
-            ? (turnHasCredentials ? 'turn-auth' : 'turn-no-auth')
-            : 'stun-only'),
-      });
-      if (effectTrack) {
-        sendDiagnostic('background-effect-ready', effectDiagnosticDetails({ state: 'ready' }));
-      }
-      sendMediaState();
-    });
-    socket.addEventListener('message', async event => {
-      if (socket !== currentSocket || leaving) return;
-      let message;
-      try { message = JSON.parse(event.data); } catch (_error) { return; }
-      try {
-        if (message.type === 'chat-message') {
-          window.CallChat?.receive(message.message);
-        } else if (message.type === 'connected') {
-          window.CallChat?.sync();
-          sendDiagnostic('signaling-event', {
-            state: message.peerPresent ? 'connected-with-peer' : 'connected-waiting',
-          });
-          if (message.peerPresent) {
-            setConnection(`${peerTitle} подключается…`);
-            await createPeerConnection();
-          } else {
-            setConnection(waitingStatus);
-            elements.remotePlaceholderText.textContent = `${peerTitle} ещё не подключился. Звонок начнётся автоматически.`;
-          }
-        } else if (message.type === 'peer-joined') {
-          sendDiagnostic('signaling-event', { state: 'peer-joined' });
-          // The peer has a new RTCPeerConnection, even if its old socket has
-          // not timed out yet and no peer-left event was delivered.
-          closePeerConnection();
-          setConnection(`${peerTitle} подключается…`);
-          await createPeerConnection();
-          sendMediaState();
-        } else if (message.type === 'peer-left') {
-          closePeerConnection();
-          setConnection(`${peerTitle} вышел`);
-          elements.remotePlaceholderText.textContent = `${waitingStatus} — звонок возобновится автоматически.`;
-        } else if (message.type === 'signal') {
-          await handleSignal(message);
-        } else if (message.type === 'media-state') {
-          if (message.name) elements.remoteName.textContent = String(message.name).slice(0, 60);
-          elements.remoteMuted.hidden = message.audio !== false;
-          remoteMediaState = { video: message.video, screen: message.screen };
-          updateRemoteVideoVisibility('media-state');
-          reportMediaStats(peerConnection, 'media-state');
-        } else if (message.type === 'call-ended') {
-          finishCall(callEndedText);
-        }
-      } catch (error) {
-        sendDiagnostic('peer-connection-error', {
-          state: 'message-handler',
-          errorText: `${error?.name || 'Error'}: ${error?.message || 'WebRTC message failed'}`,
-        });
-      }
-    });
-    socket.addEventListener('close', event => {
-      if (socket !== currentSocket || leaving) return;
-      // The socket is already closed; retain one bounded record for the next open.
-      lastSocketClose = { closeCode: event.code, wasClean: event.wasClean,
-        reconnectDelayMs: Math.min(5000, (reconnectAttempts + 1) * 1000) };
-      if (event.code === 4000) {
-        finishCall(callEndedText);
-        return;
-      }
-      scheduleReconnect();
-    });
-    socket.addEventListener('error', () => setConnection('Ошибка соединения', 'error'));
-  }
-
-  async function toggleKind(kind) {
-    const key = kind === 'audio' ? 'audio' : 'video';
-    let current = track(kind);
-    if (mediaState[key] && current?.enabled) {
-      current.enabled = false;
-      mediaState[key] = false;
-      if (kind === 'video') {
-        backgroundEffectGeneration += 1;
-        stopBackgroundEffect();
-        await applyOutboundVideoTrack();
-        if (selectedBackground !== 'none') setBackgroundStatus('Включите камеру, чтобы применить эффект');
-      }
-    } else {
-      try {
-        if (!current || current.readyState === 'ended') current = await acquireTrack(kind);
-        current.enabled = true;
-        mediaState[key] = true;
-        showPrejoinError('');
-      } catch (_error) {
-        mediaState[key] = false;
-        showPrejoinError(`Не удалось включить ${kind === 'audio' ? 'микрофон' : 'камеру'}. Проверьте разрешения браузера.`);
-      }
-      if (kind === 'video' && mediaState.video) {
-        try {
-          if (selectedBackground !== 'none' && !screenTrack) await startBackgroundEffect();
-          else await applyOutboundVideoTrack();
-        } catch (error) {
-          handleEffectFailure(error);
-        }
-      }
-    }
-    updateButtons();
-    sendMediaState();
-  }
-
-  function connectMixerMicrophone() {
-    if (!screenAudioMixer) return;
-    screenAudioMixer.microphone?.disconnect();
-    screenAudioMixer.microphone = null;
-    const microphone = track('audio');
-    if (microphone?.readyState === 'live') {
-      screenAudioMixer.microphone = screenAudioMixer.context.createMediaStreamSource(new MediaStream([microphone]));
-      screenAudioMixer.microphone.connect(screenAudioMixer.destination);
-    }
-  }
-
-  async function applyOutboundAudioTrack() {
-    const next = screenAudioMixer?.destination.stream.getAudioTracks()[0] || track('audio') || null;
-    if (audioTransceiver) await audioTransceiver.sender.replaceTrack(next);
-  }
-
-  function disposeScreenAudio(mixer = screenAudioMixer) {
-    if (screenAudioMixer === mixer) screenAudioMixer = null;
-    if (mixer) {
-      mixer.microphone?.disconnect();
-      mixer.source?.disconnect();
-      mixer.destination.stream.getTracks().forEach(item => item.stop());
-      void mixer.context.close().catch(() => {});
-    }
-  }
-
-  function updateScreenAudioStatus() {
-    elements.screenAudioStatus.hidden = !screenTrack;
-    const audio = displayStream?.getAudioTracks().find(item => item.readyState === 'live');
-    if (!audio || !screenAudioMixer) {
-      elements.screenAudioStatus.textContent = 'Демонстрация без звука. Для передачи звука выберите его в окне демонстрации браузера.';
-      return;
-    }
-    const isolated = screenTrack?.getSettings().displaySurface === 'browser' || audio.getSettings().restrictOwnAudio === true;
-    elements.screenAudioStatus.textContent = audio.muted
-      ? 'Звук демонстрации временно недоступен.'
-      : 'Звук демонстрации включён.';
-    if (!isolated) elements.screenAudioStatus.textContent += ' Возможно эхо: для ролика лучше выбрать отдельную вкладку со звуком.';
-  }
-
-  async function startScreenAudio() {
-    const audio = displayStream.getAudioTracks().find(item => item.readyState === 'live');
-    if (!audio) return;
-    try {
-      const context = new AudioContext();
-      screenAudioMixer = { context, destination: context.createMediaStreamDestination() };
-      screenAudioMixer.source = context.createMediaStreamSource(new MediaStream([audio]));
-      screenAudioMixer.source.connect(screenAudioMixer.destination);
-      connectMixerMicrophone();
-      await context.resume();
-      if (leaving || !screenTrack || !screenAudioMixer) return;
-      await applyOutboundAudioTrack();
-      audio.onmute = audio.onunmute = updateScreenAudioStatus;
-      audio.onended = () => {
-        disposeScreenAudio();
-        void applyOutboundAudioTrack().catch(error => console.error('Audio restore failed:', error));
-        updateScreenAudioStatus();
-      };
-    } catch (error) {
-      disposeScreenAudio();
-      audio.stop();
-      await applyOutboundAudioTrack();
-      console.error('Screen audio unavailable:', error);
-    }
-  }
-
-  async function stopScreenShare() {
-    const previous = screenTrack;
-    screenTrack = null;
-    if (previous) {
-      previous.onended = null;
-      previous.stop();
-    }
-    displayStream?.getTracks().forEach(item => {
-      item.onended = item.onmute = item.onunmute = null;
-      item.stop();
-    });
-    displayStream = null;
-    const mixer = screenAudioMixer;
-    screenAudioMixer = null;
-    try {
-      await applyOutboundAudioTrack();
-    } finally {
-      disposeScreenAudio(mixer);
-    }
-    updateScreenAudioStatus();
-    mediaState.screen = false;
-    if (selectedBackground !== 'none' && mediaState.video && cameraTrack()?.enabled) {
-      try {
-        await startBackgroundEffect();
-      } catch (error) {
-        handleEffectFailure(error);
-      }
-    } else {
-      await applyOutboundVideoTrack();
-    }
-    updateButtons();
-    sendMediaState();
-  }
-
   async function toggleScreenShare() {
-    if (screenShareBusy || leaving) return;
-    if (screenTrack) {
-      screenShareBusy = true;
-      elements.toggleScreen.disabled = true;
-      try {
-        await stopScreenShare();
-      } finally {
-        screenShareBusy = false;
-        elements.toggleScreen.disabled = false;
-      }
-      return;
-    }
-    if (!navigator.mediaDevices?.getDisplayMedia) {
-      setConnection('Демонстрация экрана не поддерживается браузером', 'error');
-      return;
-    }
-    screenShareBusy = true;
-    elements.toggleScreen.disabled = true;
+    if (leaving) return;
     try {
-      const display = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: { restrictOwnAudio: true, suppressLocalAudioPlayback: false },
-        systemAudio: 'include',
-        selfBrowserSurface: 'exclude',
-      });
-      if (leaving) {
-        display.getTracks().forEach(item => item.stop());
-        return;
-      }
-      displayStream = display;
-      screenTrack = display.getVideoTracks()[0];
-      if (!screenTrack) throw new Error('No display video track');
-      screenTrack.onended = () => { void stopScreenShare().catch(console.error); };
-      await startScreenAudio();
-      if (leaving || !screenTrack) return;
-      updateScreenAudioStatus();
-      backgroundEffectGeneration += 1;
-      stopBackgroundEffect();
-      await applyOutboundVideoTrack();
-      mediaState.screen = true;
-      if (selectedBackground !== 'none') setBackgroundStatus('Фон включится после демонстрации экрана');
-      updateButtons();
-      sendMediaState();
+      await media.toggleScreenShare();
     } catch (error) {
-      await stopScreenShare().catch(console.error);
-      if (error.name !== 'NotAllowedError') setConnection('Не удалось начать демонстрацию экрана', 'error');
-    } finally {
-      screenShareBusy = false;
-      elements.toggleScreen.disabled = false;
+      setConnection(error.message, 'error');
     }
   }
 
-  function stopMedia() {
-    window.clearTimeout(reconnectTimer);
-    backgroundEffectGeneration += 1;
-    stopBackgroundEffect();
-    displayStream?.getTracks().forEach(item => {
-      item.onended = item.onmute = item.onunmute = null;
-      item.stop();
-    });
-    displayStream = null;
-    screenTrack = null;
-    disposeScreenAudio();
-    localStream.getTracks().forEach(item => item.stop());
-    closePeerConnection();
-  }
-
-  async function finishCall(message = 'Спасибо за занятие!') {
+  async function finishCall(message = 'Спасибо за занятие!', title = 'Звонок завершён') {
     if (leaving) return;
     leaving = true;
-    await stopRecording();
-    socket?.close(1000, 'Звонок завершён.');
-    stopMedia();
+    // The recorder is asked to stop first, so it keeps everything up to this moment; closing the
+    // connection right away stops signaling that would otherwise arrive while the file is saved.
+    const saving = recorder.stop();
+    connection.close();
+    await saving;
+    media.stop();
     elements.prejoin.hidden = true;
     elements.stage.hidden = true;
     elements.ended.hidden = false;
+    elements.endedTitle.textContent = title;
     elements.endedMessage.textContent = message;
     // The link is permanent, so a fresh page load joins the same room again.
     elements.rejoinLink.hidden = !room;
     elements.rejoinLink.href = window.location.pathname;
     setConnection('Звонок завершён');
-    window.CallChat?.open();
-    window.CallChat?.sync();
+    window.RoomChat?.open();
+    window.RoomChat?.sync();
   }
 
   async function leaveCall() {
@@ -1211,7 +321,7 @@
       }
       finishCall(callEndedText);
     } else {
-      send({ type: 'leave' });
+      connection.leave();
       finishCall('Вы вышли из видеозвонка.');
     }
   }
@@ -1220,28 +330,34 @@
     if (!room || joined) return;
     elements.join.disabled = true;
     elements.join.textContent = 'Подключаемся…';
-    if (!mediaPrepared) { mediaPrepared = true; await prepareMedia(); }
+    // Only the chat link reaches the join without media. A pending prompt is not awaited: it may never
+    // settle, and media.prepare() sends the tracks once the browser answers.
+    if (media.preparation.state === 'idle') await media.prepare();
     joined = true;
     elements.prejoin.hidden = true;
     elements.stage.hidden = false;
-    updateButtons();
-    connectSocket();
+    renderMedia();
+    await connection.join();
+  }
+
+  function setupInviteButton(button) {
+    const label = button.textContent;
+    let resetTimer = null;
+    button.addEventListener('click', async () => {
+      try {
+        await window.CopyText.copyText(new URL(room.guestPath, location.origin).href);
+        button.textContent = 'Ссылка скопирована';
+      } catch (_error) {
+        button.textContent = 'Не удалось скопировать ссылку';
+      }
+      window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(() => { button.textContent = label; }, 2500);
+    });
   }
 
   function setBackgroundPanelOpen(open) {
     elements.callBackgroundPanel.hidden = !open;
     elements.toggleBackground.setAttribute('aria-expanded', String(open));
-  }
-
-  // A new peer connection always uses the latest credentials; current ones keep theirs.
-  async function refreshIceServers() {
-    if (leaving) return;
-    try {
-      const response = await fetch(roomEndpoint);
-      if (response.ok) iceServers = normalizeIceServers((await response.json()).iceServers);
-    } catch (_error) {
-      // The next refresh retries; until then the previous credentials stay in use.
-    }
   }
 
   async function loadRoom() {
@@ -1254,20 +370,16 @@
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Комната недоступна.');
       room = payload.call;
-      if (room.name) {
-        elements.remoteName.textContent = room.name;
-        document.title = `${room.name} — видеозвонок EasyClass`;
-      }
-      window.CallChat.init({ role, reference: roomReference });
-      iceServers = normalizeIceServers(payload.iceServers);
-      window.setInterval(refreshIceServers, ICE_REFRESH_MS);
+      elements.prejoinInvite.hidden = !room.guestPath;
+      if (room.name) document.title = `${room.name} — видеозвонок EasyClass`;
+      renderRemote();
+      window.RoomChat.init({ role, reference: roomReference });
       setConnection('Комната готова');
       if (new URLSearchParams(location.search).has('chat')) {
-        window.CallChat.open();
+        window.RoomChat.open();
         return;
       }
-      mediaPrepared = true;
-      await prepareMedia();
+      await media.prepare();
     } catch (error) {
       elements.prejoin.hidden = true;
       elements.ended.hidden = false;
@@ -1276,24 +388,32 @@
     }
   }
 
-  elements.prejoinMic.addEventListener('click', () => toggleKind('audio'));
-  elements.prejoinCamera.addEventListener('click', () => toggleKind('video'));
-  elements.toggleMic.addEventListener('click', () => toggleKind('audio'));
-  elements.toggleCamera.addEventListener('click', () => toggleKind('video'));
+  elements.prejoinMic.addEventListener('click', () => media.toggle('audio'));
+  elements.prejoinCamera.addEventListener('click', () => media.toggle('video'));
+  elements.toggleMic.addEventListener('click', () => media.toggle('audio'));
+  elements.toggleCamera.addEventListener('click', () => media.toggle('video'));
   elements.toggleBackground.addEventListener('click', event => {
     event.stopPropagation();
     setBackgroundPanelOpen(elements.toggleBackground.getAttribute('aria-expanded') !== 'true');
   });
   elements.closeBackgroundPanel.addEventListener('click', () => setBackgroundPanelOpen(false));
+  document.querySelectorAll('[data-effect-action]').forEach(button => button.addEventListener('click', () => {
+    const action = button.dataset.effectAction;
+    if (action === 'cancel') void media.cancelBackground();
+    else if (action === 'retry') void media.retryBackground();
+    else media.dismissEffectNotice();
+  }));
   elements.toggleScreen.addEventListener('click', toggleScreenShare);
   elements.leave.addEventListener('click', leaveCall);
   elements.join.addEventListener('click', joinCall);
+  setupInviteButton(elements.prejoinInvite);
+  setupInviteButton(elements.remoteInvite);
   window.addEventListener('pagehide', event => {
     if (!leaving) {
-      sendDiagnostic('page-lifecycle', { state: 'pagehide', persisted: event.persisted });
-      send({ type: 'leave', source: 'pagehide' });
-      void stopRecording();
-      stopMedia();
+      connection.diagnostic('page-lifecycle', { state: 'pagehide', persisted: event.persisted });
+      connection.leave('pagehide');
+      void recorder.stop();
+      media.stop();
     }
   });
 
@@ -1310,7 +430,8 @@
 
   renderBackgroundOptions(elements.prejoinBackgroundOptions);
   renderBackgroundOptions(elements.callBackgroundOptions);
-  updateBackgroundControls();
+  renderMedia();
+  renderRemote();
 
   loadRoom();
 })();

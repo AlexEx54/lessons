@@ -42,6 +42,7 @@
   let selectedClassId = null;
   let recommendationLessons = [];
   let selectedRecommendationId = null;
+  let preferredLessonId = null;
   let allRecommendations = [];
   let showAllLessons = false;
   let recommendationRequest = 0;
@@ -64,6 +65,7 @@
 
   function setClassMode(mode) {
     classMode = mode;
+    classError.textContent = '';
     classModeTabs.querySelectorAll('[data-mode]').forEach(tab => {
       const active = tab.dataset.mode === mode;
       tab.setAttribute('aria-selected', String(active));
@@ -117,6 +119,7 @@
 
   function selectClass(classId, shouldFocus = false) {
     selectedClassId = classId;
+    classError.textContent = '';
     classList.querySelectorAll('.class-option').forEach(option => {
       const isSelected = option.dataset.classId === classId;
       option.setAttribute('aria-checked', String(isSelected));
@@ -160,17 +163,18 @@
   }
 
   // `time` prefills the datetime-local field (the next full hour by default) and `classId` preselects a class, skipping the first step.
+  // `lessonId` preselects a library lesson and shows it first among the recommendations.
   // `onCreated` receives the session right after it is saved.
-  function openClassModal({ time = '', classId = null, onCreated: createdCallback = null } = {}) {
+  function openClassModal({ time = '', classId = null, lessonId = null, onCreated: createdCallback = null } = {}) {
     if (savingClass) return;
     modalReturnFocus = document.activeElement;
     onCreated = createdCallback;
-    window.AppShell.closeNavigation({ restoreFocus: false });
     classModal.classList.add('class-modal--visible');
     classModal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
     createdSession = null;
-    selectedRecommendationId = null;
+    selectedRecommendationId = lessonId;
+    preferredLessonId = lessonId;
     selectedClassId = classId;
     classMode = 'existing';
     requestKey = null;
@@ -248,7 +252,6 @@
       temporaryInput.remove();
     }
     copyClassLinkButton.querySelector('span').textContent = 'Ссылка скопирована';
-    window.AppShell.showToast('Ссылка на класс скопирована.');
     window.setTimeout(() => {
       copyClassLinkButton.querySelector('span').textContent = 'Скопировать ссылку';
     }, 2200);
@@ -353,6 +356,8 @@
       if (request !== recommendationRequest) return;
       loadingRecommendations = false;
       allRecommendations = content.lessons.filter(lesson => lesson.is_published && lesson.is_available).map(lesson => ({ ...lesson, coverSrc: lesson.cover }));
+      // The lesson picked in the library goes first, so it stays among the visible recommendations.
+      allRecommendations.sort((a, b) => (b.id === preferredLessonId) - (a.id === preferredLessonId));
       filterRecommendations();
     } catch {
       if (request !== recommendationRequest) return;
@@ -431,7 +436,10 @@
   classModal.querySelectorAll('[data-close-class-modal]').forEach(button => {
     button.addEventListener('click', closeClassModal);
   });
-  classNameInput.addEventListener('input', updateClassLink);
+  classNameInput.addEventListener('input', () => {
+    classError.textContent = '';
+    updateClassLink();
+  });
   classSearch.addEventListener('input', renderClassList);
   classListRetry.addEventListener('click', loadClasses);
   classModeTabs.addEventListener('click', event => {
@@ -459,14 +467,15 @@
   });
   classNextButton.addEventListener('click', () => {
     if (!classesLoaded) return;
+    classError.textContent = '';
     if (classMode === 'new' && !classNameInput.value.trim()) {
+      classError.textContent = 'Введите название класса.';
       classNameInput.focus();
-      window.AppShell.showToast('Введите название класса');
       return;
     }
     if (classMode === 'existing' && !selectedClass()) {
+      classError.textContent = 'Выберите класс.';
       focusClassStep();
-      window.AppShell.showToast('Выберите класс');
       return;
     }
     setClassStep(2);

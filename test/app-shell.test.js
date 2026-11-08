@@ -4,6 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const { renderAppPage } = require('../lib/app-shell.js');
+const { withClassModal } = require('../lib/class-modal-kit.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -49,9 +50,37 @@ test('teacher reaches video calls from the sidebar and both profile menus and ge
   assert.match(html, /src="\/assets\/video-call-presence\.js"/);
 });
 
-test('support card opens the Telegram support group', async () => {
+test('signed-in teacher gets the notifications bell in the desktop and mobile headers', async () => {
+  const html = await renderAppPage('home', {
+    user: { displayName: 'Анна', email: 'anna@example.com', role: 'teacher' },
+  });
+
+  assert.equal((html.match(/<div class="notifications-wrap" data-notifications>/g) || []).length, 2);
+  assert.match(html, /<div class="mobile-header__actions">\s*<div class="notifications-wrap" data-notifications>\s*<button class="notification-button" id="mobile-notifications-button"/);
+  assert.match(html, /id="notifications-button"[^>]*aria-controls="notifications-panel"/);
+  assert.match(html, /src="\/assets\/notifications\.js"/);
+  assert.doesNotMatch(await renderAppPage('library'), /src="\/assets\/notifications\.js"/);
+});
+
+test('a guest support card opens the Telegram support group', async () => {
   const html = await renderAppPage('library');
   assert.match(html, /<a class="support-card" href="https:\/\/t\.me\/\+albE0gXCUfY1YmJi" target="_blank" rel="noopener">/);
+  assert.doesNotMatch(html, /id="support-chat"|support-chat\.js/);
+});
+
+test('a signed-in support card opens the support chat, which keeps Telegram and email as fallbacks', async () => {
+  const html = await renderAppPage('library', {
+    user: { id: 'teacher-1', displayName: 'Анна', email: 'anna@example.com', role: 'teacher' },
+  });
+  const chat = html.match(/<section class="support-chat"[\s\S]*?<\/section>/)[0];
+
+  assert.match(html, /<button class="support-card" type="button" aria-controls="support-chat" aria-expanded="false" data-support-chat-open>/);
+  assert.match(chat, /Здравствуйте! 👋 Это поддержка EasyClass\. Если есть вопросы или пожелания, будем рады помочь\. Обычно отвечаем в течение часа\./);
+  assert.match(chat, /maxlength="2000"/);
+  assert.match(chat, /href="https:\/\/t\.me\/\+albE0gXCUfY1YmJi" target="_blank" rel="noopener"/);
+  assert.match(chat, /href="mailto:support@easyclass-edu\.ru"/);
+  assert.match(chat, /data-thread-key="support:teacher-1"/);
+  assert.match(html, /src="\/assets\/notifications\.js" defer><\/script>\n  <script src="\/assets\/support-chat\.js"/);
 });
 
 test('admin sees lesson creation, drafts and templates links in both profile menus', async () => {
@@ -93,7 +122,7 @@ test('schedule loads its scripts in order and shares the class modal and slot pi
   });
   const scripts = [...html.matchAll(/<script src="([^"]+)" defer><\/script>/g)].map(match => match[1]);
 
-  assert.deepEqual(scripts.slice(-6), ['/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js', '/assets/video-call-presence.js', '/assets/schedule.js']);
+  assert.deepEqual(scripts.slice(-8), ['/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js', '/assets/video-call-presence.js', '/assets/notifications.js', '/assets/support-chat.js', '/assets/schedule.js']);
   assert.match(html, /href="\/assets\/class-modal\.css"/);
   assert.match(html, /href="\/assets\/week-grid\.css"[\s\S]*href="\/assets\/schedule\.css"/);
   assert.equal((html.match(/id="class-modal"/g) || []).length, 1);
@@ -195,4 +224,17 @@ test('lesson draft review action links to its editor', () => {
 test('hidden lesson plan cannot be forced visible by its layout styles', () => {
   const editorStyles = fs.readFileSync(path.join(ROOT, 'assets', 'lesson-editor.css'), 'utf8');
   assert.match(editorStyles, /\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
+});
+
+test('the lesson preview gets the class modal, while live lessons keep the plain player', async () => {
+  const player = fs.readFileSync(path.join(ROOT, 'lesson-editor.html'), 'utf8');
+  const preview = await withClassModal(player);
+  const scripts = [...preview.matchAll(/<script src="([^"]+)" defer><\/script>/g)].map(match => match[1]);
+
+  assert.doesNotMatch(player, /id="class-modal"|class-modal\.(?:css|js)/);
+  assert.match(preview, /href="\/assets\/class-modal\.css" \/>\n<\/head>/);
+  assert.deepEqual(scripts.slice(-5), ['/assets/class-invite.js', '/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js']);
+  assert.equal((preview.match(/id="class-modal"/g) || []).length, 1);
+  assert.equal((preview.match(/id="slot-picker"/g) || []).length, 1);
+  assert.match(preview, /id="slot-picker"[\s\S]*src="\/assets\/class-invite\.js"[\s\S]*<\/body>/);
 });

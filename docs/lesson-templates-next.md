@@ -77,7 +77,7 @@
 
 ### 1a. Сервер ✓
 
-- Миграция `021-lesson-templates.sql`: таблица `lesson_templates` и
+- Миграция `024-lesson-templates.sql`: таблица `lesson_templates` и
   `lesson_drafts.template_snapshot_json`.
 - `lib/lesson-template-store.js`: список (системные, затем копии от новых),
   чтение с определением, копирование, переименование с проверкой `revision`,

@@ -251,6 +251,7 @@ export async function createEffectRenderer(config) {
   }
 
 
+  config.onStage?.('wasm');
   const { FilesetResolver, ImageSegmenter } = await import(`${MEDIAPIPE_BASE}/vision_bundle.mjs`);
   const vision = await FilesetResolver.forVisionTasks(`${MEDIAPIPE_BASE}/wasm`);
   const options = {
@@ -258,6 +259,7 @@ export async function createEffectRenderer(config) {
     baseOptions: { modelAssetPath: `${MEDIAPIPE_BASE}/models/${SEGMENTER_MODEL.filename}`, delegate: 'GPU' },
     runningMode: 'VIDEO', outputConfidenceMasks: true, outputCategoryMask: false,
   };
+  config.onStage?.('segmenter');
   try {
     segmenter = await ImageSegmenter.createFromOptions(vision, options);
   } catch (error) {
@@ -269,6 +271,7 @@ export async function createEffectRenderer(config) {
   }
   try {
     if (config.backgroundUrl) {
+      config.onStage?.('background-image');
       const response = await fetch(config.backgroundUrl);
       if (!response.ok) throw new Error('Не удалось загрузить изображение фона');
       backgroundImages.set(selectedBackground, await createImageBitmap(await response.blob()));

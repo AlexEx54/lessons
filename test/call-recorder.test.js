@@ -138,3 +138,35 @@ test('repeated stop calls share the same completion', async () => {
   await session.finished;
   assert.equal(s.events.filter(e => e === 'close').length, 1);
 });
+
+test('the record button control starts, saves and reports what the page shows', async () => {
+  const s = setup();
+  const states = [];
+  const control = s.api.control({ getSources: () => ({ localVideo: s.local, remoteVideo: s.remote, audio: [s.mic] }),
+    canStart: () => true, onChange: () => states.push({ ...control.state() }) });
+  await control.toggle();
+  assert.deepEqual(states.at(-1), { recording: true, busy: false, unsaved: true, message: '' });
+  const saving = control.stop();
+  assert.equal(control.stop(), saving);
+  assert.deepEqual(states.at(-1), { recording: false, busy: true, unsaved: true, message: 'Сохраняем запись… Не закрывайте вкладку.' });
+  await control.toggle();
+  assert.equal(s.recorders.length, 1);
+  await saving;
+  assert.deepEqual(states.at(-1), { recording: false, busy: false, unsaved: false, message: 'Запись сохранена на компьютере.' });
+  assert.equal(s.events.filter(e => e === 'close').length, 1);
+});
+
+test('the record button control stays quiet on a cancelled picker and explains a failed file', async () => {
+  const cancelled = setup({ cancel: true });
+  const quiet = cancelled.api.control({ getSources: () => ({}), canStart: () => true, onChange() {} });
+  await quiet.toggle();
+  assert.deepEqual({ ...quiet.state() }, { recording: false, busy: false, unsaved: false, message: '' });
+
+  const s = setup({ write: async () => { throw new Error('disk full'); } });
+  const control = s.api.control({ getSources: () => ({ localVideo: s.local, remoteVideo: s.remote, audio: [s.mic] }),
+    canStart: () => true, onChange() {} });
+  await control.toggle();
+  s.recorders[0].emit('first');
+  await control.stop();
+  assert.deepEqual({ ...control.state() }, { recording: false, busy: false, unsaved: false, message: 'Запись не сохранена: disk full' });
+});

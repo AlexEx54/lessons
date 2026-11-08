@@ -1,9 +1,5 @@
 .lesson-plan__heading.notes-heading { padding: 0 0 18px; gap: 8px; }
-.notes-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; border-bottom: 1px solid #eeeaf4; }
-.notes-tabs button { width: 100%; height: auto; min-height: 42px; margin-bottom: -1px; padding: 11px 8px; border-radius: 0; border-bottom: 2px solid transparent; background: transparent; color: #65677b; font: inherit; font-size: 13px; font-weight: 500; text-align: center; white-space: nowrap; transition: color .15s, border-color .15s; }
-.notes-tabs button[aria-selected="true"] { color: #713be6; border-bottom-color: #713be6; font-weight: 600; }
-.notes-heading .notes-tabs button:hover { background: transparent; color: #713be6; }
-.notes-tabs button:focus-visible, .notes-toolbar button:focus-visible { outline: 2px solid #713be6; outline-offset: 2px; }
+.notes-toolbar button:focus-visible { outline: 2px solid #713be6; outline-offset: 2px; }
 #lesson-stages[hidden], #lesson-notes[hidden], #hide-plan[hidden] { display: none; }
 .lesson-notes { display: flex; flex-direction: column; flex: 1; min-height: 240px; }
 .notes-status { font-size: 11px; color: #697084; padding: 0 0 10px; line-height: 1.5; overflow-wrap: anywhere; }

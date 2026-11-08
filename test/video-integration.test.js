@@ -7,6 +7,7 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 const { once } = require('node:events');
+const { Readable } = require('node:stream');
 const { WebSocket } = require('ws');
 const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
@@ -62,6 +63,10 @@ test('video upload, immutable publication, range access and class media signals'
   const source = draft.content.stages[0].content[0].videoSrc;
   const range = await request(source, { headers: { Range: 'bytes=0-15' } });
   assert.equal(range.status, 206); assert.deepEqual(Buffer.from(await range.arrayBuffer()), bytes.subarray(0, 16));
+  const lastModified = range.headers.get('last-modified');
+  assert.equal((await request(source, { headers: { Range: 'bytes=0-15', 'If-Range': lastModified } })).status, 206);
+  const replaced = await request(source, { headers: { Range: 'bytes=0-15', 'If-Range': 'Thu, 01 Jan 2004 00:00:00 GMT' } });
+  assert.equal(replaced.status, 200); assert.deepEqual(Buffer.from(await replaced.arrayBuffer()), bytes);
   const input = { expectedRevision: 0, expectedUpdatedAt: draft.updatedAt, title: 'Watch lesson', description: 'Video lesson', category: 'Speaking', duration: '10 мин', skills: ['Speaking'], coverUpload: { type: 'image/png', data: fs.readFileSync(path.join(__dirname, '../assets/images/lesson-travel.png')).toString('base64') } };
   const publication = publishLesson(draft.id, admin.id, input, db, assets);
   const published = findLibraryLesson(publication.id, db).content.stages[0].content[0].videoSrc;
@@ -120,4 +125,26 @@ test('video upload, immutable publication, range access and class media signals'
   const correct = await teacher.next('action'); await reconnected.next('action');
   assert.equal(correct.state.videoQuestions['watch-video']['q-1'].correct, true);
 
+});
+
+test('fragmented and moov-at-end uploads are rewritten with the index first', { timeout: 20000 }, async t => {
+  const ffmpeg = process.env.FFMPEG_PATH || 'ffmpeg';
+  if (spawnSync(ffmpeg, ['-version']).status !== 0 || spawnSync(process.env.FFPROBE_PATH || 'ffprobe', ['-version']).status !== 0) { t.skip('ffmpeg is required'); return; }
+  const { receiveVideo, needsFaststart } = require('../lib/video-assets.js');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'teach-faststart-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const fixture = path.join(__dirname, 'fixtures/watch-video.mp4');
+  assert.equal(await needsFaststart(fixture), false);
+  const topLevelBoxes = file => { const b = fs.readFileSync(file), types = []; for (let o = 0; o + 8 <= b.length; o += b.readUInt32BE(o)) types.push(b.toString('ascii', o + 4, o + 8)); return types; };
+  for (const [name, movflags] of [['fragmented', 'frag_keyframe+empty_moov'], ['moov-at-end', '-faststart']]) {
+    const source = path.join(directory, `${name}.mp4`), destination = path.join(directory, `${name}-uploaded.mp4`);
+    assert.equal(spawnSync(ffmpeg, ['-v', 'error', '-i', fixture, '-c', 'copy', '-movflags', movflags, source]).status, 0);
+    assert.equal(await needsFaststart(source), true, name);
+    const req = Object.assign(Readable.from([fs.readFileSync(source)]), { headers: {} });
+    assert.ok((await receiveVideo(req, destination)).durationMs > 0);
+    assert.equal(await needsFaststart(destination), false, name);
+    const boxes = topLevelBoxes(destination);
+    assert.ok(boxes.indexOf('moov') < boxes.indexOf('mdat') && !boxes.includes('moof'), `${name}: ${boxes}`);
+    assert.equal(fs.existsSync(`${destination}.faststart`), false);
+  }
 });

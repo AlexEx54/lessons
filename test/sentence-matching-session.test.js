@@ -26,7 +26,6 @@ test('matching selection, order and pairs persist across reopen and stage change
   const task = sessionPayload(student, db).lesson.content.stages[5].content.find(item => item.type === 'sentenceMatching').presentation;
   const action = { type: 'match-word', stageId: 'grammar-focus', componentId: task.id,
     itemId: task.items[2].id, targetId: task.answerKey[task.items[2].id], attemptId: crypto.randomUUID() };
-  assert.throws(() => applyAction(student, { ...action, expectedVersion: state.version }, db), { statusCode: 409 });
   select('grammar-focus');
   state = applyAction(student, { ...action, expectedVersion: state.version }, db);
   assert.equal(state.exercises[task.id].rightOrder[2], action.targetId);

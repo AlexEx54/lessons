@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { normalizeGuidedCommunicationCards, renderGuidedCommunicationCards } = require('../assets/components/guided-communication-cards.js');
 const { normalizeTaskPrompt } = require('../assets/components/task-prompt.js');
-const { studentComponent } = require('../lib/class-component-handlers.js');
+const { studentComponent } = require('../assets/class-rules.js');
 const { createDocument } = require('./helpers/lesson-dom.js');
 const stage = () => syntheticLesson('template-2').stages[6];
 const source = () => stage().content[2];

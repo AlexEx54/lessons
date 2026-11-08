@@ -36,7 +36,7 @@ function mount(options) {
   heading.querySelector('strong').hidden = true;
   heading.classList.add('notes-heading');
   const tabs = document.createElement('div');
-  tabs.className = 'notes-tabs';
+  tabs.className = 'panel-tabs';
   tabs.setAttribute('role', 'tablist');
   tabs.setAttribute('aria-label', 'Материалы урока');
   tabs.innerHTML = '<button type="button" role="tab" id="plan-tab" aria-controls="lesson-stages" aria-selected="true">План урока</button><button type="button" role="tab" id="notes-tab" aria-controls="lesson-notes" aria-selected="false" tabindex="-1">Заметки</button>';
@@ -202,8 +202,12 @@ function mount(options) {
     function connect() {
       if (stopped) return;
       if (!slotTaken) status('Подключаемся…', 'saving');
-      socket = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws/notes/${options.id}?role=${options.role}`);
+      const socketPath = `/ws/notes/${options.id}?role=${options.role}`;
+      socket = new WebSocket(window.ClassConnectionDiagnostics?.url(socketPath)
+        || `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}${socketPath}`);
+      window.ClassConnectionDiagnostics?.attach(socket, 'notes');
       const current = socket;
+      window.ClassSocketLiveness?.watch(current, () => { if (socket === current) disconnected({ code: 4000 }); });
       let messages = Promise.resolve();
       socket.addEventListener('message', event => {
         messages = messages.then(async () => {
@@ -238,25 +242,35 @@ function mount(options) {
           }
         }).catch(error => { stopped = true; lock(); status(error.message || 'Не удалось открыть заметки.', 'error'); current.close(); });
       });
-      socket.addEventListener('close', event => {
-        if (current !== socket) return;
-        connected = false; flight = null;
-        panel.querySelector('.notes-presence').hidden = true;
-        if (stopped) return;
-        // The student slot is held by another device; it may free up, so keep polling instead of giving up.
-        if (event.code === 4003) {
-          slotTaken = true;
-          status('Место ученика занято другим устройством. Возможно, ссылка ученика открыта в другой вкладке. Подключимся автоматически.', 'offline');
-          reconnectTimer = setTimeout(connect, 5000); return;
-        }
-        slotTaken = false;
-        if ([4001, 4004, 4008, 4009].includes(event.code)) {
-          stopped = true; lock(); status(event.reason || 'Подключение закрыто.', 'error'); return;
-        }
-        status('Нет связи — переподключаемся…', 'offline');
-        reconnectTimer = setTimeout(connect, backoff); backoff = Math.min(backoff * 2, 10000);
-      });
+      // A replaced or abandoned socket may close long after its successor opened.
+      socket.addEventListener('close', event => { if (current === socket) disconnected(event); });
     }
+    function scheduleReconnect(delay) {
+      reconnectTimer = setTimeout(() => { reconnectTimer = null; connect(); }, delay);
+    }
+    function disconnected(event) {
+      socket = null; connected = false; flight = null;
+      panel.querySelector('.notes-presence').hidden = true;
+      if (stopped) return;
+      // The student slot is held by another device; it may free up, so keep polling instead of giving up.
+      if (event.code === 4003) {
+        slotTaken = true;
+        status('Место ученика занято другим устройством. Возможно, ссылка ученика открыта в другой вкладке. Подключимся автоматически.', 'offline');
+        scheduleReconnect(5000); return;
+      }
+      slotTaken = false;
+      if ([4001, 4004, 4008, 4009].includes(event.code)) {
+        stopped = true; lock(); status(event.reason || 'Подключение закрыто.', 'error'); return;
+      }
+      status('Нет связи — переподключаемся…', 'offline');
+      scheduleReconnect(backoff); backoff = Math.min(backoff * 2, 10000);
+    }
+    // The network or the tab is back: skip the remaining backoff instead of waiting up to 10 s.
+    window.ClassSocketLiveness?.onWake(() => {
+      if (!reconnectTimer || slotTaken || stopped) return;
+      clearTimeout(reconnectTimer); reconnectTimer = null; backoff = 500;
+      connect();
+    });
     connect();
     window.addEventListener('pagehide', () => {
       stopped = true; clearTimeout(reconnectTimer); clearTimeout(sendTimer); socket?.close();

@@ -143,6 +143,8 @@
     const mounted = new Map();
     const mountedContent = new Map();
     const canSelect = index => settings.canSelect ? settings.canSelect(index) : true;
+    // Matches the CSS breakpoint where the plan becomes a drawer over the lesson.
+    const drawerPlan = window.matchMedia('(max-width: 700px)');
 
     function formatTime(seconds) {
       const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -175,7 +177,10 @@
         button.append(duration);
       }
       button.disabled = !canSelect(index);
-      button.addEventListener('click', () => selectStage(index));
+      button.addEventListener('click', () => {
+        selectStage(index);
+        if (drawerPlan.matches) setPlanVisible(false);
+      });
       return button;
     }
 
@@ -200,6 +205,7 @@
       byId('stage-progress').textContent = `${index + 1} из ${lesson.stages.length}`;
       refreshNavigation();
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (!force) settings.onSelect?.(index);
     }
 
     function refreshNavigation() {
@@ -313,6 +319,7 @@
     byId('show-plan').addEventListener('click', () => setPlanVisible(true));
     byId('previous-stage').addEventListener('click', () => selectStage(state.activeIndex - 1));
     byId('next-stage').addEventListener('click', () => selectStage(state.activeIndex + 1));
+    if (drawerPlan.matches) setPlanVisible(false);
     return { render, renderStageContent, selectStage, refreshNavigation, formatTime, mounted };
   }
   window.LessonView = { create: createLessonView, renderComponent, createStageIcon };

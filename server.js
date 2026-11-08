@@ -9,6 +9,7 @@ const { loadDotEnv } = require('./lib/env.js');
 loadDotEnv(path.join(__dirname, '.env'));
 
 const { renderAppPage } = require('./lib/app-shell.js');
+const { withClassModal } = require('./lib/class-modal-kit.js');
 const {
   clearSessionCookie,
   clearYandexStateCookie,
@@ -23,7 +24,7 @@ const {
 const { DEFAULT_DB_PATH, getDatabase } = require('./lib/db.js');
 const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, findLibraryAsset } = require('./lib/library-store.js');
 const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, findClassSessionAsset } = require('./lib/class-store.js');
-const { joinClass, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
+const { joinClass, classOverview, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
 const { createClassLiveSignaling } = require('./lib/class-live-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { sendRegistrationCode } = require('./lib/mailer.js');
@@ -39,8 +40,10 @@ const {
   secondsUntilResend,
 } = require('./lib/registration-store.js');
 const { createSession, deleteSession } = require('./lib/session-store.js');
-const { MAX_DISPLAY_NAME_LENGTH, findOrCreateYandexUser, findUserByEmail, normalizeEmail, publicUser } = require('./lib/user-store.js');
+const { MAX_DISPLAY_NAME_LENGTH, findOrCreateYandexUser, findUserByEmail, findUserById, normalizeEmail, publicUser } = require('./lib/user-store.js');
 const { avatarFilePath, removeAvatar, replaceAvatar, updateProfile } = require('./lib/profile-store.js');
+const { listNotifications, markNotificationRead } = require('./lib/notification-store.js');
+const { listSupportMessages, listSupportThreads, postSupportReply, postTeacherMessage } = require('./lib/support-store.js');
 const { fetchYandexProfile, yandexAuthorizeUrl, yandexConfig } = require('./lib/yandex-auth.js');
 const { INVITE_TOKEN_PATTERN } = require('./lib/invite-token.js');
 const {
@@ -140,7 +143,9 @@ const generationControllers = new Map();
 const generationSubscribers = new Map();
 let videoCallSignaling = null;
 
-const CLASS_INVITE_PAGE = new RegExp(`^/join/(${INVITE_TOKEN_PATTERN})(?:/([a-f0-9-]{36}))?/?$`, 'i');
+// `/join/:token` and `/join/:token/sessions` are the class home; `/join/:token/:sessionId` enters that session.
+const CLASS_INVITE_PAGE = new RegExp(`^/join/(${INVITE_TOKEN_PATTERN})(?:/([a-f0-9-]{36})|/sessions)?/?$`, 'i');
+const CLASS_OVERVIEW_API = new RegExp(`^/api/join/(${INVITE_TOKEN_PATTERN})$`, 'i');
 const GUEST_CALL_PAGE = new RegExp(`^/call/(${INVITE_TOKEN_PATTERN})/?$`, 'i');
 const LEGAL_PAGES = new Set(['/terms', '/privacy', '/consent']);
 
@@ -166,6 +171,8 @@ const REGISTRATION_CODE_ERRORS = Object.freeze({
 });
 // Caps code emails per client IP, so the form cannot be used to mail many strangers.
 const registrationMailLimiter = createRateLimiter({ limit: 10, windowMs: 60 * 60 * 1000 });
+// Generous for a real conversation, but stops a script from flooding every admin's bell.
+const supportMessageLimiter = createRateLimiter({ limit: 20, windowMs: 10 * 60 * 1000 });
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_DRAFT_AUDIO_BYTES = 20 * 1024 * 1024;
 const IMAGE_TYPES = Object.freeze({
@@ -439,7 +446,7 @@ function safePathname(inputPath) {
   return normalized;
 }
 
-function serveStatic(reqPath, res) {
+function serveStatic(reqPath, res, statusCode = 200) {
   const target = reqPath === '/' ? 'index.html' : safePathname(reqPath.slice(1));
   const absolute = path.join(ROOT, target);
 
@@ -454,7 +461,7 @@ function serveStatic(reqPath, res) {
       return;
     }
 
-    res.writeHead(200, {
+    res.writeHead(statusCode, {
       'Content-Type': getContentType(absolute),
       'Cache-Control': target.startsWith('assets/vendor/mediapipe-1.0.1/')
         ? 'public, max-age=31536000, immutable'
@@ -464,18 +471,27 @@ function serveStatic(reqPath, res) {
   });
 }
 
-async function serveAppPage(pageId, res, context = {}) {
+async function serveRenderedPage(res, pageName, render) {
   try {
-    const html = await renderAppPage(pageId, context);
+    const html = await render();
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
     });
     res.end(html);
   } catch (error) {
-    console.error(`Cannot render app page "${pageId}":`, error);
-    json(res, 500, { error: 'Cannot render app page.' });
+    console.error(`Cannot render ${pageName}:`, error);
+    json(res, 500, { error: `Cannot render ${pageName}.` });
   }
+}
+
+function serveAppPage(pageId, res, context = {}) {
+  return serveRenderedPage(res, `app page "${pageId}"`, () => renderAppPage(pageId, context));
+}
+
+// The library preview is the lesson player plus the «Новое занятие» window, so a teacher can schedule the lesson right there.
+function serveLibraryLessonPage(res) {
+  return serveRenderedPage(res, 'the library lesson page', async () => withClassModal(await fs.promises.readFile(path.join(ROOT, 'lesson-editor.html'), 'utf8')));
 }
 
 function readJsonBody(req) {
@@ -578,6 +594,32 @@ function loginRedirect(pathname) {
 // The library is the landing's main showcase, so guests get its registration window instead of the bare login page.
 function registrationRedirect(pathname) {
   return `/?auth=register&next=${encodeURIComponent(pathname)}`;
+}
+
+// Answers with the thread from the client's cursor, or rejects a malformed one.
+function sendSupportHistory(res, requestUrl, teacherId) {
+  const after = Number(requestUrl.searchParams.get('after') || 0);
+  if (!Number.isSafeInteger(after) || after < 0) {
+    json(res, 400, { error: 'Некорректная позиция истории.' });
+    return;
+  }
+  json(res, 200, { messages: listSupportMessages(teacherId, { after }, database) });
+}
+
+// `post` stores the parsed body; a repeated send answers 200 with the message already stored.
+async function saveSupportMessage(req, res, post) {
+  const input = await readJsonBody(req).catch(() => null);
+  if (!input) {
+    json(res, 400, { error: 'Некорректное сообщение.' });
+    return;
+  }
+  try {
+    const { message, created } = post(input);
+    json(res, created ? 201 : 200, { message });
+  } catch (error) {
+    if (!error.statusCode) console.error('Cannot save support message:', error);
+    json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось отправить сообщение.' });
+  }
 }
 
 function rejectEarlyResend(res, pending) {
@@ -1084,14 +1126,17 @@ function parseByteRange(header, total) {
 }
 
 function sendVideoFile(req, res, absolute) {
-  let size;
-  try { size = fs.statSync(absolute).size; }
+  let stat;
+  try { stat = fs.statSync(absolute); }
   catch { json(res, 404, { error: 'Видео не найдено.' }); return; }
-  const range = req.method !== 'HEAD' && req.headers.range ? parseByteRange(req.headers.range, size) : null;
-  if (req.method !== 'HEAD' && req.headers.range && !range) {
+  const { size } = stat, lastModified = stat.mtime.toUTCString();
+  // Files may be rewritten in place, so a cached part of the old file must not be combined with new bytes.
+  const rangeHeader = req.method !== 'HEAD' && (!req.headers['if-range'] || req.headers['if-range'] === lastModified) ? req.headers.range : undefined;
+  const range = rangeHeader ? parseByteRange(rangeHeader, size) : null;
+  if (rangeHeader && !range) {
     res.writeHead(416, { 'Content-Range': `bytes */${size}` }); res.end(); return;
   }
-  const headers = { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600',
+  const headers = { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600', 'Last-Modified': lastModified,
     'Content-Length': range ? range.end - range.start + 1 : size };
   if (range) headers['Content-Range'] = `bytes ${range.start}-${range.end}/${size}`;
   res.writeHead(range ? 206 : 200, headers);
@@ -1136,6 +1181,7 @@ async function handleRequest(req, res) {
   const pathname = requestUrl.pathname;
   setUserIdHeader(req, res, database);
   if (await videoCallChat.handle(req, res, requestUrl)) return;
+  if (await sessionChat.handle(req, res, requestUrl)) return;
 
   const notesDraft = pathname.match(/^\/api\/lesson-drafts\/([a-f0-9-]{36})\/notes$/i);
   if (notesDraft && ['GET', 'PUT'].includes(req.method)) {
@@ -1464,6 +1510,60 @@ async function handleRequest(req, res) {
     return;
   }
 
+  if (req.method === 'GET' && pathname === '/api/notifications') {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    json(res, 200, listNotifications(user.id, database));
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/notifications/read') {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    const { subjectKey } = await readJsonBody(req).catch(() => ({}));
+    if (typeof subjectKey !== 'string' || !subjectKey) {
+      json(res, 400, { error: 'Не указано уведомление.' });
+      return;
+    }
+    markNotificationRead(user.id, subjectKey, database);
+    json(res, 200, listNotifications(user.id, database));
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/support/messages') {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    sendSupportHistory(res, requestUrl, user.id);
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/support/messages') {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    if (!supportMessageLimiter.take(user.id)) {
+      json(res, 429, { error: 'Слишком много сообщений. Попробуйте через несколько минут.' });
+      return;
+    }
+    await saveSupportMessage(req, res, input => postTeacherMessage(user, input, database));
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/support/threads') {
+    if (!requireAdminAuth(req, res)) return;
+    json(res, 200, { threads: listSupportThreads(database) });
+    return;
+  }
+
+  const supportThread = pathname.match(/^\/api\/support\/threads\/([a-f0-9-]{36})\/messages$/i);
+  if (supportThread && ['GET', 'POST'].includes(req.method)) {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    const teacherId = supportThread[1];
+    if (req.method === 'GET') sendSupportHistory(res, requestUrl, teacherId);
+    else await saveSupportMessage(req, res, input => postSupportReply(user, teacherId, input, database));
+    return;
+  }
+
   const avatarRoute = pathname.match(/^\/api\/avatars\/([^/]+)$/);
   if (req.method === 'GET' && avatarRoute) {
     const absolute = avatarFilePath(avatarRoute[1], AVATARS_DIR);
@@ -1497,8 +1597,12 @@ async function handleRequest(req, res) {
 
   const teacherVideoCallPage = pathname.match(/^\/video-calls\/([^/]+)$/);
   if (req.method === 'GET' && teacherVideoCallPage) {
-    const user = requireTeacherAuth(req, res);
-    if (!user) return;
+    const user = getAuthenticatedUser(req, database);
+    // Teachers sometimes send this address instead of the invite, so the student gets an explanation.
+    if (!user) {
+      serveStatic('/teacher-link.html', res, 401);
+      return;
+    }
     let callId = '';
     try { callId = decodeURIComponent(teacherVideoCallPage[1]); } catch (_error) { /* handled below */ }
     const call = findOwnedVideoCall(callId, user.id, database);
@@ -1574,7 +1678,7 @@ async function handleRequest(req, res) {
     }
     const lesson = findLibraryLesson((libraryPage || libraryDetail)[1], database);
     if (!lesson) { json(res, 404, { error: 'Урок недоступен.' }); return; }
-    if (libraryPage) serveStatic('/lesson-editor.html', res);
+    if (libraryPage) serveLibraryLessonPage(res);
     else json(res, 200, { lesson });
     return;
   }
@@ -1655,7 +1759,14 @@ async function handleRequest(req, res) {
     const user = requireTeacherAuth(req, res);
     if (!user) return;
     if (req.method === 'GET') { json(res, 200, { sessions: listClassSessions(user.id, database) }); return; }
-    if (req.method === 'DELETE') { json(res, 200, { deleted: clearClassSessions(user.id, database) }); return; }
+    if (req.method === 'DELETE') {
+      const sessionIds = listClassSessions(user.id, database).map(session => session.id);
+      const deleted = clearClassSessions(user.id, database);
+      sessionIds.forEach(id => videoCallSignaling.closeSessionCall(id));
+      sessionChat.cleanup();
+      json(res, 200, { deleted });
+      return;
+    }
     try {
       const session = createClassSession(await readJsonBody(req), user.id, database);
       json(res, 201, { session });
@@ -1670,12 +1781,19 @@ async function handleRequest(req, res) {
   const studentPage = pathname.match(/^\/sessions\/([a-f0-9-]{36})\/student\/?$/i);
   const liveDetail = pathname.match(/^\/api\/sessions\/([a-f0-9-]{36})\/live$/i);
   const classInvite = pathname.match(CLASS_INVITE_PAGE);
+  const classOverviewApi = pathname.match(CLASS_OVERVIEW_API);
+  // The invite token alone grants the class, as the class link does, so the overview needs no guest cookie.
+  if (req.method === 'GET' && classOverviewApi) {
+    try { json(res, 200, classOverview(classOverviewApi[1], database)); }
+    catch (error) { json(res, error.statusCode || 500, { error: error.message }); }
+    return;
+  }
   if (req.method === 'GET' && classInvite) {
     try {
       const joined = joinClass(req, classInvite[1], database, classInvite[2]);
       if (joined.cookie) res.setHeader('Set-Cookie', joined.cookie);
       if (joined.sessionId) redirect(res, `/sessions/${joined.sessionId}/student`);
-      else serveStatic('/class-waiting.html', res);
+      else serveStatic('/class-home.html', res);
     } catch (error) { json(res, error.statusCode || 500, { error: error.message }); }
     return;
   }
@@ -1690,11 +1808,39 @@ async function handleRequest(req, res) {
     } catch (error) { json(res, error.statusCode || 500, { error: error.message }); }
     return;
   }
+  // The student enters the session's call with the class cookie, as they enter the lesson itself.
+  const sessionCall = pathname.match(/^\/api\/sessions\/([a-f0-9-]{36})\/call$/i);
+  if (req.method === 'GET' && sessionCall) {
+    const role = new URL(req.url, 'http://localhost').searchParams.get('role');
+    const access = ['teacher', 'student'].includes(role) && authorizeSession(req, sessionCall[1], database, role);
+    if (!access) { json(res, 403, { error: 'Откройте действующую ссылку на класс.' }); return; }
+    json(res, 200, {
+      iceServers: getIceServers(`${role}-${access.sessionId.slice(0, 8)}`),
+      names: {
+        teacher: findUserById(access.ownerId, database)?.display_name || 'Преподаватель',
+        student: findClassSession(access.sessionId, access.ownerId, database).class_name,
+      },
+    });
+    return;
+  }
+  // Ending the call disconnects both participants; either of them may join again.
+  const sessionCallEnd = pathname.match(/^\/api\/sessions\/([a-f0-9-]{36})\/call\/end$/i);
+  if (req.method === 'POST' && sessionCallEnd) {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    if (!authorizeSession(req, sessionCallEnd[1], database, 'teacher')) { json(res, 404, { error: 'Занятие не найдено.' }); return; }
+    videoCallSignaling.closeSessionCall(sessionCallEnd[1]);
+    json(res, 200, { ended: true });
+    return;
+  }
   if (req.method === 'PATCH' && sessionDetail) {
     const user = requireTeacherAuth(req, res);
     if (!user) return;
     try {
-      json(res, 200, { session: updateClassSession(sessionDetail[1], await readJsonBody(req), user.id, database) });
+      const session = updateClassSession(sessionDetail[1], await readJsonBody(req), user.id, database);
+      // A cancelled session no longer opens, so its call ends as well.
+      if (session.status === 'cancelled') videoCallSignaling.closeSessionCall(session.id);
+      json(res, 200, { session });
     } catch (error) {
       json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось изменить занятие.' });
     }
@@ -2770,11 +2916,16 @@ const server = http.createServer((req, res) => {
   });
 });
 
-videoCallSignaling = createVideoCallSignaling({ server, database, attachUpgrade: false });
+videoCallSignaling = createVideoCallSignaling({ server, database, attachUpgrade: false,
+  onSessionPresence: (sessionId, presence) => classLiveSignaling.broadcast(sessionId, { type: 'call-presence', ...presence }) });
 const videoCallChat = require('./lib/video-call-chat.js').createVideoCallChat({
   database, broadcast: (callId, payload) => videoCallSignaling.broadcast(callId, payload),
 });
-const classLiveSignaling = createClassLiveSignaling({ database });
+const classLiveSignaling = createClassLiveSignaling({ database,
+  callPresence: sessionId => videoCallSignaling.sessionPresence(sessionId) });
+const sessionChat = require('./lib/session-chat.js').createSessionChat({
+  database, broadcast: (sessionId, payload) => classLiveSignaling.broadcast(sessionId, payload),
+});
 const notesSignaling = require('./lib/lesson-notes-signaling.js').createNotesSignaling({ database });
 server.on('upgrade', (req, socket, head) => {
   let pathname;

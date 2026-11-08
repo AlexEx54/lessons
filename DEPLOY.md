@@ -109,6 +109,14 @@ cd /opt/teach_platform
 npm run user:create -- --email teacher@example.com --name "Teacher name"
 ```
 
+To post product news to the notification bell of every active user (a rerun with the
+same `--key` reaches only those who have not received it yet):
+
+```bash
+cd /opt/teach_platform
+npm run announce -- --key session-calls --title "Заголовок" --text "Текст"
+```
+
 Authentication cookies require HTTPS in production. Put the Node.js service behind
 an HTTPS reverse proxy before creating real teacher accounts.
 
@@ -128,6 +136,10 @@ Unsent uploads expire after 24 hours and are cleaned hourly and on server startu
 Clearing call history removes messages and attachment directories; startup/hourly
 cleanup retries removal of directories whose calls no longer exist.
 
+The class session chat (migration `023-session-chat.sql`) works the same way, with
+files in `session-chat-files/` next to `APP_DB_PATH` (`SESSION_CHAT_FILES_DIR` overrides it)
+and a limit of 100 MiB per session. Its messages and files go with the session.
+
 The current guest invite remains a read-only archive link after a call ends or
 expires, until its owner clears the history. Rotating an active invite still
 revokes the previous link. Archive requests do not provide ICE credentials or
@@ -136,9 +148,14 @@ and download its attachments.
 
 ### Watch & interact videos
 
-Install `ffprobe` (provided by the `ffmpeg` package) on the server, or set
-`FFPROBE_PATH` to its executable. Upload validation accepts MP4 with H.264 video
-and optional AAC audio, up to 300 MiB. No transcoding is performed.
+Install the `ffmpeg` package (`ffprobe` and `ffmpeg`) on the server, or set
+`FFPROBE_PATH` and `FFMPEG_PATH` to the executables. Upload validation accepts MP4
+with H.264 video and optional AAC audio, up to 300 MiB. No transcoding is performed,
+but fragmented MP4s and files with the index at the end are remuxed (`-c copy
+-movflags +faststart`): otherwise browsers walk or download the whole file before
+playback starts. Videos uploaded before this change are fixed in place with
+`sudo -u teachplatform node scripts/remux-videos.js /var/lib/teach_platform/draft-assets`
+(lists affected files; add `--apply` to rewrite them). Run it when no lessons are live.
 The reverse proxy must permit 300 MiB request bodies (nginx:
 `client_max_body_size 300m;`) and allow sufficient upload time.
 

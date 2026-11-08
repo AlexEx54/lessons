@@ -17,13 +17,13 @@ test('auth migrations are repeatable and create the expected tables', () => {
   assert.deepEqual(
     database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(row => row.name),
     [
-      'class_assets', 'class_guest_sessions', 'class_live_state', 'class_notes', 'class_sessions', 'classes',
+      'class_assets', 'class_guest_sessions', 'class_live_state', 'class_notes', 'class_session_attachments', 'class_session_messages', 'class_sessions', 'classes',
       'lesson_draft_generations', 'lesson_draft_image_generations', 'lesson_drafts', 'lesson_templates',
-      'library_assets', 'library_lessons', 'pending_registrations',
-      'schema_migrations', 'sessions', 'sqlite_sequence', 'users', 'video_call_attachments', 'video_call_messages', 'video_calls',
+      'library_assets', 'library_lessons', 'notifications', 'pending_registrations',
+      'schema_migrations', 'sessions', 'sqlite_sequence', 'support_messages', 'users', 'video_call_attachments', 'video_call_messages', 'video_calls',
     ],
   );
-  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 23);
+  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 26);
   assert.ok(database.prepare(
     "SELECT 1 FROM pragma_table_info('lesson_drafts') WHERE name = 'inputs_json'",
   ).get());

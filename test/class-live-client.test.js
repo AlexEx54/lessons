@@ -6,13 +6,14 @@ const path = require('node:path');
 const test = require('node:test');
 const { createDocument } = require('./helpers/lesson-dom.js');
 const source = fs.readFileSync(path.join(__dirname, '../assets/class-live.js'), 'utf8');
-async function fixture(role = 'student', quiz = null) {
+async function fixture(role = 'student', quiz = null, globals = {}) {
   const document = createDocument(), sockets = [], timers = new Map(), intervals = new Map(), frames = [];
   const id = '11111111-1111-4111-8111-111111111111';
   let settings, interactive;
   const lesson = { content: { stages: [
     { id: 'warm-up', content: [{ type: 'thisOrThat', id: 'choice' }] },
     { id: 'lead-in', content: role === 'teacher' ? [{ type: 'markdownCard', id: 'answers', studentVisibility: 'controlled' }] : [] },
+    { id: 'target-vocabulary', title: 'Target Vocabulary', content: [] },
   ] } };
   if (quiz) lesson.content.stages[0] = { id: 'reading', content: [quiz] };
   const availableStageIds = [quiz ? 'reading' : 'warm-up', 'lead-in'];
@@ -38,7 +39,7 @@ async function fixture(role = 'student', quiz = null) {
     clearTimeout(id) { timers.delete(id); }, addEventListener() {},
     setInterval(fn) { intervals.set(++timerId, fn); return timerId; },
     clearInterval(id) { intervals.delete(id); },
-    scrollTo() {},
+    scrollTo() {}, matchMedia: () => ({ matches: false }),
     ComponentTree: require('../assets/components/component-tree.js'),
     GuidedRoleCardsComponent: { renderGuidedRoleCards: (data, options) => require('../assets/components/guided-role-cards.js').renderGuidedRoleCards(data, options, document) },
     GapFillComponent: { renderGapFill() { return mounted.get('choice'); } },
@@ -47,33 +48,68 @@ async function fixture(role = 'student', quiz = null) {
     MultipleChoiceComponent: { renderMultipleChoice() { return mounted.get('choice'); } },
     ThisOrThatComponent: { renderThisOrThat() { return mounted.get('choice'); } },
     MarkdownCardComponent: { renderMarkdownCard() { return { updateStudentVisibility() {}, setVisibilityInteractive() {} }; } },
+    ...globals,
   };
   const initial = { activeStageId: quiz ? 'reading' : 'warm-up', version: 0, selections: {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/lesson-view.js'), 'utf8'), { window, document });
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/class-component-adapters.js'), 'utf8'), { window });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/lesson-timer.js'), 'utf8'), { window, document });
   const createView = window.LessonView.create;
   window.LessonView.create = value => { settings = value; return createView(value); };
-  vm.runInNewContext(source, { window, document, WebSocket: Socket, structuredClone, fetch: async () => ({ ok: true, json: async () => ({ state: initial, lesson, availableStageIds }) }) });
+  vm.runInNewContext(source, { window, document, WebSocket: Socket, structuredClone, fetch: async () => ({ ok: true, json: async () => ({ state: initial, lesson, availableStageIds, ...(role === 'student' ? { classPath: '/join/anna-x' } : {}) }) }) });
   await new Promise(resolve => setImmediate(resolve));
-  return { settings, sockets, timers, intervals, frames, initial, lesson, document, isInteractive: () => interactive, status };
+  return { settings, sockets, timers, intervals, frames, initial, lesson, document, selectors, isInteractive: () => interactive, status };
 }
+test('student header leads to the class sessions and the teacher header to the schedule', async () => {
+  const student = await fixture('student');
+  const exit = student.selectors['.end-lesson'];
+  assert.equal(exit.hidden, false);
+  assert.equal(exit.href, '/join/anna-x/sessions');
+  assert.equal(exit.children[0].textContent, 'Все занятия');
+  assert.ok(exit.classList.contains('end-lesson--classes'));
+  assert.equal(student.selectors['.lesson-brand'].href, '/join/anna-x');
+  const teacher = await fixture('teacher');
+  assert.equal(teacher.selectors['.end-lesson'].href, '/schedule');
+  assert.equal(teacher.selectors['.end-lesson'].children[0].textContent, 'В расписание');
+});
 test('lesson timer is local to the teacher view and stays hidden from the student', async () => {
   const teacher = await fixture('teacher');
-  const teacherTimer = teacher.document.getElementById('lesson-timer');
-  assert.equal(teacherTimer.hidden, false);
+  const byId = id => teacher.document.getElementById(id);
+  const teacherTimer = byId('lesson-timer'), reset = byId('lesson-timer-reset');
+  assert.equal(byId('lesson-timer-card').hidden, false);
+  assert.equal(reset.disabled, true);
   teacherTimer.click();
   assert.equal(teacher.intervals.size, 1);
   [...teacher.intervals.values()][0]();
-  assert.equal(teacher.document.getElementById('elapsed-time').textContent, '00:01');
-  assert.equal(teacher.document.getElementById('timer-icon').textContent, 'Ⅱ');
+  assert.equal(byId('elapsed-time').textContent, '00:01');
+  assert.equal(byId('timer-icon').textContent, 'Ⅱ');
+  assert.equal(teacherTimer.getAttribute('aria-label'), 'Остановить таймер урока');
   teacherTimer.click();
   assert.equal(teacher.intervals.size, 0);
-  assert.equal(teacher.document.getElementById('timer-icon').textContent, '▶');
+  assert.equal(byId('timer-icon').textContent, '▶');
+  assert.equal(byId('elapsed-time').textContent, '00:01');
 
   const student = await fixture('student');
-  assert.equal(student.document.getElementById('lesson-timer').hidden, true);
+  assert.equal(student.document.getElementById('lesson-timer-card').hidden, true);
   student.document.getElementById('lesson-timer').click();
   assert.equal(student.intervals.size, 0);
+});
+test('teacher resets the lesson timer to a stopped 00:00', async () => {
+  const teacher = await fixture('teacher');
+  const byId = id => teacher.document.getElementById(id);
+  const reset = byId('lesson-timer-reset');
+  byId('lesson-timer').click();
+  [...teacher.intervals.values()][0]();
+  [...teacher.intervals.values()][0]();
+  assert.equal(reset.disabled, false);
+  reset.click();
+  assert.equal(teacher.intervals.size, 0);
+  assert.equal(byId('elapsed-time').textContent, '00:00');
+  assert.equal(byId('timer-icon').textContent, '▶');
+  assert.equal(reset.disabled, true);
+  byId('lesson-timer').click();
+  [...teacher.intervals.values()][0]();
+  assert.equal(byId('elapsed-time').textContent, '00:01');
 });
 for (const role of ['teacher', 'student']) test(`${role}: rapid selections are sent in order with acknowledged versions and remote updates do not echo`, async () => {
   const f = await fixture(role), socket = f.sockets[0];
@@ -112,6 +148,34 @@ test('disconnect drops unconfirmed clicks, restores server state and replacement
   for (const timer of [...f.timers.values()]) timer();
   assert.equal(f.sockets.length, 2);
   assert.equal(f.isInteractive(), false);
+});
+test('a silent socket is replaced at once and its late close does not disturb the successor', async () => {
+  const watched = new Map(), wake = [];
+  const liveness = { watch(socket, onStale) { watched.set(socket, onStale); }, onWake(listener) { wake.push(listener); } };
+  const f = await fixture('student', null, { ClassSocketLiveness: liveness });
+  const notice = f.document.getElementById('lesson-connection');
+  const stale = f.sockets[0];
+  stale.receive({ type: 'snapshot', state: f.initial });
+  assert.equal(f.isInteractive(), true);
+  watched.get(stale)();
+  assert.equal(f.isInteractive(), false);
+  assert.match(notice.textContent, /Связь потеряна/);
+  for (const timer of [...f.timers.values()]) timer();
+  assert.equal(f.sockets.length, 2);
+  const successor = f.sockets[1];
+  successor.receive({ type: 'snapshot', state: { ...f.initial, version: 2 } });
+  successor.receive({ type: 'presence', peerPresent: true });
+  f.timers.clear();
+  stale.listeners.message({ data: JSON.stringify({ type: 'presence', peerPresent: false }) });
+  stale.close(1006);
+  assert.equal(f.isInteractive(), true, 'the abandoned socket must not close the live one');
+  assert.equal(f.timers.size, 0);
+  assert.equal(f.status.dataset.state, 'connected');
+  successor.close(1006);
+  assert.equal(f.timers.size, 1);
+  wake.forEach(listener => listener());
+  assert.equal(f.sockets.length, 3, 'returning network skips the remaining backoff');
+  assert.equal(f.timers.size, 0);
 });
 test('student whose slot is taken keeps retrying and explains why the board is inactive', async () => {
   const f = await fixture(), notice = f.document.getElementById('lesson-connection');
@@ -162,6 +226,47 @@ test('teacher stage navigation waits for confirmation and snapshot restores the 
   assert.equal(f.settings.state.activeIndex, 1);
   socket.close();
   assert.equal(f.settings.canSelect(0), false);
+});
+
+test('student browses stages locally, keeps their stage on teacher answers and returns to the teacher', async () => {
+  const f = await fixture(), socket = f.sockets[0];
+  const follow = f.document.getElementById('lesson-follow');
+  socket.receive({ type: 'snapshot', state: f.initial });
+  socket.receive({ type: 'presence', peerPresent: true });
+  f.document.getElementById('next-stage').click();
+  assert.equal(f.settings.state.activeIndex, 1);
+  assert.equal(socket.sent.length, 0);
+  assert.equal(follow.hidden, false);
+  socket.receive({ type: 'action', actorRole: 'teacher', state: { ...f.initial, version: 1 } });
+  assert.equal(f.settings.state.activeIndex, 1);
+  f.document.getElementById('lesson-follow-return').click();
+  assert.equal(f.settings.state.activeIndex, 0);
+  assert.equal(follow.hidden, true);
+  f.document.getElementById('next-stage').click();
+  socket.receive({ type: 'presence', peerPresent: false });
+  assert.equal(follow.hidden, true);
+  socket.receive({ type: 'action', actorRole: 'teacher', state: { ...f.initial, version: 2, activeStageId: 'target-vocabulary' } });
+  assert.equal(f.settings.state.activeIndex, 2);
+  assert.equal(f.document.getElementById('lesson-toast').textContent, 'Учитель перешёл на этап «Target Vocabulary».');
+});
+
+test('student follows a fresh pointer to the teacher stage but not a replayed one', async () => {
+  const f = await fixture(), socket = f.sockets[0];
+  socket.receive({ type: 'snapshot', state: f.initial });
+  f.document.getElementById('next-stage').click();
+  const pointer = { type: 'pointer', stageId: 'warm-up', target: { componentId: 'choice', part: null }, revision: 1 };
+  socket.receive({ ...pointer, replay: true });
+  assert.equal(f.settings.state.activeIndex, 1);
+  socket.receive({ ...pointer, revision: 2 });
+  assert.equal(f.settings.state.activeIndex, 0);
+});
+
+test('student answers carry the stage they are looking at', async () => {
+  const f = await fixture(), socket = f.sockets[0];
+  socket.receive({ type: 'snapshot', state: { ...f.initial, activeStageId: 'lead-in' } });
+  f.document.getElementById('previous-stage').click();
+  f.settings.componentOptions({ type: 'thisOrThat', id: 'choice' }).onAction({ type: 'select-option', componentId: 'choice', itemId: 'pair', optionId: 'a' });
+  assert.equal(socket.sent[0].stageId, 'warm-up');
 });
 
 test('student mounts revealed content, removes hidden content and restores it after reconnect', async () => {

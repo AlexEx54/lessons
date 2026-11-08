@@ -192,7 +192,12 @@ test('library HTTP routes protect publication, placeholders, hidden lessons and 
   assert.equal(guestLessonPage.status, 302);
   assert.equal(guestLessonPage.headers.get('location'), `/?auth=register&next=${encodeURIComponent(`/library/${publication.id}`)}`);
   const lesson = (await (await request(`/api/library/${publication.id}`, teacherCookie)).json()).lesson;
-  assert.equal((await request(`/library/${publication.id}`, teacherCookie)).status, 200);
+  const lessonPage = await request(`/library/${publication.id}`, teacherCookie);
+  assert.equal(lessonPage.status, 200);
+  const lessonPageHtml = await lessonPage.text();
+  assert.match(lessonPageHtml, /id="schedule-lesson"/);
+  assert.match(lessonPageHtml, /id="class-modal"/);
+  assert.match(lessonPageHtml, /src="\/assets\/class-modal\.js"/);
   const assetUrl = lesson.content.stages[0].content[0].audioSrc;
   assert.equal((await request(assetUrl)).status, 401);
   const range = await fetch(url + assetUrl, { headers: { Cookie: teacherCookie, Range: 'bytes=0-4' } });

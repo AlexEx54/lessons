@@ -2,6 +2,33 @@ body.modal-open {
   overflow: hidden;
 }
 
+/* The window and the slot picker it opens carry their own palette and resets, so they look the same in the cabinet and on the lesson preview.
+   :where() keeps the resets at zero specificity, below every rule of the window itself. */
+.class-modal,
+.slot-picker {
+  --ink: #111237;
+  --muted: #696b99;
+  --purple: #6036f7;
+  --purple-soft: #eee9ff;
+  --soft: #eee9ff;
+  --line: rgba(79, 56, 170, 0.12);
+  --grid-line: #efedf7;
+  --control-line: #e4e0f2;
+  --event-line: #cdc2fb;
+  color: var(--ink);
+}
+
+:where(.class-modal, .slot-picker),
+:where(.class-modal, .slot-picker) *,
+:where(.class-modal, .slot-picker) ::before,
+:where(.class-modal, .slot-picker) ::after { box-sizing: border-box; }
+:where(.class-modal, .slot-picker) :where(button, input) { font: inherit; }
+:where(.class-modal, .slot-picker) :where(button) { padding: 0; border: 0; color: inherit; background: none; cursor: pointer; }
+:where(.class-modal, .slot-picker) :where(button, input):focus-visible { outline: 3px solid rgba(96, 54, 247, 0.3); outline-offset: 3px; }
+:where(.class-modal, .slot-picker) :where(img) { display: block; max-width: 100%; }
+:where(.class-modal, .slot-picker) :where(h2, h3, p) { margin: 0; }
+:where(.class-modal) .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+
 .class-modal {
   position: fixed;
   inset: 0;

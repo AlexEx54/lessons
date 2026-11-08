@@ -297,7 +297,7 @@ test('the work moves from draft to handed in, back for changes and to a grade', 
 });
 
 test('in a session the student writes and the teacher grades; the preview follows the same rules', () => {
-  const { applyComponentAction, clearComponentState, studentComponent } = require('../lib/class-component-handlers.js');
+  const { applyComponentAction, clearComponentState, studentComponent } = require('../assets/class-rules.js');
   const window = { HomeworkWritingComponent: require('../assets/components/homework-writing.js') };
   require('node:vm').runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/class-component-adapters.js'), 'utf8'), { window });
   const homework = normalizeHomeworkWriting(component());

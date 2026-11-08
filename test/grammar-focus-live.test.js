@@ -10,7 +10,7 @@ const tree = require('../assets/components/component-tree.js');
 const { renderGapFill } = require('../assets/components/gap-fill.js');
 const { renderMiniSituation } = require('../assets/components/mini-situation.js');
 const { renderCardRow, normalizeCardRow } = require('../assets/components/card-row.js');
-const { studentComponent, applyComponentAction } = require('../lib/class-component-handlers.js');
+const { studentComponent, applyComponentAction } = require('../assets/class-rules.js');
 const content = syntheticLesson().stages.find(stage => stage.id === 'grammar-focus').content;
 const fire = (node, name) => (node.listeners[name] || []).forEach(listener => listener({ preventDefault() {} }));
 
