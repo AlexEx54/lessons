@@ -839,7 +839,7 @@
             "instruction": "Read each sentence and type the correct form of the verb.",
             "accentColor": "#2F80ED"
           },
-          "instructions": "task2Text is a numbered list of eight separate short sentences, one per line, each starting with its number in bold (**1.**) and with exactly one gap.\nEach gap tests a form of the grammar of the lesson; each cue is the base form of the verb the learner must change.",
+          "instructions": "task2Text is a numbered list of eight separate short sentences, one per line, each starting with its number in bold (**1.**) and with exactly one gap.\nEach gap tests a form of the grammar of the lesson. Include affirmative, negative, and question forms whenever the grammar topic supports them.\nEach cue gives the words the learner must change, for example “play”, “not play” or “you / play”.",
           "answerKey": {}
         },
         {
