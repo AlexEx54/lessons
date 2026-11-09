@@ -205,9 +205,9 @@
       2: 'lesson-picker-title',
       3: 'class-completion-title',
     };
-    classDialog.setAttribute('aria-labelledby', stepTitles[stepNumber]);
-    if (stepNumber === 1) classDialog.setAttribute('aria-describedby', 'class-dialog-description');
-    else classDialog.removeAttribute('aria-describedby');
+    classModal.setAttribute('aria-labelledby', stepTitles[stepNumber]);
+    if (stepNumber === 1) classModal.setAttribute('aria-describedby', 'class-dialog-description');
+    else classModal.removeAttribute('aria-describedby');
   }
 
   function closeClassModal() {
