@@ -32,7 +32,6 @@
   const completionHeading = document.getElementById('class-completion-heading');
   const completionHintNew = document.getElementById('class-completion-hint-new');
   const completionHintExisting = document.getElementById('class-completion-hint-existing');
-  let modalReturnFocus = null;
   let onCreated = null;
   let classStep = 1;
   let classes = [];
@@ -167,10 +166,8 @@
   // `onCreated` receives the session right after it is saved.
   function openClassModal({ time = '', classId = null, lessonId = null, onCreated: createdCallback = null } = {}) {
     if (savingClass) return;
-    modalReturnFocus = document.activeElement;
     onCreated = createdCallback;
-    classModal.classList.add('class-modal--visible');
-    classModal.setAttribute('aria-hidden', 'false');
+    classModal.showModal();
     document.body.classList.add('modal-open');
     createdSession = null;
     selectedRecommendationId = lessonId;
@@ -214,46 +211,37 @@
   }
 
   function closeClassModal() {
-    if (savingClass || !classModal.classList.contains('class-modal--visible')) return;
-    classModal.classList.remove('class-modal--visible');
-    classModal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('modal-open');
-    if (modalReturnFocus instanceof HTMLElement) modalReturnFocus.focus();
+    if (!savingClass) classModal.close();
   }
 
-  function keepFocusInsideModal(event) {
-    if (event.key !== 'Tab' || !classModal.classList.contains('class-modal--visible')) return;
-    if (savingClass) { event.preventDefault(); return; }
-    const focusable = [...classDialog.querySelectorAll('button:not([disabled]), input:not([disabled]), a[href]')].filter(element => element.getClientRects().length);
-    const first = focusable[0];
-    const last = focusable.at(-1);
-
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
+  // Fallback when the Clipboard API is missing or refuses. The textarea goes inside the open dialog:
+  // everything outside it is inert, so it could not be selected there.
+  function copyWithTextarea(text) {
+    const temporaryInput = document.createElement('textarea');
+    temporaryInput.value = text;
+    temporaryInput.style.position = 'fixed';
+    temporaryInput.style.opacity = '0';
+    classModal.append(temporaryInput);
+    temporaryInput.select();
+    const copied = document.execCommand('copy');
+    temporaryInput.remove();
+    copyClassLinkButton.focus();
+    return copied;
   }
 
   async function copyClassInviteLink() {
     const link = completionLink.textContent.trim();
+    let copied;
     try {
       await navigator.clipboard.writeText(link);
+      copied = true;
     } catch {
-      const temporaryInput = document.createElement('textarea');
-      temporaryInput.value = link;
-      temporaryInput.style.position = 'fixed';
-      temporaryInput.style.opacity = '0';
-      document.body.append(temporaryInput);
-      temporaryInput.select();
-      document.execCommand('copy');
-      temporaryInput.remove();
+      copied = copyWithTextarea(link);
     }
-    copyClassLinkButton.querySelector('span').textContent = 'Ссылка скопирована';
+    const label = copyClassLinkButton.querySelector('span');
+    label.textContent = copied ? 'Ссылка скопирована' : 'Не удалось скопировать';
     window.setTimeout(() => {
-      copyClassLinkButton.querySelector('span').textContent = 'Скопировать ссылку';
+      label.textContent = 'Скопировать ссылку';
     }, 2200);
   }
 
@@ -423,16 +411,9 @@
     } finally { setSaving(false); }
   }
 
-  document.addEventListener('keydown', event => {
-    // A native modal dialog opened over this one, such as the slot picker, handles its own keys.
-    if (document.querySelector('dialog:modal')) return;
-    if (event.key === 'Escape' && classModal.classList.contains('class-modal--visible')) {
-      closeClassModal();
-      return;
-    }
-    keepFocusInsideModal(event);
-  });
-
+  // Escape and the Android back button cancel the dialog; the browser itself returns focus to where it was opened from.
+  classModal.addEventListener('cancel', event => { if (savingClass) event.preventDefault(); });
+  classModal.addEventListener('close', () => document.body.classList.remove('modal-open'));
   classModal.querySelectorAll('[data-close-class-modal]').forEach(button => {
     button.addEventListener('click', closeClassModal);
   });
