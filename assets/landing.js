@@ -5,7 +5,6 @@
   const menuToggle = document.getElementById('menu-toggle');
   const toast = document.getElementById('landing-toast');
   const authModal = document.getElementById('auth-modal');
-  const authDialog = authModal?.querySelector('.auth-modal__dialog');
   const authTabs = [...(authModal?.querySelectorAll('[data-auth-tab]') || [])];
   const authPanels = {
     login: document.getElementById('auth-login-panel'),
@@ -19,7 +18,6 @@
   // Sending a code email can keep the server busy for up to ~40 s, so the form waits a little longer.
   const REQUEST_TIMEOUT_MS = 45_000;
   const CONNECTION_ERROR = 'Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.';
-  let authReturnFocus = null;
   let authNextPath = '/app';
   let toastTimer = null;
   let registrationToken = '';
@@ -148,23 +146,15 @@
     authModal.querySelectorAll('.yandex-auth__button').forEach(link => {
       link.href = `/api/auth/yandex?next=${encodeURIComponent(authNextPath)}`;
     });
-    authReturnFocus = document.activeElement;
     setAuthTab(name);
-    authModal.hidden = false;
+    if (!authModal.open) authModal.showModal();
     body.classList.add('auth-modal-open');
-    window.requestAnimationFrame(() => {
-      authModal.classList.add('auth-modal--visible');
-      [...(authPanels[name]?.querySelectorAll('[data-auth-initial]') || [])]
-        .find(input => !input.closest('[hidden]'))?.focus();
-    });
+    [...(authPanels[name]?.querySelectorAll('[data-auth-initial]') || [])]
+      .find(input => !input.closest('[hidden]'))?.focus();
   }
 
   function closeAuth() {
-    if (!authModal || authModal.hidden) return;
-    authModal.classList.remove('auth-modal--visible');
-    body.classList.remove('auth-modal-open');
-    window.setTimeout(() => { authModal.hidden = true; }, 180);
-    authReturnFocus?.focus();
+    authModal?.close();
   }
 
   function clearAuthError(form) {
@@ -484,25 +474,11 @@
     });
   });
 
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') {
-      if (!authModal?.hidden) closeAuth();
-      else setMenu(false);
-    }
+  // Escape and the Android back button cancel the dialog; the browser itself returns focus to where it was opened from.
+  authModal?.addEventListener('close', () => body.classList.remove('auth-modal-open'));
 
-    if (event.key === 'Tab' && !authModal?.hidden) {
-      const focusable = [...authDialog.querySelectorAll('button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden])')]
-        .filter(element => element.offsetParent !== null);
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') setMenu(false);
   });
 
   window.matchMedia('(min-width: 861px)').addEventListener('change', event => {

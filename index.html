@@ -458,9 +458,9 @@
     </div>
   </footer>
 
-  <div class="auth-modal" id="auth-modal" hidden>
+  <dialog class="auth-modal" id="auth-modal" aria-label="Вход или регистрация">
     <div class="auth-modal__backdrop" data-auth-close aria-hidden="true"></div>
-    <section class="auth-modal__dialog" role="dialog" aria-modal="true" aria-label="Вход или регистрация">
+    <section class="auth-modal__dialog">
       <header class="auth-modal__header">
         <div class="auth-modal__tabs" role="tablist" aria-label="Выберите действие">
           <button class="auth-modal__tab" id="auth-register-tab" type="button" role="tab" aria-selected="false" aria-controls="auth-register-panel" data-auth-tab="register">Регистрация</button>
@@ -602,7 +602,7 @@
         </div>
       </div>
     </section>
-  </div>
+  </dialog>
 
   <div class="landing-toast" id="landing-toast" role="status" aria-live="polite"></div>
   <script src="/assets/landing.js" defer></script>
