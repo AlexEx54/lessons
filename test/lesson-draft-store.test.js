@@ -13,6 +13,7 @@ const {
   retryLessonDraft,
   updateAudioPlayer,
   updateCategorySort,
+  updateLineOrder,
   updateAudioPlayerAudio,
   updateDescribeAndGuess,
   updateHowToPlay,
@@ -570,6 +571,45 @@ test('category sort groups and cards can be updated only in an owned review draf
   });
   assert.throws(() => update({ items: changes.items.slice(1) }), error => error.statusCode === 400 && /Нужно от 4 до 16 карточек/.test(error.message));
   assert.throws(() => update({ items: changes.items.map(item => (item.id === 'pear' ? { ...item, categoryId: 'drinks' } : item)) }), /В группе «Fruit» нет карточек/);
+  assert.throws(() => update({ ownerAdminId: outsider.id }), error => error.statusCode === 404 && /Черновик урока не найден/.test(error.message));
+  assert.throws(() => update({ componentId: 'missing' }), error => error.statusCode === 404);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => update({}), error => error.statusCode === 409);
+  database.close();
+});
+
+test('line order lines, speakers and order can be updated only in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'order-owner');
+  const outsider = admin(database, 'order-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Order', template: 'template-1' }, database);
+  const dialogue = {
+    type: 'lineOrder', id: 'cafe-order', title: 'Put the dialogue in order.', instruction: 'Drag a line, then press Check.', look: 'dialogue',
+    speakers: [{ id: 'speaker-1', name: 'Waiter' }, { id: 'speaker-2', name: 'Customer' }],
+    lines: [
+      { id: 'line-1', text: 'Are you ready to order?', speakerId: 'speaker-1' },
+      { id: 'line-2', text: 'Yes, the soup, please.', speakerId: 'speaker-2' },
+      { id: 'line-3', text: 'It will be ready soon.', speakerId: 'speaker-1' },
+    ],
+  };
+  const story = { type: 'lineOrder', id: 'trip-order', title: 'Put the story in order.', instruction: dialogue.instruction, look: 'story',
+    lines: ['Tom woke up late.', 'He missed the bus.', 'He was late for school.'].map((text, i) => ({ id: `line-${i + 1}`, text })) };
+  const ready = completeLessonDraft(pending.id, owner.id, { stages: [{ content: [dialogue, story] }] }, database);
+  const changes = {
+    title: ' Café ', instruction: dialogue.instruction, speakers: [dialogue.speakers[0], { id: 'speaker-2', name: 'Guest' }],
+    lines: [dialogue.lines[1], dialogue.lines[0], { id: 'line-4', text: ' Thank   you! ', speakerId: 'speaker-2' }],
+  };
+  const update = overrides => updateLineOrder({ id: ready.id, ownerAdminId: owner.id, componentId: 'cafe-order', ...changes, ...overrides }, database);
+  assert.deepEqual(update({}).content.stages[0].content[0], {
+    ...dialogue, ...changes, title: 'Café', lines: [...changes.lines.slice(0, 2), { id: 'line-4', text: 'Thank you!', speakerId: 'speaker-2' }],
+  });
+  assert.throws(() => update({ lines: changes.lines.slice(1) }), error => error.statusCode === 400 && /Нужно от 3 до 8 строк/.test(error.message));
+  assert.throws(() => update({ lines: changes.lines.map(line => ({ ...line, speakerId: 'speaker-1' })) }), /У собеседника «Guest» нет реплик/);
+  const storyLines = [story.lines[2], ...story.lines.slice(0, 2)];
+  const toldUpdate = overrides => updateLineOrder({ id: ready.id, ownerAdminId: owner.id, componentId: 'trip-order',
+    title: story.title, instruction: story.instruction, lines: storyLines, ...overrides }, database);
+  assert.deepEqual(toldUpdate({}).content.stages[0].content[1], { ...story, lines: storyLines });
+  assert.throws(() => toldUpdate({ speakers: dialogue.speakers }), error => error.statusCode === 400 && /Неподдерживаемые поля/.test(error.message));
   assert.throws(() => update({ ownerAdminId: outsider.id }), error => error.statusCode === 404 && /Черновик урока не найден/.test(error.message));
   assert.throws(() => update({ componentId: 'missing' }), error => error.statusCode === 404);
   publishLessonDraft(ready.id, owner.id, database);

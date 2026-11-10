@@ -84,6 +84,7 @@ const {
   updateSentenceCorrection,
   updateSentenceMatching,
   updateCategorySort,
+  updateLineOrder,
   updateSentenceBuilder,
   updateMiniSituation,
   updateMarkdownCard,
@@ -771,6 +772,19 @@ function getSentenceMatchingRouteParams(pathname) {
 
 function getCategorySortRouteParams(pathname) {
   const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/category-sort\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return {
+      draftId: decodeURIComponent(match[1]).trim(),
+      componentId: decodeURIComponent(match[2]).trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getLineOrderRouteParams(pathname) {
+  const match = pathname.match(/^\/api\/lesson-drafts\/([^/]+)\/line-order\/([^/]+)$/);
   if (!match) return null;
   try {
     return {
@@ -2559,6 +2573,7 @@ async function handleRequest(req, res) {
     const sentenceBuilderRoute = getSentenceBuilderRouteParams(pathname);
     const sentenceMatchingRoute = getSentenceMatchingRouteParams(pathname);
     const categorySortRoute = getCategorySortRouteParams(pathname);
+    const lineOrderRoute = getLineOrderRouteParams(pathname);
     const sentenceCorrectionRoute = getSentenceCorrectionRouteParams(pathname);
     const gapFillRoute = getGapFillRouteParams(pathname);
     const oddOneOutRoute = getOddOneOutRouteParams(pathname);
@@ -2589,6 +2604,7 @@ async function handleRequest(req, res) {
       && (!sentenceBuilderRoute || !sentenceBuilderRoute.draftId || !sentenceBuilderRoute.componentId)
       && (!sentenceMatchingRoute || !sentenceMatchingRoute.draftId || !sentenceMatchingRoute.componentId)
       && (!categorySortRoute || !categorySortRoute.draftId || !categorySortRoute.componentId)
+      && (!lineOrderRoute || !lineOrderRoute.draftId || !lineOrderRoute.componentId)
       && (!sentenceCorrectionRoute || !sentenceCorrectionRoute.draftId || !sentenceCorrectionRoute.componentId)
       && (!gapFillRoute || !gapFillRoute.draftId || !gapFillRoute.componentId)
       && (!oddOneOutRoute || !oddOneOutRoute.draftId || !oddOneOutRoute.componentId)
@@ -2704,6 +2720,12 @@ async function handleRequest(req, res) {
           id: categorySortRoute.draftId, ownerAdminId: user.id,
           componentId: categorySortRoute.componentId,
           title: body.title, instruction: body.instruction, categories: body.categories, items: body.items,
+        }, database);
+      } else if (lineOrderRoute) {
+        draft = updateLineOrder({
+          id: lineOrderRoute.draftId, ownerAdminId: user.id,
+          componentId: lineOrderRoute.componentId,
+          title: body.title, instruction: body.instruction, speakers: body.speakers, lines: body.lines,
         }, database);
       } else if (sentenceCorrectionRoute) {
         draft = updateSentenceCorrection({

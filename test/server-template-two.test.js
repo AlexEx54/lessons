@@ -98,6 +98,9 @@ test('template two creation and editing update the answer key atomically', async
     categories: [{ id: 'fruit', title: 'Fruit' }, { id: 'drinks', title: 'Drinks' }],
     items: ['apple', 'pear', 'tea', 'milk'].map((text, i) => ({ id: text, text, categoryId: i < 2 ? 'fruit' : 'drinks' })) };
   builderContent.stages[7].content.push(sort);
+  const order = { type: 'lineOrder', id: 'fixture-order', title: 'Put the story in order.', instruction: 'Drag a line, then press Check.', look: 'story',
+    lines: ['Tom woke up late.', 'He missed the bus.', 'He was late for school.'].map((text, i) => ({ id: `line-${i + 1}`, text })) };
+  builderContent.stages[7].content.push(order);
   const fixtureDb = openDatabase(databasePath);
   fixtureDb.prepare('UPDATE lesson_drafts SET content_json = ? WHERE id = ?').run(JSON.stringify(builderContent), draft.id);
   fixtureDb.close();
@@ -126,7 +129,18 @@ test('template two creation and editing update the answer key atomically', async
   assert.deepEqual([sortRejected.status, (await sortRejected.json()).error], [400, 'В группе «Sweets» нет карточек.']);
   const sortSaved = await sortPatch(sortChanges);
   assert.equal(sortSaved.status, 200);
-  assert.deepEqual((await sortSaved.json()).draft.content.stages[7].content.at(-1), { ...sort, ...sortChanges });
+  assert.deepEqual((await sortSaved.json()).draft.content.stages[7].content.at(-2), { ...sort, ...sortChanges });
+  const orderChanges = { title: 'Tom', instruction: order.instruction, lines: [order.lines[1], order.lines[0], order.lines[2]] };
+  const orderPatch = (body, auth = cookie, componentId = order.id) => fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/line-order/${componentId}`, {
+    method: 'PATCH', headers: { Cookie: auth, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  assert.equal((await orderPatch(orderChanges, otherCookie)).status, 404);
+  assert.equal((await orderPatch(orderChanges, cookie, 'missing')).status, 404);
+  const orderRejected = await orderPatch({ ...orderChanges, lines: order.lines.slice(1) });
+  assert.deepEqual([orderRejected.status, (await orderRejected.json()).error], [400, 'Нужно от 3 до 8 строк.']);
+  const orderSaved = await orderPatch(orderChanges);
+  assert.equal(orderSaved.status, 200);
+  assert.deepEqual((await orderSaved.json()).draft.content.stages[7].content.at(-1), { ...order, ...orderChanges });
   const communication = draft.content.stages[6].content[2];
   const communicationPatch = (items, auth = cookie) => fetch(
     `${baseUrl}/api/lesson-drafts/${draft.id}/guided-communication-cards/${communication.id}`,

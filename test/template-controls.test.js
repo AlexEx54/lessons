@@ -417,3 +417,58 @@ test('a Category Sort block asks for equal groups, numbers its groups and cards 
     [[fruit, { title: 'Drinks', cards: ['tea', '<b>milk</b>'] }], /Карточка в группе «Drinks»: уберите HTML-разметку/],
   ]) assert.throws(() => control.build({ groups }, context), message);
 });
+
+test('a Line Order block asks for the lines in order, finds its two speakers and keys the order', t => {
+  const warn = silentWarnings(t);
+  const control = CONTROL_CATALOG.get('lineOrder');
+  const request = params => {
+    const template = compileTemplate(singleBlockTemplate(control, params), CONTROL_CATALOG);
+    return { template, schema: template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables }).schema };
+  };
+  const { template, schema } = request({ lines: 4 });
+  const lines = schema.properties.lines;
+  assert.deepEqual([lines.minItems, lines.maxItems, lines.items.required], [4, 4, ['speaker', 'text']]);
+  const story = request({ lines: 3, look: 'story' }).schema.properties.lines;
+  assert.deepEqual([story.minItems, story.items.required, Object.keys(story.items.properties)], [3, ['text'], ['text']]);
+  const [, checked] = exampleRun(template).lesson.stages;
+  const [component, key] = checked.content;
+  assert.deepEqual(component.speakers, [{ id: 'speaker-1', name: 'Waiter' }, { id: 'speaker-2', name: 'Customer' }]);
+  assert.deepEqual(component.lines.map(line => [line.id, line.speakerId]), [
+    ['line-1', 'speaker-1'], ['line-2', 'speaker-2'], ['line-3', 'speaker-1'], ['line-4', 'speaker-2'],
+  ]);
+  assert.deepEqual([component.title, component.instruction], ['Put the dialogue in order.', 'Drag a line by the handle or use the arrows, then press Check.']);
+  assert.match(key.sections.map(section => section.text).join('\n\n'),
+    /^\*\*1\.\*\* Waiter: Good evening! Are you ready to order\?\n\n\*\*2\.\*\* Customer: Yes, I’d like the chicken soup, please\./);
+  for (const look of ['dialogue', 'story']) {
+    for (let count = 3; count <= 8; count++) {
+      const built = control.build(control.example({ params: { lines: count, look } }), { id: 'order', params: { lines: count, look }, chrome: {} });
+      assert.equal(built.lines.length, count, `${look} ${count}`);
+    }
+  }
+
+  const context = { id: 'order', params: { lines: 3, look: 'dialogue' }, chrome: { title: 'Café' } };
+  // The speaker who talks first is on the left; a name differing only in case is the same person.
+  const built = control.build({ lines: [
+    { speaker: 'Customer', text: ' Can I   have the *menu*, please? ' }, { speaker: 'Waiter', text: 'Of course. Here you are.' },
+    { speaker: 'customer', text: 'Thank you!' },
+  ] }, context);
+  assert.deepEqual([built.title, built.speakers.map(speaker => speaker.name), built.lines[0].text, built.lines[2].speakerId],
+    ['Café', ['Customer', 'Waiter'], 'Can I have the menu, please?', 'speaker-1']);
+  assert.deepEqual(warnings(warn), ['«Café»: убрана Markdown-разметка в строке 1.']);
+  const told = control.build({ lines: [{ text: 'Anna woke up.' }, { text: 'She had breakfast.' }, { text: 'She went to school.' }] },
+    { ...context, params: { lines: 3, look: 'story' }, chrome: {} });
+  assert.deepEqual([told.title, told.speakers, Object.keys(told.lines[0])], ['Put the story in order.', undefined, ['id', 'text']]);
+  const line = (speaker, text) => ({ speaker, text });
+  const two = [line('Customer', 'Hello!'), line('Waiter', 'Good evening.')];
+  for (const [lines, message] of [
+    [two, /нужно ровно 3 \(строк\), получено 2/],
+    [[...two, line('Cook', 'Soup is ready.')], /в диалоге нужно ровно два собеседника, получено 3: Customer, Waiter, Cook/],
+    [[line('Customer', 'Hello!'), line('Customer', 'Anyone here?'), line('Customer', 'Hmm.')], /ровно два собеседника, получено 1/],
+    [[...two, line('Customer', 'hello!')], /строки не должны повторяться/],
+    [[...two, line('Customer', 'x'.repeat(161))], /строка 3 длиннее 160 символов/],
+    [[...two, line('C'.repeat(25), 'Bye.')], /говорящий в строке 3 длиннее 24 символов/],
+    [[...two, line('Customer', ' ')], /не заполнено: строка 3/],
+    [[...two, line('', 'Bye.')], /не заполнено: говорящий в строке 3/],
+    [[...two, line('Customer', '<b>Bye.</b>')], /Строка 3: уберите HTML-разметку/],
+  ]) assert.throws(() => control.build({ lines }, context), message);
+});

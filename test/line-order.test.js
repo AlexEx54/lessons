@@ -294,3 +294,111 @@ test('the lesson view renders the exercise and both lesson pages load it after t
     assert.ok(html.indexOf('/assets/components/exercise-state.js') < html.indexOf('/assets/components/line-order.js'), page);
   }
 });
+
+test('the draft editor appears only with onSave and edits the lines, their speakers and their order within the limits', async () => {
+  const fire = async (node, event = 'click') => { for (const listener of node.listeners[event] || []) await listener({}); };
+  const type = (field, value) => { field.value = value; return fire(field, 'input'); };
+  assert.equal(renderLineOrder(source, {}, createDocument()).querySelector('.line-order__edit'), null);
+  assert.equal(renderLineOrder(source, { presentation: projected, onSave() {} }, createDocument()).querySelector('.line-order__edit'), null);
+
+  const saved = [], dirty = [], doc = createDocument();
+  let reject = true;
+  const node = renderLineOrder(source, { onDirtyChange: value => dirty.push(value), onSave: async (changes, id) => {
+    if (reject) throw new Error('Нет связи.');
+    saved.push([changes, id]);
+    return { ...source, ...changes };
+  } }, doc);
+  const editor = node.querySelector('.line-order__editor'), error = node.querySelector('.line-order__editor-error');
+  const edit = node.querySelector('.line-order__edit');
+  const rows = () => editor.querySelectorAll('.line-order__editor-line');
+  const field = index => rows()[index].querySelector('.line-order__editor-input');
+  const texts = () => rows().map((row, index) => field(index).value);
+  const tool = (index, name, position = 0) => rows()[index].querySelectorAll(`.line-order__editor-${name}`)[position];
+  await fire(edit);
+  assert.deepEqual([node.querySelector('.line-order__board').hidden, editor.hidden], [true, false]);
+  assert.equal(field(0).tagName, 'TEXTAREA');
+  assert.deepEqual(texts(), source.lines.map(line => line.text));
+  assert.match(editor.querySelector('.line-order__editor-caption').textContent, /правильном порядке/);
+  assert.deepEqual([tool(0, 'move').disabled, tool(3, 'move', 1).disabled, tool(0, 'remove').disabled], [true, true, false]);
+
+  // Renaming a speaker renames the choice in every line.
+  const names = editor.querySelector('.line-order__editor-speakers').querySelectorAll('.line-order__editor-input');
+  await type(names[1], 'Guest');
+  assert.equal(dirty.at(-1), true);
+  assert.deepEqual(editor.querySelectorAll('option').map(option => option.textContent), ['Waiter', 'Guest', 'Waiter', 'Guest', 'Waiter', 'Guest', 'Waiter', 'Guest']);
+  // Moving the second line to the top turns its ↑ off, so the focus goes to its ↓.
+  await fire(tool(1, 'move'));
+  assert.deepEqual(texts(), [source.lines[1], source.lines[0], ...source.lines.slice(2)].map(line => line.text));
+  assert.equal(doc.activeElement, tool(0, 'move', 1));
+  const select = tool(0, 'select');
+  select.value = 'waiter'; await fire(select, 'change');
+  await fire(tool(3, 'remove'));
+  assert.equal(rows().length, 3);
+  assert.ok([0, 1, 2].every(index => tool(index, 'remove').disabled));
+  await fire(editor.querySelector('.line-order__editor-add'));
+  assert.deepEqual([rows().length, field(3).value, tool(3, 'select').value, doc.activeElement], [4, '', 'customer', field(3)]);
+  await fire(edit);
+  assert.equal(error.textContent, 'Строка 4: нужен текст.');
+  await type(field(3), source.lines[0].text.toUpperCase());
+  await fire(edit);
+  assert.equal(error.textContent, `Повторяется строка: «${source.lines[0].text.toUpperCase()}».`);
+  await type(field(3), 'Thank you!');
+  await fire(edit);
+  assert.equal(error.textContent, 'Нет связи.');
+  assert.equal(editor.hidden, false);
+  assert.equal(saved.length, 0);
+
+  reject = false;
+  await fire(edit);
+  const [[changes, id]] = saved;
+  assert.equal(id, source.id);
+  assert.deepEqual(Object.keys(changes), ['title', 'instruction', 'speakers', 'lines']);
+  assert.deepEqual(changes.speakers, [{ id: 'waiter', name: 'Waiter' }, { id: 'customer', name: 'Guest' }]);
+  assert.deepEqual(changes.lines.map(line => [line.id, line.speakerId]), [['d2', 'waiter'], ['d1', 'waiter'], ['d3', 'waiter'], ['line-1', 'customer']]);
+  assert.deepEqual([editor.hidden, error.hidden, node.querySelector('.line-order__board').hidden, dirty.at(-1)], [true, true, false, false]);
+  assert.equal(node.querySelectorAll('.line-order__row').length, 4);
+  assert.notDeepEqual(rowIds(node), ['d2', 'd1', 'd3', 'line-1']);
+  assert.equal(row(node, 'line-1').querySelector('.line-order__speaker').textContent, 'Guest');
+
+  // Cancelling and Escape keep the saved exercise.
+  await fire(edit);
+  await fire(tool(0, 'remove'));
+  await fire(node.querySelector('.line-order__cancel'));
+  assert.equal(editor.hidden, true);
+  await fire(edit);
+  assert.equal(rows().length, 4);
+  node.listeners.keydown[0]({ key: 'Escape' });
+  assert.equal(editor.hidden, true);
+  node.dispose();
+
+  // A story has no speakers to name or choose.
+  const told = renderLineOrder(story(), { onSave() {} }, createDocument());
+  await fire(told.querySelector('.line-order__edit'));
+  assert.equal(told.querySelector('.line-order__editor-speakers'), null);
+  assert.equal(told.querySelector('.line-order__editor-select'), null);
+  assert.equal(told.querySelectorAll('.line-order__editor-line').length, 3);
+  assert.equal(told.querySelector('.line-order__editor-add').disabled, false);
+});
+
+test('a row held near the bottom of the window scrolls it, faster closer to the edge, until the drag ends', t => {
+  const frames = [], scrolls = [];
+  const browser = { requestAnimationFrame: callback => frames.push(callback), cancelAnimationFrame: () => { frames.length = 0; },
+    scrollBy: ({ top }) => scrolls.push(top), innerHeight: 600 };
+  Object.assign(globalThis, browser);
+  t.after(() => Object.keys(browser).forEach(key => delete globalThis[key]));
+  const doc = createDocument(), node = renderLineOrder(source, { presentation: projected }, doc);
+  const handle = row(node, 'd3').querySelector('.line-order__handle');
+  const pointer = (name, clientY) => doc.listeners[name][0]({ type: name, pointerId: 1, clientY, preventDefault() {} });
+  handle.listeners.pointerdown[0]({ pointerId: 1, pointerType: 'touch', clientY: 300, preventDefault() {} });
+  const tick = () => frames.shift()();
+  tick();
+  assert.deepEqual(scrolls, []);
+  pointer('pointermove', 570); tick();
+  pointer('pointermove', 598); tick();
+  assert.deepEqual(scrolls, [7, 14]);
+  pointer('pointermove', 10); tick();
+  assert.ok(scrolls.at(-1) < 0);
+  pointer('pointerup', 10);
+  assert.equal(frames.length, 0);
+  node.dispose();
+});

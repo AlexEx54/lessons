@@ -4,7 +4,8 @@
 .line-order__title { flex: 1; margin: 0; color: #17182d; font-size: 18px; line-height: 1.35; }
 .line-order__instruction { margin: 3px 0 16px; color: #656a80; font-size: 12px; line-height: 1.5; }
 
-.line-order__list { position: relative; display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+/* Reordered rows must not become the scroll anchor, or the page would follow a moved row. */
+.line-order__list { position: relative; display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; overflow-anchor: none; }
 .line-order__row { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .line-order__row--lifted { z-index: 5; }
 .line-order--dragging, .line-order--dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
@@ -68,6 +69,26 @@
 .line-order__done-detail { display: block; margin-top: 1px; color: #4f8a65; font-size: 12px; }
 .line-order__status { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
+/* Draft editor: the buttons and fields look like those of the other exercise editors. */
+.line-order__edit, .line-order__cancel { flex: none; border: 1px solid #ded8ef; border-radius: 8px; padding: 6px 10px; color: var(--purple); background: #faf8ff; font: inherit; font-size: 13px; cursor: pointer; }
+.line-order__editor { display: grid; gap: 12px; }
+.line-order__editor-label, .line-order__editor-caption { display: flex; flex-direction: column; gap: 6px; margin: 0; color: #656a80; font-size: 12px; }
+.line-order__editor-input, .line-order__editor-select { width: 100%; box-sizing: border-box; border: 1px solid #ded8ef; border-radius: 6px; padding: 9px; color: #29243e; background: #fff; font: inherit; font-size: 13px; }
+/* A line shows whole: the field grows with its text where the browser can, and can be pulled taller elsewhere. */
+textarea.line-order__editor-input { min-height: 56px; line-height: 1.45; resize: vertical; field-sizing: content; }
+.line-order__editor-speakers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.line-order__editor-lines { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.line-order__editor-line { display: flex; align-items: flex-start; gap: 8px; padding: 10px; border: 1px solid #e7e3f4; border-radius: 10px; background: #fdfcfe; }
+.line-order__editor-line .line-order__editor-input { flex: 1; min-width: 0; }
+.line-order__editor-number { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin-top: 8px; border-radius: 50%; color: var(--purple); background: var(--purple-soft); font-size: 11px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.line-order__editor-tools { flex: none; display: flex; align-items: center; gap: 6px; }
+.line-order .line-order__editor-select { width: 130px; padding-inline: 6px; }
+.line-order__editor-move, .line-order__editor-remove { flex: none; width: 32px; height: 32px; padding: 0; border: 1px solid #ded8ef; border-radius: 6px; color: var(--purple); background: #fff; font: inherit; font-size: 16px; cursor: pointer; }
+.line-order__editor-remove { color: #8a8ea0; }
+.line-order__editor-add { justify-self: start; border: 1px dashed #c9bcf7; border-radius: 8px; padding: 6px 10px; color: var(--purple); background: transparent; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.line-order__editor button:disabled, .line-order__heading button:disabled { opacity: .45; cursor: default; }
+.line-order__editor-error { margin: 0 0 12px; color: #b23535; font-size: 13px; }
+
 @keyframes line-order-done { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes line-order-pop { 0% { transform: scale(1); } 45% { transform: scale(1.35); } 100% { transform: scale(1); } }
 @keyframes line-order-nudge { 25% { transform: translateX(-3px); } 55% { transform: translateX(3px); } 80% { transform: translateX(-2px); } }
@@ -88,6 +109,12 @@
   .line-order__bubble { max-width: 92%; padding: 8px 11px; }
   .line-order__footer { flex-wrap: wrap; }
   .line-order__check { flex: 1 1 100%; }
+  /* A line's text takes the whole width; its speaker and buttons go below. */
+  .line-order__editor-speakers { grid-template-columns: minmax(0, 1fr); }
+  .line-order__editor-line { flex-wrap: wrap; }
+  .line-order__editor-line .line-order__editor-input { flex: 1 0 calc(100% - 30px); }
+  .line-order__editor-tools { flex: 1 0 100%; justify-content: flex-end; }
+  .line-order .line-order__editor-select { flex: 1; width: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
   .line-order * { transition-duration: 1ms !important; animation-duration: 1ms !important; }

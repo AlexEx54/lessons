@@ -178,6 +178,13 @@
         else state.dirtyComponents.delete(componentId);
       },
     }),
+    lineOrder: () => ({
+      onSave: state.draftStatus === 'review' ? saveLineOrder : undefined,
+      onDirtyChange: (dirty, componentId) => {
+        if (dirty) state.dirtyComponents.add(componentId);
+        else state.dirtyComponents.delete(componentId);
+      },
+    }),
     sentenceBuilder: () => ({
       viewerRole: 'teacher',
       onSave: state.draftStatus === 'review' ? saveSentenceBuilder : undefined,
@@ -1168,6 +1175,33 @@
       return saved;
     } catch (error) {
       showToast(error.message || 'Не удалось сохранить «Разложи по группам».');
+      throw error;
+    }
+  }
+
+
+  async function saveLineOrder(changes, componentId) {
+    try {
+      const response = await fetch(
+        `/api/lesson-drafts/${encodeURIComponent(state.draftId)}/line-order/${encodeURIComponent(componentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить «Расставь по порядку».');
+      if (!payload.draft?.content) throw new Error('Сервер вернул некорректный черновик.');
+      state.lesson = payload.draft.content;
+      state.draftStatus = payload.draft.status;
+      const saved = findComponent(state.lesson, 'lineOrder', componentId);
+      if (!saved) throw new Error('Сохранённое задание «Расставь по порядку» не найдено в черновике.');
+      showToast('Задание «Расставь по порядку» сохранено.');
+      window.setTimeout(() => renderStageContent(state.lesson.stages[state.activeIndex], true), 0);
+      return saved;
+    } catch (error) {
+      showToast(error.message || 'Не удалось сохранить «Расставь по порядку».');
       throw error;
     }
   }
