@@ -32,6 +32,13 @@
   // Stable layouts keep word order and identifiers consistent across clients.
   function createLayout(component, id = () => root.crypto.randomUUID()) {
     if (component.type === 'sentenceBuilder') return sentenceBuilder().createLayout(component, id, shuffle);
+    if (component.type === 'lineOrder') {
+      const indexes = component.lines.map((_, index) => index);
+      let order;
+      // Dealt already in order, the task would be solved before anyone touches it.
+      do order = shuffle(indexes); while (order.every((value, index) => value === index));
+      return { order };
+    }
     const indexes = component.items.map((_, index) => index);
     return {
       order: shuffle(indexes),
@@ -62,6 +69,10 @@
         items: layout.order.map(index => ({ id: component.items[index].id, text: component.items[index].text })),
         answerKey: Object.fromEntries(component.items.map(item => [item.id, item.categoryId])),
       };
+    }
+    if (type === 'lineOrder') {
+      return { ...base, look: component.look, ...(component.speakers ? { speakers: component.speakers } : {}),
+        lines: layout.order.map(index => component.lines[index]), answerKey: component.lines.map(line => line.id) };
     }
     if (type === 'dropdownChoice') return { ...base, text: component.text, accentColor: component.accentColor || '#17182D', answerKey: Object.fromEntries(component.choices.map(choice => [choice.id, choice.answer])), choices: component.choices.map(({ id, options }) => ({ id, options })) };
     if (type === 'fillInBlanks') return { ...base, items: component.items.map(({ id, before, after }) => ({ id, before, after })), wordBank: layout.order.map(index => component.items[index].answer) };
@@ -141,6 +152,27 @@
       return { ...previous, selectedId: null, placed: correct ? [...placed, action.itemId] : placed,
         attempt: { ...(action.attemptId ? { id: action.attemptId } : {}),
           sequence: (previous.attempt?.sequence || 0) + 1, itemId: action.itemId, targetId: action.targetId, correct },
+      };
+    }
+    if (component.type === 'lineOrder') {
+      // The server holds the author data and the layout, clients the presentation with its answer key.
+      const { answerKey, lines } = layout ? presentation(component, layout) : component;
+      const order = previous.order || lines.map(line => line.id), locked = previous.locked || [];
+      if (locked.length === answerKey.length) fail('Порядок уже собран.');
+      if (action.type === 'move-line') {
+        const free = order.filter(id => !locked.includes(id) && id !== action.itemId);
+        if (!order.includes(action.itemId) || locked.includes(action.itemId)) fail('Строку нельзя передвинуть.');
+        if (!Number.isInteger(action.toIndex) || action.toIndex < 0 || action.toIndex > free.length) fail('Некорректная позиция строки.');
+        // Locked lines keep their places; the others fill the free places in their new order.
+        free.splice(action.toIndex, 0, action.itemId);
+        return { ...previous, order: order.map(id => (locked.includes(id) ? id : free.shift())),
+          ...(previous.check ? { check: { ...previous.check, stale: true } } : {}) };
+      }
+      if (action.type !== 'check-order') fail('Неизвестное действие.');
+      const nextLocked = order.filter((id, index) => id === answerKey[index]);
+      return { ...previous, order, locked: nextLocked,
+        check: { ...(action.checkId ? { id: action.checkId } : {}),
+          sequence: (previous.check?.sequence || 0) + 1, correct: nextLocked.length, total: answerKey.length },
       };
     }
     if (component.type === 'factOrMyth') {

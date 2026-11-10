@@ -10,6 +10,7 @@
     sentenceBuilder: ['SentenceBuilderComponent', 'renderSentenceBuilder'],
     sentenceMatching: ['SentenceMatchingComponent', 'renderSentenceMatching'],
     categorySort: ['CategorySortComponent', 'renderCategorySort'],
+    lineOrder: ['LineOrderComponent', 'renderLineOrder'],
     sentenceCorrection: ['SentenceCorrectionComponent', 'renderSentenceCorrection'],
     fillInBlanks: ['FillInBlanksComponent', 'renderFillInBlanks'],
     dragWordsInText: ['DragWordsInTextComponent', 'renderDragWordsInText'],

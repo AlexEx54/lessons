@@ -1,0 +1,94 @@
+.line-order { container: line-order / inline-size; position: relative; min-width: 0; padding: 20px; border: 1px solid #e7e3f4; border-radius: 12px; color: #24222b; background: #fff; box-shadow: 0 4px 16px rgba(39, 32, 76, .035); }
+.line-order [hidden] { display: none !important; }
+.line-order__heading { display: flex; align-items: center; min-height: 30px; gap: 8px 16px; }
+.line-order__title { flex: 1; margin: 0; color: #17182d; font-size: 18px; line-height: 1.35; }
+.line-order__instruction { margin: 3px 0 16px; color: #656a80; font-size: 12px; line-height: 1.5; }
+
+.line-order__list { position: relative; display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.line-order__row { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.line-order__row--lifted { z-index: 5; }
+.line-order--dragging, .line-order--dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+/* In a dialogue the bubble can sit far from the controls; a soft row tint ties them together. */
+.line-order--dialogue .line-order__row { padding: 3px; border-radius: 12px; transition: background-color 160ms ease; }
+.line-order--dialogue .line-order__row--lifted { background: #fbfaff; }
+/* Only the handle takes the drag, so the rest of the row still scrolls the page on a phone. */
+.line-order__handle { flex: 0 0 28px; align-self: stretch; display: grid; place-items: center; min-height: 40px; border-radius: 7px; color: #9691ad; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; transition: background-color 160ms ease, color 160ms ease; }
+.line-order__handle::before { content: '⋮⋮'; font-size: 15px; letter-spacing: -2px; line-height: 1; }
+.line-order__row--lifted .line-order__handle { color: var(--purple); background: var(--purple-soft); }
+.line-order--static .line-order__handle { cursor: default; }
+.line-order__moves { flex: 0 0 auto; display: grid; gap: 4px; }
+.line-order__move { display: grid; place-items: center; width: 32px; height: 26px; padding: 0; border: 1px solid #dcd6e8; border-radius: 7px; color: var(--purple); background: #fff; cursor: pointer; }
+.line-order__move svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.line-order__move:disabled { opacity: .35; cursor: default; }
+.line-order__move:focus-visible, .line-order__check:focus-visible { outline: 3px solid rgba(101, 69, 245, .26); outline-offset: 2px; }
+
+/* Story: numbered event cards. */
+.line-order__card { flex: 1 1 auto; display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 54px; padding: 10px 14px; border: 1px solid #e7e3f4; border-radius: 10px; background: #fff; box-shadow: 0 2px 6px rgba(39, 32, 76, .04); transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease; }
+.line-order__num { flex: 0 0 auto; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: var(--purple); background: var(--purple-soft); font-size: 12px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.line-order__text { min-width: 0; color: #2c2933; font-size: 14px; font-weight: 500; line-height: 1.45; overflow-wrap: anywhere; }
+
+/* Dialogue: messenger bubbles, the first speaker on the left, the second on the right. */
+.line-order__line { flex: 1 1 auto; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.line-order__row--right .line-order__line { align-items: flex-end; }
+.line-order__speaker { margin: 0 8px 4px; color: #7b6fae; font-size: 11px; font-weight: 750; letter-spacing: .02em; }
+.line-order__bubble { max-width: min(78%, 520px); margin: 0; padding: 10px 14px; border: 1px solid #ddd5ee; border-radius: 16px 16px 16px 5px; color: #29243e; background: #f0ecfb; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease; }
+.line-order__row--right .line-order__bubble { border-color: #d8c6ee; border-radius: 16px 16px 5px 16px; background: #e8daf6; }
+
+.line-order__row--lifted .line-order__card, .line-order__row--lifted .line-order__bubble { border-color: #9d89f6; box-shadow: 0 13px 30px rgba(54, 35, 139, .18); }
+.line-order__row--not-yet .line-order__card, .line-order__row--not-yet .line-order__bubble { border-color: #ecd3a2; background: #fffaf0; }
+.line-order__row--locked .line-order__card { border-color: #a9ddb9; background: #effaf2; box-shadow: none; }
+.line-order__row--locked .line-order__num { color: #fff; background: #20a85b; }
+.line-order__row--locked .line-order__text { color: #285d43; }
+.line-order__row--locked .line-order__bubble { border-color: #b4d9c4; color: #285d43; background: #e5f4ec; }
+.line-order__row--locked .line-order__speaker { color: #4f8a65; }
+.line-order__row--locked .line-order__handle { cursor: default; color: #21a85b; background: transparent; }
+.line-order__row--locked .line-order__handle::before { content: '✓'; font-size: 15px; font-weight: 800; letter-spacing: 0; }
+.line-order__row--locked .line-order__moves { visibility: hidden; }
+.line-order__row--landed .line-order__handle { animation: line-order-pop 320ms ease-out; }
+.line-order__row--nudge .line-order__card, .line-order__row--nudge .line-order__bubble { animation: line-order-nudge 300ms ease; }
+
+.line-order__footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 18px; }
+.line-order__note { flex: 1 1 auto; min-width: 0; margin: 0; color: #8a6d47; font-size: 13px; font-weight: 650; line-height: 1.45; }
+.line-order__check { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; margin-left: auto; padding: 0 22px; border: 0; border-radius: 10px; color: #fff; background: var(--purple); box-shadow: 0 6px 14px rgba(101, 69, 245, .22); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+/* A touch screen keeps :hover after a tap, which would leave a dragged row looking picked up. */
+@media (hover: hover) {
+  .line-order--dialogue:not(.line-order--static) .line-order__row:hover:not(.line-order__row--locked) { background: #fbfaff; }
+  .line-order:not(.line-order--static) .line-order__row:not(.line-order__row--locked) .line-order__handle:hover { color: var(--purple); background: var(--purple-soft); }
+  .line-order__move:hover:not(:disabled) { background: #f8f6ff; border-color: #c8bcfa; }
+  .line-order__check:hover:not(:disabled) { background: #5737e6; }
+}
+.line-order__check:disabled { opacity: .45; box-shadow: none; cursor: default; }
+
+.line-order__done { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding: 13px 16px; border: 1px solid #8ad9a8; border-radius: 11px; color: #16894a; background: #fbfffc; box-shadow: 0 3px 12px rgba(32, 168, 91, .04); animation: line-order-done 320ms cubic-bezier(.2, .8, .2, 1.1) both; }
+.line-order__done:focus { outline: none; }
+.line-order__done:focus-visible { outline: 3px solid rgba(32, 168, 91, .25); outline-offset: 2px; }
+.line-order__done-icon { flex: 0 0 auto; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: #fff; background: #20a85b; box-shadow: 0 4px 10px rgba(32, 168, 91, .25); }
+.line-order__done-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.line-order__done-title { display: block; font-size: 14px; font-weight: 750; }
+.line-order__done-detail { display: block; margin-top: 1px; color: #4f8a65; font-size: 12px; }
+.line-order__status { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+@keyframes line-order-done { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes line-order-pop { 0% { transform: scale(1); } 45% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@keyframes line-order-nudge { 25% { transform: translateX(-3px); } 55% { transform: translateX(3px); } 80% { transform: translateX(-2px); } }
+
+@media (max-width: 560px) {
+  .line-order { padding: 15px 12px; }
+  .line-order__title { font-size: 16px; }
+}
+/* A narrow column (phone, or the lesson plan open): tighter rows and a full-width Check. */
+@container line-order (max-width: 520px) {
+  .line-order__list { gap: 8px; }
+  .line-order__row { gap: 6px; }
+  .line-order__handle { flex-basis: 22px; }
+  .line-order__move { width: 30px; height: 28px; }
+  .line-order__card { gap: 9px; min-height: 50px; padding: 9px 10px; }
+  .line-order__num { width: 22px; height: 22px; font-size: 11px; }
+  .line-order__text, .line-order__bubble { font-size: 13px; }
+  .line-order__bubble { max-width: 92%; padding: 8px 11px; }
+  .line-order__footer { flex-wrap: wrap; }
+  .line-order__check { flex: 1 1 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .line-order * { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+}
