@@ -57,6 +57,12 @@
         targets: component.items.map((item, index) => ({ id: layout.pictureIds[index], ...(item.imageSrc ? { imageSrc: item.imageSrc } : {}) })),
       };
     }
+    if (type === 'categorySort') {
+      return { ...base, categories: component.categories.map(({ id, title }) => ({ id, title })),
+        items: layout.order.map(index => ({ id: component.items[index].id, text: component.items[index].text })),
+        answerKey: Object.fromEntries(component.items.map(item => [item.id, item.categoryId])),
+      };
+    }
     if (type === 'dropdownChoice') return { ...base, text: component.text, accentColor: component.accentColor || '#17182D', answerKey: Object.fromEntries(component.choices.map(choice => [choice.id, choice.answer])), choices: component.choices.map(({ id, options }) => ({ id, options })) };
     if (type === 'fillInBlanks') return { ...base, items: component.items.map(({ id, before, after }) => ({ id, before, after })), wordBank: layout.order.map(index => component.items[index].answer) };
     return component;
@@ -118,6 +124,23 @@
       return { ...previous, selectedId: null,
         matches: correct ? { ...matches, [action.itemId]: action.targetId } : matches,
         attempt: { ...(action.attemptId ? { id: action.attemptId } : {}), sequence: (previous.attempt?.sequence || 0) + 1, itemId: action.itemId, targetId: action.targetId, correct },
+      };
+    }
+    if (component.type === 'categorySort') {
+      // Accepts the author data on the server and the presentation (with its answer key) on clients.
+      const answerKey = component.answerKey || Object.fromEntries(component.items.map(item => [item.id, item.categoryId]));
+      const placed = previous.placed || [];
+      const available = id => Object.hasOwn(answerKey, id) && !placed.includes(id);
+      if (action.type === 'select-word') {
+        if (action.itemId !== null && !available(action.itemId)) fail('Карточка недоступна.');
+        return { ...previous, selectedId: action.itemId };
+      }
+      if (action.type !== 'match-word') fail('Неизвестное действие.');
+      if (!available(action.itemId) || !component.categories.some(category => category.id === action.targetId)) fail('Карточка или группа недоступна.');
+      const correct = answerKey[action.itemId] === action.targetId;
+      return { ...previous, selectedId: null, placed: correct ? [...placed, action.itemId] : placed,
+        attempt: { ...(action.attemptId ? { id: action.attemptId } : {}),
+          sequence: (previous.attempt?.sequence || 0) + 1, itemId: action.itemId, targetId: action.targetId, correct },
       };
     }
     if (component.type === 'factOrMyth') {

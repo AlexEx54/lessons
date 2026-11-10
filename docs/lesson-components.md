@@ -1235,3 +1235,73 @@ lowercase kebab-case значения. `title`, `instruction`, `text` и отв�
 `createSentenceCorrectionAnswerKey` создаёт существующий `markdownCard` с ID
 `${component.id}-answer-key`, заголовком `Answer key`, двумя колонками и
 `studentVisibility: teacherOnly`. Все допустимые варианты берутся из задания.
+
+## Category Sort
+
+`categorySort` — «Разложи по группам»: ученик раскладывает карточки со словами
+или фразами по 2–4 корзинкам-группам. Нажимает карточку, затем корзинку, или
+перетаскивает карточку на корзинку.
+
+```json
+{
+  "type": "categorySort",
+  "id": "warm-up-category-sort",
+  "title": "At the café: who says it?",
+  "instruction": "Tap a phrase, then tap the right basket. You can also drag it.",
+  "categories": [
+    { "id": "customer", "title": "Customer" },
+    { "id": "waiter", "title": "Waiter" }
+  ],
+  "items": [
+    { "id": "menu", "text": "Can I have the menu, please?", "categoryId": "customer" },
+    { "id": "ready", "text": "Are you ready to order?", "categoryId": "waiter" },
+    { "id": "bill", "text": "Could we have the bill, please?", "categoryId": "customer" },
+    { "id": "drink", "text": "Anything to drink?", "categoryId": "waiter" }
+  ]
+}
+```
+
+Поля:
+
+- `type` — строго `categorySort`; других полей, кроме перечисленных, нет.
+- `id`, `categories[].id`, `items[].id` — lowercase kebab-case; id групп и id
+  карточек уникальны.
+- `title` и `instruction` — непустой plain text до 1000 символов.
+- `categories` — 2–4 группы в порядке показа; `title` до 40 символов, названия
+  различны без учёта регистра. Длинное название сжимается до двух строк с
+  многоточием, полностью оно видно во всплывающей подсказке.
+- `items` — 4–16 карточек; `text` до 80 символов, тексты различны без учёта
+  регистра; `categoryId` — id одной из групп. В каждой группе минимум одна карточка.
+- HTML и Markdown во всех строках запрещены; пробелы нормализуются.
+
+Проверка идёт сразу, по одной карточке. Верная карточка улетает в корзинку,
+счётчик на корзинке растёт. Неверная возвращается в набор, корзинка вздрагивает
+и показывает ×. Нажатие на корзинку без выбранной карточки открывает панель с её
+словами в порядке, в котором их положили. Когда разложено всё, появляется
+«All sorted!», а под каждой корзинкой — постоянный список её слов. Answer Key в
+компонент не встроен: ответы — это сами `categoryId`.
+
+В живом классе порядок карточек в наборе перемешивается один раз на занятие и
+хранится в `_layouts` (`{ order }`); порядок корзинок — авторский. Участники
+получают `presentation`: `{ type, id, title, instruction, categories, items:
+[{ id, text }], answerKey: { [itemId]: categoryId } }`, где `items` идут в порядке
+раскладки.
+
+Общее состояние: `{ selectedId, placed, attempt }`. `selectedId` — выбранная
+карточка или `null`; `placed` — id верно разложенных карточек в порядке, в котором
+их положили (группа восстанавливается по `answerKey`); `attempt` — последняя
+попытка `{ id?, sequence, itemId, targetId, correct }`, где `targetId` — id группы.
+Неверная попытка `placed` не меняет. Открытая панель с содержимым корзинки —
+локальное состояние интерфейса; её может открыть и наблюдающий участник.
+
+Действия (ученик и преподаватель):
+
+- `select-word` с `itemId` (или `null`) — выбрать карточку, которая ещё не
+  разложена.
+- `match-word` с `itemId`, `targetId` и необязательным `attemptId` — положить
+  карточку в группу. Карточка должна существовать и ещё не лежать в корзинке,
+  группа — существовать. После попытки выбор снимается.
+
+Анимации запускаются по новой попытке, поэтому их видят оба участника; при
+открытии уже решённого задания они не проигрываются. Сброс стадии очищает
+состояние, раскладка остаётся прежней.

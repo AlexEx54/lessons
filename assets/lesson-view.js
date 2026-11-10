@@ -9,6 +9,7 @@
     gapFill: ['GapFillComponent', 'renderGapFill'],
     sentenceBuilder: ['SentenceBuilderComponent', 'renderSentenceBuilder'],
     sentenceMatching: ['SentenceMatchingComponent', 'renderSentenceMatching'],
+    categorySort: ['CategorySortComponent', 'renderCategorySort'],
     sentenceCorrection: ['SentenceCorrectionComponent', 'renderSentenceCorrection'],
     fillInBlanks: ['FillInBlanksComponent', 'renderFillInBlanks'],
     dragWordsInText: ['DragWordsInTextComponent', 'renderDragWordsInText'],

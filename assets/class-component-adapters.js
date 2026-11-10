@@ -108,7 +108,7 @@
       },
     }],
   ]);
-  for (const type of ['dragWordsInText', 'matchWords', 'sentenceBuilder', 'sentenceMatching', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'oddOneOut', 'factOrMyth', 'checkboxChoice', 'gapFill', 'miniSituation', 'sentenceCorrection']) {
+  for (const type of ['dragWordsInText', 'matchWords', 'sentenceBuilder', 'sentenceMatching', 'categorySort', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'oddOneOut', 'factOrMyth', 'checkboxChoice', 'gapFill', 'miniSituation', 'sentenceCorrection']) {
     adapters.set(type, {
       options(component, session) {
         return {
@@ -132,7 +132,7 @@
         const previous = state.exercises?.[action.componentId] || {};
         let next = previous;
         // Reapply queued actions with the same rules as the component and server.
-        if (type === 'sentenceBuilder' || type === 'sentenceCorrection' || type === 'gapFill' || type === 'miniSituation' || type === 'dragWordsInText' || type === 'dropdownChoice' || type === 'matchWords' || type === 'sentenceMatching' || type === 'multipleChoice' || type === 'oddOneOut' || type === 'factOrMyth' || type === 'checkboxChoice') {
+        if (type === 'sentenceBuilder' || type === 'sentenceCorrection' || type === 'gapFill' || type === 'miniSituation' || type === 'dragWordsInText' || type === 'dropdownChoice' || type === 'matchWords' || type === 'sentenceMatching' || type === 'categorySort' || type === 'multipleChoice' || type === 'oddOneOut' || type === 'factOrMyth' || type === 'checkboxChoice') {
           next = window.ExerciseState.apply(component.presentation, previous, action);
           state.exercises = { ...state.exercises, [action.componentId]: next };
           return;

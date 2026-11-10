@@ -17,7 +17,7 @@
     if (!['teacher', 'student'].includes(role)) fail('Нет доступа к ответам.', 403);
   }
 
-  const exerciseTypes = new Set(['dragWordsInText', 'matchWords', 'sentenceBuilder', 'sentenceMatching', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'oddOneOut', 'factOrMyth', 'checkboxChoice', 'gapFill', 'miniSituation', 'sentenceCorrection']);
+  const exerciseTypes = new Set(['dragWordsInText', 'matchWords', 'sentenceBuilder', 'sentenceMatching', 'categorySort', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'oddOneOut', 'factOrMyth', 'checkboxChoice', 'gapFill', 'miniSituation', 'sentenceCorrection']);
   function hasControlledExerciseVisibility(component) {
     return component.type === 'describeAndGuess'
       || (component.type === 'gapFill' && component.studentVisibility === 'controlled');
@@ -186,7 +186,7 @@
     handlers.get(component.type)?.clearState?.(context);
   }
   const availableStageIds = content => content.stages.filter(stage => stage.content?.length).map(stage => stage.id);
-  const layoutTypes = new Set(['matchWords', 'sentenceBuilder', 'sentenceMatching', 'fillInBlanks']);
+  const layoutTypes = new Set(['matchWords', 'sentenceBuilder', 'sentenceMatching', 'categorySort', 'fillInBlanks']);
   function initialState(content) {
     const activeStageId = availableStageIds(content)[0];
     if (!activeStageId) fail('В классе нет доступных стадий.', 409);
