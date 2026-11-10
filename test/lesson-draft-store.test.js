@@ -12,6 +12,7 @@ const {
   publishLessonDraft,
   retryLessonDraft,
   updateAudioPlayer,
+  updateCategorySort,
   updateAudioPlayerAudio,
   updateDescribeAndGuess,
   updateHowToPlay,
@@ -541,6 +542,38 @@ test('drag words in text copy, bank, and gaps can be updated only in an owned re
     id: ready.id, ownerAdminId: owner.id, componentId: 'complete-the-rule',
     title: 'Title', instruction: 'Instruction', words: ['past', 'future'], text: 'A [[past]].',
   }, database), /только черновик на проверке/);
+  database.close();
+});
+
+test('category sort groups and cards can be updated only in an owned review draft', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'sort-owner');
+  const outsider = admin(database, 'sort-outsider');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Sort', template: 'template-1' }, database);
+  const exercise = {
+    type: 'categorySort', id: 'food-sort', title: 'Sort the food.', instruction: 'Put each card into its basket.',
+    categories: [{ id: 'fruit', title: 'Fruit' }, { id: 'drinks', title: 'Drinks' }],
+    items: [
+      { id: 'apple', text: 'apple', categoryId: 'fruit' }, { id: 'pear', text: 'pear', categoryId: 'fruit' },
+      { id: 'tea', text: 'tea', categoryId: 'drinks' }, { id: 'milk', text: 'milk', categoryId: 'drinks' },
+    ],
+  };
+  const ready = completeLessonDraft(pending.id, owner.id, { stages: [{ content: [exercise] }] }, database);
+  const changes = {
+    title: ' Food ', instruction: exercise.instruction,
+    categories: [...exercise.categories, { id: 'group-1', title: 'Sweets' }],
+    items: [...exercise.items.slice(1), { id: 'card-1', text: ' ice   cream ', categoryId: 'group-1' }],
+  };
+  const update = overrides => updateCategorySort({ id: ready.id, ownerAdminId: owner.id, componentId: 'food-sort', ...changes, ...overrides }, database);
+  assert.deepEqual(update({}).content.stages[0].content[0], {
+    ...exercise, ...changes, title: 'Food', items: [...exercise.items.slice(1), { id: 'card-1', text: 'ice cream', categoryId: 'group-1' }],
+  });
+  assert.throws(() => update({ items: changes.items.slice(1) }), error => error.statusCode === 400 && /Нужно от 4 до 16 карточек/.test(error.message));
+  assert.throws(() => update({ items: changes.items.map(item => (item.id === 'pear' ? { ...item, categoryId: 'drinks' } : item)) }), /В группе «Fruit» нет карточек/);
+  assert.throws(() => update({ ownerAdminId: outsider.id }), error => error.statusCode === 404 && /Черновик урока не найден/.test(error.message));
+  assert.throws(() => update({ componentId: 'missing' }), error => error.statusCode === 404);
+  publishLessonDraft(ready.id, owner.id, database);
+  assert.throws(() => update({}), error => error.statusCode === 409);
   database.close();
 });
 

@@ -1,7 +1,7 @@
 .category-sort { container: category-sort / inline-size; position: relative; min-width: 0; padding: 20px; border: 1px solid #e7e3f4; border-radius: 12px; color: #24222b; background: #fff; box-shadow: 0 4px 16px rgba(39, 32, 76, .035); }
 .category-sort [hidden] { display: none !important; }
-.category-sort__heading { display: flex; align-items: center; justify-content: space-between; min-height: 30px; gap: 16px; }
-.category-sort__title { margin: 0; color: #17182d; font-size: 18px; line-height: 1.35; }
+.category-sort__heading { display: flex; align-items: center; min-height: 30px; gap: 8px 16px; }
+.category-sort__title { flex: 1; margin: 0; color: #17182d; font-size: 18px; line-height: 1.35; }
 .category-sort__instruction { margin: 3px 0 16px; color: #656a80; font-size: 12px; line-height: 1.5; }
 .category-sort__progress { flex: 0 0 auto; padding: 5px 11px; border-radius: 999px; color: var(--purple); background: var(--purple-soft); font-size: 12px; font-weight: 750; font-variant-numeric: tabular-nums; }
 .category-sort--done .category-sort__progress { color: #168c48; background: #effaf2; }
@@ -86,6 +86,23 @@
 .category-sort--short .category-sort__chip { min-height: 42px; padding-block: 8px; font-size: 14px; }
 .category-sort__status { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
+/* Draft editor: the buttons and fields look like those of the other exercise editors. */
+.category-sort__edit, .category-sort__cancel { flex: none; border: 1px solid #ded8ef; border-radius: 8px; padding: 6px 10px; color: #6545f5; background: #faf8ff; font: inherit; font-size: 13px; cursor: pointer; }
+.category-sort__editor { display: grid; gap: 12px; }
+.category-sort__editor-label, .category-sort__editor-caption { display: flex; flex-direction: column; gap: 6px; color: #656a80; font-size: 12px; }
+.category-sort__editor-input, .category-sort__editor-select { width: 100%; box-sizing: border-box; border: 1px solid #ded8ef; border-radius: 6px; padding: 9px; color: #29243e; background: #fff; font: inherit; font-size: 13px; }
+/* Two group blocks side by side only where a card still has room for a phrase. */
+.category-sort__editor-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 12px; }
+.category-sort__editor-group { display: grid; align-content: start; gap: 8px; padding: 12px; border: 1px solid #e7e3f4; border-radius: 10px; background: #fdfcfe; }
+.category-sort__editor-row { display: flex; align-items: center; gap: 6px; }
+.category-sort__editor-row .category-sort__editor-input { flex: 1; min-width: 0; }
+.category-sort .category-sort__editor-name { font-weight: 700; }
+.category-sort__editor-select { flex: 0 0 38%; width: 38%; padding-inline: 6px; }
+.category-sort__editor-remove { flex: none; width: 32px; height: 32px; padding: 0; border: 1px solid #ded8ef; border-radius: 6px; color: #8a8ea0; background: #fff; font: inherit; font-size: 16px; cursor: pointer; }
+.category-sort__editor-add { justify-self: start; border: 1px dashed #c9bcf7; border-radius: 8px; padding: 6px 10px; color: #6545f5; background: transparent; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.category-sort__editor button:disabled, .category-sort__heading button:disabled { opacity: .45; cursor: default; }
+.category-sort__editor-error { margin: 0 0 12px; color: #b23535; font-size: 13px; }
+
 @keyframes category-sort-done { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes category-sort-shake { 25% { transform: translateX(-3px); } 55% { transform: translateX(3px); } 80% { transform: translateX(-2px); } }
 @keyframes category-sort-mark { from { opacity: 0; transform: translate(-50%, -50%) scale(.55); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
@@ -108,6 +125,11 @@
   .category-sort__basket { width: min(100%, 150px); }
   .category-sort__count { min-width: 22px; height: 22px; font-size: 11px; }
   .category-sort__mark { width: 24px; height: 24px; font-size: 15px; }
+  /* A card's text takes the whole line; its group and the remove button go below. */
+  .category-sort__editor-card { flex-wrap: wrap; }
+  .category-sort__editor-card .category-sort__editor-input { flex: 1 0 100%; }
+  .category-sort__editor-card .category-sort__editor-select { flex: 1; width: auto; }
+  .category-sort__editor-card + .category-sort__editor-card { padding-top: 8px; border-top: 1px solid #eeeaf6; }
 }
 @media (prefers-reduced-motion: reduce) {
   .category-sort *, .category-sort__ghost { transition-duration: 1ms !important; animation-duration: 1ms !important; }

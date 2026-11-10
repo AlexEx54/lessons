@@ -228,3 +228,85 @@ test('the lesson view renders the exercise and both lesson pages load it after t
     assert.ok(html.indexOf('/assets/components/exercise-state.js') < html.indexOf('/assets/components/category-sort.js'), page);
   }
 });
+
+test('the draft editor appears only with onSave and edits groups and cards within the limits', async () => {
+  const fire = async (node, event = 'click') => { for (const listener of node.listeners[event] || []) await listener({}); };
+  const type = (field, value) => { field.value = value; return fire(field, 'input'); };
+  assert.equal(renderCategorySort(source, {}, createDocument()).querySelector('.category-sort__edit'), null);
+  assert.equal(renderCategorySort(source, { presentation: projected, onSave() {} }, createDocument()).querySelector('.category-sort__edit'), null);
+
+  const saved = [], dirty = [];
+  let reject = true;
+  const node = renderCategorySort(source, { onDirtyChange: value => dirty.push(value), onSave: async (changes, id) => {
+    if (reject) throw new Error('Нет связи.');
+    saved.push([changes, id]);
+    return { ...source, ...changes };
+  } }, createDocument());
+  const editor = node.querySelector('.category-sort__editor'), error = node.querySelector('.category-sort__editor-error');
+  const blocks = () => editor.querySelectorAll('.category-sort__editor-group');
+  const inputs = block => block.querySelectorAll('.category-sort__editor-input');
+  const button = (root, name, index = 0) => root.querySelectorAll(`.category-sort__${name}`)[index];
+  const edit = node.querySelector('.category-sort__edit');
+  await fire(edit);
+  assert.equal(node.querySelector('.category-sort__board').hidden, true);
+  assert.equal(editor.hidden, false);
+  assert.deepEqual(blocks().map(block => inputs(block).map(field => field.value)), [
+    ['Customer', 'Can I have the menu, please?', 'Could we have the bill, please?'], ['Waiter', 'Are you ready to order?', 'Anything to drink?'],
+  ]);
+  // Two groups and four cards are the minimum; a new group comes with an empty card.
+  assert.ok(editor.querySelectorAll('.category-sort__editor-remove').every(remove => remove.disabled));
+  await type(inputs(blocks()[1])[0], 'Server');
+  assert.equal(dirty.at(-1), true);
+  assert.deepEqual(editor.querySelectorAll('option').map(option => option.textContent), ['Customer', 'Server', 'Customer', 'Server', 'Customer', 'Server', 'Customer', 'Server']);
+  await fire(button(editor, 'editor-add', 2));
+  assert.equal(blocks().length, 3);
+  assert.deepEqual(inputs(blocks()[2]).map(field => field.value), ['', '']);
+  await fire(edit);
+  assert.equal(error.textContent, 'Название группы 3: нужен текст.');
+  assert.equal(saved.length, 0);
+  await type(inputs(blocks()[2])[0], 'Cook');
+  await type(inputs(blocks()[2])[1], 'Your soup is ready.');
+  // Moving the last card of a group away leaves it empty.
+  const select = blocks()[2].querySelector('.category-sort__editor-select');
+  select.value = 'customer'; await fire(select, 'change');
+  assert.equal(blocks()[2].querySelectorAll('.category-sort__editor-select').length, 0);
+  await fire(edit);
+  assert.equal(error.textContent, 'В группе «Cook» нет карточек.');
+  const moved = blocks()[0].querySelectorAll('.category-sort__editor-select')[2];
+  moved.value = 'group-1'; await fire(moved, 'change');
+  await fire(button(blocks()[0], 'editor-add'));
+  await type(inputs(blocks()[0])[3], 'can i have the menu, please?');
+  await fire(edit);
+  assert.equal(error.textContent, 'Повторяется карточка: «can i have the menu, please?».');
+  await type(inputs(blocks()[0])[3], 'A table for two, please.');
+  await fire(edit);
+  assert.equal(error.textContent, 'Нет связи.');
+  assert.equal(editor.hidden, false);
+
+  reject = false;
+  await fire(edit);
+  const [[changes, id]] = saved;
+  assert.equal(id, source.id);
+  assert.deepEqual(Object.keys(changes), ['title', 'instruction', 'categories', 'items']);
+  assert.deepEqual(changes.categories, [{ id: 'customer', title: 'Customer' }, { id: 'waiter', title: 'Server' }, { id: 'group-1', title: 'Cook' }]);
+  assert.deepEqual(changes.items.map(item => [item.id, item.categoryId]), [
+    ['menu', 'customer'], ['ready', 'waiter'], ['bill', 'customer'], ['drink', 'waiter'], ['card-1', 'group-1'], ['card-2', 'customer'],
+  ]);
+  assert.deepEqual([editor.hidden, error.hidden, node.querySelector('.category-sort__board').hidden, dirty.at(-1)], [true, true, false, false]);
+  assert.equal(node.querySelectorAll('.category-sort__chip').length, 6);
+  assert.equal(node.querySelectorAll('.category-sort__group').length, 3);
+  assert.equal(text(node, 'progress'), '0 / 6');
+
+  // Removing a group takes its cards; cancelling keeps the saved exercise.
+  await fire(edit);
+  await fire(button(blocks()[2], 'editor-remove'));
+  assert.equal(blocks().length, 2);
+  await fire(node.querySelector('.category-sort__cancel'));
+  assert.equal(editor.hidden, true);
+  assert.equal(node.querySelectorAll('.category-sort__group').length, 3);
+  await fire(edit);
+  assert.equal(blocks().length, 3);
+  node.listeners.keydown[0]({ key: 'Escape' });
+  assert.equal(editor.hidden, true);
+  node.dispose();
+});

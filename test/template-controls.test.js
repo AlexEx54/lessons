@@ -381,3 +381,39 @@ test('a Sentence Builder block keeps bracketed phrases on one card and drops ord
   assert.throws(() => control.build({ items: [items[0], { sentence: 'Phones [are bad.', otherOrders: [] }] }, context),
     /builder: предложении 2: Проверьте квадратные скобки/);
 });
+
+test('a Category Sort block asks for equal groups, numbers its groups and cards and keys each group', t => {
+  const warn = silentWarnings(t);
+  const control = CONTROL_CATALOG.get('categorySort');
+  const definition = singleBlockTemplate(control, { groups: 2, cardsPerGroup: 3 });
+  const template = compileTemplate(definition, CONTROL_CATALOG);
+  const { schema } = template.request('checked', { inputs: { topic: 'Topic' }, variables: exampleRun(template).variables });
+  const groups = schema.properties.groups;
+  assert.deepEqual([groups.minItems, groups.maxItems, groups.items.properties.cards.minItems, groups.items.properties.cards.maxItems], [2, 2, 3, 3]);
+  const [, checked] = exampleRun(template).lesson.stages;
+  const [component, key] = checked.content;
+  assert.deepEqual(component.categories, [{ id: 'group-1', title: 'Fruit' }, { id: 'group-2', title: 'Vegetables' }]);
+  assert.deepEqual(component.items.map(item => [item.id, item.categoryId]), [
+    ['card-1', 'group-1'], ['card-2', 'group-1'], ['card-3', 'group-1'], ['card-4', 'group-2'], ['card-5', 'group-2'], ['card-6', 'group-2'],
+  ]);
+  assert.deepEqual([component.title, component.instruction], ['Sort the cards into groups.', 'Put each card into the right basket.']);
+  assert.deepEqual(key.sections.map(section => section.text), ['**Fruit:** apple, banana, cherry.', '**Vegetables:** carrot, potato, onion.']);
+
+  const context = { id: 'sort', params: { groups: 2, cardsPerGroup: 2 }, chrome: { title: 'Food' } };
+  const built = control.build({ groups: [
+    { title: ' *Fruit* ', cards: ['an   apple', 'a pear'] }, { title: 'Drinks', cards: ['tea', 'milk'] },
+  ] }, context);
+  assert.deepEqual([built.title, built.categories[0].title, built.items[0].text], ['Food', 'Fruit', 'an apple']);
+  assert.deepEqual(warnings(warn), ['«Food»: убрана Markdown-разметка в группе 1.']);
+  const fruit = { title: 'Fruit', cards: ['apple', 'pear'] };
+  for (const [groups, message] of [
+    [[fruit], /нужно ровно 2 \(групп\), получено 1/],
+    [[fruit, { title: 'Drinks', cards: ['tea'] }], /нужно ровно 2 \(карточек в группе 2\), получено 1/],
+    [[fruit, { title: 'fruit', cards: ['tea', 'milk'] }], /названия групп не должны повторяться/],
+    [[fruit, { title: 'Drinks', cards: ['tea', 'Apple'] }], /карточки не должны повторяться/],
+    [[fruit, { title: 'Drinks', cards: ['tea', ' '] }], /не заполнено: карточка в группе 2/],
+    [[fruit, { title: 'D'.repeat(41), cards: ['tea', 'milk'] }], /название группы 2 длиннее 40 символов/],
+    [[fruit, { title: 'Drinks', cards: ['tea', 'm'.repeat(81)] }], /карточка в группе 2 длиннее 80 символов/],
+    [[fruit, { title: 'Drinks', cards: ['tea', '<b>milk</b>'] }], /Карточка в группе «Drinks»: уберите HTML-разметку/],
+  ]) assert.throws(() => control.build({ groups }, context), message);
+});

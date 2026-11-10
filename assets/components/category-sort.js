@@ -3,42 +3,51 @@
   const model = root.ExerciseState || (typeof require === 'function' ? require('./exercise-state.js') : null);
   const ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   const SVG = 'http://www.w3.org/2000/svg';
-  function plain(value, max) {
-    if (typeof value !== 'string' || !value.trim() || value.length > max || /<[^>]*>/.test(value)) {
-      throw new Error(`Category Sort requires plain text (1–${max} characters).`);
-    }
+  const MAX_GROUPS = 4, MAX_CARDS = 16, MIN_CARDS = 4, MAX_TITLE = 40, MAX_CARD = 80;
+  // The messages are for the teacher: the draft editor and the template controls show them as they are.
+  function fail(message) { throw new Error(message); }
+  function plain(value, max, label) {
+    if (typeof value !== 'string' || !value.trim()) fail(`${label}: нужен текст.`);
+    if (/<[^>]*>/.test(value)) fail(`${label}: уберите HTML-разметку.`);
+    if (value.length > max) fail(`${label}: не больше ${max} символов.`);
     return value.trim().replace(/\s+/g, ' ');
   }
   function keys(value, allowed) {
     if (!value || typeof value !== 'object' || Array.isArray(value)
-      || Object.keys(value).some(key => !allowed.includes(key))) throw new Error('Unsupported Category Sort fields.');
+      || Object.keys(value).some(key => !allowed.includes(key))) fail('Неподдерживаемые поля в задании «Разложи по группам».');
   }
-  function unique(values, message) {
-    const seen = new Set(values.map(value => value.toLowerCase()));
-    if (seen.size !== values.length) throw new Error(message);
+  function unique(values, what) {
+    const seen = new Set();
+    for (const value of values) {
+      if (seen.has(value.toLowerCase())) fail(`Повторяется ${what}: «${value}».`);
+      seen.add(value.toLowerCase());
+    }
   }
+  const validId = value => typeof value === 'string' && ID.test(value);
   function normalizeCategorySort(data) {
     keys(data, ['type', 'id', 'title', 'instruction', 'categories', 'items']);
-    if (data.type !== 'categorySort' || typeof data.id !== 'string' || !ID.test(data.id)) throw new Error('Invalid Category Sort id.');
-    if (!Array.isArray(data.categories) || data.categories.length < 2 || data.categories.length > 4) throw new Error('Category Sort requires 2–4 groups.');
-    if (!Array.isArray(data.items) || data.items.length < 4 || data.items.length > 16) throw new Error('Category Sort requires 4–16 cards.');
-    const categories = data.categories.map(category => {
+    if (data.type !== 'categorySort' || !validId(data.id)) fail('Некорректный id задания.');
+    if (!Array.isArray(data.categories) || data.categories.length < 2 || data.categories.length > MAX_GROUPS) fail(`Нужно от 2 до ${MAX_GROUPS} групп.`);
+    if (!Array.isArray(data.items) || data.items.length < MIN_CARDS || data.items.length > MAX_CARDS) fail(`Нужно от ${MIN_CARDS} до ${MAX_CARDS} карточек.`);
+    const categories = data.categories.map((category, index) => {
       keys(category, ['id', 'title']);
-      if (typeof category.id !== 'string' || !ID.test(category.id)) throw new Error('Invalid Category Sort group id.');
-      return { id: category.id, title: plain(category.title, 40) };
+      if (!validId(category.id)) fail('Некорректный id группы.');
+      return { id: category.id, title: plain(category.title, MAX_TITLE, `Название группы ${index + 1}`) };
     });
+    unique(categories.map(category => category.id), 'id группы');
     const items = data.items.map(item => {
       keys(item, ['id', 'text', 'categoryId']);
-      if (typeof item.id !== 'string' || !ID.test(item.id)) throw new Error('Invalid Category Sort card id.');
-      if (!categories.some(category => category.id === item.categoryId)) throw new Error('Every card must belong to a group.');
-      return { id: item.id, text: plain(item.text, 80), categoryId: item.categoryId };
+      if (!validId(item.id)) fail('Некорректный id карточки.');
+      const category = categories.find(candidate => candidate.id === item.categoryId);
+      if (!category) fail('Карточка не относится ни к одной группе.');
+      return { id: item.id, text: plain(item.text, MAX_CARD, `Карточка в группе «${category.title}»`), categoryId: item.categoryId };
     });
-    unique(categories.map(category => category.id), 'Group ids must be unique.');
-    unique(items.map(item => item.id), 'Card ids must be unique.');
-    unique(categories.map(category => category.title), 'Group names must be distinct.');
-    unique(items.map(item => item.text), 'Card texts must be distinct.');
-    if (categories.some(category => !items.some(item => item.categoryId === category.id))) throw new Error('Every group needs at least one card.');
-    return { type: data.type, id: data.id, title: plain(data.title, 1000), instruction: plain(data.instruction, 1000), categories, items };
+    unique(items.map(item => item.id), 'id карточки');
+    unique(categories.map(category => category.title), 'название группы');
+    unique(items.map(item => item.text), 'карточка');
+    const empty = categories.find(category => !items.some(item => item.categoryId === category.id));
+    if (empty) fail(`В группе «${empty.title}» нет карточек.`);
+    return { type: data.type, id: data.id, title: plain(data.title, 1000, 'Заголовок'), instruction: plain(data.instruction, 1000, 'Инструкция'), categories, items };
   }
   // One basket drawing for every group; CSS paints it through custom properties on the group.
   const leaf = (min, rect, line, turn) => ['g', { class: 'category-sort__leaf', 'data-min': min }, [
@@ -62,13 +71,13 @@
   function renderCategorySort(data, options, documentRef) {
     let settings = options || {}, doc = documentRef || root.document;
     if (options && typeof options.createElement === 'function') { doc = options; settings = {}; }
-    const author = settings.presentation ? null : normalizeCategorySort(data);
-    const current = settings.presentation || model.presentation(author, model.createLayout(author));
+    let author = settings.presentation ? null : normalizeCategorySort(data);
+    let current = settings.presentation || model.presentation(author, model.createLayout(author));
     let state = settings.exerciseState || {}, interactive = settings.interactive !== false;
     let openId = null, drag = null, handoff = null, ownAttemptId = null, suppressClick = false, disposed = false;
-    let wrongTimer = null, wrongNodes = [];
+    let wrongTimer = null, wrongNodes = [], total = 0;
+    let editing = false, saving = false, draft, initialDraft;
     const chips = new Map(), groups = new Map(), flights = new Map(), seen = new Set();
-    const total = current.items.length;
     const textOf = id => current.items.find(item => item.id === id).text;
     const el = (tag, name, text) => {
       const node = doc.createElement(tag); if (name) node.className = `category-sort__${name}`;
@@ -86,23 +95,31 @@
       return build(['svg', { ...attributes, 'aria-hidden': 'true', focusable: 'false' }, shapes]);
     };
     const section = el('section'); section.className = 'category-sort';
-    section.dataset.componentId = current.id; section.setAttribute('aria-label', current.title);
-    if (current.items.every(item => item.text.length <= 14)) section.classList.add('category-sort--short');
-    const heading = el('div', 'heading'), progress = el('span', 'progress');
+    section.dataset.componentId = current.id;
+    const heading = el('div', 'heading'), title = el('h2', 'title'), progress = el('span', 'progress');
+    const instruction = el('p', 'instruction');
     progress.setAttribute('aria-hidden', 'true');
-    heading.append(el('h2', 'title', current.title), progress);
+    heading.append(title, progress);
     const pool = el('div', 'pool'); pool.setAttribute('role', 'group'); pool.setAttribute('aria-label', 'Cards to sort');
     const banner = el('div', 'done'); banner.tabIndex = -1;
-    const bannerIcon = el('span', 'done-icon'), bannerText = el('span');
+    const bannerIcon = el('span', 'done-icon'), bannerText = el('span'), bannerDetail = el('span', 'done-detail');
     bannerIcon.append(svg(CHECK, { viewBox: '0 0 24 24' }));
-    bannerText.append(el('strong', 'done-title', 'All sorted!'), el('span', 'done-detail', `${total} of ${total} cards are in the right group.`));
+    bannerText.append(el('strong', 'done-title', 'All sorted!'), bannerDetail);
     banner.append(bannerIcon, bannerText);
     const groupRow = el('div', 'groups'), hint = el('p', 'hint', 'Tap a basket to see what’s inside');
     const peek = el('div', 'peek'), peekTitle = el('span', 'peek-title'), peekCount = el('span', 'peek-count');
     const peekHead = el('p', 'peek-head'), peekWords = el('ul', 'words'), peekEmpty = el('p', 'peek-empty', 'Empty for now');
     peek.setAttribute('role', 'group'); peekHead.append(peekTitle, peekCount); peek.append(peekHead, peekWords, peekEmpty);
     const status = el('p', 'status'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
-    section.append(heading, el('p', 'instruction', current.instruction), pool, banner, groupRow, hint, peek, status);
+    // The draft editor swaps the exercise for a form; in a class there is no onSave and no form.
+    const board = el('div', 'board');
+    board.append(pool, banner, groupRow, hint, peek, status);
+    const edit = el('button', 'edit', '✎'), cancel = el('button', 'cancel', 'Отмена');
+    edit.setAttribute('aria-label', 'Редактировать задание'); cancel.hidden = true;
+    const editor = el('div', 'editor'), editorError = el('p', 'editor-error');
+    editor.hidden = true; editorError.hidden = true; editorError.setAttribute('role', 'alert');
+    if (author && settings.onSave) heading.append(cancel, edit);
+    section.append(heading, instruction, editorError, board, editor);
     const resize = root.ResizeObserver ? new root.ResizeObserver(() => { if (openId) placePeek(); }) : null;
 
     // A card in flight is not in its basket yet: it lands when the flight ends.
@@ -178,7 +195,7 @@
       openId = id; paint();
     }
     function dispatch(action) {
-      if (!interactive || disposed) return;
+      if (!interactive || disposed || editing) return;
       const full = { ...action, componentId: current.id };
       if (full.type === 'match-word') ownAttemptId = full.attemptId = root.crypto.randomUUID();
       section.updateState(model.apply(current, state, full));
@@ -296,29 +313,29 @@
       }
       paint();
     }
-    current.items.forEach(item => {
-      const chip = el('button', 'chip', item.text);
-      chip.dataset.itemId = item.id;
-      chip.addEventListener('click', () => {
-        if (suppressClick || chip.disabled) return;
+    function chip(item) {
+      const node = el('button', 'chip', item.text);
+      node.dataset.itemId = item.id;
+      node.addEventListener('click', () => {
+        if (suppressClick || node.disabled) return;
         setOpen(null);
         dispatch({ type: 'select-word', itemId: state.selectedId === item.id ? null : item.id });
       });
-      chip.addEventListener('pointerdown', event => {
+      node.addEventListener('pointerdown', event => {
         if (!interactive || drag || flights.has(item.id) || (event.pointerType === 'mouse' && event.button !== 0)) return;
-        const rect = chip.getBoundingClientRect();
-        drag = { itemId: item.id, chip, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY,
+        const rect = node.getBoundingClientRect();
+        drag = { itemId: item.id, chip: node, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY,
           offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top, ghost: null, overId: null };
         doc.addEventListener('pointermove', moveDrag);
         doc.addEventListener('pointerup', endDrag);
         doc.addEventListener('pointercancel', endDrag);
       });
-      chips.set(item.id, chip); pool.append(chip);
-    });
-    current.categories.forEach(category => {
-      const group = el('div', 'group'), basket = el('button', 'basket'), label = el('span', 'label');
+      return node;
+    }
+    function group(category) {
+      const node = el('div', 'group'), basket = el('button', 'basket'), label = el('span', 'label');
       const length = [...category.title].length;
-      group.dataset.categoryId = category.id;
+      node.dataset.categoryId = category.id;
       label.classList.toggle('category-sort__label--medium', length > 5 && length <= 10);
       label.classList.toggle('category-sort__label--long', length > 10);
       label.append(el('span', null, category.title));
@@ -334,12 +351,148 @@
         } else setOpen(openId === category.id ? null : category.id);
       });
       const contents = el('ul', 'words'); contents.classList.add('category-sort__contents');
-      group.append(basket, contents);
-      groups.set(category.id, group); groupRow.append(group);
-    });
+      node.append(basket, contents);
+      return node;
+    }
+    function build() {
+      total = current.items.length;
+      section.setAttribute('aria-label', current.title);
+      section.classList.toggle('category-sort--short', current.items.every(item => item.text.length <= 14));
+      title.textContent = current.title; instruction.textContent = current.instruction;
+      bannerDetail.textContent = `${total} of ${total} cards are in the right group.`;
+      chips.clear(); groups.clear();
+      current.items.forEach(item => chips.set(item.id, chip(item)));
+      current.categories.forEach(category => groups.set(category.id, group(category)));
+      pool.replaceChildren(...chips.values()); groupRow.replaceChildren(...groups.values());
+      paint();
+    }
+    // Cancels whatever is under way: an open basket, a drag, flights and the wrong-answer mark.
+    function stopInteraction() {
+      setOpen(null); clearWrong();
+      if (drag) stopDrag().ghost?.remove();
+      flights.forEach(flight => { flight.animation?.cancel(); flight.ghost.remove(); }); flights.clear();
+    }
+
+    // Draft editor: one block per group with its name and cards; ids of kept groups and cards stay.
+    let fields = new Map();
+    const changed = () => settings.onDirtyChange?.(editing && JSON.stringify(draft) !== initialDraft, current.id);
+    const freeId = (prefix, taken) => {
+      let number = 1;
+      while (taken.some(item => item.id === `${prefix}-${number}`)) number += 1;
+      return `${prefix}-${number}`;
+    };
+    function input(value, max, label, change, focusId) {
+      const node = el('input', 'editor-input');
+      node.type = 'text'; node.value = value; node.maxLength = max; node.disabled = saving;
+      node.setAttribute('aria-label', label);
+      if (focusId) fields.set(focusId, node);
+      node.addEventListener('input', () => { change(node.value); changed(); });
+      return node;
+    }
+    // A structural change repaints the form; `action` may return the id of the field to focus next.
+    const focusField = id => fields.get(id)?.focus();
+    function button(text, name, label, disabled, action) {
+      const node = el('button', name, text);
+      node.disabled = saving || disabled;
+      if (label) node.setAttribute('aria-label', label);
+      node.addEventListener('click', () => {
+        const next = action(); changed(); paintEditor();
+        if (next) focusField(next);
+      });
+      return node;
+    }
+    const groupName = (category, index) => category.title.trim() || `Группа ${index + 1}`;
+    function cardRow(item, number, index) {
+      const row = el('div', 'editor-row'); row.classList.add('category-sort__editor-card');
+      const select = el('select', 'editor-select');
+      select.setAttribute('aria-label', 'Группа карточки'); select.disabled = saving;
+      draft.categories.forEach((category, position) => {
+        const option = el('option', null, groupName(category, position));
+        option.value = category.id; option.dataset.categoryId = category.id;
+        select.append(option);
+      });
+      select.value = item.categoryId;
+      fields.set(`${item.id}:group`, select);
+      select.addEventListener('change', () => { item.categoryId = select.value; changed(); paintEditor(); focusField(`${item.id}:group`); });
+      row.append(input(item.text, MAX_CARD, `Карточка ${number} в группе ${index + 1}`, value => { item.text = value; }, item.id), select,
+        button('×', 'editor-remove', 'Удалить карточку', draft.items.length <= MIN_CARDS, () => {
+          draft.items.splice(draft.items.indexOf(item), 1);
+        }));
+      return row;
+    }
+    function groupBlock(category, index) {
+      const block = el('div', 'editor-group'), row = el('div', 'editor-row');
+      const name = input(category.title, MAX_TITLE, `Название группы ${index + 1}`, value => {
+        category.title = value;
+        // Keeps the group choices of every card in step with the name being typed.
+        editor.querySelectorAll('option').forEach(option => {
+          if (option.dataset.categoryId === category.id) option.textContent = groupName(category, index);
+        });
+      }, category.id);
+      name.classList.add('category-sort__editor-name');
+      row.append(name, button('×', 'editor-remove', 'Удалить группу с карточками', draft.categories.length <= 2, () => {
+        draft.categories.splice(index, 1);
+        draft.items = draft.items.filter(item => item.categoryId !== category.id);
+      }));
+      block.append(el('span', 'editor-caption', `Группа ${index + 1}`), row);
+      draft.items.filter(item => item.categoryId === category.id).forEach((item, number) => block.append(cardRow(item, number + 1, index)));
+      block.append(button('+ карточка', 'editor-add', null, draft.items.length >= MAX_CARDS, () => {
+        const item = { id: freeId('card', draft.items), text: '', categoryId: category.id };
+        draft.items.push(item);
+        return item.id;
+      }));
+      return block;
+    }
+    function paintEditor() {
+      if (!editing) return;
+      fields = new Map();
+      const titleLabel = el('label', 'editor-label', 'Заголовок'), instructionLabel = el('label', 'editor-label', 'Инструкция');
+      titleLabel.append(input(draft.title, 1000, 'Заголовок', value => { draft.title = value; }));
+      instructionLabel.append(input(draft.instruction, 1000, 'Инструкция', value => { draft.instruction = value; }));
+      const blocks = el('div', 'editor-groups');
+      blocks.append(...draft.categories.map(groupBlock));
+      editor.replaceChildren(titleLabel, instructionLabel, blocks,
+        button('+ группа', 'editor-add', null, draft.categories.length >= MAX_GROUPS, () => {
+          const category = { id: freeId('group', draft.categories), title: '' };
+          draft.categories.push(category);
+          if (draft.items.length < MAX_CARDS) draft.items.push({ id: freeId('card', draft.items), text: '', categoryId: category.id });
+          return category.id;
+        }));
+    }
+    function showError(message) { editorError.textContent = message; editorError.hidden = !message; }
+    function finishEditing() {
+      editing = false; editor.hidden = true; editor.replaceChildren(); showError('');
+      board.hidden = false; progress.hidden = false; cancel.hidden = true; edit.textContent = '✎';
+      edit.setAttribute('aria-label', 'Редактировать задание'); changed(); paint();
+    }
+    function enterEditing() {
+      stopInteraction();
+      editing = true; board.hidden = true; progress.hidden = true; editor.hidden = false;
+      cancel.hidden = false; edit.textContent = '✓'; edit.setAttribute('aria-label', 'Сохранить задание');
+      draft = { title: author.title, instruction: author.instruction,
+        categories: author.categories.map(category => ({ ...category })), items: author.items.map(item => ({ ...item })) };
+      initialDraft = JSON.stringify(draft);
+      paintEditor();
+    }
+    function lock(value) { saving = value; edit.disabled = value; cancel.disabled = value; paintEditor(); }
+    async function save() {
+      let candidate;
+      try { candidate = normalizeCategorySort({ ...author, ...draft }); } catch (error) { showError(error.message); return; }
+      showError(''); lock(true);
+      try {
+        const { type, id, ...changes } = candidate;
+        author = normalizeCategorySort(await settings.onSave(changes, id) || candidate);
+        current = model.presentation(author, model.createLayout(author)); state = {}; seen.clear();
+        build(); finishEditing(); lock(false);
+      } catch (error) { lock(false); showError(error.message || 'Не удалось сохранить задание.'); }
+    }
+    edit.addEventListener('click', () => { if (!saving) return editing ? save() : enterEditing(); });
+    cancel.addEventListener('click', () => { if (!saving) finishEditing(); });
+
     section.addEventListener('keydown', event => {
-      if (event.key !== 'Escape') return;
-      if (openId) setOpen(null);
+      if (event.key !== 'Escape' || saving) return;
+      if (editing) { event.preventDefault?.(); finishEditing(); }
+      else if (openId) setOpen(null);
       else if (state.selectedId && interactive) dispatch({ type: 'select-word', itemId: null });
     });
     section.updateState = (next = {}, options = {}) => {
@@ -361,13 +514,9 @@
       }
       paint();
     };
-    section.dispose = () => {
-      disposed = true; setOpen(null); clearWrong();
-      if (drag) stopDrag().ghost?.remove();
-      flights.forEach(flight => { flight.animation?.cancel(); flight.ghost.remove(); }); flights.clear();
-    };
+    section.dispose = () => { disposed = true; stopInteraction(); };
     if (state.attempt) seen.add(state.attempt.id || `sequence:${state.attempt.sequence}`);
-    paint();
+    build();
     return section;
   }
   const api = { normalizeCategorySort, renderCategorySort };

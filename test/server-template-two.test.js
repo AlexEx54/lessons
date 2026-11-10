@@ -94,6 +94,10 @@ test('template two creation and editing update the answer key atomically', async
   const builder = require('./helpers/sentence-builder.js').sentenceBuilderComponent();
   const builderContent = structuredClone(draft.content);
   builderContent.stages[7].content.splice(1, 0, builder);
+  const sort = { type: 'categorySort', id: 'fixture-sort', title: 'Sort the food.', instruction: 'Put each card into its basket.',
+    categories: [{ id: 'fruit', title: 'Fruit' }, { id: 'drinks', title: 'Drinks' }],
+    items: ['apple', 'pear', 'tea', 'milk'].map((text, i) => ({ id: text, text, categoryId: i < 2 ? 'fruit' : 'drinks' })) };
+  builderContent.stages[7].content.push(sort);
   const fixtureDb = openDatabase(databasePath);
   fixtureDb.prepare('UPDATE lesson_drafts SET content_json = ? WHERE id = ?').run(JSON.stringify(builderContent), draft.id);
   fixtureDb.close();
@@ -111,6 +115,18 @@ test('template two creation and editing update the answer key atomically', async
   assert.equal((await builderPatch({ ...builderChanges, hintsEnabled: 'yes' })).status, 400);
   const builderReloaded = await (await fetch(`${baseUrl}/api/lesson-drafts/${draft.id}`, { headers: { Cookie: cookie } })).json();
   assert.deepEqual(builderReloaded.draft.content.stages[7].content[1], { ...builder, ...builderChanges });
+  const sortChanges = { title: 'Food', instruction: sort.instruction, categories: [...sort.categories, { id: 'group-1', title: 'Sweets' }],
+    items: [...sort.items, { id: 'card-1', text: 'cake', categoryId: 'group-1' }] };
+  const sortPatch = (body, auth = cookie, componentId = sort.id) => fetch(`${baseUrl}/api/lesson-drafts/${draft.id}/category-sort/${componentId}`, {
+    method: 'PATCH', headers: { Cookie: auth, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  assert.equal((await sortPatch(sortChanges, otherCookie)).status, 404);
+  assert.equal((await sortPatch(sortChanges, cookie, 'missing')).status, 404);
+  const sortRejected = await sortPatch({ ...sortChanges, items: sort.items });
+  assert.deepEqual([sortRejected.status, (await sortRejected.json()).error], [400, 'В группе «Sweets» нет карточек.']);
+  const sortSaved = await sortPatch(sortChanges);
+  assert.equal(sortSaved.status, 200);
+  assert.deepEqual((await sortSaved.json()).draft.content.stages[7].content.at(-1), { ...sort, ...sortChanges });
   const communication = draft.content.stages[6].content[2];
   const communicationPatch = (items, auth = cookie) => fetch(
     `${baseUrl}/api/lesson-drafts/${draft.id}/guided-communication-cards/${communication.id}`,
