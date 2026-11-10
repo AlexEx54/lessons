@@ -1,0 +1,837 @@
+{
+  "schemaVersion": "lesson-template-v1",
+  "id": "template-4",
+  "title": "Шаблон 4",
+  "description": "Mission: урок-ситуация — сцена, первая попытка, образцовый диалог, полезные фразы, практика, «что-то пошло не так», миссия с учителем и домашнее письмо.",
+  "inputs": {
+    "topic": {
+      "label": "Ситуация",
+      "placeholder": "Напр. Ordering food in a café"
+    },
+    "languageFocus": {
+      "label": "Языковой фокус",
+      "placeholder": "Напр. polite requests: Could I…? / I’d like…",
+      "optional": true
+    }
+  },
+  "lesson": {
+    "durationMinutes": 50
+  },
+  "stages": [
+    {
+      "id": "warm-up",
+      "title": "Warm Up",
+      "subtitle": "The Situation",
+      "durationMinutes": 4,
+      "icon": "sparkles",
+      "context": {
+        "Situation": "$input.topic"
+      },
+      "instructions": "This is a four-minute Warm-Up: the learner imagines being in a real-life situation and talks about it. Later in the lesson the learner tries the situation, learns how to manage it and finally plays it with the teacher.\nThe situation is everyday and safe. Write to the learner as the person they would be in it in real life: a customer, a guest, a tourist.\nAll content must be natural English at the target CEFR level. Image prompts must be in English.",
+      "blocks": [
+        {
+          "id": "warm-up-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Goal:** Bring the situation to life and find out what the student already knows. Today’s lesson is a mission: by the end, the student will manage this situation in English.\n\n**Say:** “Look at the picture and read the situation. Imagine you are there. How do you feel?”\n\n**Then:** Ask the questions. React with interest and share a short story of your own.\n\n**Fluency first:** Do not correct and do not teach phrases yet: in the next stage the student tries the situation on their own."
+          }
+        },
+        {
+          "id": "warm-up-situation",
+          "kind": "static",
+          "component": {
+            "type": "illustratedTextPanel",
+            "text": "{l}**The Situation**{/l}\n\n{{scene}}",
+            "backgroundColor": "#252A38",
+            "leadingPicture": {
+              "imagePrompt": "{{sceneImagePrompt}}"
+            }
+          },
+          "slots": {
+            "scene": {
+              "rule": "A short opening scene for the situation, written to the learner in the second person: two or three short sentences that put the learner right into the situation and give one small reason to act now, for example a time limit. Plain text without Markdown.",
+              "example": "You are in a small café in London. You are hungry, and your bus leaves in thirty minutes. The waiter is coming to your table…"
+            },
+            "sceneImagePrompt": {
+              "rule": "An image prompt for a small picture of the place where the situation happens. A modern educational illustration suitable for teenagers and adults, with no text. Avoid childish or preschool aesthetics.",
+              "example": "A cosy small café in London with a few wooden tables and a smiling waiter walking to a table with a notepad, modern educational illustration, bright flat colours, no text."
+            }
+          }
+        },
+        {
+          "id": "warm-up-questions",
+          "kind": "generated",
+          "control": "personalizedQuestions",
+          "params": {
+            "items": 3
+          },
+          "fields": {
+            "questions": "situationQuestions"
+          },
+          "chrome": {
+            "title": "Have You Been There?",
+            "instruction": "Answer the questions out loud. There are no right or wrong answers!"
+          },
+          "instructions": "situationQuestions connect the situation to the learner’s own life, in this order: whether they have ever been in this situation or a similar one, what is difficult about it, and what they would say first.",
+          "example": {
+            "questions": [
+              { "question": "Have you ever ordered food in a café in English?", "followUp": "Where was it, and what did you order?" },
+              { "question": "What is difficult about ordering food in another language?", "followUp": "What do you do when you don’t understand the waiter?" },
+              { "question": "The waiter comes to your table. What do you say first?", "followUp": "And what does the waiter say?" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "first-try",
+      "title": "First Try",
+      "subtitle": "Have a Go",
+      "durationMinutes": 5,
+      "icon": "chat",
+      "context": {
+        "Situation": "$input.topic"
+      },
+      "instructions": "This is a five-minute First Try: before any teaching, the learner does the situation with the teacher, who plays the other person, using any English they know.\nAll content must be natural English at the target CEFR level.",
+      "blocks": [
+        {
+          "id": "first-try-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Goal:** The student tries the situation before any teaching. This is the first test: you will see what they can already say and what is missing.\n\n**Say:** “Let’s try it! I’ll be the other person. Read the task and do it with me. Use any English you know.”\n\n**During the try:** Play your role naturally and keep it short. Do not correct, do not suggest phrases and do not finish the student’s sentences. Wait, smile and give them time.\n\n**Write down:** what the student could not say, the words they asked for and the main mistakes. Keep your notes: you will come back to them in the Mission.\n\n**After the try:** Ask the questions in After the First Try. Praise one thing that worked."
+          }
+        },
+        {
+          "id": "first-try-task",
+          "kind": "static",
+          "component": {
+            "type": "textPanel",
+            "text": "{l}**Your First Try**{/l}\n\n{muted}{s}Do this with your teacher now. Your teacher is the other person.{/s}{/muted}\n\n{{firstTryTask}}",
+            "backgroundColor": "#FFFFFF",
+            "accentColor": "#3563D4",
+            "showBorder": true
+          },
+          "slots": {
+            "firstTryTask": {
+              "rule": "The learner’s first try: exactly three short steps the learner does in the situation right now with the teacher, as a Markdown numbered list (1. to 3.), one imperative step per line, in the order they happen, from the start of the situation to the end. Each step says what to get done, not which words to use: no step gives away a useful phrase. No heading or introduction.",
+              "example": "1. Say hello and ask for a table.\n2. Order something to eat and something to drink.\n3. Ask for the bill and pay."
+            }
+          }
+        },
+        {
+          "id": "first-try-how-to-play",
+          "kind": "static",
+          "component": {
+            "type": "howToPlay",
+            "title": "How to Try",
+            "steps": [
+              "Read the task.",
+              "Do it with your teacher. Use any words you know.",
+              "Don’t worry about mistakes.",
+              "Say what was hard."
+            ]
+          }
+        },
+        {
+          "id": "first-try-reflection",
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
+            "title": "After the First Try",
+            "text": "- What was easy?\n- What didn’t you know how to say?\n- What would you like to say better next time?",
+            "icon": "chat",
+            "accentColor": "#E5AD16",
+            "studentVisibility": "always"
+          }
+        }
+      ]
+    },
+    {
+      "id": "model-dialogue",
+      "title": "Model Dialogue",
+      "subtitle": "See How It’s Done",
+      "durationMinutes": 7,
+      "icon": "book",
+      "context": {
+        "Situation": "$input.topic",
+        "Language focus": "$input.languageFocus"
+      },
+      "instructions": "This is a seven-minute reading stage: the learner reads a model dialogue of the situation, answers questions about it and notices how things are said.\nIf a Language focus is supplied, it is authoritative: build the dialogue around it and use it in at least four turns. If no Language focus is supplied, choose yourself the functional language a person needs most in this situation, for example polite requests, offers and questions, and use it naturally.\nThe Useful Phrases stage later takes its phrases from this dialogue.\nAll content must be natural English at the target CEFR level. Make distractors plausible but clearly wrong.",
+      "blocks": [
+        {
+          "id": "model-dialogue-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Before reading:** say “Now let’s see how other people do it.” Ask the student to look at the title and the picture and guess what happens.\n\n**Task 1:** Read the dialogue together: you take one role, the student takes the other, then swap. Then the student answers the questions and finds the line that proves each answer.\n\n**Notice:** Ask the questions and let the student find the exact words in the dialogue. The answers are in the card for you.\n\n**Compare:** Ask “Which of these phrases did you need in your First Try?” Look at your notes together."
+          }
+        },
+        {
+          "id": "model-dialogue-text",
+          "kind": "generated",
+          "control": "readingText",
+          "params": {
+            "minWords": 110,
+            "maxWords": 160
+          },
+          "fields": {
+            "text": "dialogue"
+          },
+          "exports": {
+            "text": "modelDialogue"
+          },
+          "instructions": "Write dialogue as a conversation between the two people of the situation, named by their roles, for example Waiter and Customer: the learner’s real-life role and the other person. Every paragraph is one turn in the form **Role:** words. Speaker names count toward the word limit.\nThe dialogue goes through the whole situation from start to finish and is a clear, polite model of how to manage it, with at least eight useful phrases the learner can reuse.\ntitle names the scene, for example “Lunch at Rosie’s Café”; subtitle is one short line that says who talks, for example “A customer orders lunch”.\nheaderImagePrompt describes a small icon of the place; textImagePrompt describes a wide scene with both people in the situation.",
+          "example": {
+            "title": "Lunch at Rosie’s Café",
+            "subtitle": "A customer orders lunch",
+            "text": "**Waiter:** Hi there! Welcome to Rosie’s Café. A table for one?\n\n**Customer:** Yes, please. Could I see the menu?\n\n**Waiter:** Of course. Here you are. Are you ready to order, or do you need a minute?\n\n**Customer:** I’m ready, I think. I’d like the tomato soup, please.\n\n**Waiter:** Good choice. Would you like some bread with it?\n\n**Customer:** Yes, please. And what do you recommend for dessert?\n\n**Waiter:** The apple pie is very good today.\n\n**Customer:** Great, I’ll have the apple pie, then.\n\n**Waiter:** Anything to drink?\n\n**Customer:** An orange juice, please.\n\n**Waiter:** Sure. Is that everything?\n\n**Customer:** Yes, that’s all, thanks.\n\n**Waiter:** How was everything?\n\n**Customer:** Lovely, thank you! Could I have the bill, please?\n\n**Waiter:** Here you are. That’s twelve pounds fifty.\n\n**Customer:** Can I pay by card?\n\n**Waiter:** Yes, of course. Thank you, and have a nice day!",
+            "headerImagePrompt": "Small round icon of a steaming cup of coffee and a slice of apple pie on a café table, bright flat colours, modern educational illustration, no text.",
+            "textImagePrompt": "Wide scene in a small cosy café: a smiling waiter with a notepad takes the order of a young customer sitting at a table with a menu, modern educational illustration, no text."
+          }
+        },
+        {
+          "id": "model-dialogue-questions",
+          "kind": "generated",
+          "control": "choiceQuestions",
+          "params": {
+            "questions": 4,
+            "options": 3
+          },
+          "fields": {
+            "questions": "dialogueQuestions"
+          },
+          "chrome": {
+            "title": "Task 1. What Happens?",
+            "instruction": "Read the dialogue and choose the correct answer."
+          },
+          "instructions": "dialogueQuestions ask what the people want, choose and do in the dialogue, in the order it happens. Every answer is stated in the dialogue; explanation quotes the line that proves it.",
+          "answerKey": {
+            "title": "Answer Key",
+            "format": "paragraphs"
+          },
+          "example": {
+            "questions": [
+              {
+                "question": "What does the customer order to eat first?",
+                "options": ["The tomato soup", "The apple pie", "A sandwich"],
+                "answer": "The tomato soup",
+                "explanation": "The customer says, “I’d like the tomato soup, please.”"
+              },
+              {
+                "question": "What does the waiter recommend for dessert?",
+                "options": ["The apple pie", "The chocolate cake", "Ice cream"],
+                "answer": "The apple pie",
+                "explanation": "The waiter says, “The apple pie is very good today.”"
+              },
+              {
+                "question": "What does the customer drink?",
+                "options": ["An orange juice", "A cup of tea", "A glass of water"],
+                "answer": "An orange juice",
+                "explanation": "The customer says, “An orange juice, please.”"
+              },
+              {
+                "question": "How does the customer pay?",
+                "options": ["By card", "In cash", "By phone"],
+                "answer": "By card",
+                "explanation": "The customer asks, “Can I pay by card?”, and the waiter says, “Yes, of course.”"
+              }
+            ]
+          }
+        },
+        {
+          "id": "model-dialogue-notice",
+          "kind": "static",
+          "component": {
+            "type": "textPanel",
+            "text": "{l}**Task 2. Notice**{/l}\n\n{muted}{s}How do they say it? Find the exact words in the dialogue.{/s}{/muted}\n\n{{noticeQuestions}}",
+            "backgroundColor": "#FFFFFF",
+            "accentColor": "#6545F5",
+            "showBorder": true
+          },
+          "slots": {
+            "noticeQuestions": {
+              "rule": "Exactly three “how do they say it” questions about dialogue as a Markdown numbered list (1. to 3.), one per line, for example “How does the customer ask for the menu?”. Each question asks about a different useful phrase and is answered by one exact phrase from dialogue; the questions follow the order of the dialogue. No heading and no answers.",
+              "example": "1. How does the customer ask to see the menu?\n2. How does the customer order the soup?\n3. How does the customer ask to pay?"
+            }
+          }
+        },
+        {
+          "id": "model-dialogue-notice-answers",
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
+            "title": "Notice: Answers",
+            "text": "{{noticeAnswers}}",
+            "icon": "key",
+            "accentColor": "#6545F5",
+            "studentVisibility": "teacherOnly"
+          },
+          "slots": {
+            "noticeAnswers": {
+              "rule": "The answers to noticeQuestions as a Markdown numbered list (1. to 3.), one per line: the exact phrase from dialogue in **bold**, copied exactly, then “ — ” and the speaker’s role in italics.",
+              "example": "1. **Could I see the menu?** — *Customer*\n2. **I’d like the tomato soup, please.** — *Customer*\n3. **Could I have the bill, please?** — *Customer*"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "useful-phrases",
+      "title": "Useful Phrases",
+      "subtitle": "Words That Work",
+      "durationMinutes": 8,
+      "icon": "cards",
+      "context": {
+        "Situation": "$input.topic",
+        "Language focus": "$input.languageFocus",
+        "Model dialogue": "$var.modelDialogue"
+      },
+      "instructions": "This is an eight-minute Useful Phrases stage: the learner studies reusable phrases from the Model dialogue, sorts them and chooses the best reply.\nIf a Language focus is supplied, at least half of phraseItems use it. If no Language focus is supplied, choose the phrases a person needs most in this situation.\nWhenever a field refers to a phrase of phraseItems, copy it exactly, including punctuation and “…”.\nAll English must be natural, polite and at the target CEFR level.",
+      "blocks": [
+        {
+          "id": "useful-phrases-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Phrases:** Read the Useful Phrases together. For each one, ask “Who says it? When?” Say the phrases yourself with friendly, polite intonation and ask the student to repeat.\n\n**Task 1:** say “Sort the phrases into the baskets.” If the student is unsure, ask them to say the phrase in a mini-situation.\n\n**Task 2:** say “Read what the other person says and choose the best reply.” Ask why the other replies don’t work.\n\n**Keep in mind:** These phrases come back in every task until the end of the lesson. Leave the card open."
+          }
+        },
+        {
+          "id": "useful-phrases-card",
+          "kind": "generated",
+          "control": "vocabularyList",
+          "params": {
+            "items": 8
+          },
+          "fields": {
+            "items": "phraseItems"
+          },
+          "chrome": {
+            "title": "Useful Phrases",
+            "icon": "chat",
+            "accentColor": "#20A85B",
+            "studentVisibility": "always"
+          },
+          "exports": {
+            "vocabulary": "usefulPhrases"
+          },
+          "instructions": "phraseItems: reusable phrases from the supplied Model dialogue, copied exactly or shortened to their reusable core with “…” for the part that changes, for example “I’d like …, please.”. Mostly phrases the learner needs in their own role, and one or two that the other person says and the learner must understand. term is the phrase; definition says in simple English what it does, for example “a polite way to ask for something”. The phrases follow the order of the dialogue.",
+          "example": {
+            "items": [
+              { "term": "Could I see the menu?", "definition": "a polite way to ask for the menu" },
+              { "term": "Are you ready to order?", "definition": "the waiter asks if you know what you want" },
+              { "term": "I’d like …, please.", "definition": "a polite way to say what you want" },
+              { "term": "What do you recommend?", "definition": "you ask the waiter for a good choice" },
+              { "term": "Anything to drink?", "definition": "the waiter asks what you want to drink" },
+              { "term": "That’s all, thanks.", "definition": "you say that your order is complete" },
+              { "term": "Could I have the bill, please?", "definition": "a polite way to ask to pay" },
+              { "term": "Can I pay by card?", "definition": "you ask how you can pay" }
+            ]
+          }
+        },
+        {
+          "id": "useful-phrases-sort",
+          "kind": "generated",
+          "control": "categorySort",
+          "params": {
+            "groups": 3,
+            "cardsPerGroup": 3
+          },
+          "fields": {
+            "groups": "phraseGroups"
+          },
+          "chrome": {
+            "title": "Task 1. Sort the Phrases",
+            "instruction": "Tap a phrase, then tap the right basket. You can also drag it."
+          },
+          "instructions": "phraseGroups sort short phrases of the situation by the part of it where they are said, for example Arriving / Ordering / Paying, or by what they do, for example Asking / Offering / Paying. Use the phrases of phraseItems that fit, copied exactly, and add other natural phrases of the situation; every card is something a person says in it.",
+          "example": {
+            "groups": [
+              { "title": "Arriving", "cards": ["A table for two, please.", "Could I see the menu?", "Can we sit by the window?"] },
+              { "title": "Ordering", "cards": ["I’d like …, please.", "What do you recommend?", "Anything to drink?"] },
+              { "title": "Paying", "cards": ["Could I have the bill, please?", "Can I pay by card?", "Keep the change."] }
+            ]
+          }
+        },
+        {
+          "id": "useful-phrases-best-reply",
+          "kind": "generated",
+          "control": "choiceQuestions",
+          "params": {
+            "questions": 4,
+            "options": 3
+          },
+          "fields": {
+            "questions": "replyQuestions"
+          },
+          "chrome": {
+            "title": "Task 2. Best Reply",
+            "instruction": "Read what the other person says. Choose the best reply."
+          },
+          "instructions": "replyQuestions: each question is one line the other person says in the situation, in the form The waiter says: “…”, with that person’s role. The options are three replies of the learner; the answer is the natural, polite reply, and it uses a phrase of phraseItems where one fits. The wrong replies clearly do not fit that line: they answer another question or belong to another moment of the situation. explanation is one short sentence on why the answer fits. Use four different moments of the situation, in the order they happen.",
+          "answerKey": {
+            "title": "Answer Key",
+            "format": "paragraphs"
+          },
+          "example": {
+            "questions": [
+              {
+                "question": "The waiter says: “Are you ready to order?”",
+                "options": ["Yes, I’d like the chicken salad, please.", "Yes, I’m ready to pay.", "Yes, a table for one."],
+                "answer": "Yes, I’d like the chicken salad, please.",
+                "explanation": "The waiter wants your order, so you say what you would like."
+              },
+              {
+                "question": "The waiter says: “Anything to drink?”",
+                "options": ["Just water, please.", "By card, please.", "The soup was lovely."],
+                "answer": "Just water, please.",
+                "explanation": "The waiter asks about a drink, so you name one."
+              },
+              {
+                "question": "The waiter says: “Is that everything?”",
+                "options": ["Yes, that’s all, thanks.", "Yes, could I see the menu?", "Yes, a table for two."],
+                "answer": "Yes, that’s all, thanks.",
+                "explanation": "The waiter checks your order, and “That’s all” means you don’t want anything else."
+              },
+              {
+                "question": "The waiter says: “How would you like to pay?”",
+                "options": ["Can I pay by card?", "I’d like the apple pie.", "What do you recommend?"],
+                "answer": "Can I pay by card?",
+                "explanation": "The waiter asks about paying, so you say how you want to pay."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "title": "Practice",
+      "subtitle": "Put It Together",
+      "durationMinutes": 9,
+      "icon": "pencil",
+      "context": {
+        "Situation": "$input.topic",
+        "Language focus": "$input.languageFocus",
+        "Useful Phrases": "$var.usefulPhrases",
+        "Model dialogue": "$var.modelDialogue"
+      },
+      "instructions": "This is a nine-minute Practice stage with three controlled tasks: put a new dialogue in order, complete what people say and build sentences from cards.\nIf a Language focus is supplied, practise it in every task. If no Language focus is supplied, practise the supplied Useful Phrases.\nEvery task takes place in the same situation as the supplied Model dialogue, but with new details such as other food, another time or another place; do not copy lines from the Model dialogue, and do not repeat a line from another task.\nAll content must be natural English at the target CEFR level.",
+      "blocks": [
+        {
+          "id": "practice-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Task 1:** say “Here is a new dialogue in the same situation, but the lines are mixed up. Put them in order.” Then read it together in roles.\n\n**Task 2:** say “Complete what the people say with the words in the box.” Ask the student to read each line aloud as if they were really there.\n\n**Task 3:** say “Put the cards in order to make what the person says.” Let the student use the hints if they get stuck.\n\n**Correct now:** mistakes in the useful phrases. **Leave for later:** small slips that do not stop communication."
+          }
+        },
+        {
+          "id": "practice-order",
+          "kind": "generated",
+          "control": "lineOrder",
+          "params": {
+            "lines": 6,
+            "look": "dialogue"
+          },
+          "fields": {
+            "lines": "orderLines"
+          },
+          "chrome": {
+            "title": "Task 1. Put the Dialogue in Order",
+            "instruction": "Drag a line by the handle or use the arrows, then press Check."
+          },
+          "instructions": "orderLines: a new short dialogue between the same two roles as in the Model dialogue, with the speakers named the same way. It uses at least three of the supplied Useful Phrases, adapted to the new details.",
+          "answerKey": {
+            "title": "Answer Key"
+          },
+          "example": {
+            "lines": [
+              { "speaker": "Waiter", "text": "Good morning! Are you ready to order?" },
+              { "speaker": "Customer", "text": "Yes, I’d like a cheese sandwich, please." },
+              { "speaker": "Waiter", "text": "Sure. Anything to drink with your sandwich?" },
+              { "speaker": "Customer", "text": "A small coffee, please. That’s all, thanks." },
+              { "speaker": "Waiter", "text": "Here you are. That’s six pounds, please." },
+              { "speaker": "Customer", "text": "Thanks! Can I pay by card?" }
+            ]
+          }
+        },
+        {
+          "id": "practice-complete",
+          "kind": "generated",
+          "control": "fillInBlanks",
+          "params": {
+            "items": 6
+          },
+          "fields": {
+            "items": "gapItems"
+          },
+          "chrome": {
+            "title": "Task 2. Complete the Phrases",
+            "instruction": "Use the words in the box to complete what the people say."
+          },
+          "instructions": "gapItems: six things people say in the situation, each built on a different entry of Useful Phrases. before starts with the speaker’s role and a colon, for example “Customer: Could I”. answer is one key word of the useful phrase, and some words of the line follow the gap; the six answers together make the word box.",
+          "example": {
+            "items": [
+              { "before": "Customer: Could I", "answer": "see", "after": "the drinks menu, please?" },
+              { "before": "Waiter: Good evening! Are you ready to", "answer": "order", "after": "now?" },
+              { "before": "Customer: I’d", "answer": "like", "after": "a cup of tea, please." },
+              { "before": "Customer: What do you", "answer": "recommend", "after": "for lunch?" },
+              { "before": "Customer: No dessert, thanks. That’s", "answer": "all", "after": "for me." },
+              { "before": "Customer: Excuse me, can I", "answer": "pay", "after": "by card here?" }
+            ]
+          }
+        },
+        {
+          "id": "practice-build",
+          "kind": "generated",
+          "control": "sentenceBuilder",
+          "params": {
+            "sentences": 5,
+            "hints": true,
+            "completionText": "Well said! Great job!"
+          },
+          "fields": {
+            "items": "builderItems"
+          },
+          "chrome": {
+            "title": "Task 3. Build the Sentence",
+            "instruction": "Put the cards in the right order to make what the person says."
+          },
+          "instructions": "builderItems: five short things the learner says in their role, each built on a different entry of Useful Phrases, with new details. Keep the words of the useful phrase on separate cards, so that building the sentence practises the phrase; use brackets only for the new details, for example [a cheese sandwich].",
+          "example": {
+            "items": [
+              { "sentence": "Could I see [the dessert menu], please?", "otherOrders": [] },
+              {
+                "sentence": "I’d like [a cheese sandwich] and [a small coffee] for lunch, please.",
+                "otherOrders": ["I’d like [a small coffee] and [a cheese sandwich] for lunch, please."]
+              },
+              { "sentence": "What do you recommend [for a vegetarian]?", "otherOrders": [] },
+              { "sentence": "[Excuse me], could I have [the bill], please?", "otherOrders": [] },
+              { "sentence": "Can I pay [by card], please?", "otherOrders": [] }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "something-goes-wrong",
+      "title": "Something Goes Wrong",
+      "subtitle": "Fix the Problem",
+      "durationMinutes": 5,
+      "icon": "question",
+      "context": {
+        "Situation": "$input.topic",
+        "Model dialogue": "$var.modelDialogue"
+      },
+      "instructions": "This is a five-minute stage about problems: in the situation of the lesson something goes wrong, and the learner fixes it politely.\nThe problems are small, everyday and safe: a wrong order, a missing thing, a price you do not understand, a mistake with a booking. Nobody is in danger and nobody is rude.\nThe problems happen in the same place as the supplied Model dialogue.\nAll content must be natural English at the target CEFR level. Do not use Russian or HTML, and use Markdown only where a rule asks for it.",
+      "blocks": [
+        {
+          "id": "something-goes-wrong-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Goal:** Real life does not always go to plan. The student learns to stay calm and fix a problem politely.\n\n**Say:** “Oh no! Something goes wrong. What can you say?” Read the problem together first.\n\n**Then:** Read each mini-problem and let the student answer out loud. Play the other person, react, then ask the follow-up question.\n\n**If the student gets stuck:** Point to one of the Fix-It Phrases and ask them to try again.\n\n**Correct:** gently, by saying the phrase back correctly. The student will need these phrases in the Mission."
+          }
+        },
+        {
+          "id": "something-goes-wrong-problem",
+          "kind": "static",
+          "component": {
+            "type": "textPanel",
+            "text": "{l}**Oh no!**{/l}\n\n{{problemScene}}",
+            "backgroundColor": "#FFF4E8",
+            "accentColor": "#20243B",
+            "showBorder": true
+          },
+          "slots": {
+            "problemScene": {
+              "rule": "A short twist in the situation, written to the learner in the second person: two or three short sentences in which something goes wrong, for example the wrong dish arrives, there are no free rooms or it is the wrong bus. Plain text without Markdown.",
+              "example": "Your food arrives, but it is fish soup, and you ordered tomato soup! There is no spoon on your table, and the waiter is very busy."
+            }
+          }
+        },
+        {
+          "id": "something-goes-wrong-questions",
+          "kind": "generated",
+          "control": "personalizedQuestions",
+          "params": {
+            "items": 3
+          },
+          "fields": {
+            "questions": "problemQuestions"
+          },
+          "chrome": {
+            "title": "What Do You Say?",
+            "instruction": "Read each problem and say what you say. Use the Fix-It Phrases."
+          },
+          "instructions": "problemQuestions: three different small problems in the situation; the first one is the problem of problemScene. Each question tells the problem in one short sentence and ends with “What do you say?”. followUp is a short extra question that makes the problem a little harder, for example what if the other person says no.",
+          "example": {
+            "questions": [
+              { "question": "The waiter brings you fish soup, but you ordered tomato soup. What do you say?", "followUp": "What if the waiter says there is no more tomato soup?" },
+              { "question": "The waiter speaks very fast, and you don’t understand the price. What do you say?", "followUp": "How can you check the price again?" },
+              { "question": "There is no spoon on your table. What do you say?", "followUp": "What do you say when the waiter brings it?" }
+            ]
+          }
+        },
+        {
+          "id": "something-goes-wrong-fix-it",
+          "kind": "generated",
+          "control": "vocabularyList",
+          "params": {
+            "items": 5
+          },
+          "fields": {
+            "items": "fixItItems"
+          },
+          "chrome": {
+            "title": "Fix-It Phrases",
+            "icon": "lifeRing",
+            "accentColor": "#E5AD16",
+            "studentVisibility": "always"
+          },
+          "exports": {
+            "vocabulary": "fixItPhrases"
+          },
+          "instructions": "fixItItems: phrases that help the learner fix problems like the ones in problemScene and problemQuestions: saying politely that there is a mistake, asking someone to repeat or to speak more slowly, asking for something that is missing and accepting an apology. term is the whole phrase, with “…” for the part that changes; definition says when to use it, for example “when you get the wrong thing”. Use phrases that work in many situations.",
+          "example": {
+            "items": [
+              { "term": "Excuse me, I think there’s a mistake.", "definition": "when you get the wrong thing" },
+              { "term": "Sorry, I ordered …, not …", "definition": "when you say what you really ordered" },
+              { "term": "Sorry, could you say that again?", "definition": "when you don’t understand" },
+              { "term": "Could you speak more slowly, please?", "definition": "when someone speaks too fast" },
+              { "term": "No problem, thanks.", "definition": "when someone says sorry and fixes the problem" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mission",
+      "title": "Mission",
+      "subtitle": "Play It for Real",
+      "durationMinutes": 9,
+      "icon": "chat",
+      "context": {
+        "Situation": "$input.topic",
+        "Useful Phrases": "$var.usefulPhrases",
+        "Fix-It Phrases": "$var.fixItPhrases"
+      },
+      "instructions": "This is a nine-minute role-play, the Mission: the learner plays their own real-life role in the situation, such as the customer, the guest or the tourist, and the teacher plays the other person. The learner manages the whole situation in English, uses the supplied Useful Phrases and fixes one surprise problem with the supplied Fix-It Phrases.\nThe situation is everyday and safe.\nAll content must be natural English at the target CEFR level. Do not use Russian or HTML, and use Markdown only where a rule asks for it.",
+      "blocks": [
+        {
+          "id": "mission-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Set up:** Read the mission and How to Play together. The student plays their own role, you play the other person. Keep your card secret: it has a surprise.\n\n**Say:** “This is your mission! Read your card. You have one minute to get ready.”\n\n**During the mission:** Stay in role and speak naturally. Bring in your surprise in the middle, so the student has to use a Fix-It Phrase.\n\n**If the student gets stuck:** Point to a phrase in Speaking Support or Useful Phrases. Show the Example Dialogue only if the student needs a model.\n\n**Correct:** only when the meaning is unclear. Note other mistakes for the Wrap-Up.\n\n**Finish:** Compare with the First Try. Use your notes and tell the student two things they can do now that they could not do at the start."
+          }
+        },
+        {
+          "id": "mission-goal",
+          "kind": "static",
+          "component": {
+            "type": "textPanel",
+            "text": "{l}**Your Mission**{/l}\n\n{{missionGoal}}",
+            "backgroundColor": "#FFFFFF",
+            "accentColor": "#3563D4",
+            "showBorder": true
+          },
+          "slots": {
+            "missionGoal": {
+              "rule": "The mission in one or two short sentences, written to the learner: who the learner is, who the teacher is, and what the learner must get done in the situation, with one small detail that makes it real, such as a time limit or a budget. Plain text without Markdown.",
+              "example": "You are a customer at Rosie’s Café, and your teacher is the waiter. Order lunch for you and a vegetarian friend and pay before your bus leaves in twenty minutes."
+            }
+          }
+        },
+        {
+          "id": "mission-how-to-play",
+          "kind": "static",
+          "component": {
+            "type": "howToPlay",
+            "title": "How to Play",
+            "steps": [
+              "Read your card. Keep it secret.",
+              "Play your role with your teacher.",
+              "Use three Useful Phrases.",
+              "Something may go wrong. Fix it with a Fix-It Phrase.",
+              "Complete your mission."
+            ]
+          }
+        },
+        {
+          "id": "mission-role-cards",
+          "kind": "generated",
+          "control": "roleCards",
+          "instructions": "Student is the learner’s role from missionGoal, Teacher is the other person.\nwant: the two main things that role wants to get done; avoid: one thing that role does not want to happen; secret: two private facts that make the conversation real. The teacher’s first secret starts with “Surprise:” and is one small problem the teacher brings in the middle, so that the student has to use a Fix-It Phrase.\nmission: two short actions. The student’s first action is “Use three Useful Phrases”, the second is to fix the surprise politely. The teacher’s first action is to bring in the surprise.\ngoal is one short sentence, identical for both roles, about finishing the situation well, for example “Finish lunch and pay before the bus leaves.”",
+          "example": {
+            "roles": {
+              "student": {
+                "want": ["Order lunch for you and your friend", "Pay before your bus leaves"],
+                "avoid": ["Food with meat for your friend"],
+                "secret": ["Your friend is vegetarian", "You have only twenty pounds"],
+                "mission": ["Use three Useful Phrases", "Fix the problem politely with a Fix-It Phrase"],
+                "goal": "Finish lunch and pay before the bus leaves."
+              },
+              "teacher": {
+                "want": ["Sell the special of the day", "Take the order quickly because the café is busy"],
+                "avoid": ["Mistakes with the bill"],
+                "secret": ["Surprise: bring two orange juices instead of two lemonades", "The vegetable pasta is the special today"],
+                "mission": ["Bring in your surprise in the middle", "Recommend the special of the day"],
+                "goal": "Finish lunch and pay before the bus leaves."
+              }
+            }
+          }
+        },
+        {
+          "id": "mission-speaking-support",
+          "kind": "generated",
+          "control": "speakingSupport",
+          "params": {
+            "phrases": 3
+          },
+          "fields": {
+            "phrases": "missionPhrases"
+          },
+          "chrome": {
+            "title": "Speaking Support"
+          },
+          "instructions": "missionPhrases help the learner in their own role: reacting to what the other person says, asking about details, asking to repeat or explain, asking for something else, saying yes or no politely and finishing the situation (decision). Keep clarification phrases reusable in any situation.",
+          "example": {
+            "phrases": {
+              "reacting": ["Oh, great!", "Oh no!", "That sounds good."],
+              "followUpQuestions": ["What’s in it?", "Is it vegetarian?", "How much is it?"],
+              "clarification": ["Sorry, could you say that again?", "What do you mean?", "Sorry, how much?"],
+              "suggestions": ["Could I have … instead?", "How about the pasta?", "Can we sit by the window?"],
+              "agreeingDisagreeing": ["Yes, that’s fine.", "OK, I’ll have that.", "No, thank you."],
+              "decision": ["I’ll have the pasta, then.", "That’s all, thanks.", "Could I have the bill, please?"]
+            }
+          }
+        },
+        {
+          "id": "mission-example-dialogue",
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
+            "title": "Example Dialogue",
+            "text": "{{exampleDialogue}}",
+            "icon": "chat",
+            "headingSize": "large",
+            "accentColor": "#3563D4",
+            "studentVisibility": "controlled"
+          },
+          "slots": {
+            "exampleDialogue": {
+              "rule": "An Example Dialogue of the Mission in 6 to 8 turns. Start every turn with the role name in bold, the learner’s role and the teacher’s role from missionGoal, like **Customer:** and **Waiter:**; put an empty line between turns and write it in English only. It follows the role cards, uses three Useful Phrases and one Fix-It Phrase for the teacher’s surprise, and ends when the shared goal is reached.",
+              "example": "**Waiter:** Hi! Welcome to Rosie’s Café. Are you ready to order?\n\n**Customer:** Yes, please. What do you recommend? My friend is vegetarian.\n\n**Waiter:** The vegetable pasta is our special today.\n\n**Customer:** Great. I’d like two vegetable pastas and two lemonades, please.\n\n**Waiter:** Here are your drinks: two orange juices!\n\n**Customer:** Excuse me, I think there’s a mistake. I ordered lemonades, not orange juices.\n\n**Waiter:** Oh, I’m so sorry! I’ll change them.\n\n**Customer:** No problem, thanks. And could I have the bill, please? Our bus leaves soon."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "wrap-up",
+      "title": "Wrap-Up",
+      "subtitle": "How Did It Go?",
+      "durationMinutes": 3,
+      "icon": "check",
+      "context": {
+        "Situation": "$input.topic"
+      },
+      "instructions": "This is a three-minute Wrap-Up: the learner rates how well they manage the situation now and hears that the homework comes in the next stage.\nAll copy must be natural English at the target CEFR level.",
+      "blocks": [
+        {
+          "id": "wrap-up-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**Say:** “Mission complete! How well can you manage this situation in English now? Choose an answer.”\n\n**Then:** Look at your First Try notes one last time and correct one or two mistakes together. Tell the student that the homework is in the next stage: open it together, read the task and show where to write and how to hand it in.\n\n**Positive ending:** Name one phrase the student used well in the Mission."
+          }
+        },
+        {
+          "id": "wrap-up-self-assessment",
+          "kind": "static",
+          "component": {
+            "type": "selfAssessment",
+            "title": "Self-assessment: Can you manage this situation in English now?"
+          }
+        },
+        {
+          "id": "wrap-up-coming-up",
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
+            "title": "Coming Up: Homework",
+            "text": "Your homework is in the next stage. You will write a short text about today’s situation and hand it in. Your teacher will check it and give you feedback.",
+            "icon": "pencil",
+            "accentColor": "#6545F5",
+            "studentVisibility": "always"
+          }
+        }
+      ]
+    },
+    {
+      "id": "homework",
+      "title": "Homework",
+      "subtitle": "Write It Down",
+      "icon": "home",
+      "context": {
+        "Situation": "$input.topic",
+        "Useful Phrases": "$var.usefulPhrases"
+      },
+      "instructions": "This is the homework stage, done after the lesson: the learner writes a short text in the situation of the lesson that uses the Useful Phrases, and hands it in; the teacher grades it later.\nAll copy must be natural English at the target CEFR level.",
+      "blocks": [
+        {
+          "id": "homework-teacher-note",
+          "kind": "static",
+          "component": {
+            "type": "teacherNote",
+            "text": "**In class:** Read the task together and check that the student understands it. Show the word counter and the **Hand in** button.\n\n**After the lesson:** The student writes at home and hands the text in. Open this stage, read the text, give 1–5 stars and write one thing that is good and one thing to fix.\n\n**Needs changes:** If the text is off-topic or uses none of the Useful Phrases, return it with a short note instead of a grade."
+          }
+        },
+        {
+          "id": "homework-text",
+          "kind": "static",
+          "component": {
+            "type": "homeworkWriting",
+            "title": "Your Text",
+            "instruction": "Write your text, then hand it in. Your teacher will check it.",
+            "task": "{{homeworkTask}}",
+            "minWords": 50,
+            "maxWords": 70
+          },
+          "slots": {
+            "homeworkTask": {
+              "rule": "A short homework task for the learner: write a text of 50–70 words in the situation of the lesson, such as a short dialogue, a message to a hotel chat or a review of a café, that uses at least three Useful Phrases. Say in *italics* what happens in the text. Two short paragraphs separated by a blank line; no heading or list.",
+              "example": "Write a dialogue of 50–70 words at a café: *a customer orders lunch, something goes wrong, and the waiter fixes it.*\n\nStart every line with **Customer:** or **Waiter:** and use at least three Useful Phrases from today’s lesson."
+            }
+          }
+        },
+        {
+          "id": "homework-support",
+          "kind": "static",
+          "component": {
+            "type": "markdownCard",
+            "title": "Support",
+            "text": "- **Useful phrases:** {{homeworkPhrases}}\n- **Start like this:** “{{homeworkStarter}}”",
+            "icon": "lifeRing",
+            "accentColor": "#20A85B",
+            "studentVisibility": "always"
+          },
+          "slots": {
+            "homeworkPhrases": {
+              "rule": "Exactly four distinct entries of Useful Phrases that fit the homework task, each copied exactly, separated by “ / ” on one line. No Markdown.",
+              "example": "Could I see the menu? / I’d like …, please. / What do you recommend? / Could I have the bill, please?"
+            },
+            "homeworkStarter": {
+              "rule": "The first sentence or line of the homework text, which fits the task, without quotation marks.",
+              "example": "Waiter: Good afternoon! Are you ready to order?"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

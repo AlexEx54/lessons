@@ -361,7 +361,7 @@ test('the last stage cannot go, by itself or by a cascade', () => {
 });
 
 test('deleting any block or stage of a system template leaves a valid template', () => {
-  for (const id of ['template-1', 'template-2']) {
+  for (const id of ['template-1', 'template-2', 'template-3', 'template-4']) {
     const base = findSystemTemplate(id).definition;
     const targets = [
       ...base.stages.map(item => ({ stage: item.id })),
@@ -471,7 +471,7 @@ test('answer names the target stage holds are renamed, fields for the AI in thei
 });
 
 test('every move a system template allows leaves a valid template', () => {
-  for (const id of ['template-1', 'template-2']) {
+  for (const id of ['template-1', 'template-2', 'template-3', 'template-4']) {
     const base = findSystemTemplate(id).definition;
     for (const home of base.stages) {
       for (const block of home.blocks) {
