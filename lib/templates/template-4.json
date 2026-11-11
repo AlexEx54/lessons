@@ -42,7 +42,9 @@
           "kind": "static",
           "component": {
             "type": "illustratedTextPanel",
-            "text": "{l}**The Situation**{/l}\n\n{{scene}}",
+            "text": "{{scene}}",
+            "layout": "scene",
+            "label": "The Situation",
             "backgroundColor": "#252A38",
             "leadingPicture": {
               "imagePrompt": "{{sceneImagePrompt}}"
@@ -54,8 +56,8 @@
               "example": "You are in a small café in London. You are hungry, and your bus leaves in thirty minutes. The waiter is coming to your table…"
             },
             "sceneImagePrompt": {
-              "rule": "An image prompt for a small picture of the place where the situation happens. A modern educational illustration suitable for teenagers and adults, with no text. Avoid childish or preschool aesthetics.",
-              "example": "A cosy small café in London with a few wooden tables and a smiling waiter walking to a table with a notepad, modern educational illustration, bright flat colours, no text."
+              "rule": "An image prompt for a large square picture of the opening scene: the place where the situation happens and the people in it at the moment the scene describes, seen from close enough to show their faces and what they are doing. The learner is in the picture as the person they are in the situation. A modern educational illustration suitable for teenagers and adults, with no text. Avoid childish or preschool aesthetics.",
+              "example": "A young customer sits at a wooden table in a cosy small café in London, looking at a menu and glancing at the clock on the wall, while a smiling waiter with a notepad walks over to the table, square composition, modern educational illustration, bright flat colours, no text."
             }
           }
         },

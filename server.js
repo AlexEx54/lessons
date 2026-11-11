@@ -2896,6 +2896,7 @@ async function handleRequest(req, res) {
           panelId: illustratedTextPanelRoute.panelId,
           text: body.text,
           backgroundColor: body.backgroundColor,
+          label: body.label,
         }, database);
       }
       json(res, 200, { draft });

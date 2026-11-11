@@ -8,8 +8,8 @@
   const KEBAB_CASE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
   const HEX_COLOR = /^#[0-9a-f]{6}$/i;
   const SIDES = new Set(['leading', 'trailing']);
-  // The scene layout shows one large leading picture beside the text, which may open with
-  // a bold label line.
+  // The scene layout shows one large leading picture beside the text and an optional
+  // label above the text.
   const SCENE_LAYOUT = 'scene';
   const DARK_TEXT = '#171a2b';
   const LIGHT_TEXT = '#ffffff';
@@ -74,10 +74,17 @@
       leadingPicture: normalizePicture(data.leadingPicture, 'leadingPicture'),
       trailingPicture: normalizePicture(data.trailingPicture, 'trailingPicture'),
     };
-    if (data.layout == null) return normalized;
+    if (data.layout == null) {
+      if (data.label != null) throw new Error('IllustratedTextPanel label needs the scene layout.');
+      return normalized;
+    }
     if (data.layout !== SCENE_LAYOUT) throw new Error(`IllustratedTextPanel layout must be "${SCENE_LAYOUT}".`);
     if (normalized.trailingPicture) throw new Error('IllustratedTextPanel scene layout has no trailingPicture.');
-    return { ...normalized, layout: SCENE_LAYOUT };
+    if (data.label != null && typeof data.label !== 'string') {
+      throw new Error('IllustratedTextPanel label must be a string.');
+    }
+    const label = data.label ? data.label.trim() : '';
+    return { ...normalized, layout: SCENE_LAYOUT, ...(label ? { label } : {}) };
   }
 
   function linearChannel(channel) {
@@ -235,6 +242,18 @@
     layout.className = 'text-panel__layout';
     const body = doc.createElement('div');
     body.className = 'text-panel__text';
+    // A scene keeps its label above the text: a line to read, an input while editing.
+    const content = scene ? doc.createElement('div') : null;
+    const labelLine = scene ? doc.createElement('p') : null;
+    const labelField = scene ? doc.createElement('input') : null;
+    if (scene) {
+      content.className = 'text-panel__content';
+      labelLine.className = 'text-panel__label';
+      labelField.type = 'text';
+      labelField.className = 'text-panel__label-field';
+      labelField.placeholder = 'Метка (необязательно)';
+      labelField.setAttribute('aria-label', 'Метка над текстом');
+    }
 
     function notify(message) {
       if (typeof settings.onMessage === 'function') settings.onMessage(message);
@@ -249,6 +268,8 @@
         changes.accentColor = accentText.value.trim().toUpperCase();
         changes.showBorder = borderToggle.checked;
       }
+      // An empty label is removed.
+      if (scene) changes.label = labelField.value.trim() || null;
       if (editPrompts) {
         for (const side of pictureSides) {
           const prompt = draftPrompts[side];
@@ -433,7 +454,7 @@
       const leading = illustrated ? pictureElement('leading', current.leadingPicture) : null;
       const trailing = illustrated && !scene ? pictureElement('trailing', current.trailingPicture) : null;
       if (leading) elements.push(leading);
-      elements.push(body);
+      elements.push(scene ? sceneContent() : body);
       if (trailing) elements.push(trailing);
       layout.replaceChildren(...elements);
       panel.classList.toggle('text-panel--editing', editing);
@@ -450,18 +471,17 @@
       }
       applyAppearance(current.backgroundColor, current.accentColor, current.showBorder);
       markdown.renderMarkdownInto(body, current.text, doc, 'text-panel__spacer', { pointerPrefix: 'text' });
-      if (scene) markSceneLabel();
+      if (scene) {
+        labelLine.textContent = current.label || '';
+        labelField.value = current.label || '';
+      }
       renderLayout();
     }
 
-    // A scene opens with a label when its first paragraph is bold text alone.
-    function markSceneLabel() {
-      const first = body.children[0];
-      if (!first || first.tagName !== 'P' || first.children.length !== 1) return;
-      const bold = first.children[0];
-      if (bold.tagName === 'STRONG' && bold.textContent.trim() === first.textContent.trim()) {
-        first.classList.add('text-panel__label');
-      }
+    function sceneContent() {
+      if (editing) content.replaceChildren(labelField, body);
+      else content.replaceChildren(...(current.label ? [labelLine] : []), body);
+      return content;
     }
 
     function leaveEditMode() {
@@ -549,6 +569,10 @@
     body.addEventListener('input', updateDirty);
     body.addEventListener('focus', () => { activeEditor = body; });
     body.addEventListener('keydown', cancelOnEscape);
+    if (scene) {
+      labelField.addEventListener('input', updateDirty);
+      labelField.addEventListener('keydown', cancelOnEscape);
+    }
     body.addEventListener('paste', (event) => {
       if (!editing) return;
       event.preventDefault();

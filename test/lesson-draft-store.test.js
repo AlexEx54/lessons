@@ -1222,6 +1222,29 @@ test('illustrated text panel content and background update independently from pl
   database.close();
 });
 
+test('scene panel label is saved, removed and allowed only in the scene layout', () => {
+  const database = openDatabase(':memory:');
+  const owner = admin(database, 'scene-label-owner');
+  const pending = createLessonDraft({ ownerAdminId: owner.id, topic: 'Scene', template: 'template-4' }, database);
+  const ready = completeLessonDraft(pending.id, owner.id, {
+    stages: [{ content: [
+      { type: 'illustratedTextPanel', id: 'scene-panel', text: 'Scene', backgroundColor: '#252A38', layout: 'scene', label: 'Old' },
+      { type: 'illustratedTextPanel', id: 'plain-panel', text: 'Plain', backgroundColor: '#252A38' },
+    ] }],
+  }, database);
+  const save = (panelId, label) => updateIllustratedTextPanel({
+    id: ready.id, ownerAdminId: owner.id, panelId, text: 'Text', backgroundColor: '#252A38', label,
+  }, database).content.stages[0].content;
+
+  assert.equal(save('scene-panel', ' The Situation ')[0].label, 'The Situation');
+  assert.equal(save('scene-panel', undefined)[0].label, 'The Situation', 'a save without a label keeps it');
+  assert.equal('label' in save('scene-panel', null)[0], false);
+  assert.equal('label' in save('plain-panel', null)[1], false);
+  assert.throws(() => save('plain-panel', 'The Situation'), /только у панели с раскладкой/);
+  assert.throws(() => save('scene-panel', 7), /строкой/);
+  database.close();
+});
+
 test('text panel image URL changes only an existing requested side', () => {
   const database = openDatabase(':memory:');
   const owner = admin(database, 'panel-image');
