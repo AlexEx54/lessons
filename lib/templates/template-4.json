@@ -167,7 +167,7 @@
           "kind": "static",
           "component": {
             "type": "teacherNote",
-            "text": "**Before reading:** say “Now let’s see how other people do it.” Ask the student to look at the title and the picture and guess what happens.\n\n**Task 1:** Read the dialogue together: you take one role, the student takes the other, then swap. Then the student answers the questions and finds the line that proves each answer.\n\n**Notice:** Ask the questions and let the student find the exact words in the dialogue. The answers are in the card for you.\n\n**Compare:** Ask “Which of these phrases did you need in your First Try?” Look at your notes together."
+            "text": "**Before reading:** say “Now let’s see how other people do it.” Ask the student to look at the title and the picture and guess what happens.\n\n**Task 1:** Read the dialogue together: you take one role, the student takes the other, then swap. Then the student answers the questions and finds the line that proves each answer.\n\n**Notice:** Ask the questions and let the student find the exact words in the dialogue. The answers are in the Answer Key.\n\n**Compare:** Ask “Which of these phrases did you need in your First Try?” Look at your notes together."
           }
         },
         {
@@ -264,16 +264,16 @@
           "kind": "static",
           "component": {
             "type": "markdownCard",
-            "title": "Notice: Answers",
+            "title": "Answer Key",
             "text": "{{noticeAnswers}}",
-            "icon": "key",
-            "accentColor": "#6545F5",
+            "icon": "check",
+            "accentColor": "#20A85B",
             "studentVisibility": "teacherOnly"
           },
           "slots": {
             "noticeAnswers": {
-              "rule": "The answers to noticeQuestions as a Markdown numbered list (1. to 3.), one per line: the exact phrase from dialogue in **bold**, copied exactly, then “ — ” and the speaker’s role in italics.",
-              "example": "1. **Could I see the menu?** — *Customer*\n2. **I’d like the tomato soup, please.** — *Customer*\n3. **Could I have the bill, please?** — *Customer*"
+              "rule": "The answers to noticeQuestions, one paragraph per question in the same order, separated by blank lines, in the form “N — phrase”: N is the number of the question and phrase is the exact phrase from dialogue that answers it, copied exactly. No list markers, bold or speaker names.",
+              "example": "1 — Could I see the menu?\n\n2 — I’d like the tomato soup, please.\n\n3 — Could I have the bill, please?"
             }
           }
         }
