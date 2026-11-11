@@ -193,3 +193,80 @@ test('without editImagePrompts the editor sends no picture fields', async () => 
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(Object.keys(saved[0]), ['text', 'backgroundColor']);
 });
+
+test('scene layout keeps one leading picture and rejects other layouts', () => {
+  const scene = normalizeIllustratedTextPanel(illustratedPanel({
+    layout: 'scene',
+    leadingPicture: { imagePrompt: 'Café' },
+  }));
+  assert.equal(scene.layout, 'scene');
+  assert.deepEqual(scene.leadingPicture, { imagePrompt: 'Café' });
+  assert.equal('layout' in normalizeIllustratedTextPanel(illustratedPanel()), false, 'the default layout is not stored');
+  assert.throws(() => normalizeIllustratedTextPanel(illustratedPanel({ layout: 'poster' })), /layout must be "scene"/);
+  assert.throws(() => normalizeIllustratedTextPanel(illustratedPanel({
+    layout: 'scene',
+    trailingPicture: { imagePrompt: 'Symbol' },
+  })), /no trailingPicture/);
+});
+
+// Renders a scene with a stub markdown that builds paragraphs: bold-only lines become <strong>.
+function renderScene(text, options = {}) {
+  const vm = require('node:vm');
+  const { createDocument } = require('./helpers/lesson-dom.js');
+  const document = createDocument();
+  const createElement = document.createElement;
+  document.createElement = tag => Object.assign(createElement(tag), { focus() {} });
+  const window = {
+    document,
+    SafeMarkdown: {
+      renderMarkdownInto(node, value) {
+        node.replaceChildren(...value.split('\n\n').map((line) => {
+          const paragraph = document.createElement('p');
+          const bold = line.match(/^\*\*(.+)\*\*$/);
+          paragraph.textContent = bold ? bold[1] : line;
+          if (bold) paragraph.append(Object.assign(document.createElement('strong'), { textContent: bold[1] }));
+          return paragraph;
+        }));
+      },
+      editorToMarkdown: () => text,
+    },
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/components/text-panel.js'), 'utf8'), { window });
+  return window.IllustratedTextPanelComponent.renderIllustratedTextPanel(illustratedPanel({
+    text,
+    layout: 'scene',
+    leadingPicture: { imagePrompt: '{{sceneImagePrompt}}' },
+  }), options);
+}
+
+test('scene layout marks a bold-only first paragraph as its label', () => {
+  const labelled = renderScene('**The Situation**\n\nYou are in a café.');
+  assert.match(labelled.className, /text-panel--scene/);
+  const [label, sceneText] = labelled.querySelector('.text-panel__text').children;
+  assert.equal(label.classList.contains('text-panel__label'), true);
+  assert.equal(sceneText.classList.contains('text-panel__label'), false);
+
+  const plain = renderScene('You are in a café.');
+  assert.equal(plain.querySelector('.text-panel__label'), null);
+});
+
+test('scene layout edits only the leading picture prompt', async () => {
+  const saved = [];
+  const panelNode = renderScene('**The Situation**\n\nYou are in a café.', {
+    editImagePrompts: true,
+    onSave: async (changes) => { saved.push(changes); return changes; },
+  });
+  panelNode.querySelector('.text-panel__edit').click();
+  assert.equal(panelNode.querySelectorAll('.text-panel__picture--prompt').length, 1);
+  panelNode.querySelector('.text-panel__edit').click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(Object.keys(saved[0]), ['text', 'backgroundColor', 'leadingPicture']);
+});
+
+test('scene layout CSS keeps the picture within the generated 512 px', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'components', 'text-panel.css'), 'utf8');
+  assert.match(css, /\.text-panel--scene \.text-panel__picture \{[^}]*flex: 0 0 clamp\(220px, 40%, 340px\);/s);
+  assert.match(css, /\.text-panel--scene \{[^}]*container-type: inline-size;/s);
+  assert.match(css, /@container \(max-width: 560px\)/);
+  assert.match(css, /\.text-panel--scene \.text-panel__text > \.text-panel__label \{/);
+});

@@ -8,6 +8,9 @@
   const KEBAB_CASE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
   const HEX_COLOR = /^#[0-9a-f]{6}$/i;
   const SIDES = new Set(['leading', 'trailing']);
+  // The scene layout shows one large leading picture beside the text, which may open with
+  // a bold label line.
+  const SCENE_LAYOUT = 'scene';
   const DARK_TEXT = '#171a2b';
   const LIGHT_TEXT = '#ffffff';
 
@@ -66,11 +69,15 @@
 
   function normalizeIllustratedTextPanel(data) {
     const panel = normalizePanelBasics(data, 'illustratedTextPanel', 'IllustratedTextPanel');
-    return {
+    const normalized = {
       ...panel,
       leadingPicture: normalizePicture(data.leadingPicture, 'leadingPicture'),
       trailingPicture: normalizePicture(data.trailingPicture, 'trailingPicture'),
     };
+    if (data.layout == null) return normalized;
+    if (data.layout !== SCENE_LAYOUT) throw new Error(`IllustratedTextPanel layout must be "${SCENE_LAYOUT}".`);
+    if (normalized.trailingPicture) throw new Error('IllustratedTextPanel scene layout has no trailingPicture.');
+    return { ...normalized, layout: SCENE_LAYOUT };
   }
 
   function linearChannel(channel) {
@@ -126,11 +133,14 @@
     // and whether each picture is there at all. While editing, a side holds its prompt,
     // or null for no picture.
     const editPrompts = illustrated && settings.editImagePrompts === true;
+    const scene = illustrated && current.layout === SCENE_LAYOUT;
+    const pictureSides = scene ? ['leading'] : [...SIDES];
     let draftPrompts = null;
     const promptFields = {};
 
     const panel = doc.createElement('section');
     panel.className = `text-panel text-panel--${illustrated ? 'illustrated' : 'plain'}`;
+    if (scene) panel.classList.add('text-panel--scene');
     panel.dataset.componentId = current.id;
 
     const controls = doc.createElement('div');
@@ -240,7 +250,7 @@
         changes.showBorder = borderToggle.checked;
       }
       if (editPrompts) {
-        for (const side of SIDES) {
+        for (const side of pictureSides) {
           const prompt = draftPrompts[side];
           changes[`${side}Picture`] = prompt === null ? null : { imagePrompt: prompt.trim() };
         }
@@ -421,7 +431,7 @@
     function renderLayout() {
       const elements = [];
       const leading = illustrated ? pictureElement('leading', current.leadingPicture) : null;
-      const trailing = illustrated ? pictureElement('trailing', current.trailingPicture) : null;
+      const trailing = illustrated && !scene ? pictureElement('trailing', current.trailingPicture) : null;
       if (leading) elements.push(leading);
       elements.push(body);
       if (trailing) elements.push(trailing);
@@ -440,7 +450,18 @@
       }
       applyAppearance(current.backgroundColor, current.accentColor, current.showBorder);
       markdown.renderMarkdownInto(body, current.text, doc, 'text-panel__spacer', { pointerPrefix: 'text' });
+      if (scene) markSceneLabel();
       renderLayout();
+    }
+
+    // A scene opens with a label when its first paragraph is bold text alone.
+    function markSceneLabel() {
+      const first = body.children[0];
+      if (!first || first.tagName !== 'P' || first.children.length !== 1) return;
+      const bold = first.children[0];
+      if (bold.tagName === 'STRONG' && bold.textContent.trim() === first.textContent.trim()) {
+        first.classList.add('text-panel__label');
+      }
     }
 
     function leaveEditMode() {
