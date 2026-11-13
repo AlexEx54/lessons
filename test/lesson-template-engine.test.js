@@ -290,6 +290,19 @@ test('apply rejects an answer without a required field and control validation er
   assert.throws(() => plan.apply('recap', state, RECAP_ANSWER), /lessonWords ещё не готова/);
 });
 
+test('apply turns a straight apostrophe between letters curly and leaves quotes as written', () => {
+  const plan = compileTemplate(definition(), catalog);
+  const state = { lesson: plan.createSkeleton(), variables: {} };
+  const { lesson } = plan.apply('guess', state, {
+    checks: ["Rosie's cat can't swim.", 'Dogs fly.'],
+    guesses: ["Somebody says 'hello' to Tom’s dog."],
+    success: "The student doesn't read the answers.",
+  });
+  const text = JSON.stringify(lesson.stages.find(stage => stage.id === 'guess').content);
+  for (const expected of ['Rosie’s cat can’t swim.', "says 'hello' to Tom’s dog.", 'doesn’t read']) assert.ok(text.includes(expected), expected);
+  assert.equal(text.match(/\p{L}'\p{L}/gu), null);
+});
+
 test('example run builds every stage without the model', () => {
   const plan = compileTemplate(definition(), catalog);
   let state = { lesson: plan.createSkeleton(), variables: {} };
