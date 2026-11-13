@@ -570,3 +570,48 @@ test('a parameter may not exceed the one its atMost names', () => {
     ['Блок word-list, «Слов: до»: не больше 10.', 'не больше 10'],
   ]);
 });
+
+test('a field the AI writes passes its text on to later stages when it exports it', () => {
+  const passing = definition();
+  block(passing, 'guess', 'guess-note').slots.success.export = 'successLine';
+  stage(passing, 'recap').context['Success line'] = '$var.successLine';
+  const plan = compileTemplate(passing, catalog);
+  const state = runAll(plan, ANSWERS);
+  assert.equal(state.variables.successLine, 'The student explains two answers.');
+  assert.equal(state.requests.recap.messages[1].content, [
+    'Target Vocabulary: ["hat","scarf","boots"]',
+    'Success line: The student explains two answers.',
+  ].join('\n'));
+
+  // The stage that reads the field waits for the stage that writes it.
+  const early = definition();
+  block(early, 'vocabulary', 'vocabulary-list').exports = {};
+  delete stage(early, 'recap').context;
+  stage(early, 'recap').blocks = [{ id: 'recap-note', kind: 'static', component: { type: 'teacherNote', text: '{{recapNote}}' }, slots: { recapNote: { rule: 'A note.' } } }];
+  block(early, 'guess', 'guess-note').slots.success.export = 'successLine';
+  stage(early, 'intro').context = { 'Success line': '$var.successLine' };
+  stage(early, 'intro').blocks.push({ id: 'intro-note', kind: 'static', component: { type: 'teacherNote', text: '{{introNote}}' }, slots: { introNote: { rule: 'A note.' } } });
+  assert.deepEqual(compileTemplate(early, catalog).steps.map(step => step.key), ['recap', 'guess', 'intro', 'vocabulary']);
+});
+
+test('only a field the AI writes exports, under a free variable name read by other stages', () => {
+  assert.match(
+    errorsAfter(template => { block(template, 'guess', 'guess-note').slots.firstCheck.export = 'firstCheck'; }).join('\n'),
+    /export слота firstCheck блока guess-note должен быть именем переменной рядом с rule/,
+  );
+  assert.match(
+    errorsAfter(template => { block(template, 'guess', 'guess-note').slots.success.export = 'Success line'; }).join('\n'),
+    /export слота success блока guess-note должен быть именем переменной/,
+  );
+  assert.match(
+    errorsAfter(template => { block(template, 'guess', 'guess-note').slots.success.export = 'lessonWords'; }).join('\n'),
+    /Переменную lessonWords отдают два блока: guess-note и vocabulary-list/,
+  );
+  assert.match(
+    errorsAfter(template => {
+      block(template, 'guess', 'guess-note').slots.success.export = 'successLine';
+      stage(template, 'guess').context.Success = '$var.successLine';
+    }).join('\n'),
+    /context этапа guess не может ссылаться на переменную своего этапа successLine/,
+  );
+});

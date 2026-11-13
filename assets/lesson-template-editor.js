@@ -213,11 +213,11 @@
     return parts.join(', ') || 'никто не читает';
   }
 
-  // Link chips of one block: what it reads (← source) and what it gives away (→ readers). In a copy an input chip opens the choice of its source; in a system
-  // template it leads to the source.
+  // Link chips of one block: what it reads (← source) and what it gives away (→ readers);
+  // a static block only gives away the text of its fields. In a copy an input chip opens
+  // the choice of its source; in a system template it leads to the source.
   function linkChips(id) {
     const { block, stage } = state.blocks.get(id);
-    if (block.kind === 'static') return [];
     const links = blockLinks(block);
     const inputs = Object.entries(links.inputs).map(([port, link]) => {
       const type = capitalize(typeLabel(link.type));
@@ -1827,7 +1827,7 @@
       if (editable() && block.component.type !== 'videoPlayer') {
         sections.push(el('p', 'template-panel__hint', 'Текст правится прямо в блоке: кнопка ✎ в его углу.'));
       }
-      sections.push(fieldsSection(block));
+      sections.push(fieldsSection(block), linksSection(block));
     } else {
       sections.push(...controlledBlockSections(block));
     }
@@ -1880,7 +1880,7 @@
     }
     const producer = line.source === 'var' && producers.get(line.name);
     if (!producer) return el('small', '', line.reference);
-    const type = state.controls.get(producer.block.control)?.outputs[producer.port]?.type;
+    const type = Edits.producerType(producer, state.controls);
     return linkButton(`${capitalize(typeLabel(type))} · ${stageTitle(producer.stage)}`, producer.block.id);
   }
 
@@ -1932,7 +1932,7 @@
     variables.label = 'Другие этапы';
     for (const [name, producer] of producers) {
       if (producer.stage === stage || taken.has(`$var.${name}`)) continue;
-      const type = state.controls.get(producer.block.control)?.outputs[producer.port]?.type;
+      const type = Edits.producerType(producer, state.controls);
       variables.append(new Option(`${capitalize(typeLabel(type))} · ${stageTitle(producer.stage)}`, `var.${name}`));
     }
     const groups = [inputs, variables].filter(group => group.children.length > 0);

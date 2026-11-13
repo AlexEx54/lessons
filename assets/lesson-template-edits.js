@@ -16,18 +16,32 @@
 
   const flattenBlocks = blocks => blocks.flatMap(block => (block.kind === 'row' ? block.blocks : [block]));
 
+  // The variables a block gives away: the outputs of a generated block by `port`, and the
+  // fields for the AI of a static block that pass their text on, by `slot`.
+  function blockExports(block) {
+    const outputs = Object.entries(block.exports || {}).map(([port, variable]) => ({ variable, port }));
+    const fields = Object.entries(block.kind === 'static' ? block.slots || {} : {})
+      .filter(([, slot]) => slot?.export)
+      .map(([slot, spec]) => ({ variable: spec.export, slot, type: 'text' }));
+    return [...outputs, ...fields];
+  }
+
+  const exportedVariables = blocks => blocks.flatMap(block => blockExports(block).map(({ variable }) => variable));
+
   // Which block gives away each variable, and in which stage.
   function variableProducers(definition) {
     const producers = new Map();
     for (const stage of definition.stages) {
       for (const block of flattenBlocks(stage.blocks)) {
-        for (const [port, variable] of Object.entries(block.exports || {})) {
-          producers.set(variable, { stage, block, port });
-        }
+        for (const { variable, ...from } of blockExports(block)) producers.set(variable, { stage, block, ...from });
       }
     }
     return producers;
   }
+
+  // The type of a variable: text for a field, the output's type for a control.
+  const producerType = (producer, controls) => producer.type
+    ?? controls.get(producer.block.control)?.outputs?.[producer.port]?.type;
 
   // The stage's context as a list, in prompt order. A reference the editor cannot read
   // keeps `source: null`: the server reports it.
@@ -203,8 +217,7 @@
     const sources = [];
     for (const [variable, producer] of variableProducers(definition)) {
       const index = definition.stages.indexOf(producer.stage);
-      const type = controls.get(producer.block.control)?.outputs[producer.port]?.type;
-      if (type !== input.type || index >= stageIndex) continue;
+      if (producerType(producer, controls) !== input.type || index >= stageIndex) continue;
       sources.push({
         variable,
         block: producer.block.id,
@@ -302,7 +315,7 @@
       };
     }
     const exports = {};
-    for (const [port, variable] of Object.entries(block.exports || {})) {
+    for (const { variable, port, slot, type } of blockExports(block)) {
       const readers = { blocks: [], stages: [] };
       for (const stage of definition.stages) {
         if (contextLines(stage).some(line => line.source === 'var' && line.name === variable)) readers.stages.push(stage.id);
@@ -312,7 +325,7 @@
           }
         }
       }
-      exports[port] = { variable, type: control?.outputs[port]?.type, readers };
+      exports[port ?? slot] = { variable, type: type ?? control?.outputs[port]?.type, readers };
     }
     return { inputs, exports };
   }
@@ -421,7 +434,7 @@
 
     const goneVariables = () => new Set(entries
       .filter(({ block }) => deleted.has(block.id))
-      .flatMap(({ block }) => Object.values(block.exports || {})));
+      .flatMap(({ block }) => exportedVariables([block])));
     const breaks = (block, stage, gone) => {
       if (block.kind === 'static') return fieldSources(block, stage).some(source => deleted.has(source));
       return Object.values(block.inputs || {}).some(variable => gone.has(variable));
@@ -513,10 +526,7 @@
     if (usedBy.length > 0) blockers.push({ kind: 'usedBy', blocks: usedBy });
 
     const producers = variableProducers(definition);
-    const typeOf = variable => {
-      const producer = producers.get(variable);
-      return controls.get(producer.block.control)?.outputs?.[producer.port]?.type;
-    };
+    const typeOf = variable => producerType(producers.get(variable), controls);
     for (const block of blocks) {
       for (const variable of Object.values(block.inputs || {})) {
         const producer = producers.get(variable);
@@ -527,7 +537,7 @@
       }
     }
 
-    const variables = new Set(blocks.flatMap(block => Object.values(block.exports || {})));
+    const variables = new Set(exportedVariables(blocks));
     for (const stage of definition.stages) {
       const at = position(stage.id);
       let readByBlock = false;
@@ -602,7 +612,7 @@
     const { stage: home, index, blocks } = moving(definition, id);
     const target = definition.stages.find(stage => stage.id === targetId);
     const read = new Set(blocks.flatMap(block => Object.values(block.inputs || {})));
-    const exported = blocks.flatMap(block => Object.values(block.exports || {}));
+    const exported = exportedVariables(blocks);
     renameAnswerNames(blocks, target, controls);
     target.blocks.push(...home.blocks.splice(index, 1));
 
@@ -738,7 +748,9 @@
     CONTEXT_LABEL_MAX_LENGTH,
     INPUT_TITLE_MAX_LENGTH,
     flattenBlocks,
+    blockExports,
     variableProducers,
+    producerType,
     contextLines,
     contextVariablesInUse,
     defaultContextLabel,
