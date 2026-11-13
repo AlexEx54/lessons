@@ -640,35 +640,33 @@ test('a new field takes the first aiField name free among the stage answer names
   assert.equal(Edits.newFieldName(speaking, controls), 'aiField3');
 });
 
-// Template 4 with its Warm Up scene passed on to the Mission.
-function sceneForMission() {
-  const definition = structuredClone(findSystemTemplate('template-4').definition);
-  block(definition, 'warm-up-situation').slots.scene.export = 'openingScene';
-  stage(definition, 'mission').context['Opening scene'] = '$var.openingScene';
-  return definition;
-}
+// Template 4 passes its Warm Up scene on to the later stages.
+const sceneTemplate = () => structuredClone(findSystemTemplate('template-4').definition);
+const sceneReaders = ['first-try', 'model-dialogue', 'something-goes-wrong', 'mission'];
 
 test('a field for the AI that passes its text on is a text variable of its block', () => {
-  const definition = sceneForMission();
+  const definition = sceneTemplate();
   assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
   const producer = Edits.variableProducers(definition).get('openingScene');
   assert.deepEqual([producer.stage.id, producer.block.id, producer.slot], ['warm-up', 'warm-up-situation', 'scene']);
   assert.equal(Edits.producerType(producer, controls), 'text');
   assert.deepEqual(Edits.blockLinks(definition, block(definition, 'warm-up-situation'), controls), {
     inputs: {},
-    exports: { scene: { variable: 'openingScene', type: 'text', readers: { blocks: [], stages: ['mission'] } } },
+    exports: { scene: { variable: 'openingScene', type: 'text', readers: { blocks: [], stages: sceneReaders } } },
   });
 });
 
 test('a block whose field passes its text on takes the context lines with it and stays above them', () => {
-  const definition = sceneForMission();
+  const definition = sceneTemplate();
   const plan = Edits.deletionPlan(definition, { block: 'warm-up-situation' });
   assert.deepEqual(blockIds(plan), ['warm-up-situation']);
-  assert.deepEqual(plan.context, [{ stage: 'mission', label: 'Opening scene' }]);
+  assert.deepEqual(plan.context, sceneReaders.map(stage => ({ stage, label: 'Opening scene' })));
 
-  assert.deepEqual(Edits.moveBlockers(definition, 'warm-up-situation', 'wrap-up', controls), [
-    { kind: 'reader', block: null, stage: 'mission', type: 'text' },
-  ]);
-  assert.deepEqual(Edits.moveToStage(definition, 'warm-up-situation', 'first-try', controls), { addedLines: [], removedLines: [] });
+  assert.deepEqual(Edits.moveBlockers(definition, 'warm-up-situation', 'wrap-up', controls),
+    sceneReaders.map(stage => ({ kind: 'reader', block: null, stage, type: 'text' })));
+  // In First Try the block is in the stage that read it, so that stage drops the line.
+  assert.deepEqual(Edits.moveToStage(definition, 'warm-up-situation', 'first-try', controls), {
+    addedLines: [], removedLines: [{ stage: 'first-try', label: 'Opening scene' }],
+  });
   assert.deepEqual(validateTemplate(definition, CONTROL_CATALOG).errors, []);
 });

@@ -27,7 +27,7 @@
       "context": {
         "Situation": "$input.topic"
       },
-      "instructions": "This is a four-minute Warm-Up: the learner imagines being in a real-life situation and talks about it. Later in the lesson the learner tries the situation, learns how to manage it and finally plays it with the teacher.\nThe situation is everyday and safe. Write to the learner as the person they would be in it in real life: a customer, a guest, a tourist.\nAll content must be natural English at the target CEFR level. Image prompts must be in English.",
+      "instructions": "This is a four-minute Warm-Up: the learner imagines being in a real-life situation and talks about it. Later in the lesson the learner tries the situation, learns how to manage it and finally plays it with the teacher, who plays the other person.\nThe situation is everyday and safe, and it is one of two kinds. With staff or a stranger, the learner is a customer, guest, passenger or patient, and the other person works there or is a stranger. Between equals, such as friends, classmates or family, the learner is themselves and the other person is a friend or relative. Choose the kind the Situation describes and write to the learner as the person they would be in it in real life.\nAll content must be natural English at the target CEFR level. Image prompts must be in English.",
       "blocks": [
         {
           "id": "warm-up-teacher-note",
@@ -52,11 +52,12 @@
           },
           "slots": {
             "scene": {
-              "rule": "A short opening scene for the situation, written to the learner in the second person: two or three short sentences that put the learner right into the situation and give one small reason to act now, for example a time limit. Plain text without Markdown.",
-              "example": "You are in a small café in London. You are hungry, and your bus leaves in thirty minutes. The waiter is coming to your table…"
+              "rule": "A short opening scene for the situation, written to the learner in the second person: two or three short sentences that put the learner right into the situation and give one small reason to act now, for example a time limit. Besides the learner, exactly one person takes part: the one the teacher plays later. Name that person by their job when they work there, such as the waiter, or by a first name when they are a friend, classmate or relative, such as your friend Max. Later stages continue this scene with the same place and the same two people. Plain text without Markdown. A scene between friends, for example: “Your friend Max calls you on Saturday morning. He wants to ride bikes together today, but it’s going to rain at three. You need to make a plan fast.”",
+              "example": "You are in a small café in London. You are hungry, and your bus leaves in thirty minutes. The waiter is coming to your table…",
+              "export": "openingScene"
             },
             "sceneImagePrompt": {
-              "rule": "An image prompt for a large square picture of the opening scene: the place where the situation happens and the people in it at the moment the scene describes, seen from close enough to show their faces and what they are doing. The learner is in the picture as the person they are in the situation. A modern educational illustration suitable for teenagers and adults, with no text. Leave out things that carry writing, such as signs, screens, menus on the wall and departure boards. Avoid childish or preschool aesthetics.",
+              "rule": "An image prompt for a large square picture of the opening scene: the place where the situation happens and the two people in it at the moment the scene describes, seen from close enough to show their faces and what they are doing. The learner is in the picture as the person they are in the situation. The people are the age the situation suggests, for example teenagers for school friends. A modern educational illustration with bright flat colours, suitable for teenagers and adults, with no text. Leave out things that carry writing, such as signs, screens, menus on the wall and departure boards. Avoid childish or preschool aesthetics.",
               "example": "A young customer sits at a wooden table in a cosy small café in London, glancing at the clock on the wall, while a smiling waiter with a notepad walks over to the table, square composition, modern educational illustration, bright flat colours, no text."
             }
           }
@@ -93,9 +94,10 @@
       "durationMinutes": 5,
       "icon": "chat",
       "context": {
-        "Situation": "$input.topic"
+        "Situation": "$input.topic",
+        "Opening scene": "$var.openingScene"
       },
-      "instructions": "This is a five-minute First Try: before any teaching, the learner does the situation with the teacher, who plays the other person, using any English they know.\nAll content must be natural English at the target CEFR level.",
+      "instructions": "This is a five-minute First Try: before any teaching, the learner does the situation with the teacher, who plays the other person of the supplied Opening scene, using any English they know. The try continues the Opening scene: the same place, the same two people and the same reason to act now.\nAll content must be natural English at the target CEFR level.",
       "blocks": [
         {
           "id": "first-try-teacher-note",
@@ -117,7 +119,7 @@
           },
           "slots": {
             "firstTryTask": {
-              "rule": "The learner’s first try: exactly three short steps the learner does in the situation right now with the teacher, as a Markdown numbered list (1. to 3.), one imperative step per line, in the order they happen, from the start of the situation to the end. Each step says what to get done, not which words to use: no step gives away a useful phrase. No heading or introduction.",
+              "rule": "The learner’s first try: exactly three short steps the learner does in the situation right now with the teacher, as a Markdown numbered list (1. to 3.), one imperative step per line, in the order they happen, from the start of the situation to the end. Each step says what to get done, not which words to use: no step gives away a useful phrase. No heading or introduction. Between friends the steps are, for example, “1. Suggest a plan for the day.”, “2. Agree on a time and a place.”, “3. Say what each of you brings.”.",
               "example": "1. Say hello and ask for a table.\n2. Order something to eat and something to drink.\n3. Ask for the bill and pay."
             }
           }
@@ -158,9 +160,10 @@
       "icon": "book",
       "context": {
         "Situation": "$input.topic",
+        "Opening scene": "$var.openingScene",
         "Language focus": "$input.languageFocus"
       },
-      "instructions": "This is a seven-minute reading stage: the learner reads a model dialogue of the situation, answers questions about it and notices how things are said.\nIf a Language focus is supplied, it is authoritative: build the dialogue around it and use it in at least four turns. If no Language focus is supplied, choose yourself the functional language a person needs most in this situation, for example polite requests, offers and questions, and use it naturally.\nThe Useful Phrases stage later takes its phrases from this dialogue.\nEverything people say is everyday spoken English with contractions (I’d like, it’s, that’s, I don’t, I didn’t), not full forms. Every line is what a native speaker really says in this place; check each set phrase and its preposition.\nAll content must be natural English at the target CEFR level. Make distractors plausible but clearly wrong.",
+      "instructions": "This is a seven-minute reading stage: the learner reads a model dialogue of the situation, answers questions about it and notices how things are said.\nThe dialogue plays the supplied Opening scene: the same place, the same two people and the same reason to act now.\nIf a Language focus is supplied, it is authoritative: build the dialogue around it and use it in at least four turns. If no Language focus is supplied, choose yourself the functional language a person needs most in this situation, and use it naturally: for example polite requests, offers and questions with staff, or suggestions, agreeing and making plans between friends.\nThe Useful Phrases stage later takes its phrases from this dialogue.\nEverything people say is everyday spoken English with contractions (I’d like, it’s, that’s, I don’t, I didn’t), not full forms. Every line is what a native speaker really says in this place; check each set phrase and its preposition.\nAll content must be natural English at the target CEFR level. Make distractors plausible but clearly wrong.",
       "blocks": [
         {
           "id": "model-dialogue-teacher-note",
@@ -184,13 +187,13 @@
           "exports": {
             "text": "modelDialogue"
           },
-          "instructions": "Write dialogue as a conversation between the two people of the situation, named by their roles, for example Waiter and Customer: the learner’s real-life role and the other person. Every paragraph is one turn in the form **Role:** words. Speaker names count toward the word limit.\nThe dialogue goes through the whole situation from start to finish and is a clear, polite model of how to manage it, with at least eight useful phrases the learner can reuse.\ntitle names the scene, for example “Lunch at Rosie’s Café”; subtitle is one short line that says who talks, for example “A customer orders lunch”.\nheaderImagePrompt describes a small icon of the place; textImagePrompt describes a wide scene with both people in the situation. Leave out things that carry writing, such as signs, screens, menus on the wall and departure boards.",
+          "instructions": "Write dialogue as a conversation between the two people of the Opening scene: the one in the learner’s place and the other person. Name the speakers by their roles when one of them works there or is a stranger, for example Customer and Waiter. Name them by first names when they are equals, such as friends, classmates or relatives: the other person by the name the Opening scene gives, the one in the learner’s place by a new first name, for example Max and Lena; never by words like Friend or Cyclist. Every paragraph is one turn in the form **Name:** words. Speaker names count toward the word limit.\nThe dialogue goes through the whole situation from start to finish and is a clear, friendly model of how to manage it, with at least eight useful phrases the learner can reuse. Nothing goes wrong in it: problems come in a later stage.\ntitle names the scene, for example “Lunch at Rosie’s Café”; subtitle is one short line that says who talks, for example “A customer orders lunch” or “Max and Lena plan a bike ride”.\nheaderImagePrompt describes a small icon of the place; textImagePrompt describes a wide scene with both people in the place of the Opening scene, at the age the situation suggests. Both image prompts end with the same style: modern educational illustration, bright flat colours, no text; never a photo or a realistic painting. Leave out things that carry writing, such as signs, screens, menus on the wall and departure boards.",
           "example": {
             "title": "Lunch at Rosie’s Café",
             "subtitle": "A customer orders lunch",
             "text": "**Waiter:** Hi there! Welcome to Rosie’s Café. A table for one?\n\n**Customer:** Yes, please. Could I see the menu?\n\n**Waiter:** Of course. Here you are. Are you ready to order, or do you need a minute?\n\n**Customer:** I’m ready, I think. I’d like the tomato soup, please.\n\n**Waiter:** Good choice. Would you like some bread with it?\n\n**Customer:** Yes, please. And what do you recommend for dessert?\n\n**Waiter:** The apple pie is very good today.\n\n**Customer:** Great, I’ll have the apple pie, then.\n\n**Waiter:** Anything to drink?\n\n**Customer:** An orange juice, please.\n\n**Waiter:** Sure. Is that everything?\n\n**Customer:** Yes, that’s all, thanks.\n\n**Waiter:** How was everything?\n\n**Customer:** Lovely, thank you! Could I have the bill, please?\n\n**Waiter:** Here you are. That’s twelve pounds fifty.\n\n**Customer:** Can I pay by card?\n\n**Waiter:** Yes, of course. Thank you, and have a nice day!",
             "headerImagePrompt": "Small round icon of a steaming cup of coffee and a slice of apple pie on a café table, bright flat colours, modern educational illustration, no text.",
-            "textImagePrompt": "Wide scene in a small cosy café: a smiling waiter with a notepad takes the order of a young customer sitting at a table, modern educational illustration, no text."
+            "textImagePrompt": "Wide scene in a small cosy café: a smiling waiter with a notepad takes the order of a young customer sitting at a table, modern educational illustration, bright flat colours, no text."
           }
         },
         {
@@ -254,7 +257,7 @@
           },
           "slots": {
             "noticeQuestions": {
-              "rule": "Exactly three “how do they say it” questions about dialogue as a Markdown numbered list (1. to 3.), one per line, for example “How does the customer ask for the menu?”. Each question asks about a different useful phrase and is answered by one exact phrase from dialogue; the questions follow the order of the dialogue. No heading and no answers.",
+              "rule": "Exactly three “how do they say it” questions about dialogue as a Markdown numbered list (1. to 3.), one per line, for example “How does the customer ask for the menu?” or “How does Lena say yes to the plan?”. Name the speakers as dialogue does. Each question asks about a different useful phrase and is answered by one exact phrase from dialogue; the questions follow the order of the dialogue. Write the questions in short, simple words that are easier than the dialogue itself, such as ask, say, want, drink, not words like beverage or request. No heading and no answers.",
               "example": "1. How does the customer ask to see the menu?\n2. How does the customer order the soup?\n3. How does the customer ask to pay?"
             }
           }
@@ -319,7 +322,7 @@
           "exports": {
             "vocabulary": "usefulPhrases"
           },
-          "instructions": "phraseItems: reusable phrases from the supplied Model dialogue, copied exactly or shortened to their reusable core with “…” for the part that changes, for example “I’d like …, please.”. Mostly phrases the learner needs in their own role, and one or two that the other person says and the learner must understand. term is the phrase; definition says in simple English what it does, for example “a polite way to ask for something”. The phrases follow the order of the dialogue. Write “…” as one character, not as three dots.",
+          "instructions": "phraseItems: reusable phrases from the supplied Model dialogue, copied exactly or shortened to their reusable core with “…” for the part that changes, for example “I’d like …, please.” or “Why don’t we …?”. Mostly phrases the learner needs in their own role, and one or two that the other person says and the learner must understand. term is the phrase; definition says in simple English what it does, for example “a polite way to ask for something” or “a friendly way to suggest a plan”. The phrases follow the order of the dialogue. Write “…” as one character, not as three dots.",
           "example": {
             "items": [
               { "term": "Could I see the menu?", "definition": "a polite way to ask for the menu" },
@@ -348,7 +351,7 @@
             "title": "Task 1. Sort the Phrases",
             "instruction": "Tap a phrase, then tap the right basket. You can also drag it."
           },
-          "instructions": "phraseGroups sort short phrases of the situation by the moment of it when they are said, in the order the moments happen, for example Arriving / Ordering / Paying. Each title is one or two short words.\nThe moments do not overlap, and every card is said at one of them only. Check each card against the other groups before you finish: leave out a phrase a learner could reasonably put into two groups, for example a question about the price when one group is about choosing and another about paying.\nUse the phrases of phraseItems that fit, copied exactly, and add other natural phrases of the situation; every card is something a person says in it.",
+          "instructions": "phraseGroups sort short phrases of the situation by the moment of it when they are said, in the order the moments happen, for example Arriving / Ordering / Paying, or Suggesting / Planning / Meeting Up between friends. Each title is one or two short words.\nThe moments do not overlap, and every card is said at one of them only. Check each card against the other groups before you finish: leave out a phrase a learner could reasonably put into two groups, for example a question about the price when one group is about choosing and another about paying.\nUse the phrases of phraseItems that fit, copied exactly, and add other natural phrases of the situation; every card is something a person says in it.",
           "example": {
             "groups": [
               { "title": "Arriving", "cards": ["A table for two, please.", "Could I see the menu?", "Can we sit by the window?"] },
@@ -372,7 +375,7 @@
             "title": "Task 2. Best Reply",
             "instruction": "Read what the other person says. Choose the best reply."
           },
-          "instructions": "replyQuestions: each question is one line the other person says in the situation, in the form The waiter says: “…”, with that person’s role. The options are three replies of the learner; the answer is the natural, polite reply, and it uses a phrase of phraseItems where one fits. The wrong replies clearly do not fit that line: they answer another question or belong to another moment of the situation. explanation is one short sentence on why the answer fits. Use four different moments of the situation, in the order they happen.\nThe task is new use, not memory: no line of the other person is copied from the Model dialogue, and no answer is the reply that follows that line there. Say the lines in other words or with other details, such as another thing, time or price.",
+          "instructions": "replyQuestions: each question is one line the other person says in the situation, in the form The waiter says: “…” or Max says: “…”, with that person’s role or name as in the Model dialogue. The options are three replies of the learner; the answer is the natural, friendly reply, and it uses a phrase of phraseItems where one fits. The wrong replies clearly do not fit that line: they answer another question or belong to another moment of the situation. explanation is one short sentence on why the answer fits. Use four different moments of the situation, in the order they happen.\nThe task is new use, not memory: no line of the other person is copied from the Model dialogue, and no answer is the reply that follows that line there. Say the lines in other words or with other details, such as another thing, time or price.",
           "answerKey": {
             "title": "Answer Key",
             "format": "paragraphs"
@@ -420,7 +423,7 @@
         "Useful Phrases": "$var.usefulPhrases",
         "Model dialogue": "$var.modelDialogue"
       },
-      "instructions": "This is a nine-minute Practice stage with three controlled tasks: put a new dialogue in order, complete what people say and build sentences from cards.\nIf a Language focus is supplied, practise it in every task. If no Language focus is supplied, practise the supplied Useful Phrases.\nEvery task takes place in the same situation as the supplied Model dialogue, but with new details such as other food, another time or another place; do not copy lines from the Model dialogue, and do not repeat a line from another task.\nEverything people say is everyday spoken English with contractions (I’d like, it’s, that’s, I don’t, I didn’t), not full forms.\nAll content must be natural English at the target CEFR level.",
+      "instructions": "This is a nine-minute Practice stage with three controlled tasks: put a new dialogue in order, complete what people say and build sentences from cards.\nIf a Language focus is supplied, practise it in every task. If no Language focus is supplied, practise the supplied Useful Phrases.\nEvery task takes place in the same situation as the supplied Model dialogue, but with new details such as another thing, another time or another place; do not copy lines from the Model dialogue, and do not repeat a line from another task.\nEverything people say is everyday spoken English with contractions (I’d like, it’s, that’s, I don’t, I didn’t), not full forms.\nAll content must be natural English at the target CEFR level.",
       "blocks": [
         {
           "id": "practice-teacher-note",
@@ -445,7 +448,7 @@
             "title": "Task 1. Put the Dialogue in Order",
             "instruction": "Drag a line by the handle or use the arrows, then press Check."
           },
-          "instructions": "orderLines: a new short dialogue between the same two roles as in the Model dialogue, with the speakers named the same way. It uses at least three of the supplied Useful Phrases, adapted to the new details.",
+          "instructions": "orderLines: a new short dialogue between the same two people as in the Model dialogue, with the speakers named exactly the same way. It uses at least three of the supplied Useful Phrases, adapted to the new details.",
           "answerKey": {
             "title": "Answer Key"
           },
@@ -474,7 +477,7 @@
             "title": "Task 2. Complete the Phrases",
             "instruction": "Use the words in the box to complete what the people say."
           },
-          "instructions": "gapItems: six things people say in the situation, each built on a different entry of Useful Phrases. before starts with the speaker’s role and a colon, for example “Customer: Could I”. answer is one key word of the useful phrase, in lower case and never the first word of what the person says, so that a capital letter does not give it away; some words of the line follow the gap. The six answers together make the word box.",
+          "instructions": "gapItems: six things people say in the situation, each built on a different entry of Useful Phrases. before starts with the speaker’s name as in the Model dialogue and a colon, for example “Customer: Could I” or “Lena: Why don’t”. answer is one key word of the useful phrase, in lower case and never the first word of what the person says, so that a capital letter does not give it away; some words of the line follow the gap. The six answers together make the word box.",
           "example": {
             "items": [
               { "before": "Customer: Could I", "answer": "see", "after": "the drinks menu, please?" },
@@ -526,9 +529,10 @@
       "icon": "question",
       "context": {
         "Situation": "$input.topic",
+        "Opening scene": "$var.openingScene",
         "Model dialogue": "$var.modelDialogue"
       },
-      "instructions": "This is a five-minute stage about problems: in the situation of the lesson something goes wrong, and the learner fixes it politely.\nThe problems are small, everyday and safe: the learner gets the wrong thing, something is missing, a price or a word is not clear, or there is a mistake with a booking or a bill. Nobody is in danger and nobody is rude.\nDo not use a problem in which something is sold out, fully booked, cancelled or closed: that kind of problem is kept for the Mission.\nThe problems happen in the same place as the supplied Model dialogue.\nEverything people say is everyday spoken English with contractions (I’d like, it’s, that’s, I don’t, I didn’t), not full forms.\nAll content must be natural English at the target CEFR level. Do not use Russian or HTML, and use Markdown only where a rule asks for it.",
+      "instructions": "This is a five-minute stage about problems: in the situation of the lesson something goes wrong, and the learner fixes it politely.\nThe problems are small, everyday and safe, and each is one of these kinds: a misunderstanding about a time, a place or a thing; something forgotten or missing; a word or a number that is not clear; a mistake in a plan, a booking or a bill. They fit the kind of situation: with staff, for example, the wrong dish arrives; between friends, for example, your friend thought you were meeting at the park, not at the station. Nobody is in danger and nobody is rude.\nDo not use a problem in which something the learner wants is not possible or not available, such as sold out, fully booked, cancelled or closed: that kind of problem is kept for the Mission.\nThe problems happen with the same two people and in the same place as the supplied Opening scene and Model dialogue.\nEverything people say is everyday spoken English with contractions (I’d like, it’s, that’s, I don’t, I didn’t), not full forms.\nAll content must be natural English at the target CEFR level. Do not use Russian or HTML, and use Markdown only where a rule asks for it.",
       "blocks": [
         {
           "id": "something-goes-wrong-teacher-note",
@@ -550,8 +554,8 @@
           },
           "slots": {
             "problemScene": {
-              "rule": "A short twist in the situation, written to the learner in the second person: two or three short sentences in which something goes wrong, for example the wrong dish arrives, the bill is too high or the ticket is for the wrong day. Tell the scene simply, in the order things happen. Plain text without Markdown.",
-              "example": "Your food arrives, but it is fish soup, and you ordered tomato soup! There is no spoon on your table, and the waiter is very busy."
+              "rule": "A short twist in the situation, written to the learner in the second person: two or three short sentences about exactly one thing that goes wrong, for example the wrong dish arrives, the bill is too high or your friend comes to the wrong place. Nothing else goes wrong in the scene; the other sentences only set it up. Tell the scene simply, in the order things happen. Plain text without Markdown.",
+              "example": "Your food arrives, but it is fish soup, and you ordered tomato soup! The waiter is already walking away."
             }
           }
         },
@@ -569,7 +573,7 @@
             "title": "What Do You Say?",
             "instruction": "Read each problem and say what you say. Use the Fix-It Phrases."
           },
-          "instructions": "problemQuestions: three different small problems in the situation; the first one is the problem of problemScene. Each question tells the problem in one short sentence and ends with “What do you say?”. followUp is a short extra question that makes the problem a little harder, for example what if the other person says no.",
+          "instructions": "problemQuestions: three different small problems in the situation, each of a different kind; the first one is the problem of problemScene. Each question tells the problem in one short sentence and ends with “What do you say?”. followUp is a short extra question that makes the problem a little harder, for example what if the other person says no.",
           "example": {
             "questions": [
               { "question": "The waiter brings you fish soup, but you ordered tomato soup. What do you say?", "followUp": "What if the waiter says you ordered fish soup?" },
@@ -597,7 +601,7 @@
           "exports": {
             "vocabulary": "fixItPhrases"
           },
-          "instructions": "fixItItems: phrases that help the learner fix problems like the ones in problemScene and problemQuestions: saying politely that there is a mistake, asking someone to repeat or to speak more slowly, asking for something that is missing, asking for something else when what you want is not possible and accepting an apology. term is the whole phrase, with “…” for the part that changes; definition says when to use it, for example “when you get the wrong thing”. Use phrases that work in many situations. Write “…” as one character, not as three dots.",
+          "instructions": "fixItItems: phrases that help the learner fix problems like the ones in problemScene and problemQuestions: saying politely that there is a mistake, asking someone to repeat or to speak more slowly, asking for something that is missing, asking for something else when what you want is not possible and accepting an apology. term is the whole phrase, with “…” for the part that changes; definition says when to use it, for example “when you get the wrong thing”. Use phrases that work in many situations, with staff and with friends, for example “Sorry, I think there’s a mistake.” or “Wait, I thought we said …”. Write “…” as one character, not as three dots.",
           "example": {
             "items": [
               { "term": "Excuse me, I think there’s a mistake.", "definition": "when you get the wrong thing" },
@@ -618,17 +622,18 @@
       "icon": "chat",
       "context": {
         "Situation": "$input.topic",
+        "Opening scene": "$var.openingScene",
         "Useful Phrases": "$var.usefulPhrases",
         "Fix-It Phrases": "$var.fixItPhrases"
       },
-      "instructions": "This is a nine-minute role-play, the Mission: the learner plays their own real-life role in the situation, such as the customer, the guest or the tourist, and the teacher plays the other person. The learner manages the whole situation in English, uses the supplied Useful Phrases and fixes one surprise problem with the supplied Fix-It Phrases.\nThe situation is everyday and safe.\nEverything people say is everyday spoken English with contractions (I’d like, it’s, that’s, I don’t, I didn’t), not full forms.\nAll content must be natural English at the target CEFR level. Do not use Russian or HTML, and use Markdown only where a rule asks for it.",
+      "instructions": "This is a nine-minute role-play, the Mission: the learner plays their own real-life role in the supplied Opening scene, such as the customer or the guest, or themselves with a friend or relative, and the teacher plays the other person of the scene. The learner manages the whole situation in English, uses the supplied Useful Phrases and fixes one surprise problem with the supplied Fix-It Phrases.\nThe Mission continues the Opening scene: the same place, the same two people and the same reason to act now. Name the teacher’s person as the scene does: by their job, such as the waiter, or by their first name, such as your friend Max.\nThe situation is everyday and safe.\nEverything people say is everyday spoken English with contractions (I’d like, it’s, that’s, I don’t, I didn’t), not full forms.\nAll content must be natural English at the target CEFR level. Do not use Russian or HTML, and use Markdown only where a rule asks for it.",
       "blocks": [
         {
           "id": "mission-teacher-note",
           "kind": "static",
           "component": {
             "type": "teacherNote",
-            "text": "**Set up:** Read the mission and How to Play together. The student plays their own role, you play the other person. Keep your card secret: it has a surprise.\n\n**Say:** “This is your mission! Read your card. You have one minute to get ready.”\n\n**During the mission:** Stay in role and speak naturally. Bring in your surprise in the middle, so the student has to use a Fix-It Phrase.\n\n**If the student gets stuck:** Point to a phrase in Speaking Support or Useful Phrases. Show the Example Dialogue only if the student needs a model.\n\n**Correct:** only when the meaning is unclear. Note other mistakes for the Wrap-Up.\n\n**Finish:** Compare with the First Try. Use your notes and tell the student two things they can do now that they could not do at the start."
+            "text": "**Set up:** Read the mission and How to Play together. The student plays their own role, you play the other person. Keep your card secret: it has a surprise.\n\n**Say:** “This is your mission! Read your card. You have one minute to get ready.”\n\n**During the mission:** Stay in role and speak naturally. Bring in your surprise after the student’s first request, so the student has to use a Fix-It Phrase.\n\n**If the student gets stuck:** Point to a phrase in Speaking Support or Useful Phrases. Show the Example Dialogue only if the student needs a model.\n\n**Correct:** only when the meaning is unclear. Note other mistakes for the Wrap-Up.\n\n**Finish:** Compare with the First Try. Use your notes and tell the student two things they can do now that they could not do at the start."
           }
         },
         {
@@ -643,8 +648,8 @@
           },
           "slots": {
             "missionGoal": {
-              "rule": "The mission in one or two short sentences, written to the learner: who the learner is, who the teacher is, and what the learner must get done in the situation, with one small detail that makes it real, such as a time limit. The private facts of the role cards, such as a budget or something a person cannot eat, are not stated here. Plain text without Markdown.",
-              "example": "You are a customer at Rosie’s Café, and your teacher is the waiter. Order lunch for you and a friend and pay before your bus leaves in twenty minutes."
+              "rule": "The mission in one or two short sentences, written to the learner: who the learner is, who the teacher is, and what the learner must get done in the situation, with the reason to act now from the Opening scene, such as a time limit. Give that limit one reason only, and the role cards keep the same reason. The private facts of the role cards, such as a budget or something a person cannot eat, are not stated here. Plain text without Markdown. Between friends, for example: “Your teacher is your friend Max. Agree on a bike ride and a place to meet before the rain starts at three.”",
+              "example": "You are a customer at Rosie’s Café, and your teacher is the waiter. Order lunch and pay before your bus leaves in thirty minutes."
             }
           }
         },
@@ -667,13 +672,13 @@
           "id": "mission-role-cards",
           "kind": "generated",
           "control": "roleCards",
-          "instructions": "Student is the learner’s role from missionGoal, Teacher is the other person.\nwant: the two main things that role wants to get done; avoid: one thing that role does not want to happen; secret: two private facts, and each one changes what that role says or chooses. A secret is not stated in missionGoal or on the other person’s card. The student’s secrets limit what the student can accept, such as money, time, a person they are with or something they cannot eat.\nThe teacher’s first secret starts with “Surprise:” and is one small change of plan in the middle of the conversation: something the student asks for is not possible, because it is sold out, fully booked, cancelled or closed, and the teacher offers something else. The student answers with a Fix-It Phrase and chooses again with their own secrets in mind.\nmission: two short actions. The student’s first action is “Use three Useful Phrases”, the second is to fix the surprise politely. The teacher’s first action is to bring in the surprise.\nThe items of want, avoid, secret and mission have no full stop at the end.\ngoal is one short sentence, identical on both cards, that names how the conversation ends well for both people; it is not an instruction to one role, for example “The customer gets lunch and pays before the bus leaves.”",
+          "instructions": "Student is the learner’s role from missionGoal, Teacher is the other person.\nwant: the two main things that role wants to get done; avoid: one thing that role does not want to happen, which is not a secret of that card said in other words; secret: two private facts, and each one changes what that role says or chooses. A secret is not stated in missionGoal or on the other person’s card. The student’s secrets limit what the student can accept, such as money, time, a person they are with or something they cannot eat or do. A time limit keeps the one reason missionGoal gives; no card adds another reason for it.\nThe teacher’s first secret starts with “Surprise:” and is one small change of plan: something the student asks for is not possible, and the teacher offers something else. With staff it is, for example, sold out, fully booked, cancelled or closed; between friends the friend, for example, can’t go there, doesn’t have the thing or has another idea. The teacher brings it in only as the answer to a request of the student, never before the student has asked for something. The student answers with a Fix-It Phrase and chooses again with their own secrets in mind.\nmission: two short actions. The student’s first action is “Use three Useful Phrases”, the second is to fix the surprise politely. The teacher’s first action is to bring in the surprise after the student’s first request.\nThe items of want, avoid, secret and mission have no full stop at the end.\ngoal is one short sentence, identical on both cards, that names how the conversation ends well for both people; it is not an instruction to one role, for example “The customer gets lunch and pays before the bus leaves.” or “You and Max agree on a bike ride before the rain.”",
           "example": {
             "roles": {
               "student": {
-                "want": ["Order lunch for you and your friend", "Pay before your bus leaves"],
+                "want": ["Order lunch", "Pay before your bus leaves"],
                 "avoid": ["A long wait for the food"],
-                "secret": ["Your friend is vegetarian", "You have only twenty pounds"],
+                "secret": ["You don’t eat meat", "You have only fifteen pounds"],
                 "mission": ["Use three Useful Phrases", "Fix the problem politely with a Fix-It Phrase"],
                 "goal": "The customer gets lunch and pays before the bus leaves."
               },
@@ -681,7 +686,7 @@
                 "want": ["Sell the special of the day", "Take the order quickly because the café is busy"],
                 "avoid": ["A customer who leaves without ordering"],
                 "secret": ["Surprise: the vegetable pasta is sold out; offer the chicken pie or the cheese pizza instead", "The special today is the chicken pie"],
-                "mission": ["Bring in your surprise in the middle", "Recommend the special of the day"],
+                "mission": ["Bring in your surprise after the student’s first request", "Recommend the special of the day"],
                 "goal": "The customer gets lunch and pays before the bus leaves."
               }
             }
@@ -726,8 +731,8 @@
           },
           "slots": {
             "exampleDialogue": {
-              "rule": "An Example Dialogue of the Mission in 6 to 8 turns. Start every turn with the role name in bold, the learner’s role and the teacher’s role from missionGoal, like **Customer:** and **Waiter:**; put an empty line between turns and write it in English only. It follows the role cards, uses three Useful Phrases and one Fix-It Phrase for the teacher’s surprise, and ends when the shared goal is reached.",
-              "example": "**Waiter:** Hi! Welcome to Rosie’s Café. Are you ready to order?\n\n**Customer:** Yes. I’d like two vegetable pastas and two lemonades, please.\n\n**Waiter:** Oh, I’m sorry, the vegetable pasta’s sold out. How about the chicken pie? It’s today’s special.\n\n**Customer:** No, thank you. My friend is vegetarian. Could I have two cheese pizzas instead?\n\n**Waiter:** Of course. Two cheese pizzas and two lemonades. Anything else?\n\n**Customer:** That’s all, thanks. Could I have the bill, please? Our bus leaves soon.\n\n**Waiter:** Sure. That’s eighteen pounds. Cash or card?\n\n**Customer:** By card, please. Thank you!"
+              "rule": "An Example Dialogue of the Mission in 6 to 8 turns. Start every turn with the speaker in bold: the learner’s role and the teacher’s role from missionGoal, like **Customer:** and **Waiter:**, or between friends **You:** and the friend’s first name, like **Max:**; put an empty line between turns and write it in English only. It follows the role cards, uses three Useful Phrases and one Fix-It Phrase for the teacher’s surprise, and ends when the shared goal is reached. The student makes a request before the surprise comes, and the surprise is the answer to it.",
+              "example": "**Waiter:** Hi! Welcome to Rosie’s Café. Are you ready to order?\n\n**Customer:** Yes. I’d like the vegetable pasta and a lemonade, please.\n\n**Waiter:** Oh, I’m sorry, the vegetable pasta’s sold out. How about the chicken pie? It’s today’s special.\n\n**Customer:** No, thank you. I don’t eat meat. Could I have the cheese pizza instead?\n\n**Waiter:** Of course. A cheese pizza and a lemonade. Anything else?\n\n**Customer:** That’s all, thanks. Could I have the bill, please? My bus leaves soon.\n\n**Waiter:** Sure. That’s eleven pounds. Cash or card?\n\n**Customer:** By card, please. Thank you!"
             }
           }
         }
@@ -806,7 +811,7 @@
           },
           "slots": {
             "homeworkTask": {
-              "rule": "A short homework task for the learner: write a text of 50–70 words in the situation of the lesson, such as a short dialogue, a message to a hotel chat or a review of a café, that uses at least three Useful Phrases. Say in *italics* what happens in the text. Two short paragraphs separated by a blank line; no heading or list.",
+              "rule": "A short homework task for the learner: write a text of 50–70 words in the situation of the lesson, such as a short dialogue, a message to a hotel chat, a message to a friend or a review of a café, that uses at least three Useful Phrases. Say in *italics* what happens in the text. Two short paragraphs separated by a blank line; no heading or list.",
               "example": "Write a dialogue of 50–70 words at a café: *a customer orders lunch, something goes wrong, and the waiter fixes it.*\n\nStart every line with **Customer:** or **Waiter:** and use at least three Useful Phrases from today’s lesson."
             }
           }

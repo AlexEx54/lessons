@@ -62,15 +62,21 @@ test('Template 4 builds its synthetic lesson from its examples without warnings'
   assert.match(mission.text, /\*\*Your Mission\*\*\{\/l\}\n\nYou are a customer at Rosie’s Café/);
 });
 
-test('later stages work from the model dialogue, the useful phrases and the fix-it phrases', () => {
+test('later stages work from the opening scene, the model dialogue, the useful phrases and the fix-it phrases', () => {
   const { variables } = exampleRun();
-  assert.deepEqual(Object.keys(variables), ['modelDialogue', 'usefulPhrases', 'fixItPhrases']);
+  assert.deepEqual(Object.keys(variables), ['openingScene', 'modelDialogue', 'usefulPhrases', 'fixItPhrases']);
+  assert.match(variables.openingScene, /^You are in a small café in London\./);
   assert.equal(variables.usefulPhrases.length, 8);
+
+  // The scene of Warm Up keeps the place and the people the same until the Mission.
+  const readers = DEFINITION.stages.filter(stage => Object.values(stage.context).includes('$var.openingScene'));
+  assert.deepEqual(readers.map(stage => stage.id), ['first-try', 'model-dialogue', 'something-goes-wrong', 'mission']);
 
   const inputs = TEMPLATE.resolveInputs({ topic: SITUATION });
   const [, user] = TEMPLATE.request('mission', { inputs, variables }).messages;
   assert.equal(user.content, [
     `Situation: ${SITUATION}`,
+    `Opening scene: ${variables.openingScene}`,
     `Useful Phrases: ${JSON.stringify(variables.usefulPhrases.map(item => item.term))}`,
     `Fix-It Phrases: ${JSON.stringify(variables.fixItPhrases.map(item => item.term))}`,
   ].join('\n'));
@@ -80,11 +86,13 @@ test('the language focus is optional: without it the stage tells the model to ch
   assert.deepEqual(TEMPLATE.resolveInputs({ topic: SITUATION }), { topic: SITUATION, languageFocus: '' });
   assert.throws(() => TEMPLATE.resolveInputs({ languageFocus: 'polite requests' }), error => error.statusCode === 400 && /«Ситуация»/.test(error.message));
 
-  const without = TEMPLATE.request('model-dialogue', { inputs: TEMPLATE.resolveInputs({ topic: SITUATION }) });
-  assert.equal(without.messages[1].content, `Situation: ${SITUATION}`);
+  const variables = { openingScene: 'You are in a small café in London.' };
+  const scene = `Opening scene: ${variables.openingScene}`;
+  const without = TEMPLATE.request('model-dialogue', { inputs: TEMPLATE.resolveInputs({ topic: SITUATION }), variables });
+  assert.equal(without.messages[1].content, `Situation: ${SITUATION}\n${scene}`);
   assert.match(without.messages[0].content, /If no Language focus is supplied, choose yourself the functional language/);
 
   const focus = 'polite requests: Could I…? / I’d like…';
-  const withFocus = TEMPLATE.request('model-dialogue', { inputs: TEMPLATE.resolveInputs({ topic: SITUATION, languageFocus: focus }) });
-  assert.equal(withFocus.messages[1].content, `Situation: ${SITUATION}\nLanguage focus: ${focus}`);
+  const withFocus = TEMPLATE.request('model-dialogue', { inputs: TEMPLATE.resolveInputs({ topic: SITUATION, languageFocus: focus }), variables });
+  assert.equal(withFocus.messages[1].content, `Situation: ${SITUATION}\n${scene}\nLanguage focus: ${focus}`);
 });
