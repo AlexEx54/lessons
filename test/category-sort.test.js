@@ -127,7 +127,9 @@ test('on its own the exercise sorts cards, explains mistakes, shows what is insi
   assert.equal(node.querySelectorAll('.category-sort__chip').length, 4);
   assert.equal(node.querySelectorAll('.category-sort__group').length, 2);
   assert.equal(text(node, 'progress'), '0 / 4');
-  assert.ok(node.querySelector('.category-sort__hint').classList.contains('category-sort__hint--off'));
+  const contents = id => find(node, 'group', id).querySelector('.category-sort__contents');
+  const inside = id => contents(id).children.map(word => word.textContent);
+  assert.equal(contents('customer').hidden, true);
 
   find(node, 'chip', 'menu').click();
   assert.ok(find(node, 'chip', 'menu').classList.contains('category-sort__chip--selected'));
@@ -143,41 +145,28 @@ test('on its own the exercise sorts cards, explains mistakes, shows what is insi
   assert.ok(find(node, 'group', 'customer').classList.contains('category-sort__group--landed'));
   assert.equal(find(node, 'group', 'customer').querySelector('.category-sort__count').textContent, '1');
   assert.equal(text(node, 'progress'), '1 / 4');
-  assert.ok(!node.querySelector('.category-sort__hint').classList.contains('category-sort__hint--off'));
 
-  // Without a selected card a basket opens its contents, in the order the cards were put in.
+  // While the cards are sorted each basket lists what is inside, in the order the cards were put in.
   find(node, 'chip', 'bill').click(); basket(node, 'customer').click();
-  basket(node, 'customer').click();
-  const peek = node.querySelector('.category-sort__peek');
-  assert.equal(peek.hidden, false);
-  assert.equal(basket(node, 'customer').getAttribute('aria-expanded'), 'true');
-  assert.deepEqual(peek.querySelector('.category-sort__words').children.map(word => word.textContent), [source.items[0].text, source.items[2].text]);
-  assert.equal(text(node, 'peek-count'), '2 words');
+  assert.equal(contents('customer').hidden, false);
+  assert.deepEqual(inside('customer'), [source.items[0].text, source.items[2].text]);
+  assert.equal(contents('waiter').hidden, true);
+  // Without a selected card a basket does nothing.
   basket(node, 'waiter').click();
-  assert.equal(text(node, 'peek-title'), 'Waiter');
-  assert.equal(peek.querySelector('.category-sort__peek-empty').hidden, false);
-  node.listeners.keydown[0]({ key: 'Escape' });
-  assert.equal(peek.hidden, true);
-  basket(node, 'waiter').click();
-  doc.listeners.click[0]({ target: node.querySelector('.category-sort__instruction') });
-  assert.equal(peek.hidden, true);
-  assert.equal(doc.listeners.click.length, 0);
-  basket(node, 'waiter').click(); find(node, 'chip', 'ready').click();
-  assert.equal(peek.hidden, true);
+  assert.equal(text(node, 'progress'), '2 / 4');
 
-  basket(node, 'waiter').click(); find(node, 'chip', 'drink').click(); basket(node, 'waiter').click();
+  find(node, 'chip', 'ready').click(); basket(node, 'waiter').click();
+  find(node, 'chip', 'drink').click(); basket(node, 'waiter').click();
   assert.ok(node.classList.contains('category-sort--done'));
   assert.equal(node.querySelector('.category-sort__done').hidden, false);
   assert.equal(node.querySelector('.category-sort__pool').hidden, true);
   assert.equal(text(node, 'status'), 'All cards are sorted.');
-  const contents = find(node, 'group', 'waiter').querySelector('.category-sort__contents');
-  assert.equal(contents.hidden, false);
-  assert.deepEqual(contents.children.map(word => word.textContent), [source.items[1].text, source.items[3].text]);
+  assert.deepEqual(inside('waiter'), [source.items[1].text, source.items[3].text]);
   assert.equal(basket(node, 'waiter').disabled, true);
   node.dispose();
 });
 
-test('in a class both participants see each attempt once, and an observer can still look inside', () => {
+test('in a class both participants see each attempt once and the same basket contents', () => {
   const actions = [];
   const student = renderCategorySort(source, { presentation: projected, onAction: action => actions.push(action) }, createDocument());
   const teacher = renderCategorySort(source, { presentation: projected, interactive: false, onAction: action => actions.push(action) }, createDocument());
@@ -194,12 +183,14 @@ test('in a class both participants see each attempt once, and an observer can st
 
   find(teacher, 'chip', 'ready').click(); basket(teacher, 'waiter').click();
   assert.equal(actions.length, 2);
-  assert.equal(teacher.querySelector('.category-sort__peek').hidden, false);
   assert.ok(find(teacher, 'chip', 'ready').disabled);
 
   shared = model.apply(projected, shared, place('ready', 'waiter', 'a2'));
-  student.updateState(shared, { feedback: false });
+  student.updateState(shared, { feedback: false }); teacher.updateState(shared, { feedback: false });
   assert.equal(find(student, 'chip', 'ready').hidden, true);
+  for (const node of [student, teacher]) {
+    assert.deepEqual(find(node, 'group', 'waiter').querySelector('.category-sort__contents').children.map(word => word.textContent), [source.items[1].text]);
+  }
   assert.ok(!find(student, 'group', 'waiter').classList.contains('category-sort__group--landed'));
   const restored = renderCategorySort(source, { presentation: projected, exerciseState: JSON.parse(JSON.stringify(shared)) }, createDocument());
   assert.equal(find(restored, 'group', 'waiter').querySelector('.category-sort__count').textContent, '1');

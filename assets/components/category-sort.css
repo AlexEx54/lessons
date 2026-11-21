@@ -65,24 +65,12 @@
 .category-sort--done .category-sort__count { color: #168c48; }
 .category-sort--done .category-sort__label { color: #1f6b41; }
 
-.category-sort__hint { margin: 14px 0 0; color: #8a8ea0; font-size: 12px; text-align: center; }
-.category-sort__hint--off { visibility: hidden; }
-
-/* The basket's words: positioned inside the exercise, with the tail over its basket. */
-.category-sort__peek { position: absolute; z-index: 20; box-sizing: border-box; padding: 11px 12px 12px; border: 1px solid #ddd6ff; border-radius: 11px; background: #fff; box-shadow: 0 12px 30px rgba(39, 32, 76, .16); animation: category-sort-peek 160ms ease-out; }
-.category-sort__peek::after { content: ''; position: absolute; bottom: -7px; left: var(--tail, 50%); width: 12px; height: 12px; border: solid #ddd6ff; border-width: 0 1px 1px 0; background: #fff; transform: translateX(-50%) rotate(45deg); }
-.category-sort__peek--below::after { top: -7px; bottom: auto; border-width: 1px 0 0 1px; }
-.category-sort__peek-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 8px; }
-.category-sort__peek-title { color: #17182d; font-size: 13px; font-weight: 750; overflow-wrap: anywhere; }
-.category-sort__peek-count { flex: none; color: #8a8ea0; font-size: 11px; font-weight: 600; }
-.category-sort__peek-empty { margin: 0; color: #8a8ea0; font-size: 12px; }
-
-.category-sort__words { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.category-sort__word { max-width: 100%; padding: 5px 9px; border: 1px solid #a9ddb9; border-radius: 7px; color: #285d43; background: #effaf2; font-size: 12px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
-/* After the end every basket lists its words underneath. */
-.category-sort__contents { width: 100%; justify-content: center; }
+.category-sort__contents { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: 100%; margin: 0; padding: 0; list-style: none; }
 .category-sort:not(.category-sort--short) .category-sort__contents { flex-direction: column; align-items: stretch; }
-.category-sort:not(.category-sort--short) .category-sort__contents .category-sort__word { font-size: 11px; }
+/* Each basket lists its words underneath while the cards are sorted; they turn green with the baskets at the end. */
+.category-sort__word { max-width: 100%; padding: 5px 9px; border: 1px solid #ddd7f5; border-radius: 7px; color: #3d1d9e; background: #f5f2ff; font-size: 12px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; transition: border-color 400ms ease, color 400ms ease, background-color 400ms ease; }
+.category-sort:not(.category-sort--short) .category-sort__word { font-size: 11px; }
+.category-sort--done .category-sort__word { border-color: #a9ddb9; color: #285d43; background: #effaf2; }
 .category-sort--short .category-sort__chip { min-height: 42px; padding-block: 8px; font-size: 14px; }
 .category-sort__status { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
@@ -108,7 +96,6 @@
 @keyframes category-sort-mark { from { opacity: 0; transform: translate(-50%, -50%) scale(.55); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 @keyframes category-sort-hop { 0% { transform: none; } 35% { transform: translateY(-7px) scaleY(1.03); } 70% { transform: translateY(1px) scaleY(.97); } 100% { transform: none; } }
 @keyframes category-sort-pop { 0% { transform: translate(-50%, -50%) scale(1); } 45% { transform: translate(-50%, -50%) scale(1.35); } 100% { transform: translate(-50%, -50%) scale(1); } }
-@keyframes category-sort-peek { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 @media (max-width: 560px) {
   .category-sort { padding: 15px 12px; }

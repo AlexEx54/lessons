@@ -74,7 +74,7 @@
     let author = settings.presentation ? null : normalizeCategorySort(data);
     let current = settings.presentation || model.presentation(author, model.createLayout(author));
     let state = settings.exerciseState || {}, interactive = settings.interactive !== false;
-    let openId = null, drag = null, handoff = null, ownAttemptId = null, suppressClick = false, disposed = false;
+    let drag = null, handoff = null, ownAttemptId = null, suppressClick = false, disposed = false;
     let wrongTimer = null, wrongNodes = [], total = 0;
     let editing = false, saving = false, draft, initialDraft;
     const chips = new Map(), groups = new Map(), flights = new Map(), seen = new Set();
@@ -106,21 +106,17 @@
     bannerIcon.append(svg(CHECK, { viewBox: '0 0 24 24' }));
     bannerText.append(el('strong', 'done-title', 'All sorted!'), bannerDetail);
     banner.append(bannerIcon, bannerText);
-    const groupRow = el('div', 'groups'), hint = el('p', 'hint', 'Tap a basket to see what’s inside');
-    const peek = el('div', 'peek'), peekTitle = el('span', 'peek-title'), peekCount = el('span', 'peek-count');
-    const peekHead = el('p', 'peek-head'), peekWords = el('ul', 'words'), peekEmpty = el('p', 'peek-empty', 'Empty for now');
-    peek.setAttribute('role', 'group'); peekHead.append(peekTitle, peekCount); peek.append(peekHead, peekWords, peekEmpty);
+    const groupRow = el('div', 'groups');
     const status = el('p', 'status'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
     // The draft editor swaps the exercise for a form; in a class there is no onSave and no form.
     const board = el('div', 'board');
-    board.append(pool, banner, groupRow, hint, peek, status);
+    board.append(pool, banner, groupRow, status);
     const edit = el('button', 'edit', '✎'), cancel = el('button', 'cancel', 'Отмена');
     edit.setAttribute('aria-label', 'Редактировать задание'); cancel.hidden = true;
     const editor = el('div', 'editor'), editorError = el('p', 'editor-error');
     editor.hidden = true; editorError.hidden = true; editorError.setAttribute('role', 'alert');
     if (author && settings.onSave) heading.append(cancel, edit);
     section.append(heading, instruction, editorError, board, editor);
-    const resize = root.ResizeObserver ? new root.ResizeObserver(() => { if (openId) placePeek(); }) : null;
 
     // A card in flight is not in its basket yet: it lands when the flight ends.
     const settled = () => (state.placed || []).filter(id => !flights.get(id)?.correct);
@@ -130,7 +126,6 @@
       section.classList.toggle('category-sort--done', done);
       progress.textContent = `${placed.length} / ${total}`;
       banner.hidden = !done; pool.hidden = done;
-      hint.classList.toggle('category-sort__hint--off', !placed.length || done);
       chips.forEach((chip, id) => {
         chip.hidden = placed.includes(id);
         chip.disabled = !interactive || flights.has(id);
@@ -147,52 +142,21 @@
           sheet.classList.toggle('category-sort__leaf--shown', ids.length >= Number(sheet.getAttribute('data-min')));
         });
         basket.disabled = done;
-        basket.setAttribute('aria-expanded', String(openId === category.id));
         basket.setAttribute('aria-label', `${category.title}, ${words(ids.length)}`);
         const count = basket.querySelector('.category-sort__count');
         count.hidden = !ids.length; count.textContent = String(ids.length);
+        // What is inside, in the order the cards were put in.
         const contents = group.querySelector('.category-sort__contents');
-        contents.hidden = !done;
-        contents.replaceChildren(...(done ? ids.map(id => el('li', 'word', textOf(id))) : []));
+        contents.hidden = !ids.length;
+        contents.replaceChildren(...ids.map(id => {
+          const word = el('li', 'word', textOf(id)); word.dataset.itemId = id;
+          return word;
+        }));
       });
-      const open = !done && current.categories.find(category => category.id === openId);
-      peek.hidden = !open;
-      if (open) {
-        const ids = inside(open.id);
-        peek.setAttribute('aria-label', `${open.title}: what’s inside`);
-        peekTitle.textContent = open.title; peekCount.textContent = ids.length ? words(ids.length) : '';
-        peekEmpty.hidden = ids.length > 0;
-        peekWords.replaceChildren(...ids.map(id => el('li', 'word', textOf(id))));
-        placePeek();
-      }
       const attempt = state.attempt;
       status.textContent = state.selectedId ? `Selected: ${textOf(state.selectedId)}. Now choose a basket.`
         : !attempt ? '' : !attempt.correct ? `Not “${current.categories.find(category => category.id === attempt.targetId)?.title}”. Try again.`
           : (state.placed || []).length === total ? 'All cards are sorted.' : `Correct. ${(state.placed || []).length} of ${total}.`;
-    }
-    // Keeps the panel inside the exercise: clamped to its edges, with the tail over the basket.
-    function placePeek() {
-      const box = section.getBoundingClientRect();
-      const target = groups.get(openId).querySelector('.category-sort__basket').getBoundingClientRect();
-      const inset = 10, width = Math.min(260, box.width - inset * 2);
-      peek.style.width = `${width}px`;
-      const middle = target.left + target.width / 2 - box.left;
-      const left = Math.min(Math.max(middle - width / 2, inset), box.width - width - inset);
-      peek.style.left = `${left - (section.clientLeft || 0)}px`;
-      peek.style.setProperty('--tail', `${Math.min(Math.max(middle - left, 16), width - 16)}px`);
-      const above = target.top - box.top - (peek.offsetHeight || 0) - 10, below = above < inset;
-      peek.classList.toggle('category-sort__peek--below', below);
-      peek.style.top = `${(below ? target.bottom - box.top + 10 : above) - (section.clientTop || 0)}px`;
-    }
-    function closeOutside(event) {
-      const target = event.target;
-      if (!peek.contains(target) && ![...groups.values()].some(group => group.contains(target))) setOpen(null);
-    }
-    function setOpen(id) {
-      if (id === openId) return;
-      if (!openId) { doc.addEventListener('click', closeOutside); resize?.observe(section); }
-      if (!id) { doc.removeEventListener('click', closeOutside); resize?.disconnect(); }
-      openId = id; paint();
     }
     function dispatch(action) {
       if (!interactive || disposed || editing) return;
@@ -241,8 +205,14 @@
     function land(itemId, flight, categoryId) {
       flight.ghost.remove();
       if (flights.get(itemId) === flight) flights.delete(itemId);
-      if (categoryId) replay(groups.get(categoryId), 'category-sort__group--landed');
       paint();
+      if (categoryId) {
+        const group = groups.get(categoryId);
+        replay(group, 'category-sort__group--landed');
+        // The new word slides into the list under the basket it went into.
+        group.querySelector(`.category-sort__word[data-item-id="${itemId}"]`)?.animate?.(
+          [{ opacity: 0, transform: 'translateY(-6px) scale(.9)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'ease-out' });
+      }
       if (flight.own && settled().length === total) banner.focus?.({ preventScroll: true });
     }
     // Both participants see the same flight: the card goes into the basket, or bounces back to the pool.
@@ -287,7 +257,6 @@
       if (!drag.ghost) {
         if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 7) return;
         drag.ghost = createGhost(drag.chip); suppressClick = true;
-        setOpen(null);
         if (state.selectedId !== drag.itemId) dispatch({ type: 'select-word', itemId: drag.itemId });
       }
       event.preventDefault();
@@ -318,7 +287,6 @@
       node.dataset.itemId = item.id;
       node.addEventListener('click', () => {
         if (suppressClick || node.disabled) return;
-        setOpen(null);
         dispatch({ type: 'select-word', itemId: state.selectedId === item.id ? null : item.id });
       });
       node.addEventListener('pointerdown', event => {
@@ -345,12 +313,9 @@
       count.setAttribute('aria-hidden', 'true'); mark.setAttribute('aria-hidden', 'true');
       basket.append(svg(BASKET, { viewBox: '0 0 160 120' }), label, count, mark);
       basket.addEventListener('click', () => {
-        if (interactive && state.selectedId) {
-          setOpen(null);
-          dispatch({ type: 'match-word', itemId: state.selectedId, targetId: category.id });
-        } else setOpen(openId === category.id ? null : category.id);
+        if (interactive && state.selectedId) dispatch({ type: 'match-word', itemId: state.selectedId, targetId: category.id });
       });
-      const contents = el('ul', 'words'); contents.classList.add('category-sort__contents');
+      const contents = el('ul', 'contents');
       node.append(basket, contents);
       return node;
     }
@@ -366,9 +331,9 @@
       pool.replaceChildren(...chips.values()); groupRow.replaceChildren(...groups.values());
       paint();
     }
-    // Cancels whatever is under way: an open basket, a drag, flights and the wrong-answer mark.
+    // Cancels whatever is under way: a drag, flights and the wrong-answer mark.
     function stopInteraction() {
-      setOpen(null); clearWrong();
+      clearWrong();
       if (drag) stopDrag().ghost?.remove();
       flights.forEach(flight => { flight.animation?.cancel(); flight.ghost.remove(); }); flights.clear();
     }
@@ -492,7 +457,6 @@
     section.addEventListener('keydown', event => {
       if (event.key !== 'Escape' || saving) return;
       if (editing) { event.preventDefault?.(); finishEditing(); }
-      else if (openId) setOpen(null);
       else if (state.selectedId && interactive) dispatch({ type: 'select-word', itemId: null });
     });
     section.updateState = (next = {}, options = {}) => {
