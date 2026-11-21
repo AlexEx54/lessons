@@ -1,7 +1,7 @@
 {
   "schemaVersion": "lesson-template-v1",
   "id": "template-3",
-  "title": "Шаблон 3",
+  "title": "Шаблон 3: Hot Take",
   "description": "Hot Take для подростков: спорный пост, групповой чат, грамматика из чата, Sentence Builder, дебаты с учителем и ответ на пост.",
   "inputs": {
     "topic": {
