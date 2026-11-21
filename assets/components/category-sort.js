@@ -189,15 +189,19 @@
     const centre = rect => [rect.left + rect.width / 2, rect.top + rect.height / 2];
     // Moves the ghost's centre between two points. `translate` composes with the ghost's own tilt,
     // and the offsets count from where the ghost stood before its first flight.
+    // A short trip is quick, up to `duration` for a long one; a dropped card sets off at once
+    // instead of hanging over the basket.
     function fly(flight, [x, y], [toX, toY], { into = false, duration }, done) {
       const [baseX, baseY] = flight.base;
       const at = (px, py) => `${px - baseX}px ${py - baseY}px`;
       flight.animation = flight.ghost.animate([{ translate: at(x, y) },
-        { translate: at(toX, toY), ...(into ? { scale: '.2', opacity: 0 } : {}) }], { duration, easing: 'ease-in-out', fill: 'forwards' });
+        { translate: at(toX, toY), ...(into ? { scale: '.2', opacity: 0 } : {}) }], {
+        duration: Math.min(duration, 120 + Math.hypot(toX - x, toY - y) / 2),
+        easing: flight.dropped ? 'ease-out' : 'ease-in-out', fill: 'forwards' });
       flight.animation.onfinish = done;
     }
     function returnHome(ghost, itemId) {
-      const flight = { ghost, correct: false, base: centre(ghost.getBoundingClientRect()) };
+      const flight = { ghost, correct: false, dropped: true, base: centre(ghost.getBoundingClientRect()) };
       flights.set(itemId, flight);
       if (!ghost.animate || reducedMotion()) return land(itemId, flight);
       fly(flight, flight.base, centre(chips.get(itemId).getBoundingClientRect()), { duration: 260 }, () => land(itemId, flight));
@@ -229,7 +233,8 @@
         if (attempt.correct) replay(groups.get(attempt.targetId), 'category-sort__group--landed'); else showWrong(attempt);
         return;
       }
-      const flight = { ghost, correct: attempt.correct, own: attempt.id === ownAttemptId, base: centre(ghost.getBoundingClientRect()) };
+      const flight = { ghost, correct: attempt.correct, own: attempt.id === ownAttemptId, dropped: Boolean(handed),
+        base: centre(ghost.getBoundingClientRect()) };
       flights.set(attempt.itemId, flight);
       const mouth = [target.left + target.width / 2, target.top + target.height * 0.36];
       if (attempt.correct) {
