@@ -9,6 +9,9 @@ www.easyclass-edu.ru {
 	}
 	@assets path /assets/*
 	skip_log @assets
+	# LiveKit signaling (group calls). The access token travels in the query string, so no access log.
+	skip_log /rtc*
+	reverse_proxy /rtc* 127.0.0.1:7880
 	reverse_proxy 127.0.0.1:8787
 }
 

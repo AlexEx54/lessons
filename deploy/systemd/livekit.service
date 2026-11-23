@@ -1,0 +1,17 @@
+[Unit]
+Description=LiveKit SFU (group calls)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=livekit
+Group=livekit
+ExecStart=/usr/local/bin/livekit-server --config /etc/livekit/livekit.yaml
+Restart=always
+RestartSec=2
+# SIGTERM waits for every participant to leave; clients reconnect on their own after a hard restart.
+KillSignal=SIGKILL
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

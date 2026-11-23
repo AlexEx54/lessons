@@ -111,6 +111,8 @@ check_files=(
   lib/video-call-store.js
   lib/video-call-signaling.js
   lib/webrtc-config.js
+  lib/livekit.js
+  lib/group-call.js
   lib/lesson-draft-store.js
   lib/lesson-generation-store.js
   lib/lesson-image-generation-store.js
