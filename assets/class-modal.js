@@ -5,6 +5,7 @@
   const classModal = document.getElementById('class-modal');
   const classDialog = classModal.querySelector('.class-dialog');
   const classNameInput = document.getElementById('class-name-input');
+  const classGroupInput = document.getElementById('class-group-input');
   const classLinkPreview = document.getElementById('class-link-preview');
   const classLinkValue = document.getElementById('class-link-value');
   const classListStatus = document.getElementById('class-list-status');
@@ -31,6 +32,7 @@
   const launchButton = document.getElementById('class-launch-button');
   const completionHeading = document.getElementById('class-completion-heading');
   const completionHintNew = document.getElementById('class-completion-hint-new');
+  const completionHintGroup = document.getElementById('class-completion-hint-group');
   const completionHintExisting = document.getElementById('class-completion-hint-existing');
   let onCreated = null;
   let classStep = 1;
@@ -101,6 +103,12 @@
     name.className = 'class-option__name';
     name.textContent = item.name;
     option.append(avatar, name);
+    if (item.isGroup) {
+      const badge = document.createElement('span');
+      badge.className = 'class-option__badge';
+      badge.textContent = 'Группа';
+      option.append(badge);
+    }
     return option;
   }
 
@@ -178,6 +186,7 @@
     requestPayload = null;
     classError.textContent = '';
     classNameInput.value = classNameInput.defaultValue;
+    classGroupInput.checked = false;
     classTimeInput.value = time || Calendar.toLocalInputValue(Calendar.nextFullHour());
     lessonSearch.value = '';
     showAllLessons = false;
@@ -380,7 +389,9 @@
       return;
     }
     const scheduledAt = time.toISOString();
-    const target = classMode === 'new' ? { className: classNameInput.value.trim() } : { classId: selectedClassId };
+    const target = classMode === 'new'
+      ? { className: classNameInput.value.trim(), ...(classGroupInput.checked ? { isGroup: true } : {}) }
+      : { classId: selectedClassId };
     const input = { ...target, lessonId: lesson.id, expectedRevision: lesson.revision, scheduledAt, timeZone: classTimeZone };
     const payload = JSON.stringify(input);
     if (payload !== requestPayload) { requestKey = crypto.randomUUID(); requestPayload = payload; }
@@ -398,7 +409,8 @@
       createdSession = result.session;
       const isNewClass = 'className' in target;
       completionHeading.textContent = isNewClass ? 'Готово! Класс создан и занятие запланировано.' : 'Готово! Занятие запланировано.';
-      completionHintNew.hidden = !isNewClass;
+      completionHintNew.hidden = !isNewClass || Boolean(target.isGroup);
+      completionHintGroup.hidden = !target.isGroup;
       completionHintExisting.hidden = isNewClass;
       completionLink.textContent = new URL(createdSession.classInvitePath, window.location.origin).href;
       completionLesson.textContent = createdSession.title;

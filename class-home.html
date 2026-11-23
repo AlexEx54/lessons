@@ -34,6 +34,25 @@
         <a class="class-home__enter" id="class-home-enter" hidden>Перейти к занятию</a>
         <a class="class-home__all" id="class-home-all" hidden>Все занятия</a>
       </div>
+      <p class="class-home__me" id="class-home-me" hidden>
+        <span id="class-home-me-name"></span>
+        <button type="button" id="class-home-me-change">Не вы? Сменить</button>
+      </p>
+    </section>
+
+    <section class="login-card class-students" id="class-students" aria-labelledby="class-students-title" hidden>
+      <p class="login-card__eyebrow" id="class-students-class"></p>
+      <h1 id="class-students-title">Кто вы?</h1>
+      <p class="login-card__intro" id="class-students-intro"></p>
+      <div class="class-students__list" id="class-students-list"></div>
+      <form class="class-students__form" id="class-students-form" novalidate>
+        <label for="class-students-name" id="class-students-label"></label>
+        <div class="class-students__row">
+          <input id="class-students-name" type="text" maxlength="40" autocomplete="name" placeholder="Имя и фамилия" />
+          <button type="submit" id="class-students-submit">Войти</button>
+        </div>
+        <p class="class-students__error" id="class-students-error" role="alert"></p>
+      </form>
     </section>
 
     <section class="login-card class-sessions" id="class-sessions" aria-labelledby="class-sessions-title" hidden>

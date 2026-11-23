@@ -24,7 +24,7 @@ const {
 const { DEFAULT_DB_PATH, getDatabase } = require('./lib/db.js');
 const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, findLibraryAsset } = require('./lib/library-store.js');
 const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, findClassSessionAsset } = require('./lib/class-store.js');
-const { joinClass, classOverview, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
+const { joinClass, classOverview, pickStudent, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
 const { createClassLiveSignaling } = require('./lib/class-live-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
 const { sendRegistrationCode } = require('./lib/mailer.js');
@@ -148,6 +148,7 @@ let videoCallSignaling = null;
 // `/join/:token` and `/join/:token/sessions` are the class home; `/join/:token/:sessionId` enters that session.
 const CLASS_INVITE_PAGE = new RegExp(`^/join/(${INVITE_TOKEN_PATTERN})(?:/([a-f0-9-]{36})|/sessions)?/?$`, 'i');
 const CLASS_OVERVIEW_API = new RegExp(`^/api/join/(${INVITE_TOKEN_PATTERN})$`, 'i');
+const CLASS_STUDENT_API = new RegExp(`^/api/join/(${INVITE_TOKEN_PATTERN})/student$`, 'i');
 const GUEST_CALL_PAGE = new RegExp(`^/call/(${INVITE_TOKEN_PATTERN})/?$`, 'i');
 const LEGAL_PAGES = new Set(['/terms', '/privacy', '/consent']);
 
@@ -1810,10 +1811,16 @@ async function handleRequest(req, res) {
   const liveDetail = pathname.match(/^\/api\/sessions\/([a-f0-9-]{36})\/live$/i);
   const classInvite = pathname.match(CLASS_INVITE_PAGE);
   const classOverviewApi = pathname.match(CLASS_OVERVIEW_API);
+  const classStudentApi = pathname.match(CLASS_STUDENT_API);
   // The invite token alone grants the class, as the class link does, so the overview needs no guest cookie.
   if (req.method === 'GET' && classOverviewApi) {
-    try { json(res, 200, classOverview(classOverviewApi[1], database)); }
+    try { json(res, 200, classOverview(req, classOverviewApi[1], database)); }
     catch (error) { json(res, error.statusCode || 500, { error: error.message }); }
+    return;
+  }
+  if (req.method === 'POST' && classStudentApi) {
+    try { json(res, 200, pickStudent(req, classStudentApi[1], await readJsonBody(req), database)); }
+    catch (error) { json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось сохранить имя.' }); }
     return;
   }
   if (req.method === 'GET' && classInvite) {

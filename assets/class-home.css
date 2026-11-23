@@ -70,3 +70,30 @@
   .class-sessions { padding: 26px 16px; }
   .class-sessions__thumb { width: 60px; }
 }
+
+.class-home__me { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 10px; margin: 22px 0 0; color: #716889; font-size: 14px; }
+.class-home__me[hidden] { display: none; }
+.class-home__me button { min-height: 0; padding: 0; background: none; color: #7955dc; font: inherit; font-weight: 700; }
+.class-home__me button:hover { background: none; text-decoration: underline; }
+
+.class-students .login-card__intro { margin-bottom: 20px; }
+.class-students__list { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 26px; }
+.class-students__list[hidden] { display: none; }
+.class-students__name {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid #d9d2e9;
+  border-radius: 14px;
+  background: #fff;
+  color: #352b54;
+  font-size: 16px;
+  font-weight: 750;
+}
+.class-students__name:hover { border-color: #b9a8ee; background: #f7f4ff; }
+.class-students__name[aria-current="true"] { border-color: #7650dc; background: #f3efff; }
+.class-students__form { gap: 8px; }
+.class-students__form label { color: #352b54; font-size: 15px; }
+.class-students__row { display: flex; gap: 10px; }
+.class-students__row input { flex: 1; min-width: 0; }
+.class-students__row button { flex: none; padding: 0 22px; }
+.class-students__error { min-height: 20px; margin: 0; color: #b52d50; font-size: 14px; }

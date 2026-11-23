@@ -45,6 +45,10 @@
               <span class="visually-hidden">Название класса</span>
               <input id="class-name-input" type="text" value="Новый класс" autocomplete="off" maxlength="80" />
             </label>
+            <label class="class-group-field">
+              <input id="class-group-input" type="checkbox" />
+              <span><strong>Группа</strong> до 8 учеников, каждый входит под своим именем</span>
+            </label>
           </div>
 
           <div class="class-link-preview" id="class-link-preview" hidden>
@@ -132,6 +136,11 @@
           Отправьте эту ссылку ученику. Ему не нужно регистрироваться —<br />
           занятие откроется в браузере в один клик.<br />
           Эта ссылка будет работать для всех ваших будущих занятий с учеником.
+        </p>
+        <p class="class-completion__hint" id="class-completion-hint-group" hidden>
+          Отправьте эту ссылку всем ученикам группы. Регистрироваться не нужно:<br />
+          при первом входе каждый выберет или впишет своё имя.<br />
+          Ссылка будет работать для всех будущих занятий группы.
         </p>
         <p class="class-completion__hint" id="class-completion-hint-existing" hidden>
           Ссылка класса прежняя — если ученик её уже получил, отправлять ничего не нужно.<br />

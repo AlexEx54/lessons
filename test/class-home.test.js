@@ -9,18 +9,23 @@ const source = fs.readFileSync(path.join(__dirname, '../assets/class-home.js'), 
 const classPath = `/join/anna-${'a'.repeat(48)}`;
 const at = minutes => new Date(Date.now() + minutes * 60000).toISOString();
 const session = (id, minutes, patch) => ({ id, title: `Lesson ${id}`, level: 'A2', duration: '30–45 мин', cover: `/api/sessions/${id}/assets/cover.png`, scheduledAt: at(minutes), path: `/sessions/${id}/student`, ...patch });
-async function open(pathname, overview, { ok = true, hash = '' } = {}) {
+async function open(pathname, overview, { ok = true, hash = '', respond } = {}) {
   const document = createDocument();
   // Mirrors the elements that class-home.html renders hidden.
-  for (const id of ['class-home', 'class-home-current', 'class-home-empty', 'class-home-cover', 'class-home-enter', 'class-home-all', 'class-sessions', 'class-sessions-empty', 'class-home-error']) document.getElementById(id).hidden = true;
+  for (const id of ['class-home', 'class-home-me', 'class-students', 'class-home-current', 'class-home-empty', 'class-home-cover', 'class-home-enter', 'class-home-all', 'class-sessions', 'class-sessions-empty', 'class-home-error']) document.getElementById(id).hidden = true;
   for (const name of ['upcoming', 'past']) {
     const tab = document.getElementById(`class-sessions-tab-${name}`);
     tab.dataset.tab = name;
     tab.append(document.createElement('span'));
   }
-  const window = { location: { pathname, hash }, history: { replaceState: (_state, _title, url) => { window.location.hash = url; } } };
+  const window = { location: { pathname, hash, assign: url => { window.location.assigned = url; } }, history: { replaceState: (_state, _title, url) => { window.location.hash = url; } } };
   const requests = [];
-  vm.runInNewContext(source, { window, document, fetch: async url => { requests.push(url); return { ok, json: async () => overview }; } });
+  const fetch = async (url, options) => {
+    if (options?.method !== 'POST') { requests.push(url); return { ok, json: async () => overview }; }
+    requests.push([url, options.method, JSON.parse(options.body)]);
+    return respond(JSON.parse(options.body));
+  };
+  vm.runInNewContext(source, { window, document, fetch });
   await new Promise(resolve => setImmediate(resolve));
   const byId = id => document.getElementById(id);
   const items = () => byId('class-sessions-list').children.map(item => {
@@ -101,4 +106,63 @@ test('class home reports a failed request', async () => {
   assert.equal(byId('class-home-error').hidden, false);
   assert.equal(byId('class-home-error-message').textContent, 'Класс не найден.');
   assert.equal(byId('class-home').hidden, true);
+});
+test('a group student picks their name before the class home and can switch it later', async () => {
+  const running = session('running', -10);
+  const masha = { id: 'masha', name: 'Маша' }, petya = { id: 'petya', name: 'Петя' };
+  const overview = { className: 'Группа B1', isGroup: true, students: [masha], me: null, current: running, upcoming: [], past: [running] };
+  const answers = { masha: { ok: true, json: async () => ({ me: masha }) } };
+  const respond = choice => answers[choice.studentId] ?? (choice.name === 'Маша'
+    ? { ok: false, json: async () => ({ error: 'Такое имя уже есть — выберите его в списке или добавьте фамилию.' }) }
+    : { ok: true, json: async () => ({ me: petya }) });
+  const { byId, requests } = await open(classPath, overview, { respond });
+  assert.equal(byId('class-home').hidden, true);
+  assert.equal(byId('class-students').hidden, false);
+  assert.equal(byId('class-students-class').textContent, 'Ваш класс · Группа B1');
+  assert.deepEqual(byId('class-students-list').children.map(button => button.textContent), ['Маша']);
+  assert.equal(byId('class-students-label').textContent, 'Меня нет в списке');
+  const submit = async name => {
+    byId('class-students-name').value = name;
+    byId('class-students-form').listeners.submit[0]({ preventDefault() {} });
+    await new Promise(resolve => setImmediate(resolve));
+  };
+  await submit('Маша');
+  assert.equal(byId('class-students-error').textContent, 'Такое имя уже есть — выберите его в списке или добавьте фамилию.');
+  assert.equal(byId('class-home').hidden, true);
+  await submit('Петя');
+  assert.deepEqual(requests.slice(1), [[`/api${classPath}/student`, 'POST', { name: 'Маша' }], [`/api${classPath}/student`, 'POST', { name: 'Петя' }]]);
+  assert.equal(byId('class-students').hidden, true);
+  assert.equal(byId('class-home').hidden, false);
+  assert.equal(byId('class-home-me').hidden, false);
+  assert.equal(byId('class-home-me-name').textContent, 'Вы вошли как Петя.');
+  // «Не вы? Сменить» fetches the roster again, with everyone who joined meanwhile.
+  overview.students = [masha, petya, { id: 'olya', name: 'Оля' }];
+  overview.me = petya;
+  byId('class-home-me-change').click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(requests.at(-1), `/api${classPath}`);
+  assert.equal(byId('class-students').hidden, false);
+  assert.equal(byId('class-students-name').value, '');
+  const names = byId('class-students-list').children;
+  assert.deepEqual(names.map(button => [button.textContent, button.getAttribute('aria-current')]), [['Маша', null], ['Петя', 'true'], ['Оля', null]]);
+  names[0].click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(byId('class-home-me-name').textContent, 'Вы вошли как Маша.');
+});
+test('a group student opening a session link enters that session right after picking a name', async () => {
+  const sessionId = 'f'.repeat(8) + '-ffff-ffff-ffff-' + 'f'.repeat(12);
+  const overview = { className: 'Группа B1', isGroup: true, students: [], me: null, current: null, upcoming: [], past: [] };
+  const { byId, window } = await open(`${classPath}/${sessionId}`, overview, { respond: () => ({ ok: true, json: async () => ({ me: { id: 'masha', name: 'Маша' } }) }) });
+  assert.equal(byId('class-students-list').hidden, true);
+  assert.equal(byId('class-students-label').textContent, 'Ваше имя');
+  byId('class-students-name').value = 'Маша';
+  byId('class-students-form').listeners.submit[0]({ preventDefault() {} });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(window.location.assigned, `/sessions/${sessionId}/student`);
+});
+test('an individual class never asks for a name', async () => {
+  const { byId } = await open(classPath, { className: 'Анна', isGroup: false, current: null, upcoming: [], past: [] });
+  assert.equal(byId('class-students').hidden, true);
+  assert.equal(byId('class-home').hidden, false);
+  assert.equal(byId('class-home-me').hidden, true);
 });

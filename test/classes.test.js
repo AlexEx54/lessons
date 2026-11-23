@@ -10,7 +10,7 @@ const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
 const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, findClassSessionAsset } = require('../lib/class-store.js');
-const { joinClass, classOverview } = require('../lib/class-live-store.js');
+const { joinClass, classOverview, pickStudent, authorizeSession } = require('../lib/class-live-store.js');
 function fixture(t, dbPath = ':memory:') {
   const db = openDatabase(dbPath);
   t.after(() => db.close());
@@ -120,7 +120,7 @@ test('the class home offers the running session, otherwise the nearest upcoming 
   const token = tokenOf(first);
   const at = minutes => new Date(Date.now() + minutes * 60000).toISOString();
   const schedule = (session, minutes) => db.prepare('UPDATE class_sessions SET scheduled_at = ? WHERE id = ?').run(at(minutes), session.id);
-  const current = () => classOverview(token, db).current?.id ?? null;
+  const current = () => classOverview({ headers: {} }, token, db).current?.id ?? null;
   const add = minutes => { const session = plan({ className: undefined, classId: first.class_id }); schedule(session, minutes); return session; };
   schedule(first, -200);
   assert.equal(current(), null);
@@ -150,17 +150,17 @@ test('the class home lists upcoming sessions nearest first and past ones newest 
     return session;
   };
   db.prepare('DELETE FROM class_sessions WHERE id = ?').run(first.id);
-  assert.deepEqual(classOverview(token, db), { className: 'Анна', current: null, upcoming: [], past: [] });
+  assert.deepEqual(classOverview({ headers: {} }, token, db), { className: 'Анна', isGroup: false, current: null, upcoming: [], past: [] });
   const lastWeek = add(-7 * 24 * 60), running = add(-10), nextWeek = add(7 * 24 * 60), tomorrow = add(24 * 60), cancelled = add(60);
   updateClassSession(cancelled.id, { status: 'cancelled' }, teacher.id, db);
-  const overview = classOverview(token, db);
+  const overview = classOverview({ headers: {} }, token, db);
   assert.deepEqual(overview.upcoming.map(item => item.id), [tomorrow.id, nextWeek.id]);
   assert.deepEqual(overview.past.map(item => item.id), [running.id, lastWeek.id]);
   assert.deepEqual(overview.current, overview.past[0]);
   assert.deepEqual(Object.keys(overview.current).sort(), ['cover', 'duration', 'id', 'level', 'path', 'scheduledAt', 'title']);
   assert.equal(overview.current.path, `/sessions/${running.id}/student`);
   assert.equal(overview.current.cover, running.cover);
-  assert.throws(() => classOverview('missing', db), { statusCode: 404 });
+  assert.throws(() => classOverview({ headers: {} }, 'missing', db), { statusCode: 404 });
 });
 test('session API creates once, renders schedule and teacher lesson, protects all routes and supports snapshot audio ranges', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'classes-http-'));
@@ -261,4 +261,48 @@ test('invite names transliterate Russian, normalize punctuation and have a bound
   assert.equal(slug('🎓'), 'new-class');
   assert.equal(slug('а'.repeat(80)).length, 48);
   assert.ok(!slug('a'.repeat(47) + ' — test').endsWith('-'));
+});
+test('a group student picks a name once per device and enters sessions as that student', t => {
+  const { db, teacher, plan } = fixture(t);
+  const session = plan({ className: 'Группа B1', isGroup: true });
+  const token = tokenOf(session);
+  assert.deepEqual(listClasses(teacher.id, db).map(item => [item.name, item.isGroup]), [['Группа B1', true]]);
+  assert.throws(() => plan({ className: 'Группа C1', isGroup: 'yes' }), { statusCode: 400 });
+  // A new device gets the class cookie but stays on the class home until the student picks a name.
+  const joined = joinClass({ headers: {} }, token, db, session.id);
+  assert.equal(joined.sessionId, null);
+  const laptop = { headers: { cookie: joined.cookie.split(';')[0] } };
+  assert.equal(joinClass(laptop, token, db, session.id).sessionId, null);
+  assert.equal(authorizeSession(laptop, session.id, db, 'student'), null);
+  const overview = classOverview(laptop, token, db);
+  assert.deepEqual([overview.isGroup, overview.students, overview.me], [true, [], null]);
+  assert.throws(() => pickStudent({ headers: {} }, token, { name: 'Маша' }, db), { statusCode: 403 });
+  assert.throws(() => pickStudent(laptop, token, { name: '  ' }, db), { statusCode: 400 });
+  assert.throws(() => pickStudent(laptop, token, { name: 'x'.repeat(41) }, db), { statusCode: 400 });
+  const masha = pickStudent(laptop, token, { name: '  Маша   Петрова ' }, db).me;
+  assert.equal(masha.name, 'Маша Петрова');
+  const access = authorizeSession(laptop, session.id, db, 'student');
+  assert.deepEqual([access.identity, access.studentId, access.name], [masha.id, masha.id, 'Маша Петрова']);
+  assert.equal(joinClass(laptop, token, db, session.id).sessionId, session.id);
+  // A second device finds the same student in the roster; names differ regardless of case.
+  const phone = { headers: { cookie: joinClass({ headers: {} }, token, db).cookie.split(';')[0] } };
+  assert.throws(() => pickStudent(phone, token, { name: 'маша петрова' }, db), { statusCode: 409 });
+  assert.throws(() => pickStudent(phone, token, { studentId: crypto.randomUUID() }, db), { statusCode: 404 });
+  pickStudent(phone, token, { studentId: masha.id }, db);
+  assert.equal(authorizeSession(phone, session.id, db, 'student').identity, masha.id);
+  // A brother at the same laptop switches to his own name.
+  const petya = pickStudent(laptop, token, { name: 'Петя' }, db).me;
+  assert.equal(authorizeSession(laptop, session.id, db, 'student').identity, petya.id);
+  assert.deepEqual(classOverview(laptop, token, db).students.map(student => student.name), ['Маша Петрова', 'Петя']);
+  assert.deepEqual(classOverview(phone, token, db).me, masha);
+  // The roster is bounded until the teacher can edit it.
+  for (let index = 3; index <= 30; index += 1) pickStudent(laptop, token, { name: `Ученик ${index}` }, db);
+  assert.throws(() => pickStudent(laptop, token, { name: 'Ещё один' }, db), { statusCode: 409 });
+  assert.equal(pickStudent(laptop, token, { studentId: masha.id }, db).me.id, masha.id);
+  // An individual class has no roster: the device itself is the student.
+  const single = plan();
+  assert.throws(() => pickStudent(laptop, tokenOf(single), { name: 'Маша' }, db), { statusCode: 400 });
+  const singleDevice = { headers: { cookie: joinClass({ headers: {} }, tokenOf(single), db).cookie.split(';')[0] } };
+  assert.equal(authorizeSession(singleDevice, single.id, db, 'student').studentId, undefined);
+  assert.equal(classOverview(singleDevice, tokenOf(single), db).students, undefined);
 });

@@ -207,6 +207,31 @@ body.modal-open {
   box-shadow: 0 0 0 4px rgba(96, 54, 247, 0.1);
 }
 
+.class-group-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.class-group-field input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #7653e9;
+}
+
+.class-group-field strong {
+  display: block;
+  color: var(--ink);
+  font-size: 15px;
+}
+
 .class-list-status:empty {
   display: none;
 }
@@ -325,6 +350,17 @@ body.modal-open {
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.class-option__badge {
+  flex: none;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--purple);
+  background: #f0ecff;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .class-list__empty {
