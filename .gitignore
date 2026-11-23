@@ -7,3 +7,4 @@ tmp/
 .playwright-mcp/
 node_modules/
 .claude/
+.DS_Store
