@@ -222,8 +222,18 @@ test("the peer's screen opens over the lesson once per share and the own screen 
   assert.equal(s.byId('call-stage').hidden, true);
 
   share(false);
-  assert.equal(s.byId('call-stage-open').hidden, true);
+  assert.equal(s.byId('call-stage-open').title, 'Развернуть видео: Маша', 'the camera can be expanded too');
   assert.equal(s.byId('call-remote-video').dataset.screen, 'false');
+  s.byId('call-stage-open').click();
+  assert.equal(s.byId('call-stage-name').textContent, 'Маша');
+  assert.equal(s.byId('call-stage-placeholder').hidden, true);
+  connection.remoteState = { ...connection.remoteState, videoVisible: false };
+  connection.options.onRemote();
+  assert.equal(s.byId('call-stage-placeholder').hidden, false, 'a camera turned off leaves the stage open');
+  connection.remoteState = { ...connection.remoteState, present: false };
+  connection.options.onRemote();
+  assert.equal(s.byId('call-stage').hidden, true, 'the stage closes when the peer leaves');
+  assert.equal(s.byId('call-stage-open').hidden, true);
   share(true);
   assert.equal(s.byId('call-stage').hidden, false, 'a new share opens again');
   share(false);
@@ -352,6 +362,27 @@ test('in a group call everyone else has a tile, and the screen of the expanded t
   assert.equal(screen.attached.length, 1);
   olyaTile.children[2].click(); // the expand button, cloned from the peer tile's
   assert.equal(s.byId('call-stage').hidden, false);
+
+  // Анна's camera can be expanded too; Оля's share ending closes only her own screen.
+  annaTile.children[2].click();
+  assert.equal(s.byId('call-stage-name').textContent, 'Анна');
+  assert.deepEqual([anna.video.attached.length, screen.attached.length], [2, 1]);
+  room.peerList = [anna, olya];
+  room.options.onChange();
+  assert.equal(s.byId('call-stage').hidden, false);
+  room.peerList = [{ ...anna, video: null, camera: false }, olya];
+  room.options.onChange();
+  assert.deepEqual([s.byId('call-stage').hidden, s.byId('call-stage-placeholder').hidden, anna.video.attached.length], [false, false, 0]);
+  room.peerList = [anna, { ...olya, screen, video: screen }];
+  room.options.onChange();
+  assert.equal(s.byId('call-stage-name').textContent, 'Экран: Оля', 'a new share takes the stage');
+  assert.equal(olyaTile.children[2].title, 'Развернуть экран: Оля');
+  room.peerList = [anna, olya];
+  room.options.onChange();
+  assert.equal(s.byId('call-stage').hidden, true, 'the stage closes with the shown screen');
+  assert.equal(annaTile.children[2].title, 'Развернуть видео: Анна');
+  olyaTile.children[2].click();
+  assert.deepEqual([s.byId('call-stage-name').textContent, s.byId('call-stage-placeholder').hidden], ['Оля', false]);
 
   room.peerList = [anna];
   room.options.onChange();

@@ -41,6 +41,7 @@
       stage: byId('call-stage'),
       stageVideo: byId('call-stage-video'),
       stageName: byId('call-stage-name'),
+      stagePlaceholder: byId('call-stage-placeholder'),
       stageClose: byId('call-stage-close'),
       localVideo: byId('call-local-video'),
       localPlaceholder: byId('call-local-placeholder'),
@@ -96,7 +97,8 @@
     // The open popover: 'more', 'backgrounds', 'peer' (the teacher's menu of the student menuPeer) or null.
     let popover = null;
     let menuPeer = null;
-    // The peer's screen share opens over the lesson once; after closing it waits for the next share.
+    // The stage shows one of the others large over the lesson. A screen share opens it once;
+    // after closing it waits for the next share or for an expanded tile.
     let peerSharing = false;
     let stageOpen = false;
     let previewTrack = null;
@@ -104,7 +106,9 @@
     // A group call's tiles of the others: identity → { tile, video, placeholder, name, muted, track }.
     const peerTiles = new Map();
     let stageTrack = null;
+    // The group participant on the stage, and who was sharing their screen at the last render.
     let stagePeer = null;
+    let sharers = new Set();
     const backgroundButtons = window.CallMedia.BACKGROUND_OPTIONS.map(backgroundButton);
 
     // In a group the others are named in one line: «Учитель, Маша и Петя».
@@ -115,6 +119,7 @@
       return [...(presence?.teacher ? ['Учитель'] : []), ...(presence?.students || [])];
     };
     const peerName = () => names[peerRole];
+    const expandLabel = (name, screen) => `${screen ? 'Развернуть экран' : 'Развернуть видео'}: ${name}`;
     const recorder = role === 'teacher' && !group ? window.CallRecorder.control({
       getSources: recordingSources, canStart: () => Boolean(call), onChange: render,
     }) : null;
@@ -277,20 +282,22 @@
       render();
     }
 
-    // In a group the stage shows the screen whose tile was expanded, or else the first one sharing.
+    // The one on the stage: their screen while they share it, or else their camera. It closes with the shown screen
+    // or when the shown one leaves.
     function renderStage() {
-      const sharing = call?.room?.peers().filter(peer => peer.screen) || [];
-      const sharer = sharing.find(peer => peer.identity === stagePeer) || sharing[0];
-      const shared = group ? Boolean(sharer) : Boolean(call?.connection.remote().screen);
-      if (shared !== peerSharing) {
-        peerSharing = shared;
-        stageOpen = shared;
-      }
+      const shown = group ? groupStagePeer() : pairStagePeer();
+      if (!shown) stageOpen = false;
       elements.stage.hidden = !stageOpen;
-      elements.stageOpen.hidden = group || !peerSharing || stageOpen;
-      elements.stageName.textContent = `Экран: ${group ? sharer?.name || '' : elements.remoteName.textContent}`;
+      elements.stageOpen.hidden = group || !shown || stageOpen;
+      if (shown) {
+        const label = expandLabel(shown.name, shown.screen);
+        elements.stageOpen.title = label;
+        elements.stageOpen.setAttribute('aria-label', label);
+      }
+      elements.stageName.textContent = shown?.screen ? `Экран: ${shown.name}` : shown?.name || '';
+      elements.stagePlaceholder.hidden = !shown || Boolean(shown.video);
       if (group) {
-        const next = stageOpen ? sharer?.screen || null : null;
+        const next = stageOpen ? shown.video : null;
         if (next === stageTrack) return;
         stageTrack?.detach(elements.stageVideo);
         next?.attach(elements.stageVideo);
@@ -299,6 +306,31 @@
       }
       const stream = stageOpen ? call.connection.remoteStream : null;
       if (elements.stageVideo.srcObject !== stream) elements.stageVideo.srcObject = stream;
+    }
+
+    // A group participant who starts sharing goes on the stage; video is their screen or camera track.
+    function groupStagePeer() {
+      const peers = call?.room.peers() || [];
+      const started = peers.find(peer => peer.screen && !sharers.has(peer.identity));
+      const shown = started || peers.find(peer => peer.identity === stagePeer);
+      if (started) {
+        stagePeer = started.identity;
+        stageOpen = true;
+      } else if (shown && !shown.screen && sharers.has(shown.identity)) {
+        stageOpen = false;
+      }
+      sharers = new Set(peers.filter(peer => peer.screen).map(peer => peer.identity));
+      return shown;
+    }
+
+    // The peer of an individual class; video says whether their stream shows a picture.
+    function pairStagePeer() {
+      const remote = call?.connection.remote();
+      if (Boolean(remote?.screen) !== peerSharing) {
+        peerSharing = Boolean(remote?.screen);
+        stageOpen = peerSharing;
+      }
+      return remote?.present ? { name: elements.remoteName.textContent, screen: remote.screen, video: remote.videoVisible } : null;
     }
 
     function renderRemote() {
@@ -324,6 +356,7 @@
       parts.placeholder.className = 'call-tile__placeholder';
       parts.muted.removeAttribute('id');
       parts.expand.removeAttribute('id');
+      parts.expand.hidden = false;
       parts.expand.addEventListener('click', () => { stagePeer = identity; setStageOpen(true); });
       const label = document.createElement('span');
       label.className = 'call-tile__label';
@@ -361,8 +394,8 @@
         parts.muted.hidden = peer.audio;
         parts.placeholder.hidden = Boolean(peer.video);
         parts.placeholder.textContent = 'Камера выключена';
-        parts.expand.hidden = !peer.screen;
-        parts.expand.setAttribute('aria-label', `Развернуть экран: ${peer.name}`);
+        parts.expand.title = expandLabel(peer.name, Boolean(peer.screen));
+        parts.expand.setAttribute('aria-label', parts.expand.title);
         parts.menu.hidden = peer.teacher;
         parts.menu.setAttribute('aria-label', `Управление: ${peer.name}`);
       });
