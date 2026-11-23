@@ -129,6 +129,11 @@
     }
   }
 
+  // The teacher opens the first text waiting for a grade, otherwise the first student.
+  function firstToRead(students) {
+    return (students.find(student => normalizeWriting(student.writing).status === 'submitted') ?? students[0])?.id ?? null;
+  }
+
   function svg(doc, paths, className) {
     const node = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
     node.setAttribute('viewBox', '0 0 24 24');
@@ -175,7 +180,12 @@
 
     let current = normalizeHomeworkWriting(data);
     const role = settings.viewerRole === 'student' ? 'student' : 'teacher';
-    let writing = normalizeWriting(settings.writing);
+    // The teacher of a group sees the class by name and grades one student's text at a time.
+    // Until the teacher picks a student, the card moves on to the next text waiting for a grade.
+    let students = settings.students || null;
+    let studentId = students && firstToRead(students);
+    let picked = false;
+    let writing = normalizeWriting(students ? students.find(student => student.id === studentId)?.writing : settings.writing);
     let interactive = settings.interactive === true;
     let localText = writing.text;
     let autosaveTimer = null;
@@ -273,7 +283,9 @@
     textarea.addEventListener('blur', flushText);
 
     const body = element(doc, 'div', 'homework-writing__body');
-    section.append(head, toolbar, task, limits, body);
+    const roster = element(doc, 'div', 'homework-writing__students');
+    roster.setAttribute('aria-label', 'Ученики');
+    section.append(head, toolbar, task, limits, ...(students ? [roster] : []), body);
 
     const meter = element(doc, 'div', 'homework-writing__meter');
     const meterBar = element(doc, 'div', 'homework-writing__meter-bar');
@@ -421,9 +433,14 @@
         paintScore();
       }
       comment.addEventListener('input', () => { reviewComment = comment.value; });
-      returnButton.addEventListener('click', () => settings.onReturn({ comment: reviewComment.trim() }));
+      returnButton.addEventListener('click', () => {
+        picked = true;
+        settings.onReturn({ comment: reviewComment.trim() }, studentId);
+      });
       gradeButton.addEventListener('click', () => {
-        if (reviewScore) settings.onReview({ score: reviewScore, comment: reviewComment.trim() });
+        if (!reviewScore) return;
+        picked = true;
+        settings.onReview({ score: reviewScore, comment: reviewComment.trim() }, studentId);
       });
       paintScore();
       if (typeof settings.onReturn === 'function') buttons.append(returnButton);
@@ -468,7 +485,29 @@
       return parts;
     }
 
+    function paintStudents() {
+      roster.replaceChildren(...students.map(student => {
+        const work = normalizeWriting(student.writing);
+        const label = work.status === 'draft' ? (work.text.trim() ? 'пишет' : 'не начинал') : STATUS_LABELS.teacher[work.status].toLowerCase();
+        const button = element(doc, 'button', `homework-writing__student homework-writing__student--${work.status}`);
+        button.type = 'button';
+        button.setAttribute('aria-pressed', String(student.id === studentId));
+        button.append(element(doc, 'span', 'homework-writing__student-name', student.name), element(doc, 'small', '', label));
+        button.addEventListener('click', () => {
+          picked = true;
+          if (student.id === studentId) return;
+          studentId = student.id;
+          writing = work;
+          reviewScore = writing.review?.score || 0;
+          reviewComment = writing.review?.comment || '';
+          paint();
+        });
+        return button;
+      }));
+    }
+
     function paint() {
+      if (students) paintStudents();
       section.dataset.status = writing.status;
       status.className = `homework-writing__status homework-writing__status--${writing.status}`;
       status.textContent = STATUS_LABELS[role][writing.status];
@@ -501,6 +540,13 @@
       } else if (JSON.stringify(writing) !== JSON.stringify(previous)) {
         paint();
       }
+    };
+    section.updateStudents = (next) => {
+      const changed = JSON.stringify(next) !== JSON.stringify(students);
+      students = next;
+      if (!students.some(student => student.id === studentId) || (!picked && writing.status !== 'submitted')) studentId = firstToRead(students);
+      if (changed) paintStudents();
+      section.updateState(students.find(student => student.id === studentId)?.writing);
     };
     section.setInteractive = (value) => {
       if (interactive === Boolean(value)) return;

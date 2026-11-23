@@ -56,6 +56,28 @@
 .homework-writing__status--returned { color: #6545f5; background: #f1edff; }
 .homework-writing__status--checked { color: #1a9a55; background: #e6f7ee; }
 
+.homework-writing__students { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
+.homework-writing__student {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 12px;
+  border: 1.5px solid #e4e6ee;
+  border-radius: 12px;
+  color: #242842;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.homework-writing__student small { color: #6b7086; font-size: 11px; font-weight: 600; }
+.homework-writing__student--submitted small { color: #b7791f; }
+.homework-writing__student--returned small { color: #6545f5; }
+.homework-writing__student--checked small { color: #1a9a55; }
+.homework-writing__student[aria-pressed="true"] { border-color: #6545f5; box-shadow: 0 0 0 1px #6545f5; background: #fcfbff; }
+
 .homework-writing__edit,
 .homework-writing__cancel,
 .homework-writing__format {

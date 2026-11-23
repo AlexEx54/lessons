@@ -1,6 +1,16 @@
 (() => {
   'use strict';
   const canAnswer = session => session.connected && ['teacher', 'student'].includes(session.role);
+  // The teacher of a group gets the class roster and everyone's own work in `state.personal`.
+  const personal = (session, key, componentId) => session.students.map(student => ({ id: student.id, name: student.name,
+    value: session.state.personal?.[student.id]?.[key]?.[componentId] }));
+  function assessmentCounts(session, componentId) {
+    const counts = {};
+    for (const { value } of personal(session, 'selfAssessments', componentId)) if (value) counts[value] = (counts[value] || 0) + 1;
+    return counts;
+  }
+  const writings = (session, componentId) => personal(session, 'writings', componentId)
+    .map(({ value, ...student }) => ({ ...student, writing: value }));
   const adapters = new Map([
     ['videoPlayer', {
       options(component, session) { return { viewerRole: session.role, connected: session.connected, peerPresent: session.peerPresent, sendMedia: session.sendMedia,
@@ -66,7 +76,8 @@
       options(component, session) {
         return {
           selectedId: session.state.selfAssessments?.[component.id],
-          interactive: canAnswer(session),
+          ...(session.students ? { counts: assessmentCounts(session, component.id) } : {}),
+          interactive: canAnswer(session) && !session.students,
           onAction: session.send,
         };
       },
@@ -77,33 +88,38 @@
         state.selfAssessments = next;
       },
       update(node, component, session) {
-        node.updateState(session.state.selfAssessments?.[component.id]);
-        node.setInteractive(canAnswer(session));
+        if (session.students) node.updateCounts(assessmentCounts(session, component.id));
+        else node.updateState(session.state.selfAssessments?.[component.id]);
+        node.setInteractive(canAnswer(session) && !session.students);
       },
     }],
     ['homeworkWriting', {
       options(component, session) {
         const { ACTIONS } = window.HomeworkWritingComponent;
-        const send = (type, fields) => session.send({ type, componentId: component.id, ...fields });
+        const send = (type, fields, studentId) => session.send({ type, componentId: component.id, ...fields, ...(studentId ? { studentId } : {}) });
         return {
           writing: session.state.writings?.[component.id],
+          ...(session.students ? { students: writings(session, component.id) } : {}),
           interactive: canAnswer(session),
           onWrite: text => send(ACTIONS.write, { text }),
           onSubmit: text => send(ACTIONS.submit, { text }),
           onReopen: () => send(ACTIONS.reopen),
-          onReview: review => send(ACTIONS.review, review),
-          onReturn: review => send(ACTIONS.return, review),
+          onReview: (review, studentId) => send(ACTIONS.review, review, studentId),
+          onReturn: (review, studentId) => send(ACTIONS.return, review, studentId),
         };
       },
       preview(state, action, component) {
         // An action the newer state no longer allows shows nothing; the server rejects it too.
+        // The teacher of a group grades the work of the student the action names.
+        const target = action.studentId ? state.personal?.[action.studentId] : state;
         try {
-          const writing = window.HomeworkWritingComponent.applyWritingAction(component, state.writings?.[component.id], action);
-          state.writings = { ...state.writings, [component.id]: writing };
+          const writing = window.HomeworkWritingComponent.applyWritingAction(component, target.writings?.[component.id], action);
+          target.writings = { ...target.writings, [component.id]: writing };
         } catch {}
       },
       update(node, component, session) {
-        node.updateState(session.state.writings?.[component.id]);
+        if (session.students) node.updateStudents(writings(session, component.id));
+        else node.updateState(session.state.writings?.[component.id]);
         node.setInteractive(canAnswer(session));
       },
     }],

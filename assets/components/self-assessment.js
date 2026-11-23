@@ -97,6 +97,8 @@
     let saving = false;
     let selectedId = OPTIONS.some(option => option.id === settings.selectedId) ? settings.selectedId : '';
     let interactive = settings.interactive !== false;
+    // The teacher of a group sees how many students picked each option instead of one choice.
+    let counts = settings.counts || null;
     let initialSnapshot = '';
     let titleEditor = null;
 
@@ -204,6 +206,13 @@
         caption.textContent = option.text;
         button.append(faceIcon(doc, option.id), caption);
         if (selected) button.append(checkIcon(doc));
+        if (counts) {
+          const count = doc.createElement('span');
+          count.className = `self-assessment__count${counts[option.id] ? '' : ' self-assessment__count--zero'}`;
+          count.textContent = String(counts[option.id] || 0);
+          count.setAttribute('aria-label', `Учеников: ${counts[option.id] || 0}`);
+          button.append(count);
+        }
         button.addEventListener('click', () => {
           if (editing || !interactive) return;
           selectedId = selectedId === option.id ? '' : option.id;
@@ -250,6 +259,11 @@
       const next = OPTIONS.some(option => option.id === value) ? value : '';
       if (next === selectedId) return;
       selectedId = next;
+      render();
+    };
+    component.updateCounts = (value) => {
+      if (JSON.stringify(value) === JSON.stringify(counts)) return;
+      counts = value;
       render();
     };
     component.setInteractive = (value) => {

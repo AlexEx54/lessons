@@ -12,7 +12,8 @@
   const stageIndex = stageId => viewState.lesson.stages.findIndex(stage => stage.id === stageId);
   let availableStageIds = [];
   // For the teacher: whether any student is in; for a student: whether the teacher is.
-  let peerPresent = false, isGroup = false;
+  // `students` is the class roster, sent only to the teacher of a group.
+  let peerPresent = false, isGroup = false, students = null;
   // Playback is synchronised only on the teacher's stage; elsewhere the video plays locally.
   function sendMedia(message) {
     if (connected && socket?.readyState === WebSocket.OPEN && viewedStageId() === confirmed.activeStageId) socket.send(JSON.stringify({ ...message, stageId: confirmed.activeStageId }));
@@ -88,7 +89,7 @@
     const stage = viewState.lesson?.stages.find(stage => stage.id === action.stageId);
     return stage && window.ComponentTree.collectComponents([stage]).find(component => component.id === action.componentId);
   }
-  function session(state = confirmed) { return { role, connected, peerPresent, sendMedia, state, send: enqueue, pendingActions: pending, feedback }; }
+  function session(state = confirmed) { return { role, connected, peerPresent, sendMedia, state, students, send: enqueue, pendingActions: pending, feedback }; }
   function enqueue(action) {
     if (!connected) { paint(); return; }
     pending.push({ ...action, stageId: action.stageId || viewedStageId() });
@@ -138,6 +139,7 @@
     const previousStage = viewState.lesson?.stages[viewState.activeIndex];
     const previousTeacherStageId = confirmed?.activeStageId;
     confirmed = payload.state;
+    students = payload.students || null;
     pointerComponentIds = payload.pointerComponentIds || [];
     availableStageIds = payload.availableStageIds;
     viewState.lesson = payload.lesson.content;
@@ -156,11 +158,11 @@
     feedback = false;
   }
   // The teacher of a group sees who is in; everyone else sees whether the other side is.
-  function receivePresence({ teacher, students }) {
-    peerPresent = role === 'teacher' ? students.length > 0 : teacher;
+  function receivePresence({ teacher, students: present }) {
+    peerPresent = role === 'teacher' ? present.length > 0 : teacher;
     paint();
     if (role === 'teacher' && isGroup) {
-      setStatus(peerPresent ? `В классе: ${students.join(', ')}` : 'Ожидаем учеников', peerPresent ? 'connected' : 'waiting');
+      setStatus(peerPresent ? `В классе: ${present.join(', ')}` : 'Ожидаем учеников', peerPresent ? 'connected' : 'waiting');
       return;
     }
     setStatus(
@@ -263,6 +265,7 @@
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Не удалось открыть класс.');
       confirmed = payload.state;
+      students = payload.students || null;
       pointerComponentIds = payload.pointerComponentIds || [];
       availableStageIds = payload.availableStageIds;
       isGroup = Boolean(payload.isGroup);

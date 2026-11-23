@@ -12,14 +12,15 @@ const { createSession } = require('../lib/session-store.js');
 const { createClassSession } = require('../lib/class-store.js');
 const { joinClass, pickStudent } = require('../lib/class-live-store.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
+const { ACTIONS } = require('../assets/components/homework-writing.js');
 const { createClassLiveSignaling } = require('../lib/class-live-signaling.js');
 const { createNotesSignaling } = require('../lib/lesson-notes-signaling.js');
 
 // A group session with a teacher cookie and a way to bring in students by name, served by one signaling module.
-async function fixture(t, createSignaling) {
+async function fixture(t, createSignaling, content = syntheticLesson()) {
   const db = openDatabase(':memory:');
   const teacher = createUser({ email: 'group@test.example', displayName: 'Teacher', role: 'teacher', passwordHash: 'unused' }, db);
-  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(syntheticLesson()));
+  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
   const lesson = createClassSession({ className: 'Группа B1', isGroup: true, lessonId: 'superhero', expectedRevision: 1,
     requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00Z' }, teacher.id, db);
   const token = lesson.classInvitePath.split('/').at(-1);
@@ -136,4 +137,48 @@ test('group notes are written by the teacher and read by the students', { timeou
   assert.equal((await closed)[0], 4009);
   // The header of the lesson shows who is in, so group notes keep quiet about it.
   assert.equal([teacher, petya].some(socket => socket.messages.some(message => message.type === 'presence')), false);
+});
+
+test('in a group each student keeps their own homework and self-assessment, and the teacher sees everyone\'s', { timeout: 15000 }, async t => {
+  const content = syntheticLesson();
+  const homework = { type: 'homeworkWriting', id: 'homework-comment', title: 'Comment', instruction: 'Write.', task: 'Write a comment.', minWords: 10, maxWords: 40 };
+  content.stages.push({ id: 'homework', number: content.stages.length + 1, title: 'Homework', icon: 'pencil', content: [homework] });
+  const { teacherCookie, student, connect } = await fixture(t, createClassLiveSignaling, content);
+  const masha = connect('sessions', student('Маша')), petya = connect('sessions', student('Петя'));
+  await masha.next('snapshot');
+  await petya.next('snapshot');
+  const teacher = connect('sessions', teacherCookie, 'teacher');
+  const snapshot = await teacher.next('snapshot');
+  assert.deepEqual(snapshot.students.map(item => item.name), ['Маша', 'Петя']);
+  const ids = Object.fromEntries(snapshot.students.map(item => [item.name, item.id]));
+  const act = async (socket, action) => {
+    socket.send(JSON.stringify(action));
+    return socket.next('action', message => message.own);
+  };
+  const ENOUGH = 'I think we should keep our phones on silent in class today.';
+  const assess = { type: 'select-assessment', stageId: 'wrap-up', componentId: 'wrap-up-self-assessment' };
+  const write = { stageId: 'homework', componentId: homework.id };
+
+  // Маша's choice and text are hers: Петя does not see them, the teacher sees them by her id.
+  assert.deepEqual((await act(masha, { ...assess, selectedId: 'withHelp' })).state.selfAssessments, { 'wrap-up-self-assessment': 'withHelp' });
+  assert.equal((await petya.next('action')).state.selfAssessments, undefined);
+  assert.equal((await teacher.next('action')).state.personal[ids['Маша']].selfAssessments['wrap-up-self-assessment'], 'withHelp');
+  await act(masha, { ...write, type: ACTIONS.submit, text: ENOUGH });
+  const petyaDraft = await act(petya, { ...write, type: ACTIONS.write, text: 'My own words' });
+  assert.deepEqual(petyaDraft.state.writings[homework.id], { text: 'My own words', status: 'draft' });
+
+  // The teacher grades the student the action names; without one, personal work is out of reach.
+  teacher.messages.length = 0;
+  teacher.send(JSON.stringify({ ...assess, selectedId: 'independent' }));
+  assert.equal((await teacher.next('action-error')).error, 'Выберите ученика.');
+  const graded = await act(teacher, { ...write, type: ACTIONS.review, score: 5, comment: 'Great!', studentId: ids['Маша'] });
+  assert.equal(graded.state.personal[ids['Маша']].writings[homework.id].status, 'checked');
+  assert.equal(graded.state.personal[ids['Петя']].writings[homework.id].status, 'draft');
+  assert.deepEqual((await masha.next('action', message => message.state.writings?.[homework.id]?.status === 'checked')).state.writings[homework.id].review,
+    { score: 5, comment: 'Great!' });
+
+  // Resetting a stage clears everyone's work on it.
+  const reset = await act(teacher, { type: 'reset-stage', stageId: 'homework' });
+  for (const name of ['Маша', 'Петя']) assert.equal(reset.state.personal[ids[name]].writings[homework.id], undefined);
+  assert.equal(reset.state.personal[ids['Маша']].selfAssessments['wrap-up-self-assessment'], 'withHelp');
 });

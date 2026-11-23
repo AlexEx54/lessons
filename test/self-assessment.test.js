@@ -198,3 +198,12 @@ test('lesson editor script tags close before the next script starts', () => {
     assert.equal((block.match(/<script\b/g) || []).length, 1);
   });
 });
+
+test('the teacher of a group sees how many students picked each option', () => {
+  const node = renderSelfAssessment(component(), { counts: { withHelp: 2, independent: 1 }, interactive: false }, fakeDocument());
+  const counts = () => descendants(node).filter(child => child.classList?.contains('self-assessment__count')).map(child => child.textContent);
+  assert.deepEqual(counts(), ['1', '2', '0']);
+  node.updateCounts({ withHelp: 3, needPractice: 1, independent: 1 });
+  assert.deepEqual(counts(), ['1', '3', '1']);
+  assert.equal(descendants(node).some(child => child.classList?.contains('self-assessment__option--selected')), false);
+});

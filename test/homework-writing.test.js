@@ -180,6 +180,47 @@ test('the teacher grades a handed-in text with stars and a comment, or returns i
   assert.deepEqual(returns, [{ comment: 'Great arguments!' }]);
 });
 
+test('the teacher of a group opens the first text to grade and grades the student picked', () => {
+  const reviews = [];
+  const students = [
+    { id: 'anya', name: 'Аня' },
+    { id: 'masha', name: 'Маша', writing: { text: 'Draft words', status: 'draft' } },
+    { id: 'petya', name: 'Петя', writing: { text: ENOUGH, status: 'submitted', submittedAt: 1 } },
+  ];
+  const node = render({ viewerRole: 'teacher', interactive: true, writing: undefined, students, onReview: (review, id) => reviews.push([id, review.score]) });
+  const chips = () => findAll(node, 'homework-writing__student');
+  assert.deepEqual(chips().map(text), ['Аняне начинал', 'Машапишет', 'Петясдано']);
+  assert.deepEqual(chips().map(chip => chip.getAttribute('aria-pressed')), ['false', 'false', 'true']);
+  assert.equal(find(node, 'homework-writing__sheet').textContent, ENOUGH);
+  findAll(node, 'homework-writing__star')[4].click();
+  find(node, 'homework-writing__button--primary').click();
+  assert.deepEqual(reviews, [['petya', 5]]);
+
+  chips()[1].click();
+  assert.equal(find(node, 'homework-writing__status').textContent, 'Черновик');
+  assert.equal(find(node, 'homework-writing__sheet').textContent, 'Draft words');
+  node.updateStudents(students.map(student => student.id === 'petya'
+    ? { ...student, writing: { ...student.writing, status: 'checked', review: { score: 5, comment: '' } } } : student));
+  assert.equal(text(chips()[2]), 'Петяпроверено');
+  assert.equal(find(node, 'homework-writing__sheet').textContent, 'Draft words', 'the picked student stays open');
+});
+
+test('until the teacher of a group picks a student, the card moves on to the text waiting for a grade', () => {
+  const students = [{ id: 'anya', name: 'Аня' }, { id: 'masha', name: 'Маша' }];
+  const node = render({ viewerRole: 'teacher', interactive: true, writing: undefined, students, onReview() {} });
+  const open = () => findAll(node, 'homework-writing__student').find(chip => chip.getAttribute('aria-pressed') === 'true');
+  assert.equal(text(open()), 'Аняне начинал');
+  const masha = { id: 'masha', name: 'Маша', writing: { text: ENOUGH, status: 'submitted', submittedAt: 1 } };
+  node.updateStudents([students[0], masha]);
+  assert.equal(text(open()), 'Машасдано');
+  // A text waiting for a grade stays open while another student hands in.
+  node.updateStudents([{ ...students[0], writing: { text: ENOUGH, status: 'submitted', submittedAt: 2 } }, masha]);
+  assert.equal(text(open()), 'Машасдано');
+  findAll(node, 'homework-writing__student')[0].click();
+  node.updateStudents([students[0], masha]);
+  assert.equal(text(open()), 'Аняне начинал', 'a picked student stays open');
+});
+
 test('the student sees the grade; a returned text is editable again with the teacher’s note', () => {
   const checked = render({
     viewerRole: 'student',
@@ -325,6 +366,17 @@ test('in a session the student writes and the teacher grades; the preview follow
   assert.deepEqual(state.writings, {});
 });
 
+test('the preview of a group teacher\'s grade changes only the named student\'s work', () => {
+  const window = { HomeworkWritingComponent: require('../assets/components/homework-writing.js') };
+  require('node:vm').runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/class-component-adapters.js'), 'utf8'), { window });
+  const homework = normalizeHomeworkWriting(component());
+  const submitted = { text: ENOUGH, status: 'submitted', submittedAt: 1 };
+  const state = { personal: { masha: { writings: { [homework.id]: submitted } }, petya: { writings: { [homework.id]: submitted } } } };
+  window.ClassComponentAdapters.preview(homework, state, { type: ACTIONS.review, componentId: homework.id, score: 4, studentId: 'petya' });
+  assert.equal(state.personal.petya.writings[homework.id].status, 'checked');
+  assert.equal(state.personal.masha.writings[homework.id].status, 'submitted');
+});
+
 test('session updates keep the textarea in place and resend a save the session rejected', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const writes = [];
@@ -373,7 +425,6 @@ test('any stage with content opens in a session, and the homework there is saved
   const session = createClassSession({ className: 'Homework', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const teacherAccess = { role: 'teacher', sessionId: session.id, ownerId: teacher.id };
   const studentAccess = { ...teacherAccess, role: 'student' };
-  let version = 0;
   const act = (access, action) => applyAction(access, { stageId: 'homework', componentId: homework.id, ...action }, db);
 
   assert.ok(sessionPayload(studentAccess, db).availableStageIds.includes('homework'));
@@ -381,10 +432,10 @@ test('any stage with content opens in a session, and the homework there is saved
   act(studentAccess, { type: ACTIONS.write, text: ENOUGH });
   act(studentAccess, { type: ACTIONS.submit, text: ENOUGH });
   const graded = act(teacherAccess, { type: ACTIONS.review, score: 4, comment: 'Nice.' });
-  assert.deepEqual(graded.writings[homework.id].review, { score: 4, comment: 'Nice.' });
+  assert.deepEqual(graded.personal.student.writings[homework.id].review, { score: 4, comment: 'Nice.' });
   const student = sessionPayload(studentAccess, db);
   assert.deepEqual(student.state.writings[homework.id].review, { score: 4, comment: 'Nice.' });
   assert.deepEqual(student.lesson.content.stages.at(-1).content, [homework]);
   const reset = act(teacherAccess, { type: 'reset-stage' });
-  assert.equal(reset.writings[homework.id], undefined);
+  assert.equal(reset.personal.student.writings[homework.id], undefined);
 });

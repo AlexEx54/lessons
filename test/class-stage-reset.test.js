@@ -29,9 +29,12 @@ test('reset each stage persists cleared component state, preserves other stages/
   const save = state => db.prepare('INSERT OR REPLACE INTO class_live_state VALUES (?, ?)').run(lesson.id, JSON.stringify(state));
   const persisted = () => JSON.parse(db.prepare('SELECT state_json FROM class_live_state WHERE session_id = ?').get(lesson.id).state_json);
   for (const stage of content.stages) {
-    const seeded = { ...readState(lesson.id, db), activeStageId: stage.id, selections: {}, exercises: {}, visibleCards: {}, selfAssessments: {} };
+    // Self-assessment is the student's own, so it lives under `personal`.
+    const seeded = { ...readState(lesson.id, db), activeStageId: stage.id, selections: {}, exercises: {}, visibleCards: {},
+      personal: { student: { selfAssessments: {} } } };
+    const slot = (state, key) => key === 'selfAssessments' ? state.personal.student[key] : state[key];
     for (const component of collectComponents(content.stages)) {
-      for (const key of keys(component)) seeded[key][component.id] = key === 'visibleCards' ? true : { marker: component.id };
+      for (const key of keys(component)) slot(seeded, key)[component.id] = key === 'visibleCards' ? true : { marker: component.id };
     }
     save(seeded);
     const action = { type: 'reset-stage', stageId: stage.id };
@@ -39,7 +42,7 @@ test('reset each stage persists cleared component state, preserves other stages/
     assert.throws(() => applyAction(access, { ...action, stageId: 'missing' }, db), { statusCode: 400 });
     assert.deepEqual(persisted(), seeded);
     const expected = structuredClone(seeded);
-    for (const component of collectComponents([stage])) for (const key of keys(component)) delete expected[key][component.id];
+    for (const component of collectComponents([stage])) for (const key of keys(component)) delete slot(expected, key)[component.id];
     assert.deepEqual(applyAction(access, action, db), expected, stage.id);
     assert.deepEqual(persisted(), expected, `${stage.id}: database`);
     assert.deepEqual(readState(lesson.id, db), expected, `${stage.id}: reload`);
