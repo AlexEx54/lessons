@@ -133,6 +133,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 
 /* A group's list of names is cut short; the title shows all of them. */
 #teacher-screen span { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The number of students in a group, shown only when the names do not fit (see the 1440 px rule). */
+.teacher-screen > .teacher-screen__count { display: none; }
 .teacher-screen[data-state] { color: #b45309; background: #fffbeb; border-color: #fbd38d; }
 .teacher-screen[data-state]::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, .18); }
 .teacher-screen[data-state='connected'] { color: #15803d; background: #f0fdf4; border-color: #a7d9b9; }
@@ -226,6 +228,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
   .timer-card strong { white-space: nowrap; }
   .teacher-screen:has(> svg), .end-lesson { position: relative; width: 48px; padding: 8px 6px; gap: 4px; }
   .teacher-screen > span:not(.call-badge), .end-lesson span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .teacher-screen > .teacher-screen__count { display: inline-grid; position: absolute; top: -7px; right: -7px; background: #16a34a; box-shadow: 0 0 0 2px #fff; }
 }
 
 @media (max-width: 980px) {

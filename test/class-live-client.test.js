@@ -420,7 +420,7 @@ test('pointer events and errors never acknowledge or drop queued exercise answer
 
 test('group teacher sees who is in, a lost race for an answer stays quiet and the panel has only the chat', async () => {
   let panel;
-  const SessionPanel = { create(options) { panel = options; return { presence() {}, syncChat() {}, receiveChat() {} }; } };
+  const SessionPanel = { create(options) { panel = options; return { presence() {}, syncChat() {}, receiveChat() {}, setWaiting() {} }; } };
   const f = await fixture('teacher', null, { SessionPanel }, { isGroup: true }), socket = f.sockets[0];
   assert.equal(panel.group, true);
   socket.receive({ type: 'snapshot', state: f.initial });
@@ -428,8 +428,12 @@ test('group teacher sees who is in, a lost race for an answer stays quiet and th
   assert.equal(f.status.children[0].textContent, 'В классе: Маша, Петя');
   assert.equal(f.status.title, 'В классе: Маша, Петя');
   assert.equal(f.status.dataset.state, 'connected');
+  const count = f.document.getElementById('teacher-screen-count');
+  assert.equal(count.hidden, false);
+  assert.equal(count.textContent, '2');
   socket.receive({ type: 'presence', teacher: true, students: [] });
   assert.equal(f.status.children[0].textContent, 'Ожидаем учеников');
+  assert.equal(count.hidden, true);
   const { onAction } = f.settings.componentOptions({ type: 'thisOrThat', id: 'choice' });
   onAction({ type: 'select-option', componentId: 'choice', itemId: 'pair', optionId: 'a' });
   socket.receive({ type: 'action-error', conflict: true, error: 'Ответ уже верный.', state: f.initial });
@@ -439,11 +443,17 @@ test('group teacher sees who is in, a lost race for an answer stays quiet and th
   socket.receive({ type: 'action-error', error: 'Некорректное действие.', state: f.initial });
   assert.equal(f.document.getElementById('lesson-toast').textContent, 'Некорректное действие.');
 });
-test('a student of a full group waits for a free place', async () => {
-  const f = await fixture('student', null, {}, { isGroup: true }), notice = f.document.getElementById('lesson-connection');
+test('a student of a full group waits for a free place without the panel', async () => {
+  const waiting = [], synced = [];
+  const SessionPanel = { create: () => ({ presence() {}, receiveChat() {}, syncChat: () => synced.push(waiting.at(-1)), setWaiting: value => waiting.push(value) }) };
+  const f = await fixture('student', null, { SessionPanel }, { isGroup: true }), notice = f.document.getElementById('lesson-connection');
   f.sockets[0].close(4003, 'В занятии уже 8 учеников.');
   assert.equal(notice.textContent, 'В занятии уже 8 учеников. Подключимся автоматически, как только место освободится.');
   assert.equal(f.status.children[0].textContent, 'Мест нет');
+  assert.deepEqual(waiting, [true]);
   for (const timer of [...f.timers.values()]) timer();
   assert.equal(f.sockets.length, 2);
+  f.sockets[1].receive({ type: 'snapshot', state: f.initial });
+  assert.deepEqual(waiting, [true, false]);
+  assert.deepEqual(synced, [false], 'the chat loads once the panel is back');
 });

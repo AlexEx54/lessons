@@ -30,6 +30,7 @@
   const status = byId('teacher-screen');
   status.disabled = true;
   const statusLabel = status.querySelector('span');
+  const studentCount = byId('teacher-screen-count');
   const setStatus = (text, state) => {
     statusLabel.textContent = text;
     status.title = text;
@@ -162,6 +163,9 @@
     peerPresent = role === 'teacher' ? present.length > 0 : teacher;
     paint();
     if (role === 'teacher' && isGroup) {
+      // Below 1440 px the names hide with the label, so the button keeps their number.
+      studentCount.hidden = !present.length;
+      studentCount.textContent = String(present.length);
       setStatus(peerPresent ? `В классе: ${present.join(', ')}` : 'Ожидаем учеников', peerPresent ? 'connected' : 'waiting');
       return;
     }
@@ -204,7 +208,7 @@
       if (message.type === 'chat-message') { panel?.receiveChat(message.message); return; }
       if (message.type === 'presence') { receivePresence(message); return; }
       if (!['snapshot', 'action', 'action-error'].includes(message.type)) return;
-      if (message.type === 'snapshot') { connected = true; reconnectDelay = 500; slotTaken = false; showNotice(null); panel?.presence(message.callPresence); panel?.syncChat(); }
+      if (message.type === 'snapshot') { connected = true; reconnectDelay = 500; slotTaken = false; showNotice(null); panel?.setWaiting(false); panel?.presence(message.callPresence); panel?.syncChat(); }
       if (inFlight && (message.own || message.type === 'action-error')) {
         pending.shift();
         inFlight = false;
@@ -225,6 +229,7 @@
     socket = null;
     connected = false;
     peerPresent = false;
+    studentCount.hidden = true;
     pointer?.disconnect();
     if (pending.length) notify('Связь прервалась. Неподтверждённый выбор нужно повторить после подключения.');
     pending = [];
@@ -236,6 +241,7 @@
       slotTaken = true;
       setStatus(isGroup ? 'Мест нет' : 'Место ученика занято', 'lost');
       showNotice(slotTakenNotice(event.reason), 'waiting');
+      if (isGroup) panel?.setWaiting(true);
       scheduleReconnect(5000);
       return;
     }

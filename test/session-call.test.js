@@ -113,6 +113,20 @@ test('the panel opens without joining, reports the student and remembers being c
   assert.equal(s.storage['easyclass.sessionCallCollapsed'], '0');
 });
 
+test('a group student waiting for a place has no panel until the lesson lets them in, collapsing stays as chosen', async () => {
+  const s = setup({ role: 'student', group: true, stored: { 'easyclass.sessionCallCollapsed': '1' } });
+  await s.settle();
+  s.panel.setWaiting(true);
+  assert.equal(s.byId('call-toggle').hidden, true);
+  assert.equal(s.byId('call-panel').hidden, true);
+  s.panel.setWaiting(false);
+  assert.equal(s.byId('call-toggle').hidden, false);
+  assert.equal(s.byId('call-panel').hidden, true, 'the panel was collapsed before');
+  s.byId('call-toggle').click();
+  s.panel.setWaiting(false);
+  assert.equal(s.byId('call-panel').hidden, false, 'a repeated «not waiting» changes nothing');
+});
+
 test('the chat tab hides the running call, and unread messages show on the tab or the collapsed header button', async () => {
   const s = setup();
   await s.settle();

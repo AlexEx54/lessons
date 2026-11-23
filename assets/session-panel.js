@@ -24,7 +24,8 @@
   }
 
   // role is 'teacher' or 'student'; notify(text) shows the lesson page's toast; group says the session is a group's.
-  // Returns what the lesson socket feeds in: call presence and chat messages, and a chat sync after each snapshot.
+  // Returns what the lesson socket feeds in: call presence and chat messages, a chat sync after each snapshot,
+  // and whether a group student is waiting for a place.
   function create({ sessionId, role, notify, group = false }) {
     const byId = id => document.getElementById(id);
     const panel = byId('call-panel');
@@ -36,6 +37,7 @@
     const sections = { call: byId('call-section'), chat: byId('chat-section') };
     let tab = 'call';
     let unread = 0;
+    let waiting = false;
     let callState = { joined: false, peerIn: false, peerName: '' };
 
     function render() {
@@ -86,6 +88,15 @@
       if (collapsed && hadFocus) toggle.focus();
     }
 
+    // A group student without a place in the lesson can neither chat nor call: the panel and its button step aside.
+    function setWaiting(value) {
+      if (value === waiting) return;
+      waiting = value;
+      toggle.hidden = waiting;
+      panel.hidden = waiting || readCollapsed();
+      show();
+    }
+
     function select(name, focus = false) {
       tab = name;
       show();
@@ -105,7 +116,7 @@
     panel.hidden = readCollapsed();
     show();
 
-    return { presence: call.presence, receiveChat: message => chat.receive(message), syncChat: chat.sync };
+    return { presence: call.presence, receiveChat: message => chat.receive(message), syncChat: chat.sync, setWaiting };
   }
 
   window.SessionPanel = { create };
