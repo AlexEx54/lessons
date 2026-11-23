@@ -55,6 +55,8 @@ const {
 } = require('./lib/video-call-store.js');
 const { getIceServers } = require('./lib/webrtc-config.js');
 const { createVideoCallSignaling } = require('./lib/video-call-signaling.js');
+const { createLiveKit } = require('./lib/livekit.js');
+const { createGroupCall } = require('./lib/group-call.js');
 const {
   completeLessonDraft,
   createLessonDraft,
@@ -1791,7 +1793,7 @@ async function handleRequest(req, res) {
     if (req.method === 'DELETE') {
       const sessionIds = listClassSessions(user.id, database).map(session => session.id);
       const deleted = clearClassSessions(user.id, database);
-      sessionIds.forEach(id => videoCallSignaling.closeSessionCall(id));
+      sessionIds.forEach(endSessionCall);
       sessionChat.cleanup();
       json(res, 200, { deleted });
       return;
@@ -1844,29 +1846,52 @@ async function handleRequest(req, res) {
     return;
   }
   // The student enters the session's call with the class cookie, as they enter the lesson itself.
+  // An individual class calls peer to peer; a group calls through LiveKit, and only those who have a place in the lesson.
   const sessionCall = pathname.match(/^\/api\/sessions\/([a-f0-9-]{36})\/call$/i);
   if (req.method === 'GET' && sessionCall) {
     const role = new URL(req.url, 'http://localhost').searchParams.get('role');
     const access = ['teacher', 'student'].includes(role) && authorizeSession(req, sessionCall[1], database, role);
     if (!access) { json(res, 403, { error: 'Откройте действующую ссылку на класс.' }); return; }
-    if (access.isGroup) { json(res, 403, { error: 'В групповом занятии звонка пока нет.' }); return; }
+    const teacherName = findUserById(access.ownerId, database)?.display_name || 'Преподаватель';
+    if (access.isGroup) {
+      if (!classLiveSignaling.present(access.sessionId, access.identity)) { json(res, 403, { error: 'Звонок откроется, когда вы войдёте в занятие.' }); return; }
+      try { json(res, 200, groupCall.join(access, role === 'teacher' ? teacherName : access.name)); }
+      catch (error) { json(res, error.statusCode || 500, { error: error.message }); }
+      return;
+    }
     json(res, 200, {
       iceServers: getIceServers(`${role}-${access.sessionId.slice(0, 8)}`),
-      names: {
-        teacher: findUserById(access.ownerId, database)?.display_name || 'Преподаватель',
-        student: findClassSession(access.sessionId, access.ownerId, database).class_name,
-      },
+      names: { teacher: teacherName, student: findClassSession(access.sessionId, access.ownerId, database).class_name },
     });
     return;
   }
-  // Ending the call disconnects both participants; either of them may join again.
-  const sessionCallEnd = pathname.match(/^\/api\/sessions\/([a-f0-9-]{36})\/call\/end$/i);
-  if (req.method === 'POST' && sessionCallEnd) {
+  // Ending the call disconnects everyone; anyone may join again. In a group the teacher also mutes and removes students.
+  const sessionCallAction = pathname.match(/^\/api\/sessions\/([a-f0-9-]{36})\/call\/(end|mute|remove)$/i);
+  if (req.method === 'POST' && sessionCallAction) {
     const user = requireTeacherAuth(req, res);
     if (!user) return;
-    if (!authorizeSession(req, sessionCallEnd[1], database, 'teacher')) { json(res, 404, { error: 'Занятие не найдено.' }); return; }
-    videoCallSignaling.closeSessionCall(sessionCallEnd[1]);
-    json(res, 200, { ended: true });
+    const [, sessionId, action] = sessionCallAction;
+    const access = authorizeSession(req, sessionId, database, 'teacher');
+    if (!access) { json(res, 404, { error: 'Занятие не найдено.' }); return; }
+    try {
+      if (action === 'end') {
+        if (access.isGroup) await groupCall.end(sessionId);
+        else videoCallSignaling.closeSessionCall(sessionId);
+      } else if (!access.isGroup) {
+        json(res, 404, { error: 'В этом занятии нет группового звонка.' }); return;
+      } else await groupCall[action](sessionId, await readJsonBody(req).catch(() => ({})));
+      json(res, 200, { [action === 'end' ? 'ended' : 'done']: true });
+    } catch (error) {
+      json(res, error.statusCode || 502, { error: error.statusCode ? error.message : 'Сервер звонков не ответил. Попробуйте ещё раз.' });
+    }
+    return;
+  }
+  // LiveKit tells who joined or left a group call; only a webhook signed with our key is heard.
+  if (req.method === 'POST' && pathname === '/api/livekit/webhook') {
+    try {
+      groupCall.webhook((await readRawBody(req, 64 * 1024)).toString('utf8'), req.headers.authorization);
+      json(res, 200, { received: true });
+    } catch (error) { json(res, error.statusCode || 400, { error: error.statusCode ? error.message : 'Некорректное событие.' }); }
     return;
   }
   if (req.method === 'PATCH' && sessionDetail) {
@@ -1875,7 +1900,7 @@ async function handleRequest(req, res) {
     try {
       const session = updateClassSession(sessionDetail[1], await readJsonBody(req), user.id, database);
       // A cancelled session no longer opens, so its call ends as well.
-      if (session.status === 'cancelled') videoCallSignaling.closeSessionCall(session.id);
+      if (session.status === 'cancelled') endSessionCall(session.id);
       json(res, 200, { session });
     } catch (error) {
       json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось изменить занятие.' });
@@ -2975,7 +3000,13 @@ const videoCallChat = require('./lib/video-call-chat.js').createVideoCallChat({
   database, broadcast: (callId, payload) => videoCallSignaling.broadcast(callId, payload),
 });
 const classLiveSignaling = createClassLiveSignaling({ database,
-  callPresence: sessionId => videoCallSignaling.sessionPresence(sessionId) });
+  callPresence: access => access.isGroup ? groupCall.presence(access.sessionId) : videoCallSignaling.sessionPresence(access.sessionId) });
+const groupCall = createGroupCall({ livekit: createLiveKit(), broadcast: (sessionId, payload) => classLiveSignaling.broadcast(sessionId, payload) });
+// A session's call, of either kind, ends with the session.
+function endSessionCall(sessionId) {
+  videoCallSignaling.closeSessionCall(sessionId);
+  groupCall.end(sessionId).catch(error => console.error('Group call end:', error.message));
+}
 const sessionChat = require('./lib/session-chat.js').createSessionChat({
   database, broadcast: (sessionId, payload) => classLiveSignaling.broadcast(sessionId, payload),
   present: (sessionId, identity) => classLiveSignaling.present(sessionId, identity),

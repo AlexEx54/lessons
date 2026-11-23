@@ -14,7 +14,7 @@ const { createSession } = require('../lib/session-store.js');
 const { createClassSession } = require('../lib/class-store.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 
-test('session call: class access, one student, presence on the lesson socket, end, cancel and clear; none in a group', { timeout: 20000 }, async t => {
+test('session call: class access, one student, presence on the lesson socket, end, cancel and clear; not in a group', { timeout: 20000 }, async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'session-call-'));
   const databasePath = path.join(directory, 'app.sqlite');
   const db = openDatabase(databasePath);
@@ -114,15 +114,12 @@ test('session call: class access, one student, presence on the lesson socket, en
   assert.deepEqual(await Promise.all([teacherCall.closed, studentTab.closed]), [4000, 4000]);
   await teacherPage.next('call-presence', presence(false, false));
 
-  // A group has no call of this kind: neither side gets in.
+  // A group calls through LiveKit, not peer to peer: neither side gets into this call.
   const groupStudent = (await request(groupLesson.sessionInvitePath)).headers.get('set-cookie').split(';')[0];
   const picked = await fetch(`${base}/api${groupLesson.classInvitePath}/student`, { method: 'POST',
     headers: { Cookie: groupStudent, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Маша' }) });
   assert.equal(picked.status, 200);
-  for (const [role, cookie] of [['teacher', teacherCookie], ['student', groupStudent]]) {
-    assert.equal((await request(`/api/sessions/${groupLesson.id}/call?role=${role}`, cookie)).status, 403);
-    await rejected(connect(callRoute(role, groupLesson.id), cookie));
-  }
+  for (const [role, cookie] of [['teacher', teacherCookie], ['student', groupStudent]]) await rejected(connect(callRoute(role, groupLesson.id), cookie));
 
   // Cancelling the session ends its call and closes the way back in.
   const rejoined = connect(callRoute('teacher'), teacherCookie);

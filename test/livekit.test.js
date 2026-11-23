@@ -66,7 +66,7 @@ test('the room API is called over Twirp with a short-lived admin token', async t
 
   // A refusal of LiveKit is an error with its answer.
   await assert.rejects(livekit.rooms('MutePublishedTrack', { room: 'session:1', identity: 'a', track_sid: 'TR_1', muted: false }),
-    /LiveKit MutePublishedTrack: 412 \{"code":"failed_precondition"\}/);
+    { message: 'LiveKit MutePublishedTrack: 412 {"code":"failed_precondition"}', status: 412 });
 });
 
 test('a webhook is accepted only when LiveKit signed it with our key for exactly this body', () => {
