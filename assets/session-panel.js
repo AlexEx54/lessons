@@ -24,8 +24,9 @@
   }
 
   // role is 'teacher' or 'student'; notify(text) shows the lesson page's toast.
+  // A group session has only the chat until group calls arrive.
   // Returns what the lesson socket feeds in: call presence and chat messages, and a chat sync after each snapshot.
-  function create({ sessionId, role, notify }) {
+  function create({ sessionId, role, notify, group = false }) {
     const byId = id => document.getElementById(id);
     const panel = byId('call-panel');
     const toggle = byId('call-toggle');
@@ -34,7 +35,11 @@
     const tabBadge = byId('chat-tab-badge');
     const tabs = { call: byId('call-tab'), chat: byId('chat-tab') };
     const sections = { call: byId('call-section'), chat: byId('chat-section') };
-    let tab = 'call';
+    const shown = group ? ['chat'] : TABS;
+    let tab = shown[0];
+    tabs.call.hidden = group;
+    // The header button opens the chat, so it shows a speech bubble instead of the camera.
+    if (group) toggle.querySelector('path').setAttribute('d', 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.4A8 8 0 1 1 21 12Z');
     let unread = 0;
     let callState = { joined: false, peerIn: false, peerName: '' };
 
@@ -44,7 +49,7 @@
       document.body.classList.toggle('lesson-chat-open', open && tab === 'chat');
       toggle.setAttribute('aria-expanded', String(open));
       toggle.dataset.call = callState.joined ? 'joined' : (callState.peerIn ? 'peer' : '');
-      toggleLabel.textContent = callState.joined ? 'В звонке' : 'Звонок';
+      toggleLabel.textContent = group ? 'Чат' : callState.joined ? 'В звонке' : 'Звонок';
       toggle.title = !callState.joined && callState.peerIn ? `${callState.peerName} уже в звонке` : toggleLabel.textContent;
       TABS.forEach(name => {
         tabs[name].setAttribute('aria-selected', String(tab === name));
@@ -65,7 +70,7 @@
       endpoint: `/api/sessions/${sessionId}/chat`,
       onUnread: count => { unread = count; render(); },
     });
-    const call = window.SessionCall.create({
+    const call = group ? null : window.SessionCall.create({
       sessionId, role, notify,
       onState: state => { callState = state; render(); },
     });
@@ -73,7 +78,7 @@
     // Each section learns whether it is on screen: the chat counts unread messages, the call closes its menus.
     function show() {
       const open = !panel.hidden;
-      call.setVisible(open && tab === 'call');
+      call?.setVisible(open && tab === 'call');
       chat.setVisible(open && tab === 'chat');
       render();
     }
@@ -95,17 +100,17 @@
     toggle.hidden = false;
     toggle.addEventListener('click', () => setCollapsed(!panel.hidden));
     byId('call-panel-collapse').addEventListener('click', () => setCollapsed(true));
-    TABS.forEach(name => tabs[name].addEventListener('click', () => select(name)));
+    shown.forEach(name => tabs[name].addEventListener('click', () => select(name)));
     byId('call-panel-tabs').addEventListener('keydown', event => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
-      select(event.key === 'Home' ? 'call' : event.key === 'End' ? 'chat' : TABS[(TABS.indexOf(tab) + 1) % TABS.length], true);
+      select(event.key === 'Home' ? shown[0] : event.key === 'End' ? shown.at(-1) : shown[(shown.indexOf(tab) + 1) % shown.length], true);
     });
 
     panel.hidden = readCollapsed();
     show();
 
-    return { presence: call.presence, receiveChat: message => chat.receive(message), syncChat: chat.sync };
+    return { presence: presence => call?.presence(presence), receiveChat: message => chat.receive(message), syncChat: chat.sync };
   }
 
   window.SessionPanel = { create };

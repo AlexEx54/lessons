@@ -131,6 +131,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(101, 69, 245, .2
 .preview-role button:hover { color: var(--purple); }
 .preview-role button[aria-pressed='true'] { color: var(--purple); background: var(--purple-soft); }
 
+/* A group's list of names is cut short; the title shows all of them. */
+#teacher-screen span { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .teacher-screen[data-state] { color: #b45309; background: #fffbeb; border-color: #fbd38d; }
 .teacher-screen[data-state]::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, .18); }
 .teacher-screen[data-state='connected'] { color: #15803d; background: #f0fdf4; border-color: #a7d9b9; }

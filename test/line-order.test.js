@@ -111,14 +111,17 @@ test('the rules move lines around the locked ones, lock lines on check and finis
   state = model.apply(projected, state, move('d2', 0));
   assert.deepEqual(state.order, ['d1', 'd2', 'd3', 'd4']);
   assert.deepEqual(state.locked, ['d1', 'd3']);
-  for (const action of [move('d1', 0), move('d3', 1), move('missing', 0), move('d2', 2), move('d2', -1), move('d2', 0.5),
-    move('d2', '1'), { ...move('d2', 1), type: 'match-word' }]) {
+  // A locked or unknown line reads as moved by someone else; a malformed move is an error.
+  for (const action of [move('d1', 0), move('d3', 1), move('missing', 0)]) {
+    assert.throws(() => model.apply(projected, state, action), { statusCode: 409 }, JSON.stringify(action));
+  }
+  for (const action of [move('d2', 2), move('d2', -1), move('d2', 0.5), move('d2', '1'), { ...move('d2', 1), type: 'match-word' }]) {
     assert.throws(() => model.apply(projected, state, action), { statusCode: 400 }, JSON.stringify(action));
   }
   state = model.apply(projected, state, check('c3'));
   assert.deepEqual(state.locked, ['d1', 'd2', 'd3', 'd4']);
   assert.deepEqual(state.check, { id: 'c3', sequence: 3, correct: 4, total: 4 });
-  for (const action of [check(), move('d4', 0)]) assert.throws(() => model.apply(projected, state, action), { statusCode: 400 });
+  for (const action of [check(), move('d4', 0)]) assert.throws(() => model.apply(projected, state, action), { statusCode: 409 });
   // The server applies the same rules to the author data and the layout.
   const steps = [move('d1', 0), check('c1'), move('d4', 0)];
   assert.deepEqual(steps.reduce((next, action) => model.apply(source, next, action, layout), {}),
@@ -141,11 +144,12 @@ test('a live class fixes the line order once and shares the same task and state 
 
   const dealt = student.presentation.lines.map(line => line.id);
   rules.applyComponentAction({ role: 'student', component: source, state, action: move(dealt[0], 3) });
+  // Before the check no line is locked, so a forged position is the only thing wrong.
+  assert.throws(() => rules.applyComponentAction({ role: 'student', component: source, state, action: move('d1', 9) }), { statusCode: 400 });
   rules.applyComponentAction({ role: 'teacher', component: source, state, action: check('c1') });
   assert.deepEqual(state.exercises[source.id].order, [...dealt.slice(1), dealt[0]]);
   assert.equal(state.exercises[source.id].check.sequence, 1);
   assert.throws(() => rules.applyComponentAction({ role: 'guest', component: source, state, action: check() }), { statusCode: 403 });
-  assert.throws(() => rules.applyComponentAction({ role: 'student', component: source, state, action: move('d1', 9) }), { statusCode: 400 });
   rules.clearComponentState({ component: source, state });
   assert.equal(state.exercises[source.id], undefined);
   assert.equal(state._layouts[source.id], fixed);

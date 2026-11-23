@@ -75,10 +75,12 @@ test('the reducer places correct cards in order, keeps wrong ones and rejects un
   assert.deepEqual(state.placed, ['drink', 'menu', 'ready']);
   assert.deepEqual(state.attempt, { sequence: 4, itemId: 'ready', targetId: 'waiter', correct: true });
   assert.equal(model.apply(projected, state, select(null)).selectedId, null);
+  // A card that is not on the table reads as taken by someone else: the page just shows the fresh state.
   for (const action of [select('menu'), select('missing'), select('constructor'), place('menu', 'customer'),
-    place('missing', 'customer'), place('bill', 'cook'), place('bill', undefined), { ...place('bill', 'customer'), type: 'choose-option' }]) {
-    assert.throws(() => model.apply(projected, state, action), { statusCode: 400 }, JSON.stringify(action));
+    place('missing', 'customer'), place('bill', 'cook'), place('bill', undefined)]) {
+    assert.throws(() => model.apply(projected, state, action), { statusCode: 409 }, JSON.stringify(action));
   }
+  assert.throws(() => model.apply(projected, state, { ...place('bill', 'customer'), type: 'choose-option' }), { statusCode: 400 });
   // The server applies the same rules to the author data, without a presentation.
   assert.deepEqual(model.apply(source, state, place('bill', 'customer')), model.apply(projected, state, place('bill', 'customer')));
 });
@@ -102,7 +104,7 @@ test('a live class fixes the card order once and shares the same task and state 
   rules.applyComponentAction({ role: 'teacher', component: source, state, action: place('ready', 'waiter', 'a2') });
   assert.deepEqual(state.exercises[source.id].placed, ['bill', 'ready']);
   assert.throws(() => rules.applyComponentAction({ role: 'guest', component: source, state, action: place('menu', 'customer') }), { statusCode: 403 });
-  assert.throws(() => rules.applyComponentAction({ role: 'student', component: source, state, action: place('bill', 'customer') }), { statusCode: 400 });
+  assert.throws(() => rules.applyComponentAction({ role: 'student', component: source, state, action: place('bill', 'customer') }), { statusCode: 409 });
   rules.clearComponentState({ component: source, state });
   assert.equal(state.exercises[source.id], undefined);
   assert.equal(state._layouts[source.id], fixed);

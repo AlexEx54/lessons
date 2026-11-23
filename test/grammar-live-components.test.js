@@ -27,7 +27,7 @@ test('grammar uses identical local/server rules and allows both roles while reje
   assert.throws(() => model.apply(source, state.exercises.rule, { ...action, itemId: 'gap-2' }));
   assert.throws(() => model.apply(source, {}, { ...action, itemId: 'gap-9' }));
   assert.throws(() => model.apply(source, {}, { ...action, value: 'invented' }));
-  assert.throws(() => applyComponentAction({ component: source, state, role: 'teacher', action }), { statusCode: 400 });
+  assert.throws(() => applyComponentAction({ component: source, state, role: 'teacher', action }), { statusCode: 409 });
 });
 
 test('grammar responds before sending, preserves DOM, suppresses replay, restores and rolls back', t => {

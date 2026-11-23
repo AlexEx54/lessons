@@ -24,16 +24,15 @@ test('sentence builder shares progress, persists completion after reopen and res
   const lesson = createClassSession({ className: 'Grammar', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const access = { role: 'teacher', sessionId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };
   let state = readState(lesson.id, db);
-  const select = stageId => { state = applyAction(access, { type: 'select-stage', stageId, expectedVersion: state.version }, db); };
+  const select = stageId => { state = applyAction(access, { type: 'select-stage', stageId }, db); };
   const projected = role => sessionPayload(role, db).lesson.content.stages[7].content.find(item => item.type === 'sentenceBuilder').presentation;
   const task = projected(student);
   assert.equal(JSON.stringify(task).includes('acceptedOrders'), false);
-  const action = (type, itemId = task.items[0].id) => ({ type, itemId, stageId: 'wrap-up', componentId: task.id, actionId: crypto.randomUUID(), expectedVersion: state.version });
+  const action = (type, itemId = task.items[0].id) => ({ type, itemId, stageId: 'wrap-up', componentId: task.id, actionId: crypto.randomUUID() });
   // The student answers on a stage the teacher has not opened.
   assert.notEqual(state.activeStageId, 'wrap-up');
   state = applyAction(student, action('request-hint'), db);
   assert.equal(state.exercises[task.id].items[task.items[0].id].hintsUsed, 1);
-  assert.throws(() => applyAction(student, { ...action('request-hint'), expectedVersion: state.version - 1 }, db), { statusCode: 409 });
   select('warm-up'); select('wrap-up');
   db.close(); db = openDatabase(databasePath);
   assert.deepEqual(readState(lesson.id, db), state);
@@ -50,7 +49,7 @@ test('sentence builder shares progress, persists completion after reopen and res
   assert.deepEqual(sessionPayload(student, db).state.exercises, sessionPayload(access, db).state.exercises);
   db.close(); db = openDatabase(databasePath);
   assert.deepEqual(readState(lesson.id, db), state);
-  state = applyAction(access, { type: 'reset-stage', stageId: 'wrap-up', expectedVersion: state.version }, db);
+  state = applyAction(access, { type: 'reset-stage', stageId: 'wrap-up' }, db);
   assert.equal(state.exercises[task.id], undefined);
   assert.deepEqual(projected(student), task);
 });

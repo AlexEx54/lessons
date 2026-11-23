@@ -182,13 +182,13 @@ function mount(options) {
   }
   function live() {
     const doc = new Y.Doc();
-    let socket, persistence, identity, connected = false, stopped = false, slotTaken = false, reconnectTimer, sendTimer;
+    let socket, persistence, identity, connected = false, stopped = false, slotTaken = false, reconnectTimer, sendTimer, editable = true;
     let vector, flight = null, sequence = 0, serial = 0, backoff = 500;
     const remote = {};
     hint.textContent = 'Общие заметки: учитель и ученик могут писать одновременно.';
     function flush() {
       clearTimeout(sendTimer);
-      if (!connected || flight || !dirty || socket.readyState !== WebSocket.OPEN) return;
+      if (!editable || !connected || flight || !dirty || socket.readyState !== WebSocket.OPEN) return;
       flight = { id: ++sequence, serial };
       socket.send(JSON.stringify({ type: 'sync', id: flight.id, update: encode(Y.encodeStateAsUpdate(doc, vector)) }));
       status('Сохраняем…', 'saving');
@@ -226,9 +226,12 @@ function mount(options) {
             if (current !== socket || current.readyState !== WebSocket.OPEN || stopped) return;
             Y.applyUpdate(doc, decode(message.state), remote);
             vector = decode(message.vector);
-            if (!editor) createEditor(null, doc, true);
-            connected = true; backoff = 500; slotTaken = false; flight = null; dirty = true;
-            flush();
+            // In a group only the teacher writes; the students read along.
+            editable = message.editable !== false;
+            if (message.group) hint.textContent = editable ? 'Ученики видят эти заметки, писать в них можете только вы.' : 'Заметки ведёт преподаватель.';
+            if (!editor) createEditor(null, doc, editable);
+            connected = true; backoff = 500; slotTaken = false; flight = null; dirty = editable;
+            if (editable) flush(); else status('Подключено', 'saved');
           } else if (message.type === 'update') {
             Y.applyUpdate(doc, decode(message.update), remote);
           } else if (message.type === 'ack' && flight?.id === message.id) {

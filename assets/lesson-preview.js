@@ -31,7 +31,7 @@
   function act(action, actor = role) {
     const stageId = action.stageId || viewedStageId();
     try {
-      if (!rules.applyAction(lesson, state, actor, { ...action, stageId, expectedVersion: state.version })) return;
+      if (!rules.applyAction(lesson, state, actor, { ...action, stageId })) return;
     } catch (error) { notify(error.message); return; }
     feedback = true;
     show(action.type === 'reset-stage' ? stageId : null);

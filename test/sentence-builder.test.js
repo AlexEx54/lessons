@@ -82,9 +82,13 @@ test('reorder/return preserve uniqueness and reject forged positions, disabled h
     command(component, 'move-token', { tokenId: 'unknown', toIndex: 0 }),
     command(component, 'move-token', { tokenId: a, toIndex: 9 }),
     command(component, 'move-token', { tokenId: a, toIndex: .1 }),
-    command(component, 'return-token', { tokenId: c }), command(component, 'next-sentence'),
-    command(component, 'check-sentence'), command(component, 'unknown'), { type: 'request-hint', itemId: 'sentence-2' }]) {
+    command(component, 'next-sentence'),
+    command(component, 'check-sentence'), command(component, 'unknown')]) {
     assert.throws(() => model.apply(component, state, action), { statusCode: 400 });
+  }
+  // A card already back in the set or a sentence moved on reads as someone else's move.
+  for (const action of [command(component, 'return-token', { tokenId: c }), { type: 'request-hint', itemId: 'sentence-2' }]) {
+    assert.throws(() => model.apply(component, state, action), { statusCode: 409 });
   }
   assert.throws(() => model.apply({ ...component, hintsEnabled: false }, state, command(component, 'request-hint')));
   state = model.apply(component, place(component, [a, b, c]), command(component, 'check-sentence'));

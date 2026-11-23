@@ -190,7 +190,7 @@
   function initialState(content) {
     const activeStageId = availableStageIds(content)[0];
     if (!activeStageId) fail('В классе нет доступных стадий.', 409);
-    return { activeStageId, version: 0, selections: {} };
+    return { activeStageId, selections: {} };
   }
   // Fixes the shuffled order of new exercises, so every participant sees the same layout. Returns whether any was added.
   function addLayouts(content, state, id) {
@@ -221,12 +221,13 @@
   function pointerComponentIds(content, state) {
     return componentTree.collectComponents(studentContent(content, state).stages).map(component => component.id);
   }
-  // Applies one participant's action to the state. Returns false when the action changes nothing.
+  // Applies one participant's action to the current state. There is no version check: switching and resetting a stage
+  // set the state outright, and an answer is checked against the exercise as it is now.
+  // Returns false when the action changes nothing.
   function applyAction(content, state, role, action) {
     if (!action || typeof action !== 'object' || Array.isArray(action)) fail('Некорректное действие.');
     if (action.type === 'select-stage' && role !== 'teacher') fail('Стадией управляет преподаватель.', 403);
     if (action.type === 'reset-stage' && role !== 'teacher') fail('Сбрасывать прогресс может только преподаватель.', 403);
-    if (action.expectedVersion !== state.version) fail('Состояние обновилось. Повторите действие.', 409);
     // The student browses stages on their own, so answers are accepted on any available stage, not only the active one.
     if (!availableStageIds(content).includes(action.stageId)) fail('Стадия недоступна.');
     if (action.type === 'select-stage') {
@@ -242,7 +243,6 @@
         applyComponentAction({ role, component, action, state });
       }
     }
-    state.version++;
     return true;
   }
   const api = { availableStageIds, initialState, addLayouts, studentContent, teacherContent, pointerComponentIds, applyAction,

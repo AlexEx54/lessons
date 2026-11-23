@@ -34,18 +34,15 @@ test('reset each stage persists cleared component state, preserves other stages/
       for (const key of keys(component)) seeded[key][component.id] = key === 'visibleCards' ? true : { marker: component.id };
     }
     save(seeded);
-    const action = { type: 'reset-stage', stageId: stage.id, expectedVersion: seeded.version };
+    const action = { type: 'reset-stage', stageId: stage.id };
     assert.throws(() => applyAction({ ...access, role: 'student' }, action, db), { statusCode: 403 });
     assert.throws(() => applyAction(access, { ...action, stageId: 'missing' }, db), { statusCode: 400 });
-    assert.throws(() => applyAction(access, { ...action, expectedVersion: seeded.version - 1 }, db), { statusCode: 409 });
     assert.deepEqual(persisted(), seeded);
     const expected = structuredClone(seeded);
     for (const component of collectComponents([stage])) for (const key of keys(component)) delete expected[key][component.id];
-    expected.version++;
     assert.deepEqual(applyAction(access, action, db), expected, stage.id);
     assert.deepEqual(persisted(), expected, `${stage.id}: database`);
     assert.deepEqual(readState(lesson.id, db), expected, `${stage.id}: reload`);
-    expected.version++;
-    assert.deepEqual(applyAction(access, { ...action, expectedVersion: expected.version - 1 }, db), expected, `${stage.id}: repeat`);
+    assert.deepEqual(applyAction(access, action, db), expected, `${stage.id}: repeat`);
   }
 });

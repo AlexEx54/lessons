@@ -325,3 +325,21 @@ test('loading spinner appears only when loading takes noticeable time', t => {
   video.emit('waiting'); t.mock.timers.tick(300); assert.equal(loading.hidden, false);
   video.emit('playing'); assert.equal(loading.hidden, true);
 });
+
+test('a group teacher sees each student playback by name until it goes stale', t => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'] });
+  const doc = documentFixture();
+  const node = renderVideoPlayer(component, { viewerRole: 'teacher', connected: true, peerPresent: true, sendMedia() {} }, doc);
+  t.after(() => node.dispose());
+  const status = doc.elements.find(element => element.className === 'video-player__peer-status');
+  const report = (name, fields) => node.receiveMedia({ type: 'media-status', name, position: 0, paused: false, buffering: false, blocked: false, ...fields });
+  report('Петя', { position: 83, buffering: true });
+  report('Маша', { position: 84 });
+  assert.equal(status.textContent, 'Маша 1:24\nПетя 1:23 · загружается…');
+  t.mock.timers.tick(2000);
+  report('Маша', { position: 86, paused: true });
+  t.mock.timers.tick(2000);
+  assert.equal(status.textContent, 'Маша 1:26 · пауза', 'a student who stopped reporting drops out');
+  node.receiveMedia({ type: 'media-status', position: 90, paused: false, buffering: false, blocked: false });
+  assert.equal(status.textContent, 'Позиция ученика: 1:30', 'an individual class keeps its single line');
+});

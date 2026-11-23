@@ -22,15 +22,14 @@ test('correction answers persist across database reopen, stage switches and rese
   const lesson = createClassSession({ className: 'Grammar', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const access = { role: 'teacher', sessionId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };
   let state = readState(lesson.id, db);
-  const select = stageId => { state = applyAction(access, { type: 'select-stage', stageId, expectedVersion: state.version }, db); };
+  const select = stageId => { state = applyAction(access, { type: 'select-stage', stageId }, db); };
   const task = content.stages[5].content[5];
   const action = { type: 'type-answer', stageId: 'grammar-focus', componentId: task.id,
     itemId: task.items[0].id, value: task.items[0].answers[0] };
   select('grammar-focus');
-  assert.throws(() => applyAction(access, { ...action, expectedVersion: state.version }, db), { statusCode: 403 });
-  state = applyAction(student, { ...action, expectedVersion: state.version }, db);
+  assert.throws(() => applyAction(access, action, db), { statusCode: 403 });
+  state = applyAction(student, action, db);
   assert.equal(state.exercises[task.id].answers[action.itemId].status, 'correct');
-  assert.throws(() => applyAction(student, { ...action, expectedVersion: state.version - 1 }, db), { statusCode: 409 });
   select('warm-up'); select('grammar-focus');
   db.close(); db = openDatabase(databasePath);
   assert.deepEqual(readState(lesson.id, db), state);
@@ -39,7 +38,7 @@ test('correction answers persist across database reopen, stage switches and rese
   const studentContent = studentPayload.lesson.content.stages[5].content;
   assert.equal(studentContent.some(item => item.id === `${task.id}-answer-key`), false);
   assert.equal(teacherPayload.lesson.content.stages[5].content.some(item => item.id === `${task.id}-answer-key`), true);
-  state = applyAction(access, { type: 'reset-stage', stageId: 'grammar-focus', expectedVersion: state.version }, db);
+  state = applyAction(access, { type: 'reset-stage', stageId: 'grammar-focus' }, db);
   assert.equal(state.exercises[task.id], undefined);
   assert.equal(readState(lesson.id, db).exercises[task.id], undefined);
 });

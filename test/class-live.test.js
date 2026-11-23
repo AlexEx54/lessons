@@ -135,7 +135,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
     assert.match(error.message, /403/);
   }
   const teacherSocket = connect('teacher', teacherCookie);
-  assert.equal((await teacherSocket.next('snapshot')).state.version, 0);
+  assert.equal((await teacherSocket.next('snapshot')).state.activeStageId, 'warm-up');
   const studentSocket = connect('student', cookie);
   assertGuidedStudent(await studentSocket.next('snapshot'));
   await teacherSocket.next('pointer');
@@ -157,28 +157,30 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   teacherSocket.send(JSON.stringify(pointerAction));
   await teacherSocket.next('pointer');
   await studentSocket.next('pointer');
-  const action = { type: 'select-option', stageId: 'warm-up', componentId: choice.id, itemId: choice.items[0].id, optionId: choice.items[0].options[0].id, expectedVersion: 0 };
-  // Reactions are relayed to the peer only, unknown kinds and bursts are dropped without closing the socket.
+  const action = { type: 'select-option', stageId: 'warm-up', componentId: choice.id, itemId: choice.items[0].id, optionId: choice.items[0].options[0].id };
+  // Reactions are relayed to everyone but the sender, unknown kinds and bursts are dropped without closing the socket.
   teacherSocket.send(JSON.stringify({ type: 'reaction', kind: 'heart' }));
   assert.deepEqual(await studentSocket.next('reaction'), { type: 'reaction', kind: 'heart', fromRole: 'teacher' });
   studentSocket.send(JSON.stringify({ type: 'reaction', kind: 'unknown' }));
   for (let i = 0; i < 5; i++) studentSocket.send(JSON.stringify({ type: 'reaction', kind: 'clap' }));
   studentSocket.send(JSON.stringify(action));
-  const first = (await teacherSocket.next('action')).state;
-  assert.equal(first.version, 1);
+  const teacherFirst = await teacherSocket.next('action');
+  const first = teacherFirst.state;
+  // Only the author's copy is marked as its own, so the page knows its answer was accepted.
+  assert.equal(teacherFirst.own, undefined);
   assert.deepEqual(teacherSocket.messages.filter(message => message.type === 'reaction'), [{ type: 'reaction', kind: 'clap', fromRole: 'student' }]);
   teacherSocket.messages.splice(teacherSocket.messages.findIndex(message => message.type === 'reaction'), 1);
   assert.equal(studentSocket.messages.some(message => message.type === 'reaction'), false);
   assert.equal(first.selections[choice.id][choice.items[0].id], action.optionId);
-  assert.deepEqual((await studentSocket.next('action')).state, first);
-  studentSocket.send(JSON.stringify(action));
-  assert.equal((await studentSocket.next('action-error')).state.version, 1);
-  studentSocket.send(JSON.stringify({ ...action, expectedVersion: 1, optionId: 'missing' }));
-  assert.equal((await studentSocket.next('action-error')).state.version, 1);
+  const studentFirst = await studentSocket.next('action');
+  assert.equal(studentFirst.own, true);
+  assert.deepEqual(studentFirst.state, first);
+  studentSocket.send(JSON.stringify({ ...action, optionId: 'missing' }));
+  const missing = await studentSocket.next('action-error');
+  assert.equal(missing.conflict, undefined);
+  assert.deepEqual(missing.state, first);
   studentSocket.send(JSON.stringify({ type: 'select-stage', stageId: 'warm-up' }));
   assert.match((await studentSocket.next('action-error')).error, /преподаватель/);
-  teacherSocket.send(JSON.stringify({ ...action, expectedVersion: 0 }));
-  assert.equal((await teacherSocket.next('action-error')).state.version, 1);
   const duplicate = connect('student', secondCookie);
   assert.equal((await once(duplicate, 'close'))[0], 4003);
   const replaced = once(studentSocket, 'close');
@@ -186,9 +188,8 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.deepEqual((await replacement.next('snapshot')).state, first);
   assert.equal((await replaced)[0], 4001);
   assert.deepEqual((await replacement.next('pointer')).target, pointerAction.target);
-  teacherSocket.send(JSON.stringify({ ...action, expectedVersion: 1, optionId: choice.items[0].options[1].id }));
+  teacherSocket.send(JSON.stringify({ ...action, optionId: choice.items[0].options[1].id }));
   const second = (await replacement.next('action')).state;
-  assert.equal(second.version, 2);
   assert.equal(second.selections[choice.id][choice.items[0].id], choice.items[0].options[1].id);
   assert.deepEqual((await teacherSocket.next('action')).state, second);
   // Persisted data contains current state, not an attempt log.
@@ -200,29 +201,30 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
     teacherSocket.send(JSON.stringify(action));
     const teacherMessage = await teacherSocket.next('action');
     const studentMessage = await replacement.next('action');
-    assert.equal(studentMessage.actorRole, 'teacher');
+    assert.equal(teacherMessage.own, true);
+    assert.equal(studentMessage.own, undefined);
     assert.deepEqual(studentMessage.state, teacherMessage.state);
     assert.ok(!JSON.stringify(studentMessage.lesson).includes('teacherNote'));
     return studentMessage;
   };
-  const lead = await sendTeacher({ type: 'select-stage', stageId: 'lead-in', expectedVersion: 2 });
+  const lead = await sendTeacher({ type: 'select-stage', stageId: 'lead-in' });
   assert.equal((await teacherSocket.next('pointer')).target, null);
   assert.equal((await replacement.next('pointer')).target, null);
   assert.equal(lead.state.activeStageId, 'lead-in');
   assert.deepEqual(lead.lesson.content.stages[1].content.map(c => c.type), ['markdownCard', 'illustratedTextPanel', 'textPanel']);
-  const visibility = { type: 'set-visibility', stageId: 'lead-in', componentId: answersId, visible: true, expectedVersion: 3 };
+  const visibility = { type: 'set-visibility', stageId: 'lead-in', componentId: answersId, visible: true };
   replacement.send(JSON.stringify(visibility));
   assert.match((await replacement.next('action-error')).error, /преподаватель/);
   const shown = await sendTeacher(visibility);
   assert.ok(shown.lesson.content.stages[1].content.some(c => c.id === answersId));
-  const hidden = await sendTeacher({ ...visibility, visible: false, expectedVersion: 4 });
+  const hidden = await sendTeacher({ ...visibility, visible: false });
   assert.ok(!JSON.stringify(hidden.lesson).includes(answersId));
-  await sendTeacher({ ...visibility, expectedVersion: 5 });
-  const back = await sendTeacher({ type: 'select-stage', stageId: 'warm-up', expectedVersion: 6 });
+  await sendTeacher({ ...visibility });
+  const back = await sendTeacher({ type: 'select-stage', stageId: 'warm-up' });
   assert.deepEqual(back.state.selections, second.selections);
-  let final = await sendTeacher({ type: 'select-stage', stageId: 'lead-in', expectedVersion: 7 });
+  let final = await sendTeacher({ type: 'select-stage', stageId: 'lead-in' });
   assert.equal(final.state.visibleCards[answersId], true);
-  final = await sendTeacher({ type: 'select-stage', stageId: 'target-vocabulary', expectedVersion: final.state.version });
+  final = await sendTeacher({ type: 'select-stage', stageId: 'target-vocabulary' });
   const vocab = final.lesson.content.stages.find(stage => stage.id === 'target-vocabulary');
   const sourceVocab = content.stages.find(stage => stage.id === 'target-vocabulary');
   assert.deepEqual(vocab.content.map(c => c.type), ['matchWords', 'dropdownChoice', 'fillInBlanks', 'personalizedQuestions', 'markdownCard']);
@@ -239,7 +241,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.ok(!matchComponent.presentation.targets.some(item => item.id === firstWord.id));
   assert.equal(matchComponent.presentation.answerKey[firstWord.id], matchComponent.presentation.targets[0].id);
   const sendStudent = async action => {
-    replacement.send(JSON.stringify({ stageId: 'target-vocabulary', expectedVersion: final.state.version, ...action }));
+    replacement.send(JSON.stringify({ stageId: 'target-vocabulary', ...action }));
     const student = await replacement.next('action');
     const teacher = await teacherSocket.next('action');
     assert.deepEqual(student.state, teacher.state);
@@ -252,32 +254,32 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   await sendStudent({ ...matchAction, type: 'match-word', targetId: matchComponent.presentation.targets[1].id, attemptId: 'wrong-attempt', correct: true });
   assert.equal(final.state.exercises[matchComponent.id].attempt.correct, false);
   assert.deepEqual(final.state.exercises[matchComponent.id].matches, {});
-  final = await sendTeacher({ stageId: final.state.activeStageId, expectedVersion: final.state.version, ...matchAction, type: 'match-word', targetId: matchComponent.presentation.targets[0].id, attemptId: 'correct-attempt' });
+  final = await sendTeacher({ stageId: final.state.activeStageId, ...matchAction, type: 'match-word', targetId: matchComponent.presentation.targets[0].id, attemptId: 'correct-attempt' });
   assert.equal(final.state.exercises[matchComponent.id].attempt.id, 'correct-attempt');
   assert.equal(final.state.exercises[matchComponent.id].matches[firstWord.id], matchComponent.presentation.targets[0].id);
   const sourceChoice = sourceVocab.content.find(c => c.type === 'dropdownChoice').choices[0];
   await sendStudent({ type: 'choose-word', componentId: dropdown.id, itemId: sourceChoice.id, value: sourceChoice.options.find(value => value !== sourceChoice.answer) });
   assert.equal(final.state.exercises[dropdown.id].answers[sourceChoice.id].status, 'wrong');
-  final = await sendTeacher({ stageId: final.state.activeStageId, expectedVersion: final.state.version, type: 'choose-word', componentId: dropdown.id, itemId: sourceChoice.id, value: sourceChoice.answer });
+  final = await sendTeacher({ stageId: final.state.activeStageId, type: 'choose-word', componentId: dropdown.id, itemId: sourceChoice.id, value: sourceChoice.answer });
   assert.equal(final.state.exercises[dropdown.id].answers[sourceChoice.id].status, 'correct');
-  teacherSocket.send(JSON.stringify({ type: 'choose-word', stageId: 'target-vocabulary', componentId: dropdown.id, itemId: sourceChoice.id, value: sourceChoice.answer, expectedVersion: final.state.version }));
+  teacherSocket.send(JSON.stringify({ type: 'choose-word', stageId: 'target-vocabulary', componentId: dropdown.id, itemId: sourceChoice.id, value: sourceChoice.answer }));
   assert.match((await teacherSocket.next('action-error')).error, /уже верный/);
   const sourceFill = sourceVocab.content.find(c => c.type === 'fillInBlanks').items[0];
   await sendStudent({ type: 'type-answer', componentId: fill.id, itemId: sourceFill.id, value: 'unfinished' });
   assert.equal(final.state.exercises[fill.id].answers[sourceFill.id].value, 'unfinished');
   assert.equal(final.state.exercises[fill.id].answers[sourceFill.id].status, 'pending');
-  final = await sendTeacher({ stageId: final.state.activeStageId, expectedVersion: final.state.version, type: 'type-answer', componentId: fill.id, itemId: sourceFill.id, value: `  ${sourceFill.answer.toUpperCase()}  ` });
+  final = await sendTeacher({ stageId: final.state.activeStageId, type: 'type-answer', componentId: fill.id, itemId: sourceFill.id, value: `  ${sourceFill.answer.toUpperCase()}  ` });
   assert.equal(final.state.exercises[fill.id].answers[sourceFill.id].status, 'correct');
   const game = sourceVocab.content.find(c => c.type === 'describeAndGuess');
   const visibilityAction = { type: 'set-visibility', stageId: 'target-vocabulary', componentId: game.id, visible: true };
-  final = await sendTeacher({ ...visibilityAction, expectedVersion: final.state.version });
+  final = await sendTeacher({ ...visibilityAction });
   assert.ok(final.lesson.content.stages[2].content.some(c => c.id === game.id));
   await sendStudent({ type: 'set-crossed', componentId: game.id, itemId: game.items[0].id, crossed: true });
-  final = await sendTeacher({ type: 'set-crossed', stageId: 'target-vocabulary', componentId: game.id, itemId: game.items[0].id, crossed: false, expectedVersion: final.state.version });
+  final = await sendTeacher({ type: 'set-crossed', stageId: 'target-vocabulary', componentId: game.id, itemId: game.items[0].id, crossed: false });
   assert.equal(final.state.exercises[game.id].crossed[game.items[0].id], false);
-  final = await sendTeacher({ ...visibilityAction, visible: false, expectedVersion: final.state.version });
+  final = await sendTeacher({ ...visibilityAction, visible: false });
   assert.equal(JSON.stringify(final.lesson.content.stages[2].content), layoutBefore);
-  final = await sendTeacher({ type: 'select-stage', stageId: 'reading', expectedVersion: final.state.version });
+  final = await sendTeacher({ type: 'select-stage', stageId: 'reading' });
   const reading = final.lesson.content.stages.find(stage => stage.id === 'reading');
   assert.deepEqual(reading.content.map(c => c.type), ['textReading', 'multipleChoice', 'multipleChoice']);
   for (const quiz of reading.content.filter(c => c.type === 'multipleChoice')) {
@@ -285,14 +287,14 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
     const answerAction = { stageId: 'reading', type: 'choose-option', componentId: quiz.id, itemId: item.id };
     await sendStudent({ ...answerAction, value: item.options.find(value => value !== item.answer), status: 'correct' });
     assert.equal(final.state.exercises[quiz.id].answers[item.id].status, 'wrong');
-    final = await sendTeacher({ stageId: final.state.activeStageId, expectedVersion: final.state.version, ...answerAction, value: item.answer });
+    final = await sendTeacher({ stageId: final.state.activeStageId, ...answerAction, value: item.answer });
     assert.equal(final.state.exercises[quiz.id].answers[item.id].status, 'correct');
-    teacherSocket.send(JSON.stringify({ ...answerAction, value: item.answer, expectedVersion: final.state.version }));
+    teacherSocket.send(JSON.stringify({ ...answerAction, value: item.answer }));
     assert.match((await teacherSocket.next('action-error')).error, /уже верный/);
-    replacement.send(JSON.stringify({ ...answerAction, value: item.options[0], expectedVersion: final.state.version }));
+    replacement.send(JSON.stringify({ ...answerAction, value: item.options[0] }));
     assert.match((await replacement.next('action-error')).error, /уже верный/);
   }
-  final = await sendTeacher({ type: 'select-stage', stageId: 'listening', expectedVersion: final.state.version });
+  final = await sendTeacher({ type: 'select-stage', stageId: 'listening' });
   const listening = final.lesson.content.stages.find(stage => stage.id === 'listening');
   const sourceListening = content.stages.find(stage => stage.id === 'listening');
   assert.deepEqual(listening.content.map(component => component.type), ['audioPlayer', 'checkboxChoice', 'audioPlayer', 'multipleChoice']);
@@ -302,16 +304,14 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.equal(Object.hasOwn(audio.presentation, 'script'), false);
   final = await sendTeacher({
     type: 'set-visibility', stageId: 'listening', componentId: audio.id,
-    visible: true, expectedVersion: final.state.version,
-  });
+    visible: true });
   const revealedAudio = final.lesson.content.stages.find(stage => stage.id === 'listening').content.find(component => component.id === audio.id);
   assert.equal(revealedAudio.presentation.script, sourceAudio.script);
   const otherAudio = final.lesson.content.stages.find(stage => stage.id === 'listening').content.find(component => component.type === 'audioPlayer' && component.id !== audio.id);
   assert.equal(Object.hasOwn(otherAudio.presentation, 'script'), false, 'each transcript has independent visibility');
   replacement.send(JSON.stringify({
     type: 'set-visibility', stageId: 'listening', componentId: otherAudio.id,
-    visible: true, expectedVersion: final.state.version,
-  }));
+    visible: true }));
   assert.match((await replacement.next('action-error')).error, /преподаватель/);
 
   const gist = listening.content.find(component => component.type === 'checkboxChoice');
@@ -320,13 +320,12 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   const wrongGist = gistItem.options.find(value => !gistItem.answers.includes(value));
   await sendStudent({ stageId: 'listening', type: 'choose-option', componentId: gist.id, itemId: gistItem.id, value: wrongGist });
   assert.equal(final.state.exercises[gist.id].answers[gistItem.id].status, 'wrong');
-  final = await sendTeacher({ expectedVersion: final.state.version, stageId: 'listening', type: 'choose-option', componentId: gist.id, itemId: gistItem.id, value: gistItem.answers[0] });
+  final = await sendTeacher({ stageId: 'listening', type: 'choose-option', componentId: gist.id, itemId: gistItem.id, value: gistItem.answers[0] });
   assert.equal(final.state.exercises[gist.id].answers[gistItem.id].status, 'correct');
   assert.deepEqual(final.state.exercises[gist.id].answers[gistItem.id].values, [wrongGist, gistItem.answers[0]]);
   teacherSocket.send(JSON.stringify({
     stageId: 'listening', type: 'choose-option', componentId: gist.id, itemId: gistItem.id,
-    value: gistItem.answers[0], expectedVersion: final.state.version,
-  }));
+    value: gistItem.answers[0] }));
   assert.match((await teacherSocket.next('action-error')).error, /уже верный/);
 
   const detail = listening.content.find(component => component.type === 'multipleChoice');
@@ -341,7 +340,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
     value: detailItem.answer,
   });
   assert.equal(final.state.exercises[detail.id].answers[detailItem.id].status, 'correct');
-  final = await sendTeacher({ type: 'select-stage', stageId: 'grammar-presentation', expectedVersion: final.state.version });
+  final = await sendTeacher({ type: 'select-stage', stageId: 'grammar-presentation' });
   const grammar = final.lesson.content.stages.find(stage => stage.id === 'grammar-presentation');
   assert.deepEqual(grammar.content.map(item => item.type), ['textPanel', 'textPanel', 'dragWordsInText', 'markdownCard', 'dropdownChoice']);
   const dragRule = grammar.content.find(item => item.type === 'dragWordsInText');
@@ -349,48 +348,47 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   assert.equal(final.state.exercises[dragRule.id].selectedId, 'future');
   await sendStudent({ stageId: grammar.id, type: 'place-word', componentId: dragRule.id, itemId: 'gap-1', value: 'future', attemptId: 'wrong-rule' });
   assert.equal(final.state.exercises[dragRule.id].attempt.correct, false);
-  final = await sendTeacher({ expectedVersion: final.state.version, stageId: grammar.id, type: 'place-word', componentId: dragRule.id, itemId: 'gap-1', value: 'base verb', attemptId: 'right-rule' });
+  final = await sendTeacher({ stageId: grammar.id, type: 'place-word', componentId: dragRule.id, itemId: 'gap-1', value: 'base verb', attemptId: 'right-rule' });
   assert.equal(final.state.exercises[dragRule.id].placed['gap-1'], 'base verb');
   const ruleDropdown = grammar.content.find(item => item.type === 'dropdownChoice');
   await sendStudent({ stageId: grammar.id, type: 'choose-word', componentId: ruleDropdown.id,
     itemId: ruleDropdown.presentation.choices[0].id, value: ruleDropdown.presentation.answerKey[ruleDropdown.presentation.choices[0].id] });
   assert.equal(final.state.exercises[ruleDropdown.id].answers[ruleDropdown.presentation.choices[0].id].status, 'correct');
-  final = await sendTeacher({ type: 'select-stage', stageId: 'grammar-focus', expectedVersion: final.state.version });
+  final = await sendTeacher({ type: 'select-stage', stageId: 'grammar-focus' });
   const focus = final.lesson.content.stages.find(stage => stage.id === 'grammar-focus');
   assert.deepEqual(focus.content.map(item => item.type), ['dropdownChoice', 'gapFill', 'miniSituation', 'cardRow']);
   const gapFill = focus.content.find(item => item.type === 'gapFill');
   const gap = gapFill.presentation.gaps[0];
-  final = await sendTeacher({ expectedVersion: final.state.version, stageId: focus.id, type: 'type-answer', componentId: gapFill.id, itemId: gap.id, value: gap.answer });
+  final = await sendTeacher({ stageId: focus.id, type: 'type-answer', componentId: gapFill.id, itemId: gap.id, value: gap.answer });
   assert.equal(final.state.exercises[gapFill.id].answers[gap.id].status, 'correct');
   await sendStudent({ stageId: focus.id, type: 'type-answer', componentId: gapFill.id, itemId: gap.id, value: 'unfinished' });
   assert.equal(final.state.exercises[gapFill.id].answers[gap.id].status, 'pending');
   const mini = focus.content.find(item => item.type === 'miniSituation');
-  final = await sendTeacher({ expectedVersion: final.state.version, stageId: focus.id, type: 'type-answer', componentId: mini.id, itemId: 'sentence-1', value: 'I am learning.' });
+  final = await sendTeacher({ stageId: focus.id, type: 'type-answer', componentId: mini.id, itemId: 'sentence-1', value: 'I am learning.' });
   assert.deepEqual(final.state.exercises[mini.id].answers['sentence-1'], { value: 'I am learning.' });
   const row = focus.content.find(item => item.type === 'cardRow');
   assert.equal(row.presentation.items.length, 1);
   final = await sendTeacher({ type: 'set-visibility', stageId: focus.id, componentId: supportRow.items[1].id,
-    visible: true, expectedVersion: final.state.version });
+    visible: true });
   const currentRow = () => final.lesson.content.stages.find(stage => stage.id === focus.id).content.find(item => item.id === row.id);
   assert.equal(currentRow().presentation.items.length, 2);
   assert.equal(JSON.stringify(currentRow()).includes(supportRow.items[2].text), false);
   replacement.send(JSON.stringify({ type: 'set-visibility', stageId: focus.id, componentId: supportRow.items[1].id,
-    visible: false, expectedVersion: final.state.version }));
+    visible: false }));
   assert.match((await replacement.next('action-error')).error, /преподаватель/);
   teacherSocket.send(JSON.stringify({ type: 'set-visibility', stageId: focus.id, componentId: supportRow.items[2].id,
-    visible: true, expectedVersion: final.state.version }));
+    visible: true }));
   assert.match((await teacherSocket.next('action-error')).error, /видимость/);
 
-  final = await sendTeacher({ type: 'select-stage', stageId: 'guided-speaking', expectedVersion: final.state.version });
+  final = await sendTeacher({ type: 'select-stage', stageId: 'guided-speaking' });
   assertGuidedStudent(final);
   for (const socket of [teacherSocket, replacement]) {
-    socket.send(JSON.stringify({ type: 'flip-card', stageId: 'guided-speaking', componentId: 'guided-speaking-role-cards',
-      expectedVersion: final.state.version }));
+    socket.send(JSON.stringify({ type: 'flip-card', stageId: 'guided-speaking', componentId: 'guided-speaking-role-cards' }));
     const rejected = await socket.next('action-error');
     assert.match(rejected.error, /не поддерживает/);
-    assert.equal(rejected.state.version, final.state.version);
+    assert.deepEqual(rejected.state, final.state);
   }
-  final = await sendTeacher({ type: 'select-stage', stageId: 'wrap-up', expectedVersion: final.state.version });
+  final = await sendTeacher({ type: 'select-stage', stageId: 'wrap-up' });
   const wrapUp = final.lesson.content.stages.find(stage => stage.id === 'wrap-up');
   assert.deepEqual(wrapUp.content.map(component => component.type), ['threeTwoOne', 'selfAssessment', 'markdownCard']);
   assert.equal(JSON.stringify(wrapUp).includes('Signs of success'), false);
@@ -398,11 +396,11 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   await sendStudent({ stageId: 'wrap-up', type: 'select-assessment', componentId: assessment.id, selectedId: 'withHelp' });
   assert.equal(final.state.selfAssessments[assessment.id], 'withHelp');
   final = await sendTeacher({ stageId: 'wrap-up', type: 'select-assessment', componentId: assessment.id,
-    selectedId: 'independent', expectedVersion: final.state.version });
+    selectedId: 'independent' });
   assert.equal(final.state.selfAssessments[assessment.id], 'independent');
   const exerciseProgress = structuredClone(final.state.exercises);
-  final = await sendTeacher({ type: 'select-stage', stageId: 'lead-in', expectedVersion: final.state.version });
-  final = await sendTeacher({ type: 'select-stage', stageId: 'target-vocabulary', expectedVersion: final.state.version });
+  final = await sendTeacher({ type: 'select-stage', stageId: 'lead-in' });
+  final = await sendTeacher({ type: 'select-stage', stageId: 'target-vocabulary' });
   assert.deepEqual(final.state.exercises, exerciseProgress);
   sockets.forEach(socket => socket.terminate());
   await stop();
@@ -416,15 +414,13 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   const restoredListening = snapshot.lesson.content.stages.find(stage => stage.id === 'listening');
   assert.equal(restoredListening.content.find(component => component.id === audio.id).presentation.script, sourceAudio.script);
   assert.equal(Object.hasOwn(restoredListening.content.find(component => component.id === otherAudio.id).presentation, 'script'), false);
-  const access = authorizeSession({ headers: { cookie } }, lesson.id, db, 'student');
-  assert.throws(() => applyAction(access, { ...action, expectedVersion: 2, stageId: 'lead-in' }, db), { statusCode: 409 });
   const reordered = structuredClone(content);
   reordered.stages.reverse();
   db.prepare('UPDATE class_sessions SET content_json = ? WHERE id = ?').run(JSON.stringify(reordered), otherLesson.id);
   const otherAccess = { role: 'teacher', sessionId: otherLesson.id, ownerId: teacher.id };
   assert.equal(sessionPayload(otherAccess, db).state.activeStageId, 'wrap-up');
-  applyAction(otherAccess, { type: 'select-stage', stageId: 'warm-up', expectedVersion: 0 }, db);
-  const reorderedState = applyAction({ ...otherAccess, role: 'student' }, { ...action, expectedVersion: 1 }, db);
+  applyAction(otherAccess, { type: 'select-stage', stageId: 'warm-up' }, db);
+  const reorderedState = applyAction({ ...otherAccess, role: 'student' }, action, db);
   assert.equal(reorderedState.selections[choice.id][choice.items[0].id], action.optionId);
   db.prepare("UPDATE class_sessions SET status = 'cancelled' WHERE id = ?").run(lesson.id);
   assert.equal(authorizeSession({ headers: { cookie } }, lesson.id, db, 'student'), null);

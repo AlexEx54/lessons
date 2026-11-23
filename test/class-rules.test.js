@@ -68,8 +68,8 @@ test('vocabulary handlers reject observer edits, invalid targets, oversized inpu
   const state = { _layouts: { [match.id]: model.createLayout(match) } };
   const act = (component, action, role = 'student') => applyComponentAction({ component, action, role, state });
   for (const exercise of [match, dropdown, fill]) assert.throws(() => act(exercise, {}, 'observer'), { statusCode: 403 });
-  assert.throws(() => act(match, { type: 'match-word', itemId: match.items[0].id, targetId: match.items[0].id }), { statusCode: 400 });
-  assert.throws(() => act(match, { type: 'select-word', itemId: 'missing' }), { statusCode: 400 });
+  assert.throws(() => act(match, { type: 'match-word', itemId: match.items[0].id, targetId: match.items[0].id }), { statusCode: 409 });
+  assert.throws(() => act(match, { type: 'select-word', itemId: 'missing' }), { statusCode: 409 });
   assert.throws(() => act(dropdown, { type: 'choose-word', itemId: dropdown.choices[0].id, value: 'missing' }), { statusCode: 400 });
   assert.throws(() => act(fill, { type: 'type-answer', itemId: fill.items[0].id, value: 'a'.repeat(1001) }), { statusCode: 400 });
   assert.throws(() => act(game, { type: 'set-crossed', itemId: game.items[0].id, crossed: true }), { statusCode: 403 });
@@ -77,7 +77,7 @@ test('vocabulary handlers reject observer edits, invalid targets, oversized inpu
   assert.equal(state.exercises, undefined, 'rejected actions must not create progress');
   const correct = { type: 'choose-word', itemId: dropdown.choices[0].id, value: dropdown.choices[0].answer };
   act(dropdown, correct);
-  assert.throws(() => act(dropdown, { ...correct, value: '' }), { statusCode: 400 });
+  assert.throws(() => act(dropdown, { ...correct, value: '' }), { statusCode: 409 });
   const typed = { type: 'type-answer', itemId: fill.items[0].id, value: fill.items[0].answer };
   act(fill, typed);
   act(fill, { ...typed, value: '' });
@@ -104,7 +104,7 @@ test('reading validates choices on server and local preview uses the same rules'
   window.ClassComponentAdapters.preview(projected, preview, action);
   applyComponentAction({ role: 'student', component, state, action });
   assert.equal(JSON.stringify(preview), JSON.stringify(state));
-  assert.throws(() => applyComponentAction({ role: 'student', component, state, action }), { statusCode: 400 });
+  assert.throws(() => applyComponentAction({ role: 'student', component, state, action }), { statusCode: 409 });
 });
 
 test('listening projects hidden transcripts and validates checkbox choices with the shared reducer', () => {
@@ -139,7 +139,7 @@ test('listening projects hidden transcripts and validates checkbox choices with 
   applyComponentAction({ role: 'student', component: checkbox, state, action: correct });
   assert.equal(JSON.stringify(preview), JSON.stringify(state));
   assert.equal(state.exercises[checkbox.id].answers[item.id].status, 'correct');
-  assert.throws(() => applyComponentAction({ role: 'teacher', component: checkbox, state, action: correct }), { statusCode: 400 });
+  assert.throws(() => applyComponentAction({ role: 'teacher', component: checkbox, state, action: correct }), { statusCode: 409 });
 });
 
 
@@ -214,10 +214,9 @@ test('lesson page loads the rules without require, so the library preview can ru
   const state = context.ClassRules.initialState(content);
   context.ClassRules.addLayouts(content, state);
   const [first, second] = context.ClassRules.availableStageIds(content);
-  assert.throws(() => context.ClassRules.applyAction(content, state, 'student', { type: 'select-stage', stageId: second, expectedVersion: 0 }), /Стадией управляет/);
-  assert.equal(context.ClassRules.applyAction(content, state, 'teacher', { type: 'select-stage', stageId: first, expectedVersion: 0 }), false);
-  assert.equal(context.ClassRules.applyAction(content, state, 'teacher', { type: 'select-stage', stageId: second, expectedVersion: 0 }), true);
+  assert.throws(() => context.ClassRules.applyAction(content, state, 'student', { type: 'select-stage', stageId: second }), /Стадией управляет/);
+  assert.equal(context.ClassRules.applyAction(content, state, 'teacher', { type: 'select-stage', stageId: first }), false);
+  assert.equal(context.ClassRules.applyAction(content, state, 'teacher', { type: 'select-stage', stageId: second }), true);
   assert.equal(state.activeStageId, second);
-  assert.equal(state.version, 1);
   assert.ok(context.ClassRules.pointerComponentIds(content, state).length > 0);
 });

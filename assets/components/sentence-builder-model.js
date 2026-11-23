@@ -2,6 +2,8 @@
   'use strict';
   const ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
   function fail(message) { throw Object.assign(new Error(message), { statusCode: 400 }); }
+  // Another participant got there first: the page shows the fresh state instead of an error.
+  function conflict(message) { throw Object.assign(new Error(message), { statusCode: 409 }); }
   function keys(value, allowed) {
     if (!value || typeof value !== 'object' || Array.isArray(value)
       || Object.keys(value).some(key => !allowed.includes(key))) fail('Некорректные поля Sentence Builder.');
@@ -91,7 +93,7 @@
     const task = taskWithLayout(component, layout);
     const itemId = previous.currentItemId || task.items[0].id;
     const item = task.items.find(item => item.id === itemId);
-    if (action.itemId !== itemId || previous.completed || !item) fail('Предложение уже изменилось.');
+    if (action.itemId !== itemId || previous.completed || !item) conflict('Предложение уже изменилось.');
     const row = { placedIds: [], attempts: 0, hintsUsed: 0, solved: false, ...previous.items?.[itemId] };
     const placed = [...row.placedIds];
     const save = patch => ({ ...previous, currentItemId: itemId, items: { ...previous.items, [itemId]: { ...row, ...patch } } });
@@ -100,14 +102,14 @@
       const next = task.items[task.items.indexOf(item) + 1];
       return { ...previous, currentItemId: next?.id || itemId, completed: !next };
     }
-    if (row.solved) fail('Предложение уже собрано.');
+    if (row.solved) conflict('Предложение уже собрано.');
     const token = item.tokens.find(token => token.id === action.tokenId);
     const motion = tokenId => ({ tokenId, sequence: (previous.motion?.sequence || 0) + 1,
       ...(action.actionId ? { id: action.actionId } : {}) });
     if (action.type === 'move-token' || action.type === 'return-token') {
       if (!token) fail('Карточка не найдена.');
       const index = placed.indexOf(token.id);
-      if (action.type === 'return-token' && index < 0) fail('Карточка уже в наборе.');
+      if (action.type === 'return-token' && index < 0) conflict('Карточка уже в наборе.');
       if (index >= 0) placed.splice(index, 1);
       if (action.type === 'move-token') {
         if (!Number.isInteger(action.toIndex) || action.toIndex < 0 || action.toIndex > placed.length) fail('Некорректная позиция карточки.');

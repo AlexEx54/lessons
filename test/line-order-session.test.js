@@ -37,7 +37,7 @@ test('line order and locked lines persist across reopen; reset clears the progre
   assert.notDeepEqual(task.lines.map(line => line.id), task.answerKey);
   assert.equal(sessionPayload(student, db).state._layouts, undefined);
   let state = readState(lesson.id, db);
-  const act = (who, fields) => { state = applyAction(who, { stageId: 'warm-up', expectedVersion: state.version, ...fields }, db); };
+  const act = (who, fields) => { state = applyAction(who, { stageId: 'warm-up', ...fields }, db); };
   const move = (who, itemId, toIndex) => act(who, { type: 'move-line', componentId: exercise.id, itemId, toIndex });
   // Both participants arrange alarm · missed · taxi · packed, so the check locks alarm and taxi.
   ['alarm', 'missed', 'taxi', 'packed'].forEach((id, index) => move(index % 2 ? access : student, id, index));
@@ -46,7 +46,7 @@ test('line order and locked lines persist across reopen; reset clears the progre
   assert.deepEqual(progress.order, ['alarm', 'missed', 'taxi', 'packed']);
   assert.deepEqual(progress.locked, ['alarm', 'taxi']);
   assert.deepEqual([progress.check.sequence, progress.check.correct], [1, 2]);
-  assert.throws(() => move(student, 'alarm', 1), { statusCode: 400 });
+  assert.throws(() => move(student, 'alarm', 1), { statusCode: 409 });
   db.close(); db = openDatabase(databasePath);
   assert.deepEqual(readState(lesson.id, db), state);
   assert.deepEqual(sessionPayload(student, db).state.exercises, sessionPayload(access, db).state.exercises);

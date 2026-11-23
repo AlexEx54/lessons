@@ -3,6 +3,8 @@
 
   const sentenceBuilder = () => root.SentenceBuilderModel || (typeof require === 'function' ? require('./sentence-builder-model.js') : null);
   function fail(message) { throw Object.assign(new Error(message), { statusCode: 400 }); }
+  // Another participant got there first: the page shows the fresh state instead of an error.
+  function conflict(message) { throw Object.assign(new Error(message), { statusCode: 409 }); }
   function shuffle(values, random = Math.random) {
     const result = [...values];
     for (let i = result.length - 1; i > 0; i--) {
@@ -85,12 +87,12 @@
       const matches = previous.matches || {};
       const available = id => task.items.some(item => item.id === id) && !matches[id];
       if (action.type === 'select-word') {
-        if (action.itemId !== null && !available(action.itemId)) fail('Начало предложения недоступно.');
+        if (action.itemId !== null && !available(action.itemId)) conflict('Начало предложения недоступно.');
         return { ...previous, selectedId: action.itemId };
       }
       if (action.type !== 'match-word') fail('Неизвестное действие.');
       if (!available(action.itemId) || !task.targets.some(item => item.id === action.targetId)
-        || Object.values(matches).includes(action.targetId)) fail('Пара недоступна.');
+        || Object.values(matches).includes(action.targetId)) conflict('Пара недоступна.');
       const correct = task.answerKey[action.itemId] === action.targetId;
       const nextMatches = correct ? { ...matches, [action.itemId]: action.targetId } : matches;
       const order = previous.rightOrder || task.targets.map(item => item.id);
@@ -107,12 +109,12 @@
       const placed = previous.placed || {};
       const available = word => component.words.includes(word) && !Object.values(placed).includes(word);
       if (action.type === 'select-word') {
-        if (action.itemId !== null && !available(action.itemId)) fail('Слово недоступно.');
+        if (action.itemId !== null && !available(action.itemId)) conflict('Слово недоступно.');
         return { ...previous, selectedId: action.itemId };
       }
       if (action.type !== 'place-word') fail('Неизвестное действие.');
       const index = gaps.findIndex((_, index) => action.itemId === `gap-${index + 1}`);
-      if (index < 0 || placed[action.itemId] || !available(action.value)) fail('Пропуск или слово недоступны.');
+      if (index < 0 || placed[action.itemId] || !available(action.value)) conflict('Пропуск или слово недоступны.');
       const correct = gaps[index] === action.value;
       return { ...previous, selectedId: null,
         placed: correct ? { ...placed, [action.itemId]: action.value } : placed,
@@ -125,12 +127,12 @@
       const pictures = layout?.pictureIds || (component.targets || component.items).map(item => item.id);
       const matches = previous.matches || {};
       if (action.type === 'select-word') {
-        if (action.itemId !== null && (!words.includes(action.itemId) || matches[action.itemId])) fail('Слово недоступно.');
+        if (action.itemId !== null && (!words.includes(action.itemId) || matches[action.itemId])) conflict('Слово недоступно.');
         return { ...previous, selectedId: action.itemId };
       }
       if (action.type !== 'match-word') fail('Неизвестное действие.');
       const index = words.indexOf(action.itemId), targetIndex = pictures.indexOf(action.targetId);
-      if (index < 0 || targetIndex < 0 || matches[action.itemId] || Object.values(matches).includes(action.targetId)) fail('Пара недоступна.');
+      if (index < 0 || targetIndex < 0 || matches[action.itemId] || Object.values(matches).includes(action.targetId)) conflict('Пара недоступна.');
       const correct = layout ? index === targetIndex : component.answerKey ? component.answerKey[action.itemId] === action.targetId : index === targetIndex;
       return { ...previous, selectedId: null,
         matches: correct ? { ...matches, [action.itemId]: action.targetId } : matches,
@@ -143,11 +145,11 @@
       const placed = previous.placed || [];
       const available = id => Object.hasOwn(answerKey, id) && !placed.includes(id);
       if (action.type === 'select-word') {
-        if (action.itemId !== null && !available(action.itemId)) fail('Карточка недоступна.');
+        if (action.itemId !== null && !available(action.itemId)) conflict('Карточка недоступна.');
         return { ...previous, selectedId: action.itemId };
       }
       if (action.type !== 'match-word') fail('Неизвестное действие.');
-      if (!available(action.itemId) || !component.categories.some(category => category.id === action.targetId)) fail('Карточка или группа недоступна.');
+      if (!available(action.itemId) || !component.categories.some(category => category.id === action.targetId)) conflict('Карточка или группа недоступна.');
       const correct = answerKey[action.itemId] === action.targetId;
       return { ...previous, selectedId: null, placed: correct ? [...placed, action.itemId] : placed,
         attempt: { ...(action.attemptId ? { id: action.attemptId } : {}),
@@ -158,10 +160,10 @@
       // The server holds the author data and the layout, clients the presentation with its answer key.
       const { answerKey, lines } = layout ? presentation(component, layout) : component;
       const order = previous.order || lines.map(line => line.id), locked = previous.locked || [];
-      if (locked.length === answerKey.length) fail('Порядок уже собран.');
+      if (locked.length === answerKey.length) conflict('Порядок уже собран.');
       if (action.type === 'move-line') {
         const free = order.filter(id => !locked.includes(id) && id !== action.itemId);
-        if (!order.includes(action.itemId) || locked.includes(action.itemId)) fail('Строку нельзя передвинуть.');
+        if (!order.includes(action.itemId) || locked.includes(action.itemId)) conflict('Строку нельзя передвинуть.');
         if (!Number.isInteger(action.toIndex) || action.toIndex < 0 || action.toIndex > free.length) fail('Некорректная позиция строки.');
         // Locked lines keep their places; the others fill the free places in their new order.
         free.splice(action.toIndex, 0, action.itemId);
@@ -179,7 +181,7 @@
       if (action.type !== 'choose-option') fail('Неизвестное действие.');
       const item = component.items.find(item => item.id === action.itemId);
       if (!item || !['fact', 'myth'].includes(action.value)) fail('Вариант не найден.');
-      if (previous.answers?.[item.id]?.status === 'correct') fail('Ответ уже верный.');
+      if (previous.answers?.[item.id]?.status === 'correct') conflict('Ответ уже верный.');
       return { ...previous, answers: { ...previous.answers, [item.id]: {
         value: action.value, status: item.mode === 'guess' ? 'pending' : selectionState(action.value, item.answer),
       } } };
@@ -188,7 +190,7 @@
       if (action.type !== 'choose-option') fail('Неизвестное действие.');
       const item = component.items.find(item => item.id === action.itemId);
       if (!item || !item.options.includes(action.value)) fail('Вариант не найден.');
-      if (previous.answers?.[item.id]?.status === 'correct') fail('Ответ уже верный.');
+      if (previous.answers?.[item.id]?.status === 'correct') conflict('Ответ уже верный.');
       return { ...previous, answers: { ...previous.answers, [item.id]: {
         value: action.value, status: component.mode === 'guess' ? 'pending' : selectionState(action.value, item.answer),
       } } };
@@ -199,8 +201,8 @@
       if (!item || !item.options.includes(action.value)) fail('Вариант не найден.');
       const answer = previous.answers?.[item.id];
       const values = answer?.values || [];
-      if (answer?.status === 'correct') fail('Ответ уже верный.');
-      if (values.includes(action.value)) fail('Вариант уже выбран.');
+      if (answer?.status === 'correct') conflict('Ответ уже верный.');
+      if (values.includes(action.value)) conflict('Вариант уже выбран.');
       const nextValues = [...values, action.value];
       return { ...previous, answers: { ...previous.answers, [item.id]: {
         values: nextValues,
@@ -211,7 +213,7 @@
       if (action.type !== 'choose-word') fail('Неизвестное действие.');
       const choice = component.choices.find(item => item.id === action.itemId);
       if (!choice || (action.value !== '' && !choice.options.includes(action.value))) fail('Вариант не найден.');
-      if (previous.answers?.[choice.id]?.status === 'correct') fail('Ответ уже верный.');
+      if (previous.answers?.[choice.id]?.status === 'correct') conflict('Ответ уже верный.');
       return { ...previous, answers: { ...previous.answers, [choice.id]: { value: action.value, status: selectionState(action.value, choice.answer ?? component.answerKey?.[choice.id]) } } };
     }
     if (component.type === 'sentenceCorrection') {

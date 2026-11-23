@@ -14,7 +14,7 @@ const { createSession } = require('../lib/session-store.js');
 const { createClassSession } = require('../lib/class-store.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 
-test('session call: class access, one student, presence on the lesson socket, end, cancel and clear', { timeout: 20000 }, async t => {
+test('session call: class access, one student, presence on the lesson socket, end, cancel and clear; none in a group', { timeout: 20000 }, async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'session-call-'));
   const databasePath = path.join(directory, 'app.sqlite');
   const db = openDatabase(databasePath);
@@ -33,6 +33,8 @@ test('session call: class access, one student, presence on the lesson socket, en
   const makeSession = () => createClassSession({ className: 'Маша', lessonId: 'superhero', expectedRevision: 1,
     requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const lesson = makeSession(), otherLesson = makeSession();
+  const groupLesson = createClassSession({ className: 'Группа B1', isGroup: true, lessonId: 'superhero', expectedRevision: 1,
+    requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
 
   const probe = require('node:net').createServer();
   await new Promise(resolve => probe.listen(0, '127.0.0.1', resolve));
@@ -112,6 +114,16 @@ test('session call: class access, one student, presence on the lesson socket, en
   assert.deepEqual(await Promise.all([teacherCall.closed, studentTab.closed]), [4000, 4000]);
   await teacherPage.next('call-presence', presence(false, false));
 
+  // A group has no call of this kind: neither side gets in.
+  const groupStudent = (await request(groupLesson.sessionInvitePath)).headers.get('set-cookie').split(';')[0];
+  const picked = await fetch(`${base}/api${groupLesson.classInvitePath}/student`, { method: 'POST',
+    headers: { Cookie: groupStudent, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Маша' }) });
+  assert.equal(picked.status, 200);
+  for (const [role, cookie] of [['teacher', teacherCookie], ['student', groupStudent]]) {
+    assert.equal((await request(`/api/sessions/${groupLesson.id}/call?role=${role}`, cookie)).status, 403);
+    await rejected(connect(callRoute(role, groupLesson.id), cookie));
+  }
+
   // Cancelling the session ends its call and closes the way back in.
   const rejoined = connect(callRoute('teacher'), teacherCookie);
   await rejoined.next('connected');
@@ -127,4 +139,5 @@ test('session call: class access, one student, presence on the lesson socket, en
   await otherCall.next('connected');
   assert.equal((await request('/api/sessions', teacherCookie, 'DELETE')).status, 200);
   assert.equal(await otherCall.closed, 4000);
+
 });

@@ -106,22 +106,23 @@ test('video upload, immutable publication, range access and class media signals'
   assert.equal((await student.next('media-align')).position, 0.5);
   student.send(JSON.stringify({ ...baseAction, type: 'media-status', position: 0.4, paused: true, buffering: false, blocked: false }));
   assert.equal((await teacher.next('media-status')).position, 0.4);
-  student.send(JSON.stringify({ ...baseAction, type: 'video-question-answer', questionId: question.id, selectedOptionIds: ['b'], expectedVersion: 0 }));
+  student.send(JSON.stringify({ ...baseAction, type: 'video-question-answer', questionId: question.id, selectedOptionIds: ['b'] }));
   const [teacherAnswer, studentAnswer] = await Promise.all([teacher.next('action'), student.next('action')]);
   assert.deepEqual(teacherAnswer.state.videoQuestions, studentAnswer.state.videoQuestions);
   assert.deepEqual(teacherAnswer.state.videoQuestions['watch-video']['q-1'], { selectedOptionIds: ['b'], correct: false, answeredBy: 'student' });
-  teacher.send(JSON.stringify({ ...baseAction, type: 'video-question-answer', questionId: question.id, selectedOptionIds: ['a', 'c'], expectedVersion: 0 }));
-  assert.deepEqual((await teacher.next('action-error')).state.videoQuestions, teacherAnswer.state.videoQuestions);
+  teacher.send(JSON.stringify({ ...baseAction, type: 'video-question-answer', questionId: question.id, selectedOptionIds: ['a', 'c'] }));
+  // The first answer wins; a later one changes nothing.
+  assert.deepEqual((await teacher.next('action')).state.videoQuestions, teacherAnswer.state.videoQuestions);
   const reconnected = connect('student', guest);
   const restored = await reconnected.next('snapshot');
   assert.deepEqual(restored.state.videoQuestions, teacherAnswer.state.videoQuestions);
-  teacher.send(JSON.stringify({ ...baseAction, type: 'reset-stage', expectedVersion: restored.state.version }));
+  teacher.send(JSON.stringify({ ...baseAction, type: 'reset-stage' }));
   const reset = await teacher.next('action'); await reconnected.next('action');
   assert.deepEqual(reset.state.videoQuestions, {});
   assert.equal(reset.state.videoQuestionEpochs['watch-video'], 1);
-  reconnected.send(JSON.stringify({ ...baseAction, type: 'video-question-answer', questionId: question.id, selectedOptionIds: ['unknown'], expectedVersion: reset.state.version }));
+  reconnected.send(JSON.stringify({ ...baseAction, type: 'video-question-answer', questionId: question.id, selectedOptionIds: ['unknown'] }));
   assert.ok((await reconnected.next('action-error')).error);
-  reconnected.send(JSON.stringify({ ...baseAction, type: 'video-question-answer', questionId: question.id, selectedOptionIds: ['c', 'a'], expectedVersion: reset.state.version }));
+  reconnected.send(JSON.stringify({ ...baseAction, type: 'video-question-answer', questionId: question.id, selectedOptionIds: ['c', 'a'] }));
   const correct = await teacher.next('action'); await reconnected.next('action');
   assert.equal(correct.state.videoQuestions['watch-video']['q-1'].correct, true);
 

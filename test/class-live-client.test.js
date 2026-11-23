@@ -6,7 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { createDocument } = require('./helpers/lesson-dom.js');
 const source = fs.readFileSync(path.join(__dirname, '../assets/class-live.js'), 'utf8');
-async function fixture(role = 'student', quiz = null, globals = {}) {
+async function fixture(role = 'student', quiz = null, globals = {}, payload = {}) {
   const document = createDocument(), sockets = [], timers = new Map(), intervals = new Map(), frames = [];
   const id = '11111111-1111-4111-8111-111111111111';
   let settings, interactive;
@@ -28,7 +28,8 @@ async function fixture(role = 'student', quiz = null, globals = {}) {
     constructor() { this.readyState = 1; this.listeners = {}; this.sent = []; sockets.push(this); }
     addEventListener(name, listener) { this.listeners[name] = listener; }
     send(raw) { this.sent.push(JSON.parse(raw)); }
-    receive(payload) { this.listeners.message({ data: JSON.stringify({ lesson, availableStageIds, actorRole: role, ...payload }) }); }
+    // An action is the participant's own unless the test says otherwise.
+    receive(payload) { this.listeners.message({ data: JSON.stringify({ lesson, availableStageIds, ...(payload.type === 'action' ? { own: true } : {}), ...payload }) }); }
     close(code = 1006, reason = '') { this.readyState = 3; this.listeners.close({ code, reason }); }
   }
   const mounted = new Map([['choice', { updateState(selections) { frames.push(selections); }, setInteractive(value) { interactive = value; } }]]);
@@ -50,13 +51,13 @@ async function fixture(role = 'student', quiz = null, globals = {}) {
     MarkdownCardComponent: { renderMarkdownCard() { return { updateStudentVisibility() {}, setVisibilityInteractive() {} }; } },
     ...globals,
   };
-  const initial = { activeStageId: quiz ? 'reading' : 'warm-up', version: 0, selections: {} };
+  const initial = { activeStageId: quiz ? 'reading' : 'warm-up', selections: {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/lesson-view.js'), 'utf8'), { window, document });
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/class-component-adapters.js'), 'utf8'), { window });
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/lesson-timer.js'), 'utf8'), { window, document });
   const createView = window.LessonView.create;
   window.LessonView.create = value => { settings = value; return createView(value); };
-  vm.runInNewContext(source, { window, document, WebSocket: Socket, structuredClone, fetch: async () => ({ ok: true, json: async () => ({ state: initial, lesson, availableStageIds, ...(role === 'student' ? { classPath: '/join/anna-x' } : {}) }) }) });
+  vm.runInNewContext(source, { window, document, WebSocket: Socket, structuredClone, fetch: async () => ({ ok: true, json: async () => ({ state: initial, lesson, availableStageIds, ...(role === 'student' ? { classPath: '/join/anna-x' } : {}), ...payload }) }) });
   await new Promise(resolve => setImmediate(resolve));
   return { settings, sockets, timers, intervals, frames, initial, lesson, document, selectors, isInteractive: () => interactive, status };
 }
@@ -111,7 +112,7 @@ test('teacher resets the lesson timer to a stopped 00:00', async () => {
   [...teacher.intervals.values()][0]();
   assert.equal(byId('elapsed-time').textContent, '00:01');
 });
-for (const role of ['teacher', 'student']) test(`${role}: rapid selections are sent in order with acknowledged versions and remote updates do not echo`, async () => {
+for (const role of ['teacher', 'student']) test(`${role}: rapid selections are sent in order, one per acknowledgement, and remote updates do not echo`, async () => {
   const f = await fixture(role), socket = f.sockets[0];
   socket.receive({ type: 'snapshot', state: f.initial });
   assert.equal(f.isInteractive(), true);
@@ -120,13 +121,11 @@ for (const role of ['teacher', 'student']) test(`${role}: rapid selections are s
   onAction(a);
   onAction({ ...a, optionId: 'b' });
   assert.equal(socket.sent.length, 1);
-  assert.equal(socket.sent[0].expectedVersion, 0);
-  socket.receive({ type: 'action', state: { ...f.initial, version: 1, selections: { choice: { pair: 'a' } } } });
+  socket.receive({ type: 'action', state: { ...f.initial, selections: { choice: { pair: 'a' } } } });
   assert.equal(socket.sent.length, 2);
-  assert.equal(socket.sent[1].expectedVersion, 1);
   assert.equal(socket.sent[1].optionId, 'b');
   assert.equal(f.frames.at(-1).pair, 'b');
-  socket.receive({ type: 'action', state: { ...f.initial, version: 2, selections: { choice: { pair: 'b' } } } });
+  socket.receive({ type: 'action', state: { ...f.initial, selections: { choice: { pair: 'b' } } } });
   assert.equal(socket.sent.length, 2);
   assert.equal(f.frames.at(-1).pair, 'b');
 });
@@ -140,7 +139,7 @@ test('disconnect drops unconfirmed clicks, restores server state and replacement
   for (const timer of [...f.timers.values()]) timer();
   assert.equal(f.sockets.length, 2);
   const restored = f.sockets[1];
-  restored.receive({ type: 'snapshot', state: { ...f.initial, version: 3, selections: { choice: { pair: 'b' } } } });
+  restored.receive({ type: 'snapshot', state: { ...f.initial, selections: { choice: { pair: 'b' } } } });
   assert.equal(restored.sent.length, 0);
   assert.equal(f.frames.at(-1).pair, 'b');
   f.timers.clear();
@@ -163,10 +162,10 @@ test('a silent socket is replaced at once and its late close does not disturb th
   for (const timer of [...f.timers.values()]) timer();
   assert.equal(f.sockets.length, 2);
   const successor = f.sockets[1];
-  successor.receive({ type: 'snapshot', state: { ...f.initial, version: 2 } });
-  successor.receive({ type: 'presence', peerPresent: true });
+  successor.receive({ type: 'snapshot', state: { ...f.initial } });
+  successor.receive({ type: 'presence', teacher: true, students: [null] });
   f.timers.clear();
-  stale.listeners.message({ data: JSON.stringify({ type: 'presence', peerPresent: false }) });
+  stale.listeners.message({ data: JSON.stringify({ type: 'presence', teacher: false, students: [null] }) });
   stale.close(1006);
   assert.equal(f.isInteractive(), true, 'the abandoned socket must not close the live one');
   assert.equal(f.timers.size, 0);
@@ -192,7 +191,7 @@ test('student whose slot is taken keeps retrying and explains why the board is i
 test('teacher receives peer selections without echo and can interact', async () => {
   const f = await fixture('teacher'), socket = f.sockets[0];
   socket.receive({ type: 'snapshot', state: f.initial });
-  socket.receive({ type: 'action', actorRole: 'student', state: { ...f.initial, version: 1, selections: { choice: { pair: 'a' } } } });
+  socket.receive({ type: 'action', own: false, state: { ...f.initial, selections: { choice: { pair: 'a' } } } });
   assert.equal(f.isInteractive(), true);
   assert.equal(f.frames.at(-1).pair, 'a');
   assert.equal(socket.sent.length, 0);
@@ -205,8 +204,8 @@ test('peer action does not acknowledge own request or relabel queued clicks with
   const action = { type: 'select-option', componentId: 'choice', itemId: 'pair', optionId: 'a' };
   onAction(action);
   onAction({ ...action, optionId: 'b' });
-  const next = { ...f.initial, activeStageId: 'lead-in', version: 1 };
-  socket.receive({ type: 'action', actorRole: 'teacher', state: next });
+  const next = { ...f.initial, activeStageId: 'lead-in' };
+  socket.receive({ type: 'action', own: false, state: next });
   assert.equal(socket.sent.length, 1);
   assert.equal(f.settings.state.activeIndex, 1);
   socket.receive({ type: 'action-error', error: 'Стадия уже изменилась.', state: next });
@@ -222,7 +221,7 @@ test('teacher stage navigation waits for confirmation and snapshot restores the 
   assert.equal(f.settings.state.activeIndex, 0);
   assert.equal(socket.sent[0].type, 'select-stage');
   assert.equal(socket.sent[0].stageId, 'lead-in');
-  socket.receive({ type: 'action', state: { ...f.initial, version: 1, activeStageId: 'lead-in' } });
+  socket.receive({ type: 'action', state: { ...f.initial, activeStageId: 'lead-in' } });
   assert.equal(f.settings.state.activeIndex, 1);
   socket.close();
   assert.equal(f.settings.canSelect(0), false);
@@ -232,20 +231,20 @@ test('student browses stages locally, keeps their stage on teacher answers and r
   const f = await fixture(), socket = f.sockets[0];
   const follow = f.document.getElementById('lesson-follow');
   socket.receive({ type: 'snapshot', state: f.initial });
-  socket.receive({ type: 'presence', peerPresent: true });
+  socket.receive({ type: 'presence', teacher: true, students: [null] });
   f.document.getElementById('next-stage').click();
   assert.equal(f.settings.state.activeIndex, 1);
   assert.equal(socket.sent.length, 0);
   assert.equal(follow.hidden, false);
-  socket.receive({ type: 'action', actorRole: 'teacher', state: { ...f.initial, version: 1 } });
+  socket.receive({ type: 'action', own: false, state: { ...f.initial } });
   assert.equal(f.settings.state.activeIndex, 1);
   f.document.getElementById('lesson-follow-return').click();
   assert.equal(f.settings.state.activeIndex, 0);
   assert.equal(follow.hidden, true);
   f.document.getElementById('next-stage').click();
-  socket.receive({ type: 'presence', peerPresent: false });
+  socket.receive({ type: 'presence', teacher: false, students: [null] });
   assert.equal(follow.hidden, true);
-  socket.receive({ type: 'action', actorRole: 'teacher', state: { ...f.initial, version: 2, activeStageId: 'target-vocabulary' } });
+  socket.receive({ type: 'action', own: false, state: { ...f.initial, activeStageId: 'target-vocabulary' } });
   assert.equal(f.settings.state.activeIndex, 2);
   assert.equal(f.document.getElementById('lesson-toast').textContent, 'Учитель перешёл на этап «Target Vocabulary».');
 });
@@ -271,20 +270,20 @@ test('student answers carry the stage they are looking at', async () => {
 
 test('student mounts revealed content, removes hidden content and restores it after reconnect', async () => {
   const f = await fixture(), socket = f.sockets[0];
-  const state = { ...f.initial, activeStageId: 'lead-in', version: 1 };
+  const state = { ...f.initial, activeStageId: 'lead-in' };
   socket.receive({ type: 'snapshot', state });
   const container = f.document.getElementById('stage-components');
   const hidden = container.children[0];
   const shownLesson = structuredClone(f.lesson);
   shownLesson.content.stages[1].content.push({ type: 'markdownCard', id: 'answers', studentVisibility: 'controlled' });
-  socket.receive({ type: 'action', actorRole: 'teacher', state: { ...state, version: 2, visibleCards: { answers: true } }, lesson: shownLesson });
+  socket.receive({ type: 'action', own: false, state: { ...state, visibleCards: { answers: true } }, lesson: shownLesson });
   const shown = container.children[0];
   assert.notEqual(shown, hidden);
-  socket.receive({ type: 'action', actorRole: 'teacher', state: { ...state, version: 3, visibleCards: { answers: false } } });
+  socket.receive({ type: 'action', own: false, state: { ...state, visibleCards: { answers: false } } });
   assert.notEqual(container.children[0], shown);
   socket.close();
   for (const timer of [...f.timers.values()]) timer();
-  f.sockets[1].receive({ type: 'snapshot', state: { ...state, version: 4, visibleCards: { answers: true } }, lesson: shownLesson });
+  f.sockets[1].receive({ type: 'snapshot', state: { ...state, visibleCards: { answers: true } }, lesson: shownLesson });
   assert.equal(f.settings.state.activeIndex, 1);
   assert.equal(f.settings.state.lesson.stages[1].content[0].id, 'answers');
 });
@@ -303,10 +302,9 @@ for (const role of ['teacher', 'student']) test(`${role}: reading queue preserve
   onAction({ ...action, value: 'right' });
   assert.equal(f.frames.at(-1).answers.question.status, 'correct');
   assert.equal(socket.sent.length, 1);
-  const wrong = { ...f.initial, version: 1, exercises: { choice: { answers: { question: { value: 'wrong', status: 'wrong' } } } } };
+  const wrong = { ...f.initial, exercises: { choice: { answers: { question: { value: 'wrong', status: 'wrong' } } } } };
   socket.receive({ type: 'action', state: wrong });
   assert.equal(socket.sent.length, 2);
-  assert.equal(socket.sent[1].expectedVersion, 1);
   assert.equal(f.frames.at(-1).answers.question.status, 'correct');
   socket.receive({ type: 'action-error', state: wrong, error: 'Conflict' });
   assert.equal(f.frames.at(-1).answers.question.status, 'wrong');
@@ -328,7 +326,7 @@ for (const role of ['teacher', 'student']) for (const type of ['gapFill', 'miniS
   for (const [index, value] of ['a', 'ab'].entries()) {
     assert.equal(socket.sent[index].value, value);
     confirmed = require('../assets/components/exercise-state.js').apply(quiz.presentation, confirmed, socket.sent[index]);
-    socket.receive({ type: 'action', state: { ...f.initial, version: index + 1, exercises: { choice: confirmed } } });
+    socket.receive({ type: 'action', state: { ...f.initial, exercises: { choice: confirmed } } });
     assert.equal(f.frames.at(-1).answers['sentence-1'].value, 'abc');
   }
   assert.equal(socket.sent.length, 3);
@@ -356,9 +354,9 @@ test('guided cards flip locally and survive session confirmations and reconnect 
     flipper.click();
     assert.equal(flipper.getAttribute('aria-expanded'), 'true');
     assert.equal(socket.sent.length, 0);
-    socket.receive({ type: 'action', state: { ...f.initial, version: 1 } });
+    socket.receive({ type: 'action', state: { ...f.initial } });
     socket.close();
-    socket.receive({ type: 'snapshot', state: { ...f.initial, version: 1 } });
+    socket.receive({ type: 'snapshot', state: { ...f.initial } });
     assert.equal(container.children[0], node);
     assert.equal(flipper.getAttribute('aria-expanded'), 'true');
     assert.equal(socket.sent.length, 0);
@@ -374,11 +372,11 @@ test('stage reset is teacher-only, waits for acknowledgement and disables during
   assert.equal(button.disabled, true);
   socket.receive({ type: 'snapshot', state: f.initial });
   button.click();
-  assert.deepEqual(JSON.parse(JSON.stringify(socket.sent[0])), { type: 'reset-stage', stageId: 'warm-up', expectedVersion: 0 });
+  assert.deepEqual(JSON.parse(JSON.stringify(socket.sent[0])), { type: 'reset-stage', stageId: 'warm-up' });
   assert.equal(button.disabled, true);
   button.click();
   assert.equal(socket.sent.length, 1);
-  socket.receive({ type: 'action', resetStageId: 'warm-up', state: { ...f.initial, version: 1 } });
+  socket.receive({ type: 'action', resetStageId: 'warm-up', state: { ...f.initial } });
   assert.equal(button.disabled, false);
   assert.equal(f.document.getElementById('lesson-toast').textContent, 'Прогресс на этой странице сброшен.');
   socket.close();
@@ -401,7 +399,7 @@ for (const role of ['teacher', 'student']) test(`${role}: confirmed reset remoun
   const before = container.children[0];
   before.children[0].children[0].children[0].click();
   assert.equal(before.children[0].children[0].children[0].getAttribute('aria-expanded'), 'true');
-  socket.receive({ type: 'action', actorRole: 'teacher', resetStageId: 'reading', state: { ...f.initial, version: 1 } });
+  socket.receive({ type: 'action', own: role === 'teacher', resetStageId: 'reading', state: { ...f.initial } });
   assert.notEqual(container.children[0], before);
   assert.equal(container.children[0].children[0].children[0].children[0].getAttribute('aria-expanded'), 'false');
   assert.equal(socket.sent.length, 0);
@@ -415,8 +413,37 @@ test('pointer events and errors never acknowledge or drop queued exercise answer
   socket.receive({ type: 'pointer', target: null, revision: 1 });
   socket.receive({ type: 'pointer-error', error: 'Недоступная цель' });
   assert.equal(socket.sent.length, 1);
-  socket.receive({ type: 'action', state: { ...f.initial, version: 1 } });
+  socket.receive({ type: 'action', state: { ...f.initial } });
   assert.equal(socket.sent.length, 2);
   assert.equal(socket.sent[1].optionId, 'b');
-  assert.equal(socket.sent[1].expectedVersion, 1);
+});
+
+test('group teacher sees who is in, a lost race for an answer stays quiet and the panel has only the chat', async () => {
+  let panel;
+  const SessionPanel = { create(options) { panel = options; return { presence() {}, syncChat() {}, receiveChat() {} }; } };
+  const f = await fixture('teacher', null, { SessionPanel }, { isGroup: true }), socket = f.sockets[0];
+  assert.equal(panel.group, true);
+  socket.receive({ type: 'snapshot', state: f.initial });
+  socket.receive({ type: 'presence', teacher: true, students: ['Маша', 'Петя'] });
+  assert.equal(f.status.children[0].textContent, 'В классе: Маша, Петя');
+  assert.equal(f.status.title, 'В классе: Маша, Петя');
+  assert.equal(f.status.dataset.state, 'connected');
+  socket.receive({ type: 'presence', teacher: true, students: [] });
+  assert.equal(f.status.children[0].textContent, 'Ожидаем учеников');
+  const { onAction } = f.settings.componentOptions({ type: 'thisOrThat', id: 'choice' });
+  onAction({ type: 'select-option', componentId: 'choice', itemId: 'pair', optionId: 'a' });
+  socket.receive({ type: 'action-error', conflict: true, error: 'Ответ уже верный.', state: f.initial });
+  assert.equal(f.document.getElementById('lesson-toast').textContent, '');
+  onAction({ type: 'select-option', componentId: 'choice', itemId: 'pair', optionId: 'b' });
+  assert.equal(socket.sent.length, 2, 'the queue is free again after a conflict');
+  socket.receive({ type: 'action-error', error: 'Некорректное действие.', state: f.initial });
+  assert.equal(f.document.getElementById('lesson-toast').textContent, 'Некорректное действие.');
+});
+test('a student of a full group waits for a free place', async () => {
+  const f = await fixture('student', null, {}, { isGroup: true }), notice = f.document.getElementById('lesson-connection');
+  f.sockets[0].close(4003, 'В занятии уже 8 учеников.');
+  assert.equal(notice.textContent, 'В занятии уже 8 учеников. Подключимся автоматически, как только место освободится.');
+  assert.equal(f.status.children[0].textContent, 'Мест нет');
+  for (const timer of [...f.timers.values()]) timer();
+  assert.equal(f.sockets.length, 2);
 });

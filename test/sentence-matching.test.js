@@ -52,9 +52,10 @@ test('wrong attempt keeps selection; role projections and authoritative reducer 
     assert.deepEqual(state.exercises[source.id].matches, local.matches);
     assert.deepEqual(state.exercises[source.id].rightOrder, local.rightOrder);
   }
-  for (const attempt of [action(0), action(2, 1), { ...action(2), targetId: 'missing' }, { ...action(2), type: 'bad' }]) {
-    assert.throws(() => model.apply(projected, local, attempt), { statusCode: 400 });
+  for (const attempt of [action(0), action(2, 1), { ...action(2), targetId: 'missing' }]) {
+    assert.throws(() => model.apply(projected, local, attempt), { statusCode: 409 });
   }
+  assert.throws(() => model.apply(projected, local, { ...action(2), type: 'bad' }), { statusCode: 400 });
   assert.throws(() => applyComponentAction({ component: source, state, role: 'guest', action: action(2) }), { statusCode: 403 });
   clearComponentState({ component: source, state }); assert.equal(state.exercises[source.id], undefined);
 });

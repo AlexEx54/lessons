@@ -437,15 +437,25 @@
       video.load(); setLoading(Boolean(current.videoSrc)); paint();
     }
     let peerUpdated = 0;
+    // In a group every student reports their own playback under their name, one line each.
+    const groupPeers = new Map();
+    const playback = message => `${fmt(message.position)}${message.blocked ? ' · требуется включить просмотр' : message.buffering ? ' · загружается…' : message.paused ? ' · пауза' : ''}`;
+    function showPeers() {
+      const now = Date.now();
+      for (const [name, peer] of groupPeers) if (now - peer.at > 3500) groupPeers.delete(name);
+      if (groupPeers.size) peerStatus.textContent = [...groupPeers].sort(([a], [b]) => a.localeCompare(b, 'ru')).map(([name, peer]) => `${name} ${peer.text}`).join('\n');
+      else if (now - peerUpdated > 3500) peerStatus.textContent = peerPresent ? 'Позиция ученика недоступна' : 'Ученик не подключён';
+    }
     const timer = live ? root.setInterval(() => {
       report(true);
-      if (align && Date.now() - peerUpdated > 3500) { peerStatus.textContent = peerPresent ? 'Позиция ученика недоступна' : 'Ученик не подключён'; }
+      if (align) showPeers();
     }, 1000) : null;
     section.receiveMedia = message => {
       if (message.type === 'media-status') {
         if (!align) return;
         peerUpdated = Date.now();
-        peerStatus.textContent = `Позиция ученика: ${fmt(message.position)}${message.blocked ? ' · требуется включить просмотр' : message.buffering ? ' · загружается…' : message.paused ? ' · пауза' : ''}`;
+        if (message.name) { groupPeers.set(message.name, { text: playback(message), at: peerUpdated }); showPeers(); }
+        else peerStatus.textContent = `Позиция ученика: ${playback(message)}`;
         return;
       }
       if (message.revision <= revision) return;
@@ -462,7 +472,7 @@
       const connectionChanged = connected !== value;
       connected = value; peerPresent = peer;
       if (connectionChanged) renderQuestion();
-      if (!connected || !peerPresent) { pause(); peerUpdated = 0; if (align) { peerStatus.textContent = 'Ученик не подключён'; } }
+      if (!connected || !peerPresent) { pause(); peerUpdated = 0; groupPeers.clear(); if (align) { peerStatus.textContent = 'Ученик не подключён'; } }
       paint();
     };
     section.dispose = () => { disposed = true; root.clearTimeout(seekCommitTimer); root.clearTimeout(loadingTimer); clearFeedbackTimer(); if (timer) root.clearInterval(timer); pause(); video.removeAttribute('src'); video.load(); };

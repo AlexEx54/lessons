@@ -135,8 +135,9 @@ for (const channel of ['sessions', 'notes']) test(`${channel}: occupied student 
   const recovered = connect(firstCookie); const initial = await recovered.next(initialType);
   recovered.send(JSON.stringify({ type: 'diagnostic', event: 'socket-open', previousCloseCode: 1006, hidden: false, body: 'DO-NOT-LOG' }));
   if (channel === 'sessions') {
-    teacherSocket.send(JSON.stringify({ type: 'select-stage', stageId: initial.availableStageIds.find(id => id !== initial.state.activeStageId), expectedVersion: initial.state.version }));
-    assert.equal((await recovered.next('action')).state.version, initial.state.version + 1);
+    const stageId = initial.availableStageIds.find(id => id !== initial.state.activeStageId);
+    teacherSocket.send(JSON.stringify({ type: 'select-stage', stageId }));
+    assert.equal((await recovered.next('action')).state.activeStageId, stageId);
   } else {
     const doc = new Y.Doc();
     Y.applyUpdate(doc, Buffer.from(initial.state, 'base64'));

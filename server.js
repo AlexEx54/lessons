@@ -1849,6 +1849,7 @@ async function handleRequest(req, res) {
     const role = new URL(req.url, 'http://localhost').searchParams.get('role');
     const access = ['teacher', 'student'].includes(role) && authorizeSession(req, sessionCall[1], database, role);
     if (!access) { json(res, 403, { error: 'Откройте действующую ссылку на класс.' }); return; }
+    if (access.isGroup) { json(res, 403, { error: 'В групповом занятии звонка пока нет.' }); return; }
     json(res, 200, {
       iceServers: getIceServers(`${role}-${access.sessionId.slice(0, 8)}`),
       names: {

@@ -374,7 +374,7 @@ test('any stage with content opens in a session, and the homework there is saved
   const teacherAccess = { role: 'teacher', sessionId: session.id, ownerId: teacher.id };
   const studentAccess = { ...teacherAccess, role: 'student' };
   let version = 0;
-  const act = (access, action) => applyAction(access, { stageId: 'homework', componentId: homework.id, expectedVersion: version++, ...action }, db);
+  const act = (access, action) => applyAction(access, { stageId: 'homework', componentId: homework.id, ...action }, db);
 
   assert.ok(sessionPayload(studentAccess, db).availableStageIds.includes('homework'));
   act(teacherAccess, { type: 'select-stage' });

@@ -11,7 +11,7 @@ const SESSION = '11111111-2222-3333-4444-555555555555';
 
 // Runs the real panel and call with fake call modules and a fake chat; each join records the media and connection it created.
 function setup({ role = 'teacher', stored = {}, callInfo = { status: 200, body: { names: { teacher: 'Анна', student: 'Маша' } } },
-  endStatus = 200 } = {}) {
+  endStatus = 200, group = false } = {}) {
   const document = createDocument();
   const toasts = [], requests = [], calls = [], windowListeners = {};
   const chat = { log: [] };
@@ -62,7 +62,10 @@ function setup({ role = 'teacher', stored = {}, callInfo = { status: 200, body: 
   const context = vm.createContext({ window, document, fetch, navigator: { mediaDevices: { getDisplayMedia() {} } },
     MediaStream: class { constructor(tracks) { this.tracks = tracks; } } });
   sources.forEach(source => vm.runInContext(source, context));
-  const panel = window.SessionPanel.create({ sessionId: SESSION, role, notify: text => toasts.push(text) });
+  const icon = document.createElement('svg');
+  icon.append(document.createElement('path'));
+  document.getElementById('call-toggle').append(icon);
+  const panel = window.SessionPanel.create({ sessionId: SESSION, role, notify: text => toasts.push(text), group });
   const byId = id => document.getElementById(id);
   const press = key => document.listeners.keydown.forEach(listener => listener({ key }));
   return { panel, chat, document, byId, toasts, requests, calls, storage, windowListeners, snapshot, press,
@@ -265,4 +268,17 @@ test('a refused call info keeps the join button off and explains why', async () 
   assert.equal(s.byId('call-note').textContent, 'Откройте действующую ссылку на класс.');
   s.byId('call-join').click();
   assert.equal(s.calls.length, 0);
+});
+
+test('a group session panel has only the chat and never asks for the call', async () => {
+  const s = setup({ group: true });
+  await s.settle();
+  assert.equal(s.byId('call-tab').hidden, true);
+  assert.deepEqual([s.byId('call-section').hidden, s.byId('chat-section').hidden, s.chat.visible], [true, false, true]);
+  assert.equal(s.byId('call-toggle-label').textContent, 'Чат');
+  assert.match(s.byId('call-toggle').querySelector('path').getAttribute('d'), /^M21 12a8 8/, 'the header button shows a speech bubble');
+  assert.deepEqual([s.requests, s.calls], [[], []]);
+  s.byId('call-panel-tabs').listeners.keydown.forEach(listener => listener({ key: 'Home', preventDefault() {} }));
+  assert.equal(s.byId('chat-tab').getAttribute('aria-selected'), 'true');
+  s.panel.presence({ teacher: true, student: true });
 });

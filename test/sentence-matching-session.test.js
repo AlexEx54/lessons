@@ -22,16 +22,16 @@ test('matching selection, order and pairs persist across reopen and stage change
   const lesson = createClassSession({ className: 'Grammar', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const access = { role: 'teacher', sessionId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };
   let state = readState(lesson.id, db);
-  const select = stageId => { state = applyAction(access, { type: 'select-stage', stageId, expectedVersion: state.version }, db); };
+  const select = stageId => { state = applyAction(access, { type: 'select-stage', stageId }, db); };
   const task = sessionPayload(student, db).lesson.content.stages[5].content.find(item => item.type === 'sentenceMatching').presentation;
   const action = { type: 'match-word', stageId: 'grammar-focus', componentId: task.id,
     itemId: task.items[2].id, targetId: task.answerKey[task.items[2].id], attemptId: crypto.randomUUID() };
   select('grammar-focus');
-  state = applyAction(student, { ...action, expectedVersion: state.version }, db);
+  state = applyAction(student, action, db);
   assert.equal(state.exercises[task.id].rightOrder[2], action.targetId);
-  assert.throws(() => applyAction(student, { ...action, expectedVersion: state.version - 1 }, db), { statusCode: 409 });
+  assert.throws(() => applyAction(student, action, db), { statusCode: 409 });
   state = applyAction(access, { type: 'select-word', stageId: 'grammar-focus', componentId: task.id,
-    itemId: task.items[0].id, expectedVersion: state.version }, db);
+    itemId: task.items[0].id }, db);
   select('warm-up'); select('grammar-focus');
   db.close(); db = openDatabase(databasePath);
   assert.deepEqual(readState(lesson.id, db), state);
@@ -39,7 +39,7 @@ test('matching selection, order and pairs persist across reopen and stage change
   assert.deepEqual(learner.state.exercises, tutor.state.exercises);
   assert.deepEqual(learner.lesson.content.stages[5].content.find(item => item.type === 'sentenceMatching').presentation, task);
   assert.deepEqual(tutor.lesson.content.stages[5].content.find(item => item.type === 'sentenceMatching').presentation, task);
-  state = applyAction(access, { type: 'reset-stage', stageId: 'grammar-focus', expectedVersion: state.version }, db);
+  state = applyAction(access, { type: 'reset-stage', stageId: 'grammar-focus' }, db);
   assert.equal(readState(lesson.id, db).exercises[task.id], undefined);
   assert.deepEqual(sessionPayload(student, db).lesson.content.stages[5].content.find(item => item.type === 'sentenceMatching').presentation, task);
 });

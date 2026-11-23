@@ -11,7 +11,8 @@
   const viewedStageId = () => viewState.lesson?.stages[viewState.activeIndex]?.id;
   const stageIndex = stageId => viewState.lesson.stages.findIndex(stage => stage.id === stageId);
   let availableStageIds = [];
-  let peerPresent = false;
+  // For the teacher: whether any student is in; for a student: whether the teacher is.
+  let peerPresent = false, isGroup = false;
   // Playback is synchronised only on the teacher's stage; elsewhere the video plays locally.
   function sendMedia(message) {
     if (connected && socket?.readyState === WebSocket.OPEN && viewedStageId() === confirmed.activeStageId) socket.send(JSON.stringify({ ...message, stageId: confirmed.activeStageId }));
@@ -23,7 +24,7 @@
   };
   const pointer = window.ClassPointer?.create({ role, notify, send: sendEphemeral });
   const reactions = window.ClassReactions?.create({ send: sendEphemeral });
-  const panel = window.SessionPanel?.create({ sessionId, role, notify });
+  let panel = null;
   const adapters = window.ClassComponentAdapters;
   const status = byId('teacher-screen');
   status.disabled = true;
@@ -40,7 +41,10 @@
     notice.textContent = text || '';
     notice.dataset.state = state || '';
   };
-  const slotTakenNotice = 'Место ученика занято другим устройством. Возможно, ссылка ученика открыта в другой вкладке. Подключимся автоматически, как только место освободится.';
+  // A full group says so in the close reason, e.g. «В занятии уже 8 учеников.»
+  const slotTakenNotice = reason => isGroup
+    ? `${reason} Подключимся автоматически, как только место освободится.`
+    : 'Место ученика занято другим устройством. Возможно, ссылка ученика открыта в другой вкладке. Подключимся автоматически, как только место освободится.';
   const resetButton = byId('reset-stage-progress');
   resetButton.hidden = role !== 'teacher';
   resetButton.disabled = true;
@@ -151,10 +155,23 @@
     paint();
     feedback = false;
   }
+  // The teacher of a group sees who is in; everyone else sees whether the other side is.
+  function receivePresence({ teacher, students }) {
+    peerPresent = role === 'teacher' ? students.length > 0 : teacher;
+    paint();
+    if (role === 'teacher' && isGroup) {
+      setStatus(peerPresent ? `В классе: ${students.join(', ')}` : 'Ожидаем учеников', peerPresent ? 'connected' : 'waiting');
+      return;
+    }
+    setStatus(
+      peerPresent ? (role === 'teacher' ? 'Ученик подключён' : 'Учитель подключён') : (role === 'teacher' ? 'Ожидаем ученика' : 'Ожидаем учителя'),
+      peerPresent ? 'connected' : 'waiting',
+    );
+  }
   function flush() {
     if (!connected || inFlight || !pending.length || socket?.readyState !== WebSocket.OPEN) return;
     inFlight = true;
-    socket.send(JSON.stringify({ ...pending[0], expectedVersion: confirmed.version }));
+    socket.send(JSON.stringify(pending[0]));
   }
   function connect() {
     if (stopped) return;
@@ -183,22 +200,15 @@
       if (message.type === 'reaction') { reactions?.receive(message); return; }
       if (message.type === 'call-presence') { panel?.presence(message); return; }
       if (message.type === 'chat-message') { panel?.receiveChat(message.message); return; }
-      if (message.type === 'presence') {
-        peerPresent = message.peerPresent;
-        paint();
-        setStatus(
-          message.peerPresent ? (role === 'teacher' ? 'Ученик подключён' : 'Учитель подключён') : (role === 'teacher' ? 'Ожидаем ученика' : 'Ожидаем учителя'),
-          message.peerPresent ? 'connected' : 'waiting',
-        );
-        return;
-      }
+      if (message.type === 'presence') { receivePresence(message); return; }
       if (!['snapshot', 'action', 'action-error'].includes(message.type)) return;
       if (message.type === 'snapshot') { connected = true; reconnectDelay = 500; slotTaken = false; showNotice(null); panel?.presence(message.callPresence); panel?.syncChat(); }
-      if (inFlight && ((message.type === 'action' && message.actorRole === role) || message.type === 'action-error')) {
+      if (inFlight && (message.own || message.type === 'action-error')) {
         pending.shift();
         inFlight = false;
       }
-      if (message.type === 'action-error') { pending = []; notify(message.error); }
+      // A conflict means another participant answered first; the fresh state below says it all.
+      if (message.type === 'action-error') { pending = []; if (!message.conflict) notify(message.error); }
       receiveState(message);
       if (message.type === 'action' && message.resetStageId && role === 'teacher') notify('Прогресс на этой странице сброшен.');
       flush();
@@ -222,8 +232,8 @@
     // The student slot is held by another device; it may free up, so keep polling instead of giving up.
     if (event.code === 4003) {
       slotTaken = true;
-      setStatus('Место ученика занято', 'lost');
-      showNotice(slotTakenNotice, 'waiting');
+      setStatus(isGroup ? 'Мест нет' : 'Место ученика занято', 'lost');
+      showNotice(slotTakenNotice(event.reason), 'waiting');
       scheduleReconnect(5000);
       return;
     }
@@ -255,6 +265,8 @@
       confirmed = payload.state;
       pointerComponentIds = payload.pointerComponentIds || [];
       availableStageIds = payload.availableStageIds;
+      isGroup = Boolean(payload.isGroup);
+      panel = window.SessionPanel?.create({ sessionId, role, notify, group: isGroup });
       if (payload.classPath) showClassLinks(payload.classPath);
       view.render(payload.lesson.content);
       window.LessonNotes?.mount({ mode: 'class', id: sessionId, role });

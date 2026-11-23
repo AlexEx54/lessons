@@ -36,14 +36,14 @@ test('card order and sorted cards persist across reopen; reset clears the cards 
   assert.deepEqual(presentation(access), task);
   assert.equal(sessionPayload(student, db).state._layouts, undefined);
   let state = readState(lesson.id, db);
-  const act = (who, fields) => { state = applyAction(who, { stageId: 'warm-up', expectedVersion: state.version, ...fields }, db); };
+  const act = (who, fields) => { state = applyAction(who, { stageId: 'warm-up', ...fields }, db); };
   const sort = (who, itemId, targetId) => act(who, { type: 'match-word', componentId: exercise.id, itemId, targetId, attemptId: crypto.randomUUID() });
   act(student, { type: 'select-word', componentId: exercise.id, itemId: 'wanted' });
   sort(student, 'wanted', 't');
   sort(access, 'worked', 't');
   sort(student, 'wanted', 'id');
   assert.deepEqual(state.exercises[exercise.id].placed, ['worked', 'wanted']);
-  assert.throws(() => sort(student, 'worked', 't'), { statusCode: 400 });
+  assert.throws(() => sort(student, 'worked', 't'), { statusCode: 409 });
   db.close(); db = openDatabase(databasePath);
   assert.deepEqual(readState(lesson.id, db), state);
   assert.deepEqual(sessionPayload(student, db).state.exercises, sessionPayload(access, db).state.exercises);
