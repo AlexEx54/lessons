@@ -2978,6 +2978,7 @@ const classLiveSignaling = createClassLiveSignaling({ database,
   callPresence: sessionId => videoCallSignaling.sessionPresence(sessionId) });
 const sessionChat = require('./lib/session-chat.js').createSessionChat({
   database, broadcast: (sessionId, payload) => classLiveSignaling.broadcast(sessionId, payload),
+  present: (sessionId, identity) => classLiveSignaling.present(sessionId, identity),
 });
 const notesSignaling = require('./lib/lesson-notes-signaling.js').createNotesSignaling({ database });
 server.on('upgrade', (req, socket, head) => {

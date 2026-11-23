@@ -124,7 +124,7 @@ test('session chat: class access, server-side names, delivery over the lesson so
 });
 
 test('group session chat: each student writes under their name and sees only their own messages as theirs', { timeout: 20000 }, async t => {
-  const { db, teacherCookie, makeSession, send, history } = await start(t);
+  const { db, teacherCookie, makeSession, send, history, connect } = await start(t);
   const lesson = makeSession('Группа B1', true);
   const token = lesson.classInvitePath.split('/').at(-1);
   const student = name => {
@@ -132,7 +132,11 @@ test('group session chat: each student writes under their name and sees only the
     pickStudent({ headers: { cookie } }, token, { name }, db);
     return cookie;
   };
-  const masha = student('Маша'), petya = student('Петя');
+  const masha = student('Маша'), petya = student('Петя'), olya = student('Оля');
+  // A student waiting for a place in the lesson, here one who has not entered it, has no chat yet.
+  const refused = await send(lesson.id, 'student', olya, { text: 'Am I in?' });
+  assert.deepEqual([refused.status, (await refused.json()).error], [403, 'Чат откроется, когда вы войдёте в занятие.']);
+  for (const cookie of [masha, petya]) await connect(`/ws/sessions/${lesson.id}?role=student`, cookie).next('snapshot');
   const sent = await (await send(lesson.id, 'student', masha, { text: 'Hello!', name: 'Подмена' })).json();
   assert.deepEqual([sent.message.name, sent.message.mine], ['Маша', true]);
   await send(lesson.id, 'student', petya, { text: 'Hi!' });
