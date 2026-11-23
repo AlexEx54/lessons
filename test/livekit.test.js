@@ -31,7 +31,7 @@ test('the browser connects to LiveKit itself locally and to the configured addre
   assert.equal(createLiveKit({ ...env, LIVEKIT_PUBLIC_URL: 'wss://www.example.ru' }).publicUrl, 'wss://www.example.ru');
 });
 
-test("a participant's token lets them into one room for ten minutes, with camera, microphone and screen", () => {
+test("a participant's token lets them into one room for ten minutes, with camera, microphone and screen with its sound", () => {
   const before = Math.floor(Date.now() / 1000);
   const token = createLiveKit(env).token({ room: 'session:1', identity: 'student-1', name: 'Маша', metadata: { role: 'student' } });
   const [header, claims] = decode(token);
@@ -39,7 +39,7 @@ test("a participant's token lets them into one room for ten minutes, with camera
   assert.ok(claims.nbf >= before && claims.exp === claims.nbf + TOKEN_TTL_SECONDS);
   assert.deepEqual({ ...claims, nbf: 0, exp: 0 }, { iss: 'key', sub: 'student-1', name: 'Маша', metadata: '{"role":"student"}', nbf: 0, exp: 0,
     video: { room: 'session:1', roomJoin: true, canPublish: true, canSubscribe: true, canPublishData: true,
-      canPublishSources: ['camera', 'microphone', 'screen_share'] } });
+      canPublishSources: ['camera', 'microphone', 'screen_share', 'screen_share_audio'] } });
 });
 
 test('the room API is called over Twirp with a short-lived admin token', async t => {

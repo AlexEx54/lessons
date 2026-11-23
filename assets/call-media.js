@@ -522,6 +522,8 @@
       track,
       outboundAudioTrack,
       outboundVideoTrack,
+      // The sound of the shared screen on its own, for a call that sends it apart from the microphone.
+      screenAudioTrack: () => (screenTrack && displayStream?.getAudioTracks().find(item => item.readyState === 'live')) || null,
       videoSource,
       previewTrack,
       get preparation() { return { ...preparation }; },

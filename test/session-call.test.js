@@ -9,11 +9,12 @@ const { createDocument } = require('./helpers/lesson-dom');
 const sources = ['session-call.js', 'session-panel.js'].map(file => fs.readFileSync(path.join(__dirname, '../assets', file), 'utf8'));
 const SESSION = '11111111-2222-3333-4444-555555555555';
 
-// Runs the real panel and call with fake call modules and a fake chat; each join records the media and connection it created.
+// Runs the real panel and call with fake call modules and a fake chat; each join records the media and connection
+// (or, in a group, the room) it created.
 function setup({ role = 'teacher', stored = {}, callInfo = { status: 200, body: { names: { teacher: 'Анна', student: 'Маша' } } },
-  endStatus = 200, group = false } = {}) {
+  endStatus = 200, commandStatus = 200, group = false } = {}) {
   const document = createDocument();
-  const toasts = [], requests = [], calls = [], windowListeners = {};
+  const toasts = [], requests = [], bodies = [], calls = [], windowListeners = {};
   const chat = { log: [] };
   const storage = { ...stored };
   const snapshot = { microphone: true, camera: true, screen: false, screenShareBusy: false, screenAudioStatus: '',
@@ -44,6 +45,16 @@ function setup({ role = 'teacher', stored = {}, callInfo = { status: 200, body: 
         return connection;
       },
     },
+    CallRoom: {
+      create(options) {
+        const room = { options, log: [], state: 'connecting', peerList: [], blocked: false,
+          peers: () => room.peerList, status: () => room.state, audioBlocked: () => room.blocked,
+          join() { room.log.push('join'); }, close() { room.log.push('close'); }, sync() {},
+          startAudio() { room.log.push('start-audio'); } };
+        calls.at(-1).room = room;
+        return room;
+      },
+    },
     CallChat: {
       create(options) {
         chat.options = options;
@@ -56,7 +67,9 @@ function setup({ role = 'teacher', stored = {}, callInfo = { status: 200, body: 
   };
   async function fetch(url, options = {}) {
     requests.push(`${options.method || 'GET'} ${url}`);
+    if (options.body) bodies.push(JSON.parse(options.body));
     if (url.endsWith('/call/end')) return { ok: endStatus === 200, json: async () => ({}) };
+    if (/\/call\/(mute|remove)$/.test(url)) return { ok: commandStatus === 200, json: async () => (commandStatus === 200 ? { done: true } : { error: 'Ученика нет в звонке.' }) };
     return { ok: callInfo.status === 200, json: async () => callInfo.body };
   }
   const context = vm.createContext({ window, document, fetch, navigator: { mediaDevices: { getDisplayMedia() {} } },
@@ -65,10 +78,11 @@ function setup({ role = 'teacher', stored = {}, callInfo = { status: 200, body: 
   const icon = document.createElement('svg');
   icon.append(document.createElement('path'));
   document.getElementById('call-toggle').append(icon);
+  document.getElementById('call-tiles').append(document.getElementById('call-remote-tile'), document.getElementById('call-local-tile'));
   const panel = window.SessionPanel.create({ sessionId: SESSION, role, notify: text => toasts.push(text), group });
   const byId = id => document.getElementById(id);
   const press = key => document.listeners.keydown.forEach(listener => listener({ key }));
-  return { panel, chat, document, byId, toasts, requests, calls, storage, windowListeners, snapshot, press,
+  return { panel, chat, document, byId, toasts, requests, bodies, calls, storage, windowListeners, snapshot, press,
     current: () => calls.at(-1), settle: () => new Promise(setImmediate),
     unload() { const event = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
       windowListeners.beforeunload.forEach(listener => listener(event)); return event.defaultPrevented; } };
@@ -270,15 +284,152 @@ test('a refused call info keeps the join button off and explains why', async () 
   assert.equal(s.calls.length, 0);
 });
 
-test('a group session panel has only the chat and never asks for the call', async () => {
+// A participant of a group call as CallRoom reports them; video is a LiveKit track the tile attaches.
+const peer = (identity, name, fields = {}) => ({ identity, name, teacher: false, audio: true, camera: true, screen: null,
+  video: { attached: [], attach(element) { this.attached.push(element); }, detach(element) { this.attached = this.attached.filter(item => item !== element); } },
+  speaking: false, ...fields });
+const peerTilesOf = s => s.byId('call-tiles').children.filter(tile => !tile.hidden && tile !== s.byId('call-local-tile'));
+const tileNames = s => peerTilesOf(s).map(tile => tile.querySelector('span').children[0].textContent);
+
+test('a group session has the call too; outside it the lobby names who is in, the student hears only about the teacher', async () => {
+  const s = setup({ role: 'student', group: true });
+  await s.settle();
+  assert.equal(s.byId('call-tab').hidden, false);
+  assert.deepEqual(s.requests, [], 'the pass is asked for only on joining');
+  assert.equal(s.byId('call-toggle-label').textContent, 'Звонок');
+  assert.equal(s.byId('call-remote-tile').hidden, true);
+  assert.equal(s.byId('call-tiles').className, 'call-tiles--group');
+
+  s.panel.presence({ teacher: false, students: [] });
+  assert.equal(s.byId('call-panel-status').textContent, 'В звонке пока никого');
+  s.panel.presence({ teacher: false, students: ['Петя'] });
+  s.panel.presence({ teacher: true, students: ['Оля', 'Петя'] });
+  assert.equal(s.byId('call-panel-status').textContent, 'Учитель, Оля и Петя уже в звонке');
+  assert.equal(s.byId('call-toggle').dataset.call, 'peer');
+  assert.deepEqual(s.toasts, ['В звонке: Учитель']);
+
+  const teacher = setup({ group: true });
+  await teacher.settle();
+  teacher.panel.presence({ teacher: true, students: [] });
+  teacher.panel.presence({ teacher: true, students: ['Маша'] });
+  assert.equal(teacher.byId('call-panel-status').textContent, 'Маша уже в звонке');
+  assert.deepEqual(teacher.toasts, ['В звонке: Маша']);
+  assert.equal(teacher.byId('call-record').parentNode, null, 'no recording in a group yet');
+});
+
+test('in a group call everyone else has a tile, and the screen of the expanded tile opens over the lesson', async () => {
+  const s = setup({ role: 'student', group: true });
+  await s.settle();
+  s.byId('call-join').click();
+  const { room, media } = s.current();
+  assert.deepEqual([room.log, media.log, room.options.endpoint], [['join'], ['prepare'], `/api/sessions/${SESSION}/call?role=student`]);
+  assert.equal(s.byId('call-panel-status').textContent, 'Подключаемся…');
+
+  room.state = 'connected';
+  room.options.onChange();
+  assert.equal(s.byId('call-panel-status').textContent, 'Пока в звонке только вы');
+  const anna = peer('teacher-1', 'Анна', { teacher: true }), olya = peer('s-2', 'Оля', { audio: false, video: null, camera: false });
+  room.peerList = [anna, olya];
+  room.options.onChange();
+  assert.equal(s.byId('call-panel-status').textContent, 'Соединение установлено');
+  assert.deepEqual(tileNames(s), ['Анна', 'Оля']);
+  assert.equal(s.byId('call-tiles').children.at(-1), s.byId('call-local-tile'), 'the own tile stays last');
+  const [annaTile, olyaTile] = peerTilesOf(s);
+  assert.equal(anna.video.attached[0], annaTile.children[0]);
+  assert.deepEqual([annaTile.querySelector('.call-tile__placeholder').hidden, olyaTile.querySelector('.call-tile__placeholder').hidden], [true, false]);
+  assert.equal(olyaTile.querySelector('span').children[1].hidden, false, 'the muted icon');
+  assert.equal(annaTile.querySelector('.call-tile__menu'), null, 'a student commands nobody');
+
+  // Оля shares her screen: it opens over the lesson once, and her tile can open it again.
+  const screen = peer('s-2', 'Оля').video;
+  room.peerList = [anna, { ...olya, screen, video: screen }];
+  room.options.onChange();
+  assert.equal(s.byId('call-stage').hidden, false);
+  assert.equal(s.byId('call-stage-name').textContent, 'Экран: Оля');
+  assert.equal(screen.attached.length, 2, 'the tile and the stage');
+  s.byId('call-stage-close').click();
+  assert.equal(s.byId('call-stage').hidden, true);
+  assert.equal(screen.attached.length, 1);
+  olyaTile.children[2].click(); // the expand button, cloned from the peer tile's
+  assert.equal(s.byId('call-stage').hidden, false);
+
+  room.peerList = [anna];
+  room.options.onChange();
+  assert.deepEqual(tileNames(s), ['Анна']);
+  assert.equal(s.byId('call-stage').hidden, true);
+
+  room.blocked = true;
+  room.options.onChange();
+  assert.equal(s.byId('call-audio').hidden, false);
+  s.byId('call-audio').click();
+  assert.deepEqual(room.log, ['join', 'start-audio']);
+});
+
+test("the teacher mutes a student's microphone or camera and removes them from the menu of their tile", async () => {
   const s = setup({ group: true });
   await s.settle();
-  assert.equal(s.byId('call-tab').hidden, true);
-  assert.deepEqual([s.byId('call-section').hidden, s.byId('chat-section').hidden, s.chat.visible], [true, false, true]);
-  assert.equal(s.byId('call-toggle-label').textContent, 'Чат');
-  assert.match(s.byId('call-toggle').querySelector('path').getAttribute('d'), /^M21 12a8 8/, 'the header button shows a speech bubble');
-  assert.deepEqual([s.requests, s.calls], [[], []]);
-  s.byId('call-panel-tabs').listeners.keydown.forEach(listener => listener({ key: 'Home', preventDefault() {} }));
-  assert.equal(s.byId('chat-tab').getAttribute('aria-selected'), 'true');
-  s.panel.presence({ teacher: true, student: true });
+  s.byId('call-join').click();
+  const { room } = s.current();
+  room.state = 'connected';
+  room.peerList = [peer('s-1', 'Маша', { camera: false, video: null }), peer('s-2', 'Петя')];
+  room.options.onChange();
+  const menuOf = index => peerTilesOf(s)[index].querySelector('.call-tile__menu');
+  menuOf(0).click();
+  assert.equal(s.byId('call-peer-menu').hidden, false);
+  assert.equal(s.byId('call-peer-menu-name').textContent, 'Маша');
+  assert.deepEqual([s.byId('call-peer-mute-microphone').disabled, s.byId('call-peer-mute-camera').disabled], [false, true]);
+  s.byId('call-peer-mute-microphone').click();
+  assert.equal(s.byId('call-peer-menu').hidden, true);
+  menuOf(1).click();
+  s.byId('call-peer-mute-camera').click();
+  menuOf(1).click();
+  s.byId('call-peer-remove').click();
+  await s.settle();
+  assert.deepEqual(s.requests.slice(-3), ['mute', 'mute', 'remove'].map(action => `POST /api/sessions/${SESSION}/call/${action}`));
+  assert.deepEqual(s.bodies, [{ identity: 's-1', source: 'microphone' }, { identity: 's-2', source: 'camera' }, { identity: 's-2' }]);
+  assert.deepEqual(s.toasts, []);
+
+  // The student left before the teacher pressed: the server's answer is shown, and a menu of a gone student closes.
+  const late = setup({ group: true, commandStatus: 404 });
+  await late.settle();
+  late.byId('call-join').click();
+  const lateRoom = late.current().room;
+  lateRoom.state = 'connected';
+  lateRoom.peerList = [peer('s-1', 'Маша')];
+  lateRoom.options.onChange();
+  peerTilesOf(late)[0].querySelector('.call-tile__menu').click();
+  late.byId('call-peer-remove').click();
+  await late.settle();
+  assert.deepEqual(late.toasts, ['Ученика нет в звонке.']);
+  peerTilesOf(late)[0].querySelector('.call-tile__menu').click();
+  lateRoom.peerList = [];
+  lateRoom.options.onChange();
+  assert.equal(late.byId('call-peer-menu').hidden, true);
+});
+
+test('a group call ends with the reason, and the teacher ends it for everyone', async () => {
+  const s = setup({ role: 'student', group: true });
+  await s.settle();
+  for (const [reason, message, note] of [['removed', undefined, 'Учитель убрал вас из звонка.'], ['ended', undefined, 'Учитель завершил звонок.'],
+    ['lost', undefined, 'Связь со звонком прервалась. Войдите снова.'], ['refused', 'Звонок откроется, когда вы войдёте в занятие.', 'Звонок откроется, когда вы войдёте в занятие.']]) {
+    s.byId('call-join').click();
+    s.current().room.options.onEnded(reason, message);
+    await s.settle();
+    assert.equal(s.byId('call-note').textContent, note);
+    assert.equal(s.byId('call-room').hidden, true);
+    assert.deepEqual([s.current().room.log, s.current().media.log], [['join', 'close'], ['prepare', 'stop']]);
+  }
+  s.byId('call-join').click();
+  s.byId('call-leave').click();
+  await s.settle();
+  assert.deepEqual(s.current().room.log, ['join', 'close']);
+  assert.equal(s.requests.length, 0, 'a student just leaves');
+
+  const teacher = setup({ group: true });
+  await teacher.settle();
+  teacher.byId('call-join').click();
+  teacher.byId('call-leave').click();
+  await teacher.settle();
+  assert.deepEqual(teacher.requests, [`POST /api/sessions/${SESSION}/call/end`]);
+  assert.deepEqual(teacher.current().room.log, ['join', 'close']);
 });

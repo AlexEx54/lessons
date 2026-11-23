@@ -183,8 +183,8 @@
           </section>
 
           <section class="call-room" id="call-room" aria-label="Звонок" hidden>
-            <div class="call-tiles">
-              <article class="call-tile call-tile--remote">
+            <div class="call-tiles" id="call-tiles">
+              <article class="call-tile call-tile--remote" id="call-remote-tile">
                 <video id="call-remote-video" autoplay playsinline></video>
                 <p class="call-tile__placeholder" id="call-remote-placeholder"></p>
                 <button class="call-tile__expand" id="call-stage-open" type="button" aria-label="Развернуть экран собеседника" title="Развернуть экран" hidden>
@@ -195,12 +195,13 @@
                   <svg class="call-tile__muted" id="call-remote-muted" viewBox="0 0 24 24" role="img" aria-label="Микрофон выключен" hidden><path d="M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V6a3 3 0 0 0-5.7-1.3M5 11v1a7 7 0 0 0 11.9 5M19 11v1a7 7 0 0 1-.4 2.3M12 19v3M4 4l16 16"/></svg>
                 </span>
               </article>
-              <article class="call-tile call-tile--local">
+              <article class="call-tile call-tile--local" id="call-local-tile">
                 <video id="call-local-video" autoplay muted playsinline></video>
                 <p class="call-tile__placeholder" id="call-local-placeholder">Камера выключена</p>
                 <span class="call-tile__label">Вы</span>
               </article>
             </div>
+            <button class="call-audio" id="call-audio" type="button" hidden>Включить звук</button>
             <div class="call-effect" id="call-effect" role="status" hidden>
               <span id="call-effect-text"></span>
               <button id="call-effect-cancel" type="button">Отменить</button>
@@ -228,6 +229,12 @@
               <button id="call-screen" type="button">Показать экран</button>
               <button id="call-record" type="button" hidden>Записать</button>
             </div>
+            <div class="call-popover call-menu" id="call-peer-menu" role="menu" aria-labelledby="call-peer-menu-name" hidden>
+              <p class="call-menu__title" id="call-peer-menu-name"></p>
+              <button id="call-peer-mute-microphone" type="button" role="menuitem">Выключить микрофон</button>
+              <button id="call-peer-mute-camera" type="button" role="menuitem">Выключить камеру</button>
+              <button id="call-peer-remove" type="button" role="menuitem">Убрать из звонка</button>
+            </div>
             <section class="call-popover call-backgrounds" id="call-backgrounds" aria-label="Фон камеры" hidden>
               <div class="call-backgrounds__options" id="call-background-options" role="radiogroup" aria-label="Выберите фон камеры"></div>
               <span class="call-backgrounds__status" id="call-background-status" role="status"></span>
@@ -241,7 +248,7 @@
         <section class="session-chat" id="chat-section" role="tabpanel" aria-labelledby="chat-tab" hidden></section>
       </aside>
 
-      <!-- Muted: the peer's sound keeps playing from the panel's tile. -->
+      <!-- Muted: the peer's sound keeps playing from the panel. -->
       <section class="call-stage" id="call-stage" aria-labelledby="call-stage-name" hidden>
         <video id="call-stage-video" autoplay muted playsinline></video>
         <span class="call-tile__label call-stage__label" id="call-stage-name"></span>
@@ -309,6 +316,7 @@
   <script src="/assets/call-recorder.js" defer></script>
   <script src="/assets/call-media.js" defer></script>
   <script src="/assets/call-connection.js" defer></script>
+  <script src="/assets/call-room.js" defer></script>
   <script src="/assets/session-call.js" defer></script>
   <script src="/assets/call-chat-links.js" defer></script>
   <script src="/assets/call-chat.js" defer></script>

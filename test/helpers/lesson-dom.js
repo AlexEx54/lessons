@@ -11,6 +11,7 @@ function createDocument() {
       removeChild(child) { this.children = this.children.filter(node => node !== child); },
       insertBefore(child, before) {
         this.removeChild(child);
+        child.parentNode = this;
         const index = before ? this.children.indexOf(before) : this.children.length;
         this.children.splice(index, 0, child);
       },
