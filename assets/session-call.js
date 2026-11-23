@@ -365,7 +365,14 @@
         parts.expand.setAttribute('aria-label', `Развернуть экран: ${peer.name}`);
         parts.menu.hidden = peer.teacher;
         parts.menu.setAttribute('aria-label', `Управление: ${peer.name}`);
-        elements.tiles.insertBefore(parts.tile, elements.localTile);
+      });
+      // The tiles stand in the order of peers before the own one. Safari blinks a playing video that is put back
+      // into the page, so a tile is moved only when it is out of place.
+      let place = elements.localTile;
+      [...peers].reverse().forEach(peer => {
+        const { tile } = peerTiles.get(peer.identity);
+        if (tile.nextElementSibling !== place) elements.tiles.insertBefore(tile, place);
+        place = tile;
       });
       peerTiles.forEach((parts, identity) => {
         if (peers.some(peer => peer.identity === identity)) return;

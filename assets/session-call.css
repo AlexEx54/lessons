@@ -61,7 +61,7 @@
 .call-effect span { flex: 1 1 auto; }
 .call-effect button { padding: 4px 10px; border-radius: 999px; color: inherit; background: #fff; font-size: 11px; font-weight: 700; }
 
-.call-controls { display: flex; justify-content: center; gap: 8px; }
+.call-controls { position: relative; display: flex; justify-content: center; gap: 8px; }
 .call-control { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 50%; color: #3f4258; background: #fff; box-shadow: 0 3px 10px rgba(31, 28, 72, .05); }
 .call-control:hover:not(:disabled) { background: #f6f5fb; }
 .call-control:disabled { opacity: .45; cursor: not-allowed; }
@@ -72,7 +72,7 @@
 .call-control--leave { color: #fff; background: #e5484d; border-color: #e5484d; }
 .call-control--leave:hover:not(:disabled) { background: #d33c41; }
 
-.call-popover { position: absolute; right: 0; bottom: 54px; left: 0; z-index: 3; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 14px 34px rgba(20, 20, 45, .16); }
+.call-popover { position: absolute; right: 0; bottom: calc(100% + 8px); left: 0; z-index: 3; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 14px 34px rgba(20, 20, 45, .16); }
 .call-menu { display: grid; gap: 2px; }
 .call-menu button { min-height: 38px; padding: 0 12px; border-radius: 8px; background: transparent; font-size: 13px; font-weight: 600; text-align: left; }
 .call-menu button:hover:not(:disabled) { background: var(--purple-soft); }
@@ -85,8 +85,7 @@
 .call-background-option[aria-checked='true'] .call-background-option__preview { border-color: var(--purple); }
 .call-background-option__preview--none::after { content: ''; position: absolute; top: -15%; left: 50%; width: 2px; height: 130%; background: #d96772; transform: rotate(55deg); }
 .call-background-option__preview--blur { background: radial-gradient(circle at 28% 25%, #b7a3ff 0 12%, transparent 33%), linear-gradient(135deg, #8f84b3, #4d4566 70%); }
-.call-backgrounds__status { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; }
-.call-backgrounds__status:empty { display: none; }
+.call-backgrounds__status { display: block; min-height: 1.4em; margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.4; }
 .call-backgrounds__status[data-state='error'] { color: #b91c1c; }
 
 /* The chat tab fills the panel: the messages scroll, the composer stays at the bottom. */
@@ -150,7 +149,6 @@
   .call-control { width: 38px; height: 38px; }
   .call-control svg { width: 18px; height: 18px; }
   .call-control[aria-pressed='false']::after { width: 21px; }
-  .call-popover { bottom: 48px; }
   /* The chat needs room to read and type: the mini window becomes a full-height sheet. */
   .lesson-chat-open .call-panel { top: 12px; width: min(380px, calc(100vw - 24px)); height: auto; max-height: none; padding-bottom: 0; overflow: hidden; }
   .session-chat { margin: 0 -10px; }

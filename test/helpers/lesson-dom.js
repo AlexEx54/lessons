@@ -23,6 +23,7 @@ function createDocument() {
         return this.parentNode?.closest(selector) || null;
       },
       remove() { this.parentNode?.removeChild(this); this.parentNode = null; },
+      get nextElementSibling() { const siblings = this.parentNode?.children || []; return siblings[siblings.indexOf(this) + 1] || null; },
       getBoundingClientRect() { return { left: 0, top: 0, width: 100, height: 40 }; },
       cloneNode() { const clone = element(tag); clone.className = this.className; clone.textContent = this.textContent; return clone; },
       getAttribute(key) { return this.attributes[key] ?? null; },

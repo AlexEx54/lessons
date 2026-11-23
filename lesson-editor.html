@@ -202,12 +202,6 @@
               </article>
             </div>
             <button class="call-audio" id="call-audio" type="button" hidden>Включить звук</button>
-            <div class="call-effect" id="call-effect" role="status" hidden>
-              <span id="call-effect-text"></span>
-              <button id="call-effect-cancel" type="button">Отменить</button>
-              <button id="call-effect-retry" type="button">Повторить</button>
-              <button id="call-effect-close" type="button" aria-label="Скрыть сообщение">×</button>
-            </div>
             <nav class="call-controls" aria-label="Управление звонком">
               <button class="call-control" id="call-mic" type="button" aria-pressed="true" aria-label="Микрофон" title="Микрофон">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z M5 11v1a7 7 0 0 0 14 0v-1 M12 19v3"/></svg>
@@ -224,21 +218,28 @@
               <button class="call-control call-control--leave" id="call-leave" type="button">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11a11 11 0 0 1 14 0 M7 10l-2 5 4 2 2-4 M17 10l2 5-4 2-2-4"/></svg>
               </button>
+              <div class="call-popover call-menu" id="call-more-menu" hidden>
+                <button id="call-screen" type="button">Показать экран</button>
+                <button id="call-record" type="button" hidden>Записать</button>
+              </div>
+              <div class="call-popover call-menu" id="call-peer-menu" role="menu" aria-labelledby="call-peer-menu-name" hidden>
+                <p class="call-menu__title" id="call-peer-menu-name"></p>
+                <button id="call-peer-mute-microphone" type="button" role="menuitem">Выключить микрофон</button>
+                <button id="call-peer-mute-camera" type="button" role="menuitem">Выключить камеру</button>
+                <button id="call-peer-remove" type="button" role="menuitem">Убрать из звонка</button>
+              </div>
+              <section class="call-popover call-backgrounds" id="call-backgrounds" aria-label="Фон камеры" hidden>
+                <div class="call-backgrounds__options" id="call-background-options" role="radiogroup" aria-label="Выберите фон камеры"></div>
+                <span class="call-backgrounds__status" id="call-background-status" role="status"></span>
+              </section>
             </nav>
-            <div class="call-popover call-menu" id="call-more-menu" hidden>
-              <button id="call-screen" type="button">Показать экран</button>
-              <button id="call-record" type="button" hidden>Записать</button>
+            <!-- Below the controls: the notice comes and goes without moving the buttons and their open menu. -->
+            <div class="call-effect" id="call-effect" role="status" hidden>
+              <span id="call-effect-text"></span>
+              <button id="call-effect-cancel" type="button">Отменить</button>
+              <button id="call-effect-retry" type="button">Повторить</button>
+              <button id="call-effect-close" type="button" aria-label="Скрыть сообщение">×</button>
             </div>
-            <div class="call-popover call-menu" id="call-peer-menu" role="menu" aria-labelledby="call-peer-menu-name" hidden>
-              <p class="call-menu__title" id="call-peer-menu-name"></p>
-              <button id="call-peer-mute-microphone" type="button" role="menuitem">Выключить микрофон</button>
-              <button id="call-peer-mute-camera" type="button" role="menuitem">Выключить камеру</button>
-              <button id="call-peer-remove" type="button" role="menuitem">Убрать из звонка</button>
-            </div>
-            <section class="call-popover call-backgrounds" id="call-backgrounds" aria-label="Фон камеры" hidden>
-              <div class="call-backgrounds__options" id="call-background-options" role="radiogroup" aria-label="Выберите фон камеры"></div>
-              <span class="call-backgrounds__status" id="call-background-status" role="status"></span>
-            </section>
           </section>
 
           <p class="call-panel__note" id="call-note" role="status" hidden></p>
