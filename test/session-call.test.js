@@ -185,7 +185,11 @@ test('the student joins with fresh media, leaves, and a late event of the old ca
   first.connection.options.onStatus('connected');
   assert.equal(s.byId('call-panel-status').textContent, 'Соединение установлено');
   assert.equal(s.byId('call-remote-name').textContent, 'Анна');
-  assert.equal(s.byId('call-remote-muted').hidden, false);
+  const mutedIcon = s.byId('call-remote-muted');
+  assert.equal(mutedIcon.getAttribute('hidden'), null);
+  first.connection.remoteState.audio = true;
+  first.connection.options.onStatus('connected');
+  assert.equal(mutedIcon.getAttribute('hidden'), '');
   s.byId('call-mic').click();
   assert.deepEqual(first.media.log, ['prepare', 'toggle:audio']);
 
@@ -361,7 +365,8 @@ test('in a group call everyone else has a tile, and the screen of the expanded t
   const [annaTile, olyaTile] = peerTilesOf(s);
   assert.equal(anna.video.attached[0], annaTile.children[0]);
   assert.deepEqual([annaTile.querySelector('.call-tile__placeholder').hidden, olyaTile.querySelector('.call-tile__placeholder').hidden], [true, false]);
-  assert.equal(olyaTile.querySelector('span').children[1].hidden, false, 'the muted icon');
+  assert.equal(olyaTile.querySelector('span').children[1].getAttribute('hidden'), null);
+  assert.equal(annaTile.querySelector('span').children[1].getAttribute('hidden'), '');
   assert.equal(annaTile.querySelector('.call-tile__menu'), null, 'a student commands nobody');
 
   // Оля shares her screen: it opens over the lesson once, and her tile can open it again.

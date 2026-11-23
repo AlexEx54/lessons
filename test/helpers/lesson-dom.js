@@ -16,6 +16,11 @@ function createDocument() {
         this.children.splice(index, 0, child);
       },
       setAttribute(key, value) { this.attributes[key] = String(value); },
+      toggleAttribute(key, force = this.getAttribute(key) === null) {
+        if (force) this.setAttribute(key, '');
+        else this.removeAttribute(key);
+        return Boolean(force);
+      },
       removeAttribute(key) { delete this.attributes[key]; },
       contains(node) { return node === this || this.children.some(child => child.contains(node)); },
       closest(selector) {

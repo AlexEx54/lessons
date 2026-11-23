@@ -337,7 +337,7 @@
       const remote = call.connection.remote();
       elements.remoteVideo.dataset.screen = String(remote.screen);
       elements.remoteName.textContent = remote.name || peerName();
-      elements.remoteMuted.hidden = !remote.present || remote.audio !== false;
+      elements.remoteMuted.toggleAttribute('hidden', !remote.present || remote.audio !== false);
       elements.remotePlaceholder.hidden = remote.videoVisible;
       if (remote.present) {
         elements.remotePlaceholder.textContent = remote.video === false && !remote.screen ? 'Камера выключена' : 'Ожидаем видео…';
@@ -391,7 +391,7 @@
         parts.video.dataset.screen = String(Boolean(peer.screen));
         parts.tile.dataset.speaking = String(peer.speaking);
         parts.name.textContent = peer.name;
-        parts.muted.hidden = peer.audio;
+        parts.muted.toggleAttribute('hidden', peer.audio);
         parts.placeholder.hidden = Boolean(peer.video);
         parts.placeholder.textContent = 'Камера выключена';
         parts.expand.title = expandLabel(peer.name, Boolean(peer.screen));
