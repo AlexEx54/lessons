@@ -104,7 +104,7 @@ test('the chat tab hides the running call, and unread messages show on the tab o
   await s.settle();
   assert.equal(s.chat.options.container, s.byId('chat-section'));
   assert.equal(s.chat.options.endpoint, `/api/sessions/${SESSION}/chat`);
-  assert.deepEqual([s.chat.options.role, { ...s.chat.options.params }], ['teacher', { role: 'teacher' }]);
+  assert.deepEqual({ ...s.chat.options.params }, { role: 'teacher' });
   assert.deepEqual([s.byId('call-section').hidden, s.byId('chat-section').hidden, s.chat.visible], [false, true, false], 'the panel opens on the call');
 
   s.chat.options.onUnread(2);

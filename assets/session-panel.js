@@ -66,7 +66,7 @@
     }
 
     const chat = window.CallChat.create({
-      container: sections.chat, role, params: { role },
+      container: sections.chat, params: { role },
       endpoint: `/api/sessions/${sessionId}/chat`,
       onUnread: count => { unread = count; render(); },
     });

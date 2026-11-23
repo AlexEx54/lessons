@@ -3,7 +3,7 @@
   // The messages, files and composer of a call chat, rendered into a container the page owns.
   // `params` go on every request (a session chat needs its role); `name()` introduces a sender the server cannot name.
   // The page decides when to sync and tells the chat whether it is visible, which drives `onUnread(count)`.
-  function create({ container, endpoint, role, params = {}, name, onUnread = () => {} }) {
+  function create({ container, endpoint, params = {}, name, onUnread = () => {} }) {
     let lastId = 0, syncing = false, again = false, unread = 0, busy = false, visible = false;
     let selected = [], attempt = null;
     const seen = new Set();
@@ -32,8 +32,10 @@
       seen.add(message.id);
       log.querySelector('.chat-empty')?.remove();
       const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 100;
+      // The lesson socket may deliver the copy of a message being sent before the server answers the sending.
+      const own = Boolean(message.mine || (attempt && message.clientId === attempt.clientId));
       const item = document.createElement('article'); item.className = 'chat-message'; item.dataset.id = message.id;
-      item.classList.toggle('chat-message--own', message.role === role);
+      item.classList.toggle('chat-message--own', own);
       const meta = document.createElement('p'); meta.className = 'chat-meta';
       meta.textContent = `${message.name} · ${new Date(message.createdAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`;
       item.append(meta);
@@ -57,7 +59,7 @@
       const next = [...log.children].find(child => Number(child.dataset.id) > message.id);
       log.insertBefore(item, next || null);
       if (nearBottom) log.scrollTop = log.scrollHeight;
-      if (!historical && !visible && message.role !== role) onUnread(++unread);
+      if (!historical && !visible && !own) onUnread(++unread);
       // Only history responses advance the cursor: socket events can overtake older messages.
     }
     async function request(target, options) {

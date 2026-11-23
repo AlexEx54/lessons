@@ -20,7 +20,7 @@
   const sync = () => chat?.sync();
   window.RoomChat = { open, sync, receive: message => chat?.receive(message), init({ role, reference }) {
     chat = window.CallChat.create({
-      container: panel, role,
+      container: panel,
       endpoint: `/api/${role === 'guest' ? 'public/' : ''}video-calls/${encodeURIComponent(reference)}/chat`,
       name: () => document.getElementById('participant-name').value,
       onUnread: count => { toggle.textContent = count ? `Чат (${count})` : 'Чат'; },

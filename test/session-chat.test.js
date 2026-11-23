@@ -12,11 +12,12 @@ const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
 const { createClassSession } = require('../lib/class-store.js');
+const { joinClass, pickStudent } = require('../lib/class-live-store.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { MAX_SESSION } = require('../lib/session-chat.js');
 
-// The engine itself is covered by video-call-chat.test.js; this checks what the session adds.
-test('session chat: class access, server-side names, delivery over the lesson socket, files and cleanup', { timeout: 20000 }, async t => {
+// A server over a fresh database with one teacher, and helpers to call the chat and open lesson sockets.
+async function start(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'session-chat-'));
   const databasePath = path.join(directory, 'app.sqlite');
   const db = openDatabase(databasePath);
@@ -32,9 +33,8 @@ test('session chat: class access, server-side names, delivery over the lesson so
   const teacherCookie = `teach_session=${createSession(teacher.id, db).token}`;
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'")
     .run(JSON.stringify(syntheticLesson()));
-  const makeSession = className => createClassSession({ className, lessonId: 'superhero', expectedRevision: 1,
+  const makeSession = (className, isGroup = false) => createClassSession({ className, isGroup, lessonId: 'superhero', expectedRevision: 1,
     requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
-  const lesson = makeSession('Маша'), otherLesson = makeSession('Петя');
 
   const probe = require('node:net').createServer();
   await new Promise(resolve => probe.listen(0, '127.0.0.1', resolve));
@@ -50,10 +50,9 @@ test('session chat: class access, server-side names, delivery over the lesson so
 
   const request = (route, cookie, options = {}) => fetch(base + route, { redirect: 'manual', ...options,
     headers: { ...(cookie ? { Cookie: cookie } : {}), ...options.headers } });
-  const send = (role, cookie, body, id = lesson.id) => request(`/api/sessions/${id}/chat?role=${role}`, cookie, {
+  const send = (id, role, cookie, body) => request(`/api/sessions/${id}/chat?role=${role}`, cookie, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId: crypto.randomUUID(), ...body }) });
-  const upload = (role, cookie, body) => request(`/api/sessions/${lesson.id}/chat/attachments?role=${role}&name=plan.txt`, cookie, { method: 'POST', body });
-  const student = (await request(lesson.sessionInvitePath)).headers.get('set-cookie').split(';')[0];
+  const history = async (id, role, cookie) => (await (await request(`/api/sessions/${id}/chat?role=${role}`, cookie)).json()).messages;
   function connect(route, cookie) {
     const socket = new WebSocket(`ws://127.0.0.1:${port}${route}`, { headers: { Cookie: cookie, Origin: base } });
     sockets.push(socket);
@@ -69,6 +68,16 @@ test('session chat: class access, server-side names, delivery over the lesson so
     };
     return socket;
   }
+  return { db, directory, teacherCookie, makeSession, request, send, history, connect };
+}
+
+// The engine itself is covered by video-call-chat.test.js; this checks what the session adds.
+test('session chat: class access, server-side names, delivery over the lesson socket, files and cleanup', { timeout: 20000 }, async t => {
+  const { db, directory, teacherCookie, makeSession, request, send: post, history, connect } = await start(t);
+  const lesson = makeSession('Маша'), otherLesson = makeSession('Петя');
+  const send = (role, cookie, body, id = lesson.id) => post(id, role, cookie, body);
+  const upload = (role, cookie, body) => request(`/api/sessions/${lesson.id}/chat/attachments?role=${role}&name=plan.txt`, cookie, { method: 'POST', body });
+  const student = (await request(lesson.sessionInvitePath)).headers.get('set-cookie').split(';')[0];
 
   // Each side enters only with its own access, and only this class's session.
   assert.equal((await request(`/api/sessions/${lesson.id}/chat?role=student`)).status, 403);
@@ -81,14 +90,17 @@ test('session chat: class access, server-side names, delivery over the lesson so
   await teacherPage.next('snapshot');
   const sent = await send('student', student, { text: 'Здравствуйте!', name: 'Подмена' });
   assert.equal(sent.status, 201);
-  const { message } = await sent.json();
-  assert.deepEqual([message.role, message.name], ['student', 'Маша']);
-  assert.deepEqual((await teacherPage.next('chat-message')).message, message);
+  const { message: { mine, ...message } } = await sent.json();
+  assert.deepEqual([message.role, message.name, mine], ['student', 'Маша', true]);
+  assert.deepEqual((await teacherPage.next('chat-message')).message, message, 'the broadcast copy is nobody\'s own');
   const answer = await (await send('teacher', teacherCookie, { text: 'Добрый день' })).json();
   assert.deepEqual([answer.message.role, answer.message.name], ['teacher', 'Анна Сергеевна']);
-  const history = await (await request(`/api/sessions/${lesson.id}/chat?role=student`, student)).json();
-  assert.deepEqual(history.messages.map(item => item.text), ['Здравствуйте!', 'Добрый день']);
-  assert.deepEqual((await (await request(`/api/sessions/${otherLesson.id}/chat?role=teacher`, teacherCookie)).json()).messages, []);
+  assert.deepEqual((await history(lesson.id, 'student', student)).map(item => [item.text, item.mine]), [['Здравствуйте!', true], ['Добрый день', false]]);
+  // The one student of an individual class is the same on another device.
+  const phone = (await request(lesson.sessionInvitePath)).headers.get('set-cookie').split(';')[0];
+  assert.deepEqual((await history(lesson.id, 'student', phone)).map(item => item.mine), [true, false]);
+  assert.deepEqual((await history(lesson.id, 'teacher', teacherCookie)).map(item => item.mine), [false, true]);
+  assert.deepEqual(await history(otherLesson.id, 'teacher', teacherCookie), []);
 
   // Files sent by one side open for the other; the session has its own quota.
   const file = await (await upload('teacher', teacherCookie, 'план')).json();
@@ -109,4 +121,24 @@ test('session chat: class access, server-side names, delivery over the lesson so
   assert.equal((await request('/api/sessions', teacherCookie, { method: 'DELETE' })).status, 200);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM class_session_messages').get().n, 0);
   assert.equal(fs.existsSync(files), false);
+});
+
+test('group session chat: each student writes under their name and sees only their own messages as theirs', { timeout: 20000 }, async t => {
+  const { db, teacherCookie, makeSession, send, history } = await start(t);
+  const lesson = makeSession('Группа B1', true);
+  const token = lesson.classInvitePath.split('/').at(-1);
+  const student = name => {
+    const cookie = joinClass({ headers: {} }, token, db).cookie.split(';')[0];
+    pickStudent({ headers: { cookie } }, token, { name }, db);
+    return cookie;
+  };
+  const masha = student('Маша'), petya = student('Петя');
+  const sent = await (await send(lesson.id, 'student', masha, { text: 'Hello!', name: 'Подмена' })).json();
+  assert.deepEqual([sent.message.name, sent.message.mine], ['Маша', true]);
+  await send(lesson.id, 'student', petya, { text: 'Hi!' });
+  await send(lesson.id, 'teacher', teacherCookie, { text: 'Good evening' });
+  const view = async (cookie, role = 'student') => (await history(lesson.id, role, cookie)).map(item => `${item.name}${item.mine ? ' *' : ''}`);
+  assert.deepEqual(await view(masha), ['Маша *', 'Петя', 'Анна Сергеевна']);
+  assert.deepEqual(await view(petya), ['Маша', 'Петя *', 'Анна Сергеевна']);
+  assert.deepEqual(await view(teacherCookie, 'teacher'), ['Маша', 'Петя', 'Анна Сергеевна *']);
 });
