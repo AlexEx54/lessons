@@ -88,6 +88,8 @@
     let available = true;
     // { teacher, student } from the lesson socket; null until its first snapshot.
     let presence = null;
+    // A group call lets in only those the lesson socket has already registered, so the button waits for it.
+    const waitingForLesson = () => group && !presence;
     // { media, connection, status, details } while this tab is in the call.
     let call = null;
     // The teacher's request to end the call for both is on its way.
@@ -177,7 +179,7 @@
     }
 
     function join() {
-      if (call || !available) return;
+      if (call || !available || waitingForLesson()) return;
       note = '';
       recordingPublished = false;
       call = startCall();
@@ -256,7 +258,9 @@
           return call.room.peers().length ? STATUS.connected : ['Пока в звонке только вы'];
         }
         const names = others();
-        return names.length ? [`${listNames(names)} уже в звонке`, 'connected'] : [presence ? 'В звонке пока никого' : ''];
+        if (names.length) return [`${listNames(names)} уже в звонке`, 'connected'];
+        if (presence) return ['В звонке пока никого'];
+        return [available ? 'Подключаемся к занятию…' : ''];
       }
       if (call) {
         if (ending) return ['Завершаем звонок…'];
@@ -490,7 +494,7 @@
       elements.status.dataset.state = statusState;
       elements.lobby.hidden = joined;
       elements.room.hidden = !joined;
-      elements.join.disabled = !available;
+      elements.join.disabled = !available || waitingForLesson();
       elements.leave.disabled = ending;
 
       const notes = [note];

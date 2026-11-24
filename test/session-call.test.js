@@ -328,8 +328,14 @@ test('a group session has the call too; outside it the lobby names who is in, th
   assert.equal(s.byId('call-remote-tile').hidden, true);
   assert.equal(s.byId('call-tiles').className, 'call-tiles--group');
 
+  // The call lets in only those the lesson socket has registered, so joining waits for its first snapshot.
+  assert.equal(s.byId('call-panel-status').textContent, 'Подключаемся к занятию…');
+  assert.equal(s.byId('call-join').disabled, true);
+  s.byId('call-join').click();
+  assert.equal(s.current(), undefined, 'no call before the lesson socket');
   s.panel.presence({ teacher: false, students: [] });
   assert.equal(s.byId('call-panel-status').textContent, 'В звонке пока никого');
+  assert.equal(s.byId('call-join').disabled, false);
   s.panel.presence({ teacher: false, students: ['Петя'] });
   s.panel.presence({ teacher: true, students: ['Оля', 'Петя'] });
   assert.equal(s.byId('call-panel-status').textContent, 'Учитель, Оля и Петя уже в звонке');
@@ -348,6 +354,7 @@ test('a group session has the call too; outside it the lobby names who is in, th
 test('in a group call everyone else has a tile, and the screen of the expanded tile opens over the lesson', async () => {
   const s = setup({ role: 'student', group: true });
   await s.settle();
+  s.panel.presence({ teacher: true, students: [] });
   s.byId('call-join').click();
   const { room, media } = s.current();
   assert.deepEqual([room.log, media.log, room.options.endpoint], [['join'], ['prepare'], `/api/sessions/${SESSION}/call?role=student`]);
@@ -418,6 +425,7 @@ test('in a group call everyone else has a tile, and the screen of the expanded t
 test("the teacher mutes a student's microphone or camera and removes them from the menu of their tile", async () => {
   const s = setup({ group: true });
   await s.settle();
+  s.panel.presence({ teacher: true, students: [] });
   s.byId('call-join').click();
   const { room } = s.current();
   room.state = 'connected';
@@ -442,6 +450,7 @@ test("the teacher mutes a student's microphone or camera and removes them from t
   // The student left before the teacher pressed: the server's answer is shown, and a menu of a gone student closes.
   const late = setup({ group: true, commandStatus: 404 });
   await late.settle();
+  late.panel.presence({ teacher: true, students: [] });
   late.byId('call-join').click();
   const lateRoom = late.current().room;
   lateRoom.state = 'connected';
@@ -460,6 +469,7 @@ test("the teacher mutes a student's microphone or camera and removes them from t
 test('a group call ends with the reason, and the teacher ends it for everyone', async () => {
   const s = setup({ role: 'student', group: true });
   await s.settle();
+  s.panel.presence({ teacher: true, students: [] });
   for (const [reason, message, note] of [['removed', undefined, 'Учитель убрал вас из звонка.'], ['ended', undefined, 'Учитель завершил звонок.'],
     ['lost', undefined, 'Связь со звонком прервалась. Войдите снова.'], ['refused', 'Звонок откроется, когда вы войдёте в занятие.', 'Звонок откроется, когда вы войдёте в занятие.']]) {
     s.byId('call-join').click();
@@ -477,6 +487,7 @@ test('a group call ends with the reason, and the teacher ends it for everyone', 
 
   const teacher = setup({ group: true });
   await teacher.settle();
+  teacher.panel.presence({ teacher: true, students: [] });
   teacher.byId('call-join').click();
   teacher.byId('call-leave').click();
   await teacher.settle();
