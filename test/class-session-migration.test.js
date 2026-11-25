@@ -31,16 +31,17 @@ test('one-off classes are dropped for permanent classes while the library and dr
   db.prepare("INSERT INTO class_live_state VALUES ('old', '{}')").run();
   db.prepare("INSERT INTO class_notes VALUES ('old', ?, 1, '2026-09-01')").run(Buffer.from('notes'));
   // Migration 017 converts badges to codes; that is covered by the library tests.
-  const library = () => [db.prepare('SELECT * FROM library_lessons ORDER BY id').all().map(({ badge, ...lesson }) => lesson), db.prepare('SELECT * FROM library_assets ORDER BY lesson_id, file_name').all()];
+  const library = (assets = 'library_assets') => [db.prepare('SELECT * FROM library_lessons ORDER BY id').all().map(({ badge, ...lesson }) => lesson), db.prepare(`SELECT * FROM ${assets} ORDER BY lesson_id, file_name`).all()];
   const libraryBefore = library();
   applyMigrations(db);
   applyMigrations(db);
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get().n, 29);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get().n, 30);
   for (const table of ['classes', 'class_sessions', 'class_assets', 'class_guest_sessions', 'class_live_state', 'class_notes']) {
     assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n, 0, table);
   }
   assert.equal(db.prepare("SELECT 1 FROM sqlite_schema WHERE name IN ('class_live_commands', 'class_guest_sessions_legacy')").get(), undefined);
-  assert.deepEqual(library(), libraryBefore);
+  // Migration 030 keeps the old file bytes aside until they are moved to disk.
+  assert.deepEqual(library('legacy_library_assets'), libraryBefore);
   assert.equal(db.prepare('SELECT id FROM lesson_drafts').get().id, 'kept');
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
 });

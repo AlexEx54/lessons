@@ -11,12 +11,15 @@ const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
 const { createLessonDraft, completeLessonDraft, findLessonDraft, deleteLessonDraft } = require('../lib/lesson-draft-store.js');
 const { createLessonImageGeneration, setLessonImageGenerationStatus } = require('../lib/lesson-image-generation-store.js');
-const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, findLibraryAsset } = require('../lib/library-store.js');
+const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, hasLibraryAsset } = require('../lib/library-store.js');
+const { mediaPath } = require('../lib/media-store.js');
+const readMedia = (media, name) => fs.readFileSync(mediaPath(media, name));
 
 function fixture(t, dbPath = ':memory:') {
   const db = openDatabase(dbPath);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'library-assets-'));
-  t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  const media = fs.mkdtempSync(path.join(os.tmpdir(), 'library-media-'));
+  t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(media, { recursive: true, force: true }); });
   const user = role => createUser({ email: `${crypto.randomUUID()}@test.local`, displayName: role, role, passwordHash: 'unused' }, db);
   const admin = user('admin'), other = user('admin'), teacher = user('teacher');
   const created = createLessonDraft({ ownerAdminId: admin.id, topic: 'Travel', template: 'template-1' }, db);
@@ -26,7 +29,7 @@ function fixture(t, dbPath = ':memory:') {
   const content = { meta: { title: 'Travel' }, stages: [{ id: 'listening', content: [{ id: 'audio', type: 'audioPlayer', audioSrc: `/api/lesson-draft-assets/${created.id}/${name}` }] }] };
   const draft = completeLessonDraft(created.id, admin.id, content, db);
   const input = { expectedUpdatedAt: draft.updatedAt, expectedRevision: 0, title: 'Travel lesson', description: 'Travel and transport', category: 'Speaking', duration: '45 мин', coverUpload: { type: 'image/png', data: fs.readFileSync(path.join(__dirname, '../assets/images/lesson-travel.png')).toString('base64') }, skills: ['Speaking'] };
-  return { db, dir, admin, other, teacher, draft, input, name };
+  return { db, dir, media, admin, other, teacher, draft, input, name };
 }
 
 test('migration preserves ten unavailable cards and does not reseed on subsequent runs', t => {
@@ -74,49 +77,58 @@ test('home library selects up to twelve available new publications, ordered by p
   assert.deepEqual(lessons[0].skills, ['Speaking']);
 });
 
-test('publication copies content and files, updates one record, hides and republishes, survives draft deletion', t => {
-  const { db, dir, admin, draft, input, name } = fixture(t);
-  const published = publishLesson(draft.id, admin.id, input, db, dir);
+test('publication copies content and files, updates one record, hides and republishes, survives draft deletion', async t => {
+  const { db, dir, media, admin, draft, input, name } = fixture(t);
+  const published = await publishLesson(draft.id, admin.id, input, db, dir, media);
   assert.equal(published.is_available, true);
   assert.equal(findLessonDraft(draft.id, admin.id, db).status, 'review');
   const first = findLibraryLesson(published.id, db);
   const asset = first.content.stages[0].content[0].audioSrc.split('/').at(-1);
-  assert.equal(Buffer.from(findLibraryAsset(published.id, asset, db)).toString(), 'audio-test-data');
+  assert.equal(hasLibraryAsset(published.id, asset, db), true);
+  assert.equal(readMedia(media, asset).toString(), 'audio-test-data');
   assert.ok(first.content.stages[0].content[0].audioSrc.startsWith('/api/library/'));
   const edited = structuredClone(draft.content);
   edited.meta.title = 'Working changes';
   db.prepare('UPDATE lesson_drafts SET content_json = ? WHERE id = ?').run(JSON.stringify(edited), draft.id);
   fs.writeFileSync(path.join(dir, draft.id, name), 'new-audio');
   assert.equal(findLibraryLesson(published.id, db).content.meta.title, 'Travel lesson');
-  assert.equal(Buffer.from(findLibraryAsset(published.id, asset, db)).toString(), 'audio-test-data');
-  assert.throws(() => publishLesson(draft.id, admin.id, input, db, dir), { statusCode: 409 });
-  const updated = publishLesson(draft.id, admin.id, { ...input, expectedRevision: 1, title: 'Updated lesson' }, db, dir);
+  assert.equal(readMedia(media, asset).toString(), 'audio-test-data');
+  await assert.rejects(() => publishLesson(draft.id, admin.id, input, db, dir, media), { statusCode: 409 });
+  const updated = await publishLesson(draft.id, admin.id, { ...input, expectedRevision: 1, title: 'Updated lesson' }, db, dir, media);
   assert.equal(updated.id, published.id);
   assert.equal(updated.revision, 2);
   assert.equal(listLibraryLessons(db).length, 11);
-  assert.equal(findLibraryLesson(published.id, db).content.meta.title, 'Updated lesson');
+  const republished = findLibraryLesson(published.id, db);
+  assert.equal(republished.content.meta.title, 'Updated lesson');
+  // The new version refers to the changed audio only; the old file stays for sessions that use it.
+  const updatedAsset = republished.content.stages[0].content[0].audioSrc.split('/').at(-1);
+  assert.notEqual(updatedAsset, asset);
+  assert.equal(readMedia(media, updatedAsset).toString(), 'new-audio');
+  assert.equal(hasLibraryAsset(published.id, asset, db), false);
+  assert.equal(readMedia(media, asset).toString(), 'audio-test-data');
   unpublishLesson(draft.id, admin.id, 2, db);
   assert.equal(findLibraryLesson(published.id, db), null);
-  assert.equal(findLibraryAsset(published.id, asset, db), undefined);
-  assert.ok(findLibraryAsset(published.id, asset, db, admin.id));
+  assert.equal(hasLibraryAsset(published.id, updatedAsset, db), false);
+  assert.ok(hasLibraryAsset(published.id, updatedAsset, db, admin.id));
   assert.equal(listLibraryLessons(db).length, 10);
-  publishLesson(draft.id, admin.id, { ...input, expectedRevision: 3 }, db, dir);
+  await publishLesson(draft.id, admin.id, { ...input, expectedRevision: 3 }, db, dir, media);
   deleteLessonDraft(draft.id, admin.id, db);
   fs.rmSync(path.join(dir, draft.id), { recursive: true });
   assert.ok(findLibraryLesson(published.id, db));
-  assert.equal(Buffer.from(findLibraryAsset(published.id, asset, db)).toString(), 'audio-test-data');
+  assert.equal(hasLibraryAsset(published.id, updatedAsset, db), true);
+  assert.equal(readMedia(media, updatedAsset).toString(), 'new-audio');
   assert.equal(listLibraryLessons(db, admin.id).find(item => item.id === published.id).can_unpublish, true);
   unpublishLibraryLesson(published.id, admin.id, 4, db);
   assert.equal(findLibraryLesson(published.id, db), null);
 });
 
-test('any admin marks any published lesson; the mark survives republication', t => {
-  const { db, dir, admin, other, teacher, draft, input } = fixture(t);
-  const published = publishLesson(draft.id, admin.id, input, db, dir);
+test('any admin marks any published lesson; the mark survives republication', async t => {
+  const { db, dir, media, admin, other, teacher, draft, input } = fixture(t);
+  const published = await publishLesson(draft.id, admin.id, input, db, dir, media);
   const badgeOf = id => listLibraryLessons(db).find(item => item.id === id).badge;
   setLibraryLessonBadge(published.id, other.id, 'popular', db);
   assert.equal(badgeOf(published.id), 'popular');
-  publishLesson(draft.id, admin.id, { ...input, expectedRevision: 1, coverUpload: undefined, cover: published.cover }, db, dir);
+  await publishLesson(draft.id, admin.id, { ...input, expectedRevision: 1, coverUpload: undefined, cover: published.cover }, db, dir, media);
   assert.equal(badgeOf(published.id), 'popular');
   setLibraryLessonBadge('animals', admin.id, 'new', db);
   assert.equal(badgeOf('animals'), 'new');
@@ -129,29 +141,29 @@ test('any admin marks any published lesson; the mark survives republication', t 
   assert.throws(() => setLibraryLessonBadge(published.id, admin.id, 'new', db), { statusCode: 404 });
 });
 
-test('publication rejects unauthorized users, stale content, missing files and invalid metadata atomically', t => {
-  const { db, dir, admin, other, teacher, draft, input, name } = fixture(t);
-  assert.throws(() => publishLesson(draft.id, teacher.id, input, db, dir), { statusCode: 403 });
-  assert.throws(() => publishLesson(draft.id, other.id, input, db, dir), { statusCode: 404 });
-  assert.throws(() => publishLesson(draft.id, admin.id, { ...input, expectedUpdatedAt: 'old' }, db, dir), { statusCode: 409 });
-  assert.throws(() => publishLesson(draft.id, admin.id, { ...input, coverUpload: undefined, cover: '/../../.env' }, db, dir), { statusCode: 400 });
-  assert.throws(() => publishLesson(draft.id, admin.id, { ...input, skills: [] }, db, dir), { statusCode: 400 });
+test('publication rejects unauthorized users, stale content, missing files and invalid metadata atomically', async t => {
+  const { db, dir, media, admin, other, teacher, draft, input, name } = fixture(t);
+  await assert.rejects(() => publishLesson(draft.id, teacher.id, input, db, dir, media), { statusCode: 403 });
+  await assert.rejects(() => publishLesson(draft.id, other.id, input, db, dir, media), { statusCode: 404 });
+  await assert.rejects(() => publishLesson(draft.id, admin.id, { ...input, expectedUpdatedAt: 'old' }, db, dir, media), { statusCode: 409 });
+  await assert.rejects(() => publishLesson(draft.id, admin.id, { ...input, coverUpload: undefined, cover: '/../../.env' }, db, dir, media), { statusCode: 400 });
+  await assert.rejects(() => publishLesson(draft.id, admin.id, { ...input, skills: [] }, db, dir, media), { statusCode: 400 });
   fs.unlinkSync(path.join(dir, draft.id, name));
-  assert.throws(() => publishLesson(draft.id, admin.id, input, db, dir), { statusCode: 409 });
+  await assert.rejects(() => publishLesson(draft.id, admin.id, input, db, dir, media), { statusCode: 409 });
   assert.equal(listLibraryLessons(db).length, 10);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM library_assets').get().n, 0);
 });
 
-test('running image generation blocks publication; stopped generation requires explicit acknowledgement', t => {
-  const { db, dir, admin, draft, input } = fixture(t);
+test('running image generation blocks publication; stopped generation requires explicit acknowledgement', async t => {
+  const { db, dir, media, admin, draft, input } = fixture(t);
   createLessonImageGeneration({ draftId: draft.id, total: 2 }, db);
-  assert.throws(() => publishLesson(draft.id, admin.id, input, db, dir), { statusCode: 409 });
+  await assert.rejects(() => publishLesson(draft.id, admin.id, input, db, dir, media), { statusCode: 409 });
   setLessonImageGenerationStatus(draft.id, 'stopped', '', db);
   const content = structuredClone(draft.content);
   content.stages[0].content[0].picture = { imagePrompt: 'A beach' };
   db.prepare('UPDATE lesson_drafts SET content_json = ? WHERE id = ?').run(JSON.stringify(content), draft.id);
-  assert.throws(() => publishLesson(draft.id, admin.id, input, db, dir), { statusCode: 409 });
-  assert.ok(publishLesson(draft.id, admin.id, { ...input, allowIncompleteImages: true }, db, dir).is_available);
+  await assert.rejects(() => publishLesson(draft.id, admin.id, input, db, dir, media), { statusCode: 409 });
+  assert.ok((await publishLesson(draft.id, admin.id, { ...input, allowIncompleteImages: true }, db, dir, media)).is_available);
 });
 
 test('library HTTP routes protect publication, placeholders, hidden lessons and media including range requests', async t => {
@@ -228,19 +240,24 @@ test('library HTTP routes protect publication, placeholders, hidden lessons and 
   assert.deepEqual((await (await request('/api/home-content', teacherCookie)).json()).libraryLessons, []);
 });
 
-test('uploaded cover is required, retained on updates, replaceable and independent of draft', t => {
-  const { db, dir, admin, draft, input } = fixture(t);
+test('uploaded cover is required, retained on updates, replaceable and independent of draft', async t => {
+  const { db, dir, media, admin, draft, input } = fixture(t);
   for (const coverUpload of [undefined, { type: 'image/svg+xml', data: 'PHN2Zz4=' }, { type: 'image/png', data: 'bm90LWFuLWltYWdl' }, { type: 'image/png', data: 'a'.repeat(6990512) }]) {
-    assert.throws(() => publishLesson(draft.id, admin.id, { ...input, coverUpload }, db, dir), { statusCode: 400 });
+    await assert.rejects(() => publishLesson(draft.id, admin.id, { ...input, coverUpload }, db, dir, media), { statusCode: 400 });
   }
-  const first = publishLesson(draft.id, admin.id, input, db, dir);
+  const first = await publishLesson(draft.id, admin.id, input, db, dir, media);
   const coverName = first.cover.split('/').at(-1);
-  assert.deepEqual(Buffer.from(findLibraryAsset(first.id, coverName, db)), Buffer.from(input.coverUpload.data, 'base64'));
-  const retained = publishLesson(draft.id, admin.id, { ...input, expectedRevision: 1, coverUpload: undefined, cover: first.cover }, db, dir);
+  // The uploaded PNG is kept as WebP.
+  assert.match(coverName, /\.webp$/);
+  assert.equal(readMedia(media, coverName).toString('ascii', 8, 12), 'WEBP');
+  const retained = await publishLesson(draft.id, admin.id, { ...input, expectedRevision: 1, coverUpload: undefined, cover: first.cover }, db, dir, media);
   assert.equal(retained.cover, first.cover);
   const replacement = { type: 'image/png', data: fs.readFileSync(path.join(__dirname, '../assets/images/lesson-music.png')).toString('base64') };
-  const replaced = publishLesson(draft.id, admin.id, { ...input, expectedRevision: 2, coverUpload: replacement }, db, dir);
+  const replaced = await publishLesson(draft.id, admin.id, { ...input, expectedRevision: 2, coverUpload: replacement }, db, dir, media);
   assert.notEqual(replaced.cover, first.cover);
+  // The lesson no longer refers to the old cover; the startup sweep removes its file.
+  assert.equal(hasLibraryAsset(first.id, coverName, db), false);
   deleteLessonDraft(draft.id, admin.id, db);
-  assert.deepEqual(Buffer.from(findLibraryAsset(first.id, replaced.cover.split('/').at(-1), db)), Buffer.from(replacement.data, 'base64'));
+  assert.equal(hasLibraryAsset(first.id, replaced.cover.split('/').at(-1), db), true);
+  assert.equal(readMedia(media, replaced.cover.split('/').at(-1)).toString('ascii', 8, 12), 'WEBP');
 });

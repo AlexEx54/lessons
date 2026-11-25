@@ -2,6 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const http = require('node:http');
 const { once } = require('node:events');
 const Y = require('yjs');
@@ -32,7 +35,7 @@ function setup(t) {
   return { db, teacher, makeClass };
 }
 
-test('draft notes: ownership, version conflicts, formatting validation and publication snapshot', t => {
+test('draft notes: ownership, version conflicts, formatting validation and publication snapshot', async t => {
   const { db, teacher } = setup(t);
   const draft = createLessonDraft({ ownerAdminId: teacher.id, topic: 'Notes', template: 'general' }, db);
   completeLessonDraft(draft.id, teacher.id, syntheticLesson(), db);
@@ -47,10 +50,12 @@ test('draft notes: ownership, version conflicts, formatting validation and publi
   assert.throws(() => validateNotes(content('x'.repeat(300000))));
   assert.throws(() => validateNotes({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'link', marks: [{ type: 'link', attrs: { href: 'javascript:evil' } }] }] }] }));
   const updatedAt = db.prepare('SELECT updated_at FROM lesson_drafts WHERE id = ?').get(draft.id).updated_at;
-  const published = publishLesson(draft.id, teacher.id, {
+  const media = fs.mkdtempSync(path.join(os.tmpdir(), 'notes-media-'));
+  t.after(() => fs.rmSync(media, { recursive: true, force: true }));
+  const published = await publishLesson(draft.id, teacher.id, {
     expectedUpdatedAt: updatedAt, expectedRevision: 0, title: 'Notes', description: 'Notes', category: 'General English', skills: ['Writing'], duration: '45 мин', allowIncompleteImages: true,
-    coverUpload: { type: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=' },
-  }, db, '/unused');
+    coverUpload: { type: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC' },
+  }, db, '/unused', media);
   const publishedContent = JSON.parse(db.prepare('SELECT content_json FROM library_lessons WHERE id = ?').get(published.id).content_json);
   assert.deepEqual(publishedContent.notes, formatted);
   const session = createClassSession({ className: 'Snapshot', lessonId: published.id, expectedRevision: published.revision, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);

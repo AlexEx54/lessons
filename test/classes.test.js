@@ -9,7 +9,8 @@ const { spawn } = require('node:child_process');
 const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
-const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, findClassSessionAsset } = require('../lib/class-store.js');
+const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, hasClassSessionAsset } = require('../lib/class-store.js');
+const { putMedia } = require('./helpers/media.js');
 const { joinClass, classOverview, pickStudent, authorizeSession } = require('../lib/class-live-store.js');
 function fixture(t, dbPath = ':memory:') {
   const db = openDatabase(dbPath);
@@ -19,9 +20,11 @@ function fixture(t, dbPath = ':memory:') {
   const assetName = `${'a'.repeat(64)}.mp3`;
   const content = { meta: { title: 'Published title' }, stages: [{ id: 'intro', title: 'Introduction', content: [{ id: 'audio', type: 'audioPlayer', audioSrc: `/api/library/superhero/assets/${assetName}` }] }] };
   db.prepare('UPDATE library_lessons SET is_available = 1, revision = 1, content_json = ? WHERE id = ?').run(JSON.stringify(content), 'superhero');
-  db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', assetName, Buffer.from('audio-data'));
   const coverName = `${'b'.repeat(64)}.png`;
-  db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', coverName, Buffer.from('cover-data'));
+  for (const [name, data] of [[assetName, 'audio-data'], [coverName, 'cover-data']]) {
+    db.prepare('INSERT INTO library_assets VALUES (?, ?)').run('superhero', name);
+    if (dbPath !== ':memory:') putMedia(dbPath, name, data);
+  }
   db.prepare('UPDATE library_lessons SET cover = ? WHERE id = ?').run(`/api/library/superhero/assets/${coverName}`, 'superhero');
   const input = { className: 'Анна', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z', timeZone: 'Asia/Almaty' };
   const plan = (patch, ownerId = teacher.id) => createClassSession({ ...input, requestKey: crypto.randomUUID(), ...patch }, ownerId, db);
@@ -42,10 +45,13 @@ test('session snapshot and media survive changes and removal of the source; acce
   assert.deepEqual(listClasses(other.id, db), []);
   db.prepare("UPDATE library_lessons SET content_json = '{}', revision = 2, is_published = 0 WHERE id = 'superhero'").run();
   assert.equal(findClassSession(session.id, teacher.id, db).content.meta.title, 'Published title');
-  assert.equal(findClassSessionAsset(session.id, assetName, other.id, db), undefined);
+  assert.equal(hasClassSessionAsset(session.id, assetName, other.id, db), false);
   db.prepare("DELETE FROM library_lessons WHERE id = 'superhero'").run();
-  assert.equal(Buffer.from(findClassSessionAsset(session.id, assetName, teacher.id, db)).toString(), 'audio-data');
-  assert.equal(Buffer.from(findClassSessionAsset(session.id, session.cover.split('/').at(-1), teacher.id, db)).toString(), 'cover-data');
+  assert.equal(hasClassSessionAsset(session.id, assetName, teacher.id, db), true);
+  assert.equal(hasClassSessionAsset(session.id, session.cover.split('/').at(-1), teacher.id, db), true);
+  // The session refers to the library files by name instead of copying their bytes.
+  assert.deepEqual(db.prepare('SELECT file_name FROM class_assets WHERE session_id = ? ORDER BY file_name').all(session.id).map(row => row.file_name),
+    [assetName, `${'b'.repeat(64)}.png`]);
   assert.ok(session.content.stages[0].content[0].audioSrc.startsWith(`/api/sessions/${session.id}/assets/`));
   assert.equal(createClassSession(input, teacher.id, db).id, session.id);
   assert.equal(listClassSessions(teacher.id, db).length, 1);

@@ -1,5 +1,5 @@
 const http = require('http');
-const { receiveVideo, publishedVideoPath } = require('./lib/video-assets.js');
+const { receiveVideo } = require('./lib/video-assets.js');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -22,8 +22,8 @@ const {
   yandexStateCookie,
 } = require('./lib/auth.js');
 const { DEFAULT_DB_PATH, getDatabase } = require('./lib/db.js');
-const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, findLibraryAsset } = require('./lib/library-store.js');
-const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, findClassSessionAsset } = require('./lib/class-store.js');
+const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, hasLibraryAsset } = require('./lib/library-store.js');
+const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, hasClassSessionAsset } = require('./lib/class-store.js');
 const { joinClass, classOverview, pickStudent, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
 const { createClassLiveSignaling } = require('./lib/class-live-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
@@ -132,6 +132,7 @@ const { recoverLessonGeneration } = require('./lib/lesson-generation-recovery.js
 const { stopInterruptedLessonImageGenerations } = require('./lib/lesson-image-generation-store.js');
 const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
 const { toWebp } = require('./lib/webp.js');
+const { mediaPath, sweepUnusedMedia } = require('./lib/media-store.js');
 const { LESSON_MODEL_OPTIONS, OPENROUTER_BASE_URL } = require('./lib/ai-lesson-generator.js');
 
 const PORT = process.env.PORT || 8787;
@@ -139,7 +140,12 @@ const HOST = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0
 const ROOT = __dirname;
 const DRAFT_ASSETS_DIR = path.resolve(process.env.DRAFT_ASSETS_DIR || path.join(ROOT, 'data', 'draft-assets'));
 const AVATARS_DIR = path.join(path.dirname(path.resolve(process.env.APP_DB_PATH || DEFAULT_DB_PATH)), 'avatars');
+const MEDIA_DIR = path.join(path.dirname(path.resolve(process.env.APP_DB_PATH || DEFAULT_DB_PATH)), 'media');
+// A media file name is the hash of its content, so browsers may keep it for good.
+const IMMUTABLE_MEDIA = 'private, max-age=31536000, immutable';
 const database = getDatabase();
+const sweptMedia = sweepUnusedMedia(MEDIA_DIR, database);
+if (sweptMedia > 0) console.log(`Removed ${sweptMedia} unused media file(s).`);
 const lessonImageGenerator = new LessonImageGenerator({
   database,
   assetsDirectory: DRAFT_ASSETS_DIR,
@@ -1157,10 +1163,10 @@ function parseByteRange(header, total) {
   return { start, end: Math.min(end, total - 1) };
 }
 
-function sendVideoFile(req, res, absolute) {
+function sendFile(req, res, absolute, cacheControl = 'private, max-age=3600') {
   let stat;
   try { stat = fs.statSync(absolute); }
-  catch { json(res, 404, { error: 'Видео не найдено.' }); return; }
+  catch { json(res, 404, { error: 'Файл не найден.' }); return; }
   const { size } = stat, lastModified = stat.mtime.toUTCString();
   // Files may be rewritten in place, so a cached part of the old file must not be combined with new bytes.
   const rangeHeader = req.method !== 'HEAD' && (!req.headers['if-range'] || req.headers['if-range'] === lastModified) ? req.headers.range : undefined;
@@ -1168,7 +1174,7 @@ function sendVideoFile(req, res, absolute) {
   if (rangeHeader && !range) {
     res.writeHead(416, { 'Content-Range': `bytes */${size}` }); res.end(); return;
   }
-  const headers = { 'Content-Type': getContentType(absolute), 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600', 'Last-Modified': lastModified,
+  const headers = { 'Content-Type': getContentType(absolute), 'Accept-Ranges': 'bytes', 'Cache-Control': cacheControl, 'Last-Modified': lastModified,
     'Content-Length': range ? range.end - range.start + 1 : size };
   if (range) headers['Content-Range'] = `bytes ${range.start}-${range.end}/${size}`;
   res.writeHead(range ? 206 : 200, headers);
@@ -1719,13 +1725,8 @@ async function handleRequest(req, res) {
   if (libraryAsset && ['GET', 'HEAD'].includes(req.method)) {
     const user = requireTeacherAuth(req, res);
     if (!user) return;
-    const data = findLibraryAsset(libraryAsset[1], libraryAsset[2], database, user.id);
-    if (!data) { json(res, 404, { error: 'Файл недоступен.' }); return; }
-    if (libraryAsset[2].endsWith('.mp4')) { sendVideoFile(req, res, publishedVideoPath(DRAFT_ASSETS_DIR, data)); return; }
-    if (req.method === 'HEAD') {
-      res.writeHead(200, { 'Content-Type': getContentType(libraryAsset[2]), 'Content-Length': data.length, 'Cache-Control': 'private, no-store' });
-      res.end();
-    } else sendDraftAsset(res, libraryAsset[2], Buffer.from(data), req.headers.range);
+    if (!hasLibraryAsset(libraryAsset[1], libraryAsset[2], database, user.id)) { json(res, 404, { error: 'Файл недоступен.' }); return; }
+    sendFile(req, res, mediaPath(MEDIA_DIR, libraryAsset[2]), IMMUTABLE_MEDIA);
     return;
   }
 
@@ -1764,7 +1765,7 @@ async function handleRequest(req, res) {
     try {
       const body = JSON.parse((await readRawBody(req, 7 * 1024 * 1024)).toString('utf8') || '{}');
       const publication = req.method === 'POST'
-        ? publishLesson(publicationRoute[1], user.id, body, database, DRAFT_ASSETS_DIR)
+        ? await publishLesson(publicationRoute[1], user.id, body, database, DRAFT_ASSETS_DIR, MEDIA_DIR)
         : unpublishLesson(publicationRoute[1], user.id, body?.expectedRevision, database);
       json(res, 200, { publication });
     } catch (error) {
@@ -1926,19 +1927,15 @@ async function handleRequest(req, res) {
   if (sessionAsset && ['GET', 'HEAD'].includes(req.method)) {
     const user = getAuthenticatedUser(req, database);
     const guest = authorizeSession(req, sessionAsset[1], database, 'student');
-    let data = user ? findClassSessionAsset(sessionAsset[1], sessionAsset[2], user.id, database) : undefined;
-    if (!data && guest) {
+    let allowed = Boolean(user) && hasClassSessionAsset(sessionAsset[1], sessionAsset[2], user.id, database);
+    if (!allowed && guest) {
       try {
-        if (guestCanReadAsset(guest, sessionAsset[2], database)) data = findClassSessionAsset(sessionAsset[1], sessionAsset[2], guest.ownerId, database);
+        allowed = guestCanReadAsset(guest, sessionAsset[2], database) && hasClassSessionAsset(sessionAsset[1], sessionAsset[2], guest.ownerId, database);
       } catch {}
     }
     if (!user && !guest) { json(res, 401, { error: 'Требуется доступ к классу.' }); return; }
-    if (!data) { json(res, 404, { error: 'Файл недоступен.' }); return; }
-    if (sessionAsset[2].endsWith('.mp4')) { sendVideoFile(req, res, publishedVideoPath(DRAFT_ASSETS_DIR, data)); return; }
-    if (req.method === 'HEAD') {
-      res.writeHead(200, { 'Content-Type': getContentType(sessionAsset[2]), 'Content-Length': data.length, 'Cache-Control': 'private, no-store' });
-      res.end();
-    } else sendDraftAsset(res, sessionAsset[2], Buffer.from(data), req.headers.range);
+    if (!allowed) { json(res, 404, { error: 'Файл недоступен.' }); return; }
+    sendFile(req, res, mediaPath(MEDIA_DIR, sessionAsset[2]), IMMUTABLE_MEDIA);
     return;
   }
 
@@ -2045,7 +2042,7 @@ async function handleRequest(req, res) {
       json(res, 404, { error: 'Файл не найден.' });
       return;
     }
-    if (absolute.endsWith('.mp4')) { sendVideoFile(req, res, absolute); return; }
+    if (absolute.endsWith('.mp4')) { sendFile(req, res, absolute); return; }
     fs.stat(absolute, (statError, stats) => {
       if (statError || !stats.isFile()) {
         json(res, 404, { error: 'Файл не найден.' });
@@ -2977,7 +2974,7 @@ async function handleRequest(req, res) {
   if (req.method === 'GET' && pathname.startsWith('/assets/')) {
     // Browsers stream video in byte ranges (Safari refuses to play without them), which serveStatic does not do.
     const video = path.join(ROOT, safePathname(pathname.slice(1)));
-    if (video.startsWith(path.join(ROOT, 'assets', 'video', path.sep))) { sendVideoFile(req, res, video); return; }
+    if (video.startsWith(path.join(ROOT, 'assets', 'video', path.sep))) { sendFile(req, res, video); return; }
     serveStatic(pathname, res);
     return;
   }

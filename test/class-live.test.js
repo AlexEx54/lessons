@@ -12,6 +12,7 @@ const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
 const { createClassSession } = require('../lib/class-store.js');
+const { putMedia } = require('./helpers/media.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { applyAction, authorizeSession, joinClass, sessionPayload } = require('../lib/class-live-store.js');
 
@@ -44,8 +45,10 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
     audio.audioSrc = `/api/library/superhero/assets/${audioAsset}`;
   }
   db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
-  for (const name of [publicAsset, privateAsset, leadAsset]) db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', name, Buffer.from('image'));
-  db.prepare('INSERT INTO library_assets VALUES (?, ?, ?)').run('superhero', audioAsset, Buffer.from('audio'));
+  for (const [name, data] of [[publicAsset, 'image'], [privateAsset, 'image'], [leadAsset, 'image'], [audioAsset, 'audio']]) {
+    db.prepare('INSERT INTO library_assets VALUES (?, ?)').run('superhero', name);
+    putMedia(databasePath, name, data);
+  }
   const makeClass = () => createClassSession({ className: 'Live test', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const lesson = makeClass(), otherLesson = makeClass();
   const probe = require('node:net').createServer();

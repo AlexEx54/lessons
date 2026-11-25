@@ -68,9 +68,11 @@ test('video upload, immutable publication, range access and class media signals'
   const replaced = await request(source, { headers: { Range: 'bytes=0-15', 'If-Range': 'Thu, 01 Jan 2004 00:00:00 GMT' } });
   assert.equal(replaced.status, 200); assert.deepEqual(Buffer.from(await replaced.arrayBuffer()), bytes);
   const input = { expectedRevision: 0, expectedUpdatedAt: draft.updatedAt, title: 'Watch lesson', description: 'Video lesson', category: 'Speaking', duration: '10 мин', skills: ['Speaking'], coverUpload: { type: 'image/png', data: fs.readFileSync(path.join(__dirname, '../assets/images/lesson-travel.png')).toString('base64') } };
-  const publication = publishLesson(draft.id, admin.id, input, db, assets);
+  const publication = await publishLesson(draft.id, admin.id, input, db, assets, path.join(directory, 'media'));
   const published = findLibraryLesson(publication.id, db).content.stages[0].content[0].videoSrc;
-  assert.equal((await request(published, { method: 'HEAD' })).headers.get('content-length'), String(bytes.length));
+  const head = await request(published, { method: 'HEAD' });
+  assert.equal(head.headers.get('content-length'), String(bytes.length));
+  assert.equal(head.headers.get('cache-control'), 'private, max-age=31536000, immutable');
   const classroom = createClassSession({ className: 'Video class', lessonId: publication.id, expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, admin.id, db);
   assert.deepEqual(classroom.content.stages[0].content[0].questions, [question]);
   const classSource = classroom.content.stages[0].content[0].videoSrc;
