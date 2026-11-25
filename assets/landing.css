@@ -52,20 +52,33 @@ img { display: block; max-width: 100%; }
   pointer-events: none;
 }
 
-.hero__grid {
+/* The promo loop sits under everything in the hero; the poster shows until the first frame and for reduced motion. */
+.hero__media {
   position: absolute;
   z-index: -1;
-  top: 70px;
-  right: -2%;
-  width: 54%;
-  height: 59%;
-  opacity: 0.12;
-  background-image: url("/assets/images/landing/notebook-grid.png");
-  background-position: right calc(2vw + 22px) top 34px;
-  background-size: 86px 86px;
-  background-repeat: repeat;
-  mask-image: linear-gradient(90deg, transparent, #000 23%, #000);
+  inset: 0;
+  background: url("/assets/video/landing/promo-desktop-poster.webp") center / cover no-repeat;
 }
+
+/* Purple shade in the hero's own colours: deep under the copy on the left and the header on top, light where the lesson plays. */
+.hero__media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(85, 48, 232, 0.75) 0, rgba(85, 48, 232, 0) 130px),
+    linear-gradient(90deg, rgba(85, 48, 232, 0.95) 0%, rgba(87, 52, 238, 0.88) 30%, rgba(90, 55, 241, 0.5) 52%, rgba(100, 72, 246, 0.32) 100%);
+}
+
+.hero__video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 700ms ease;
+}
+
+.hero__video--playing { opacity: 1; }
 
 .landing-header {
   position: relative;
@@ -189,23 +202,6 @@ img { display: block; max-width: 100%; }
 }
 
 .hero-cta span:last-child { font-size: 27px; font-weight: 450; line-height: 1; }
-
-.hero__visual {
-  position: absolute;
-  z-index: 2;
-  top: 1%;
-  right: -5.5%;
-  width: 69%;
-  height: 99%;
-  pointer-events: none;
-}
-
-.hero__collage {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 24px 32px rgba(37, 16, 125, 0.18));
-}
 
 .scribble {
   position: absolute;
@@ -626,7 +622,6 @@ img { display: block; max-width: 100%; }
   .landing-nav { gap: 26px; }
   .landing-actions { gap: 18px; }
   .hero__content { grid-template-columns: minmax(330px, 0.85fr) minmax(480px, 1.15fr); }
-  .hero__visual { right: -9%; width: 70%; }
   .benefit { grid-template-columns: 52px 1fr; padding-inline: 18px; gap: 12px; }
   .benefit__icon { width: 48px; height: 48px; }
   .platform-inside__inner {
@@ -650,7 +645,8 @@ img { display: block; max-width: 100%; }
 }
 
 @media (max-width: 860px) {
-  .hero { min-height: auto; }
+  /* The copy takes the top of the screen; the rest shows the lesson video. */
+  .hero { min-height: min(100svh, 900px); }
 
   .landing-header {
     grid-template-columns: 1fr auto;
@@ -725,24 +721,19 @@ img { display: block; max-width: 100%; }
     flex-direction: column;
     width: min(100% - 32px, 720px);
     min-height: 0;
-    padding: 54px 0 0;
+    padding: 54px 0 56px;
   }
 
   .hero__copy { align-self: stretch; padding-left: 0; }
   .hero__copy h1 { font-size: clamp(45px, 11vw, 68px); }
   .hero__copy p { margin-top: 26px; }
 
-  .hero__visual {
-    position: relative;
-    top: auto;
-    right: auto;
-    width: 115%;
-    height: auto;
-    margin: 24px -12% -2% auto;
-  }
-
-  .hero__collage { height: auto; }
   .scribble--bottom-left { bottom: 3%; }
+
+  .hero__media { background-image: url("/assets/video/landing/promo-mobile-poster.webp"); }
+  .hero__media::after {
+    background: linear-gradient(180deg, rgba(85, 48, 232, 0.95) 0%, rgba(87, 52, 238, 0.9) 55%, rgba(90, 55, 241, 0.45) 75%, rgba(100, 72, 246, 0.3) 100%);
+  }
 
   .benefits__inner {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -822,14 +813,6 @@ img { display: block; max-width: 100%; }
   .hero__copy p { font-size: 17px; }
   .hero-cta { width: 100%; }
 
-  .hero__visual {
-    width: 112%;
-    margin-top: 25px;
-    margin-right: 0;
-    margin-bottom: 0;
-    transform: translateX(-10%);
-  }
-
   .scribble--bottom-left { bottom: 0; left: -4%; width: 57px; }
   .scribble--bottom-right { right: -8%; width: 56px; }
 
@@ -884,6 +867,8 @@ img { display: block; max-width: 100%; }
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+
+  .hero__video { display: none; }
 }
 
 .lesson-showcase {

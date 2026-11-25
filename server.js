@@ -1167,7 +1167,7 @@ function sendVideoFile(req, res, absolute) {
   if (rangeHeader && !range) {
     res.writeHead(416, { 'Content-Range': `bytes */${size}` }); res.end(); return;
   }
-  const headers = { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600', 'Last-Modified': lastModified,
+  const headers = { 'Content-Type': getContentType(absolute), 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600', 'Last-Modified': lastModified,
     'Content-Length': range ? range.end - range.start + 1 : size };
   if (range) headers['Content-Range'] = `bytes ${range.start}-${range.end}/${size}`;
   res.writeHead(range ? 206 : 200, headers);
@@ -2974,6 +2974,9 @@ async function handleRequest(req, res) {
   }
 
   if (req.method === 'GET' && pathname.startsWith('/assets/')) {
+    // Browsers stream video in byte ranges (Safari refuses to play without them), which serveStatic does not do.
+    const video = path.join(ROOT, safePathname(pathname.slice(1)));
+    if (video.startsWith(path.join(ROOT, 'assets', 'video', path.sep))) { sendVideoFile(req, res, video); return; }
     serveStatic(pathname, res);
     return;
   }

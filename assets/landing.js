@@ -487,6 +487,14 @@
 
   renderShowcase();
 
+  // The hero video is decoration: it loads only when motion is welcome, otherwise its poster stays in place.
+  const heroVideo = document.querySelector('.hero__video');
+  if (heroVideo && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    heroVideo.addEventListener('playing', () => heroVideo.classList.add('hero__video--playing'), { once: true });
+    heroVideo.autoplay = true;
+    heroVideo.load();
+  }
+
   // The server sends guests here from closed pages such as the library.
   const requestedAuth = new URLSearchParams(window.location.search);
   if (requestedAuth.has('auth')) {
