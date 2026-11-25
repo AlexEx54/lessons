@@ -131,6 +131,7 @@ const { controlExample, describeControls, previewLessonTemplate } = require('./l
 const { recoverLessonGeneration } = require('./lib/lesson-generation-recovery.js');
 const { stopInterruptedLessonImageGenerations } = require('./lib/lesson-image-generation-store.js');
 const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
+const { toWebp } = require('./lib/webp.js');
 const { LESSON_MODEL_OPTIONS, OPENROUTER_BASE_URL } = require('./lib/ai-lesson-generator.js');
 
 const PORT = process.env.PORT || 8787;
@@ -2536,13 +2537,13 @@ async function handleRequest(req, res) {
         }
         let imageSrc = null;
         if (req.method === 'PUT') {
-          const { buffer, extension } = await readImageBody(req);
-          const fileName = `${crypto.randomUUID()}${extension}`;
+          const image = await toWebp((await readImageBody(req)).buffer);
+          const fileName = `${crypto.randomUUID()}.webp`;
           newFile = draftAssetPath(imageRoute.draftId, fileName);
           if (!newFile) throw new Error('Некорректный путь изображения.');
           fs.mkdirSync(path.dirname(newFile), { recursive: true });
           const temporaryFile = `${newFile}.tmp-${crypto.randomUUID()}`;
-          fs.writeFileSync(temporaryFile, buffer, { flag: 'wx' });
+          fs.writeFileSync(temporaryFile, image, { flag: 'wx' });
           fs.renameSync(temporaryFile, newFile);
           imageSrc = `/api/lesson-draft-assets/${encodeURIComponent(imageRoute.draftId)}/${encodeURIComponent(fileName)}`;
         }

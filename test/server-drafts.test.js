@@ -13,6 +13,9 @@ const { createExampleLesson } = require('../lib/lesson-generation-plan.js');
 const { imageSlots } = require('../lib/lesson-image-slots.js');
 const { findSystemTemplate } = require('../lib/lesson-templates/system-templates.js');
 
+// A real 1×1 PNG: uploaded pictures are decoded and stored as WebP.
+const TINY_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC', 'base64');
+
 const ROOT = path.join(__dirname, '..');
 
 async function waitForServer(url, child) {
@@ -335,10 +338,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   const savedNestedSituation = (await nestedSituationUpdate.json()).draft.content.stages[6].content[5].situation;
   assert.equal(savedNestedSituation.text, '**Updated camp prompt**');
   assert.equal(savedNestedSituation.backgroundColor, '#ECE6FF');
-  const nestedPng = Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    Buffer.from('test-image'),
-  ]);
+  const nestedPng = TINY_PNG;
   const nestedImageResponse = await fetch(`${nestedSituationEndpoint}/pictures/leading/image`, {
     method: 'PUT',
     headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie },
@@ -347,7 +347,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(nestedImageResponse.status, 200);
   assert.match(
     (await nestedImageResponse.json()).draft.content.stages[6].content[5].situation.leadingPicture.imageSrc,
-    new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`),
+    new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.webp$`),
   );
 
   // Карточка внутри cardRow правится существующим эндпоинтом: обходчик
@@ -983,10 +983,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   const thisOrThat = created.content.stages[0].content[2];
   const imageEndpoint = `${baseUrl}/api/lesson-drafts/${created.id}/this-or-that/${thisOrThat.id}`
     + `/items/${thisOrThat.items[0].id}/options/${thisOrThat.items[0].options[0].id}/image`;
-  const png = Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    Buffer.from('test-image'),
-  ]);
+  const png = TINY_PNG;
   assert.equal((await fetch(imageEndpoint, {
     method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: png,
   })).status, 401);
@@ -1005,11 +1002,11 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(imageUpdateResponse.status, 200);
   const imageDraft = (await imageUpdateResponse.json()).draft;
   const savedImageSrc = imageDraft.content.stages[0].content[2].items[0].options[0].imageSrc;
-  assert.match(savedImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`));
+  assert.match(savedImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.webp$`));
   assert.equal((await fetch(`${baseUrl}${savedImageSrc}`)).status, 401);
   const imageAssetResponse = await fetch(`${baseUrl}${savedImageSrc}`, { headers: { Cookie: firstAdminCookie } });
   assert.equal(imageAssetResponse.status, 200);
-  assert.deepEqual(Buffer.from(await imageAssetResponse.arrayBuffer()), png);
+  assert.equal(Buffer.from(await imageAssetResponse.arrayBuffer()).toString('ascii', 8, 12), 'WEBP');
   const secondAdminCookieBeforeDelete = await login(baseUrl, 'admin-two@example.com', password);
   assert.equal((await fetch(`${baseUrl}${savedImageSrc}`, { headers: { Cookie: secondAdminCookieBeforeDelete } })).status, 404);
   const imageDeleteResponse = await fetch(imageEndpoint, { method: 'DELETE', headers: { Cookie: firstAdminCookie } });
@@ -1027,7 +1024,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   });
   assert.equal(matchWordsImageResponse.status, 200);
   const matchWordsImageSrc = (await matchWordsImageResponse.json()).draft.content.stages[2].content[2].items[0].imageSrc;
-  assert.match(matchWordsImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`));
+  assert.match(matchWordsImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.webp$`));
   assert.equal((await fetch(matchWordsImageEndpoint, { method: 'DELETE', headers: { Cookie: firstAdminCookie } })).status, 200);
   assert.equal((await fetch(`${baseUrl}${matchWordsImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 404);
 
@@ -1108,7 +1105,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   });
   assert.equal(panelImageResponse.status, 200);
   const panelImageSrc = (await panelImageResponse.json()).draft.content.stages[1].content[2].leadingPicture.imageSrc;
-  assert.match(panelImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`));
+  assert.match(panelImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.webp$`));
   assert.equal((await fetch(`${baseUrl}${panelImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 200);
   const panelImageDeleteResponse = await fetch(panelImageEndpoint, {
     method: 'DELETE', headers: { Cookie: firstAdminCookie },
@@ -1170,7 +1167,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   });
   assert.equal(textReadingImageResponse.status, 200);
   const firstTextReadingImageSrc = (await textReadingImageResponse.json()).draft.content.stages[3].content[1].textImage.imageSrc;
-  assert.match(firstTextReadingImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`));
+  assert.match(firstTextReadingImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.webp$`));
   assert.equal((await fetch(`${baseUrl}${firstTextReadingImageSrc}`, { headers: { Cookie: firstAdminCookie } })).status, 200);
   const secondTextReadingImageResponse = await fetch(textReadingImageEndpoint, {
     method: 'PUT', headers: { 'Content-Type': 'image/png', Cookie: firstAdminCookie }, body: Buffer.concat([png, Buffer.from('-replacement')]),
@@ -1192,7 +1189,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   });
   assert.equal(textReadingHeaderResponse.status, 200);
   const textReadingHeaderImageSrc = (await textReadingHeaderResponse.json()).draft.content.stages[3].content[1].headerImage.imageSrc;
-  assert.match(textReadingHeaderImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.png$`));
+  assert.match(textReadingHeaderImageSrc, new RegExp(`^/api/lesson-draft-assets/${created.id}/[a-f0-9-]+\\.webp$`));
   assert.equal((await fetch(textReadingHeaderImageEndpoint, {
     method: 'DELETE', headers: { Cookie: firstAdminCookie },
   })).status, 200);

@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const sharp = require('sharp');
 const { openDatabase } = require('../lib/db.js');
 const {
   completeLessonDraft,
@@ -129,6 +130,7 @@ test('coordinator serializes drafts and persists each generated 512x512 image im
     database.close();
     fs.rmSync(assetsDirectory, { recursive: true, force: true });
   });
+  const generatedPng = await sharp({ create: { width: 512, height: 512, channels: 3, background: '#88aacc' } }).png().toBuffer();
   let activeRequests = 0;
   let maximumActiveRequests = 0;
   const client = {
@@ -138,7 +140,7 @@ test('coordinator serializes drafts and persists each generated 512x512 image im
       maximumActiveRequests = Math.max(maximumActiveRequests, activeRequests);
       await new Promise(resolve => setTimeout(resolve, 5));
       activeRequests -= 1;
-      return { buffer: Buffer.from(`png:${prompt}`), width: 512, height: 512 };
+      return { buffer: generatedPng, width: 512, height: 512 };
     },
   };
   const generator = new LessonImageGenerator({
@@ -162,8 +164,9 @@ test('coordinator serializes drafts and persists each generated 512x512 image im
   for (const draft of drafts) {
     const stored = findLessonDraft(draft.id, owner.id, database);
     const [slot] = imageSlots(stored.content);
-    assert.match(slot.imageSrc, new RegExp(`/api/lesson-draft-assets/${draft.id}/.+\\.png$`));
-    assert.equal(fs.existsSync(path.join(assetsDirectory, draft.id, path.basename(slot.imageSrc))), true);
+    assert.match(slot.imageSrc, new RegExp(`/api/lesson-draft-assets/${draft.id}/.+\\.webp$`));
+    const saved = fs.readFileSync(path.join(assetsDirectory, draft.id, path.basename(slot.imageSrc)));
+    assert.equal(saved.toString('ascii', 8, 12), 'WEBP');
   }
 });
 
