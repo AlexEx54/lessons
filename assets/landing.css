@@ -403,7 +403,7 @@ img { display: block; max-width: 100%; }
   left: 0;
   width: 18px;
   height: 18px;
-  background: url("/assets/images/landing/platform/check.png") center / contain no-repeat;
+  background: url("/assets/images/landing/platform/check.webp") center / contain no-repeat;
 }
 
 .why-easyclass {
