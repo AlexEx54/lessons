@@ -192,7 +192,7 @@
         find('[data-prompt]').value = meta.coverImagePrompt || '';
         find('[data-prompt-block]').hidden = !meta.coverImagePrompt;
         form.querySelectorAll('[name="skills"]').forEach(input => { input.checked = (pub?.skills || ['Vocabulary', 'Speaking']).includes(input.value); });
-        find('[data-profile]').textContent = `${draft.ageGroup.replace('-', '–')} лет · ${draft.level}`;
+        find('[data-profile]').textContent = `${draft.ageLabel} · ${draft.level}`;
         find('[data-incomplete]').hidden = !hasMissingImages(draft.content);
         find('[data-fields]').hidden = false;
         find('[data-intro]').textContent = 'В библиотеке будет сохранена отдельная версия урока. Черновик останется доступен для правок.';

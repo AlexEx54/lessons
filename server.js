@@ -132,6 +132,7 @@ const { recoverLessonGeneration } = require('./lib/lesson-generation-recovery.js
 const { stopInterruptedLessonImageGenerations } = require('./lib/lesson-image-generation-store.js');
 const { LessonImageGenerator } = require('./lib/lesson-image-generator.js');
 const { toWebp } = require('./lib/webp.js');
+const { LEVELS, isAgeGroup } = require('./lib/learner-profile.js');
 const { mediaPath, sweepUnusedMedia } = require('./lib/media-store.js');
 const { LESSON_MODEL_OPTIONS, OPENROUTER_BASE_URL } = require('./lib/ai-lesson-generator.js');
 
@@ -2170,11 +2171,11 @@ async function handleRequest(req, res) {
       json(res, 400, { error: 'Поля урока должны быть объектом.' });
       return;
     }
-    if (!['9-11', '12-14', '15-18'].includes(ageGroup)) {
+    if (!isAgeGroup(ageGroup)) {
       json(res, 400, { error: 'Выбрана неизвестная возрастная группа.' });
       return;
     }
-    if (!['A1', 'A2', 'B1', 'B2'].includes(level)) {
+    if (!LEVELS.includes(level)) {
       json(res, 400, { error: 'Выбран неизвестный уровень сложности.' });
       return;
     }

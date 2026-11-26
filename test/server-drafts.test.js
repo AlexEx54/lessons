@@ -114,7 +114,7 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     [{ inputs: null }, /объектом/],
     [{}, /«Тема урока»/],
     [{ inputs: valid, ageGroup: '18+' }],
-    [{ inputs: valid, level: 'C1' }],
+    [{ inputs: valid, level: 'C3' }],
     [{ inputs: valid, model: undefined }],
     [{ inputs: valid, model: '' }],
     [{ inputs: valid, model: null }],
@@ -135,8 +135,8 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
     headers: { 'Content-Type': 'application/json', Cookie: firstAdminCookie },
     body: JSON.stringify({
       inputs: { topic: '  Travel English  ', grammarTopic: '  Past Simple  ', unknownField: 'ignored' },
-      ageGroup: '15-18',
-      level: 'B2',
+      ageGroup: 'adults',
+      level: 'C2',
       template: 'template-1',
       model: 'google/gemini-3.7-flash',
       synthetic: true,
@@ -164,14 +164,15 @@ test('lesson draft pages and APIs are admin-only and owner-isolated', async t =>
   assert.equal(created.ownerAdminId, firstAdmin.id);
   assert.equal(created.topic, 'Travel English');
   assert.deepEqual(created.inputs, { topic: 'Travel English', warmUpTopic: 'Travel English', grammarTopic: 'Past Simple' });
-  assert.equal(created.ageGroup, '15-18');
-  assert.equal(created.level, 'B2');
+  assert.equal(created.ageGroup, 'adults');
+  assert.equal(created.ageLabel, 'Взрослые');
+  assert.equal(created.level, 'C2');
   assert.equal(created.status, 'review');
   assert.equal(created.imageGeneration.status, 'pending');
   // Synthetic drafts are built from the controls' examples; they shuffle options, so
   // compare the lesson structure.
   const exampleLesson = createExampleLesson(findSystemTemplate('template-1').definition, 'Travel English', {
-    ageGroup: '15-18', level: 'B2',
+    ageGroup: 'adults', level: 'C2',
   });
   const structure = lesson => lesson.stages.map(stage => [stage.id, ...(stage.content || []).map(c => `${c.type} ${c.id}`)]);
   assert.equal(created.imageGeneration.total, imageSlots(exampleLesson).length);

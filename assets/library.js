@@ -164,7 +164,7 @@
       <div class="lesson-cover"><img src="${lesson.cover}" alt="" loading="lazy" decoding="async" /></div>
       <div class="lesson-body">
         <h3>${lesson.title}</h3>
-        <p class="lesson-facts">${lesson.age.replace('-', '–')} лет <span>•</span> ${lesson.level}</p>
+        <p class="lesson-facts">${lesson.age_label} <span>•</span> ${lesson.level}</p>
         <p class="lesson-description">${lesson.description}</p>
         <div class="lesson-skills">${source.skills.map(skillLabel).join('')}</div>
         <p class="lesson-duration"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4.5l2.5 1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>${lesson.duration}</p>

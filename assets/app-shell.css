@@ -478,11 +478,11 @@ p { margin: 0; }
 }
 
 .new-lesson-choice-grid--age {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .new-lesson-choice-grid--level {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .new-lesson-choice {
@@ -979,13 +979,12 @@ p { margin: 0; }
     font-size: 16px;
   }
 
-  .new-lesson-choice-grid--age,
-  .new-lesson-choice-grid--level {
+  .new-lesson-choice-grid--age {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .new-lesson-choice-grid--age .new-lesson-choice:last-child {
-    grid-column: 1 / -1;
+  .new-lesson-choice-grid--level {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .new-lesson-choice {

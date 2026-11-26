@@ -64,6 +64,35 @@ test('migration 031 removes the seeded preview cards and keeps published lessons
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
 });
 
+test('migration 032 lets drafts be for adults and levels C1–C2 and keeps their generations and publications', t => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec('PRAGMA foreign_keys = ON');
+  db.exec('CREATE TABLE schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL) STRICT');
+  const directory = path.join(__dirname, '..', 'migrations');
+  for (const name of fs.readdirSync(directory).filter(name => /^\d+.*\.sql$/.test(name) && name < '032').sort()) {
+    db.exec(fs.readFileSync(path.join(directory, name), 'utf8'));
+    db.prepare('INSERT INTO schema_migrations VALUES (?, ?)').run(name, '2026-11-26');
+  }
+  const admin = createUser({ email: 'admin@test.local', displayName: 'Admin', role: 'admin', passwordHash: 'unused' }, db);
+  const draft = createLessonDraft({ ownerAdminId: admin.id, topic: 'Travel', template: 'template-1', ageGroup: '15-18', level: 'B2' }, db);
+  createLessonImageGeneration({ draftId: draft.id, total: 2 }, db);
+  db.prepare(`INSERT INTO library_lessons (id, source_draft_id, title, age, level, category, description, skills_json, duration, cover,
+    content_json, published_at, updated_at)
+    VALUES ('travel', ?, 'Travel', '15-18', 'B2', 'General English', 'Published', '[]', '45 мин', '/cover.webp', '{}', '2026-11-01', '2026-11-01')`)
+    .run(draft.id);
+  assert.throws(() => createLessonDraft({ ownerAdminId: admin.id, topic: 'Work', template: 'template-1', ageGroup: 'adults', level: 'C1' }, db));
+  applyMigrations(db);
+  const kept = findLessonDraft(draft.id, admin.id, db);
+  assert.deepEqual([kept.ageGroup, kept.ageLabel, kept.level, kept.imageGeneration.total], ['15-18', '15–18 лет', 'B2', 2]);
+  assert.deepEqual([kept.publication.id, kept.publication.age_label], ['travel', '15–18 лет']);
+  const adults = createLessonDraft({ ownerAdminId: admin.id, topic: 'Work', template: 'template-1', ageGroup: 'adults', level: 'C1' }, db);
+  assert.deepEqual([adults.ageLabel, adults.level], ['Взрослые', 'C1']);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sqlite_master WHERE tbl_name = \'lesson_drafts\' AND type = \'index\' AND sql IS NOT NULL').get().n, 2);
+  assert.equal(db.prepare('PRAGMA foreign_keys').get().foreign_keys, 1);
+  assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
+});
+
 test('home library selects up to twelve available new publications, ordered by publication date and id', t => {
   const { db } = fixture(t);
   assert.deepEqual(listNewLibraryLessons(db), []);
