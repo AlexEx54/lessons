@@ -171,15 +171,8 @@
         <div class="lesson-actions"><button type="button" data-action="preview">Предпросмотр</button><button type="button" data-action="schedule">Запланировать</button></div>
       </div>`;
     renderBadge(article, source.badge);
-    const preview = article.querySelector('[data-action="preview"]');
-    const schedule = article.querySelector('[data-action="schedule"]');
-    if (!source.is_available) {
-      [preview, schedule].forEach(button => { button.disabled = true; button.title = 'Урок пока недоступен'; });
-      schedule.textContent = 'Скоро';
-    } else {
-      preview.addEventListener('click', () => { window.location.href = `/library/${encodeURIComponent(source.id)}`; });
-      schedule.addEventListener('click', () => window.ClassModal.open({ lessonId: source.id }));
-    }
+    article.querySelector('[data-action="preview"]').addEventListener('click', () => { window.location.href = `/library/${encodeURIComponent(source.id)}`; });
+    article.querySelector('[data-action="schedule"]').addEventListener('click', () => window.ClassModal.open({ lessonId: source.id }));
     if (isAdmin) addLessonMenuButton(source, article);
     return article;
   }

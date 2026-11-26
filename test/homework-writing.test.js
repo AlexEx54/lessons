@@ -9,6 +9,7 @@ const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { completeLessonDraft, createLessonDraft, updateHomeworkWriting } = require('../lib/lesson-draft-store.js');
 const { checkStaticComponent, STATIC_BLOCKS } = require('../assets/lesson-template-statics.js');
+const { addLibraryLesson } = require('./helpers/library.js');
 const {
   ACTIONS,
   ART_SRC,
@@ -421,7 +422,7 @@ test('any stage with content opens in a session, and the homework there is saved
   const content = syntheticLesson();
   const homework = normalizeHomeworkWriting(component());
   content.stages.push({ id: 'homework', number: content.stages.length + 1, title: 'Homework', icon: 'pencil', content: [homework] });
-  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
+  addLibraryLesson(db, content);
   const session = createClassSession({ className: 'Homework', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const teacherAccess = { role: 'teacher', sessionId: session.id, ownerId: teacher.id };
   const studentAccess = { ...teacherAccess, role: 'student' };

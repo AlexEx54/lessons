@@ -6,9 +6,12 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
+const { DatabaseSync } = require('node:sqlite');
 const { openDatabase, applyMigrations } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
+const { createClassSession } = require('../lib/class-store.js');
+const { addLibraryLesson } = require('./helpers/library.js');
 const { createLessonDraft, completeLessonDraft, findLessonDraft, deleteLessonDraft } = require('../lib/lesson-draft-store.js');
 const { createLessonImageGeneration, setLessonImageGenerationStatus } = require('../lib/lesson-image-generation-store.js');
 const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, hasLibraryAsset } = require('../lib/library-store.js');
@@ -32,19 +35,33 @@ function fixture(t, dbPath = ':memory:') {
   return { db, dir, media, admin, other, teacher, draft, input, name };
 }
 
-test('migration preserves ten unavailable cards and does not reseed on subsequent runs', t => {
-  const { db } = fixture(t);
-  const cards = listLibraryLessons(db);
-  assert.equal(cards.length, 10);
-  assert.equal(cards[0].id, 'superhero');
-  assert.deepEqual(cards.filter(card => card.badge).map(card => [card.id, card.badge]),
-    [['superhero', 'new'], ['music', 'popular'], ['careers', 'new'], ['global', 'new']]);
-  assert.ok(cards.every(card => !card.is_available && card.is_published));
-  assert.equal(findLibraryLesson('superhero', db), null);
-  assert.ok(cards.every(card => !('content_json' in card)));
-  db.prepare("UPDATE library_lessons SET title = 'Changed' WHERE id = 'superhero'").run();
+test('migration 031 removes the seeded preview cards and keeps published lessons with their files and sessions', t => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec('PRAGMA foreign_keys = ON');
+  db.exec('CREATE TABLE schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL) STRICT');
+  const directory = path.join(__dirname, '..', 'migrations');
+  for (const name of fs.readdirSync(directory).filter(name => /^\d+.*\.sql$/.test(name) && name < '031').sort()) {
+    db.exec(fs.readFileSync(path.join(directory, name), 'utf8'));
+    db.prepare('INSERT INTO schema_migrations VALUES (?, ?)').run(name, '2026-11-26');
+  }
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM library_lessons WHERE is_available = 0').get().n, 10);
+  const teacher = createUser({ email: 'teacher@test.local', displayName: 'Teacher', role: 'teacher', passwordHash: 'unused' }, db);
+  db.prepare(`INSERT INTO library_lessons (id, title, age, level, category, description, skills_json, duration, cover, badge,
+    is_available, content_json, revision, published_at, updated_at)
+    VALUES ('real', 'Real', '12-14', 'A2', 'General English', 'Published', '["Speaking"]', '45 мин', '/cover.webp', 'new',
+      1, '{"meta":{"title":"Real"},"stages":[]}', 1, '2026-11-01', '2026-11-01')`).run();
+  db.prepare("INSERT INTO library_assets VALUES ('real', 'file.webp')").run();
+  const session = createClassSession({ className: 'Анна', lessonId: 'real', expectedRevision: 1, requestKey: crypto.randomUUID(),
+    scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   applyMigrations(db);
-  assert.equal(listLibraryLessons(db)[0].title, 'Changed');
+  assert.deepEqual(listLibraryLessons(db).map(card => [card.id, card.badge, card.is_published]), [['real', 'new', true]]);
+  assert.equal(findLibraryLesson('real', db).content.meta.title, 'Real');
+  assert.ok(db.prepare('PRAGMA table_info(library_lessons)').all().every(column => column.name !== 'is_available'));
+  assert.equal(hasLibraryAsset('real', 'file.webp', db), true);
+  assert.equal(db.prepare('SELECT library_lesson_id FROM class_sessions WHERE id = ?').get(session.id).library_lesson_id, 'real');
+  assert.equal(db.prepare('PRAGMA foreign_keys').get().foreign_keys, 1);
+  assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
 });
 
 test('home library selects up to twelve available new publications, ordered by publication date and id', t => {
@@ -52,27 +69,26 @@ test('home library selects up to twelve available new publications, ordered by p
   assert.deepEqual(listNewLibraryLessons(db), []);
   const insert = db.prepare(`INSERT INTO library_lessons
     (id, title, age, level, category, description, skills_json, duration, cover,
-      badge, is_available, is_published, content_json, published_at, updated_at)
+      badge, is_published, content_json, published_at, updated_at)
     VALUES (?, 'Lesson', '12-14', 'A2', 'Speaking', 'Description', '["Speaking"]',
-      '45 мин', '/assets/images/lesson-travel.png', ?, ?, ?, '{}', ?, ?)`);
+      '45 мин', '/assets/images/lesson-travel.png', ?, ?, '{}', ?, ?)`);
   for (let day = 1; day <= 12; day++) {
     const id = `new-${String(day).padStart(2, '0')}`;
-    insert.run(id, 'new', 1, 1, `2026-09-${String(day).padStart(2, '0')}T00:00:00.000Z`, '2026-10-01T00:00:00.000Z');
+    insert.run(id, 'new', 1, `2026-09-${String(day).padStart(2, '0')}T00:00:00.000Z`, '2026-10-01T00:00:00.000Z');
   }
   // Same publication date as new-12: ties are broken by id.
-  insert.run('new-12-tie', 'new', 1, 1, '2026-09-12T00:00:00.000Z', '2026-10-01T00:00:00.000Z');
+  insert.run('new-12-tie', 'new', 1, '2026-09-12T00:00:00.000Z', '2026-10-01T00:00:00.000Z');
   // A metadata edit must not outrank a later publication.
   db.prepare('UPDATE library_lessons SET updated_at = ? WHERE id = ?').run('2099-01-01T00:00:00.000Z', 'new-01');
-  for (const [id, badge, available, published] of [
-    ['hidden', 'new', 1, 0], ['unavailable', 'new', 0, 1],
-    ['popular', 'popular', 1, 1], ['unmarked', null, 1, 1],
-  ]) insert.run(id, badge, available, published, '2099-01-01T00:00:00.000Z', '2099-01-01T00:00:00.000Z');
+  for (const [id, badge, published] of [
+    ['hidden', 'new', 0], ['popular', 'popular', 1], ['unmarked', null, 1],
+  ]) insert.run(id, badge, published, '2099-01-01T00:00:00.000Z', '2099-01-01T00:00:00.000Z');
   const lessons = listNewLibraryLessons(db);
   assert.deepEqual(lessons.map(lesson => lesson.id), [
     'new-12', 'new-12-tie', 'new-11', 'new-10', 'new-09', 'new-08',
     'new-07', 'new-06', 'new-05', 'new-04', 'new-03', 'new-02',
   ]);
-  assert.ok(lessons.every(lesson => lesson.badge === 'new' && lesson.is_available && lesson.is_published));
+  assert.ok(lessons.every(lesson => lesson.badge === 'new' && lesson.is_published));
   assert.ok(lessons.every(lesson => !('content_json' in lesson)));
   assert.deepEqual(lessons[0].skills, ['Speaking']);
 });
@@ -80,7 +96,7 @@ test('home library selects up to twelve available new publications, ordered by p
 test('publication copies content and files, updates one record, hides and republishes, survives draft deletion', async t => {
   const { db, dir, media, admin, draft, input, name } = fixture(t);
   const published = await publishLesson(draft.id, admin.id, input, db, dir, media);
-  assert.equal(published.is_available, true);
+  assert.equal(published.is_published, true);
   assert.equal(findLessonDraft(draft.id, admin.id, db).status, 'review');
   const first = findLibraryLesson(published.id, db);
   const asset = first.content.stages[0].content[0].audioSrc.split('/').at(-1);
@@ -97,7 +113,7 @@ test('publication copies content and files, updates one record, hides and republ
   const updated = await publishLesson(draft.id, admin.id, { ...input, expectedRevision: 1, title: 'Updated lesson' }, db, dir, media);
   assert.equal(updated.id, published.id);
   assert.equal(updated.revision, 2);
-  assert.equal(listLibraryLessons(db).length, 11);
+  assert.equal(listLibraryLessons(db).length, 1);
   const republished = findLibraryLesson(published.id, db);
   assert.equal(republished.content.meta.title, 'Updated lesson');
   // The new version refers to the changed audio only; the old file stays for sessions that use it.
@@ -110,7 +126,7 @@ test('publication copies content and files, updates one record, hides and republ
   assert.equal(findLibraryLesson(published.id, db), null);
   assert.equal(hasLibraryAsset(published.id, updatedAsset, db), false);
   assert.ok(hasLibraryAsset(published.id, updatedAsset, db, admin.id));
-  assert.equal(listLibraryLessons(db).length, 10);
+  assert.equal(listLibraryLessons(db).length, 0);
   await publishLesson(draft.id, admin.id, { ...input, expectedRevision: 3 }, db, dir, media);
   deleteLessonDraft(draft.id, admin.id, db);
   fs.rmSync(path.join(dir, draft.id), { recursive: true });
@@ -125,6 +141,7 @@ test('publication copies content and files, updates one record, hides and republ
 test('any admin marks any published lesson; the mark survives republication', async t => {
   const { db, dir, media, admin, other, teacher, draft, input } = fixture(t);
   const published = await publishLesson(draft.id, admin.id, input, db, dir, media);
+  addLibraryLesson(db, {}, 'animals');
   const badgeOf = id => listLibraryLessons(db).find(item => item.id === id).badge;
   setLibraryLessonBadge(published.id, other.id, 'popular', db);
   assert.equal(badgeOf(published.id), 'popular');
@@ -150,7 +167,7 @@ test('publication rejects unauthorized users, stale content, missing files and i
   await assert.rejects(() => publishLesson(draft.id, admin.id, { ...input, skills: [] }, db, dir, media), { statusCode: 400 });
   fs.unlinkSync(path.join(dir, draft.id, name));
   await assert.rejects(() => publishLesson(draft.id, admin.id, input, db, dir, media), { statusCode: 409 });
-  assert.equal(listLibraryLessons(db).length, 10);
+  assert.equal(listLibraryLessons(db).length, 0);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM library_assets').get().n, 0);
 });
 
@@ -163,10 +180,10 @@ test('running image generation blocks publication; stopped generation requires e
   content.stages[0].content[0].picture = { imagePrompt: 'A beach' };
   db.prepare('UPDATE lesson_drafts SET content_json = ? WHERE id = ?').run(JSON.stringify(content), draft.id);
   await assert.rejects(() => publishLesson(draft.id, admin.id, input, db, dir, media), { statusCode: 409 });
-  assert.ok((await publishLesson(draft.id, admin.id, { ...input, allowIncompleteImages: true }, db, dir, media)).is_available);
+  assert.ok((await publishLesson(draft.id, admin.id, { ...input, allowIncompleteImages: true }, db, dir, media)).is_published);
 });
 
-test('library HTTP routes protect publication, placeholders, hidden lessons and media including range requests', async t => {
+test('library HTTP routes protect publication, missing and hidden lessons and media including range requests', async t => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'library-http-'));
   const { db, dir, admin, other, teacher, draft, input } = fixture(t, path.join(temp, 'app.sqlite'));
   const cookie = user => `teach_session=${createSession(user.id, db).token}`;
@@ -184,13 +201,13 @@ test('library HTTP routes protect publication, placeholders, hidden lessons and 
   assert.ok(ready);
   const request = (route, cookie, method = 'GET', body) => fetch(url + route, { method, redirect: 'manual', headers: { ...(cookie ? { Cookie: cookie } : {}), 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
   assert.equal((await request('/api/library')).status, 401);
-  assert.equal((await (await request('/api/library', teacherCookie)).json()).lessons.length, 10);
+  assert.equal((await (await request('/api/library', teacherCookie)).json()).lessons.length, 0);
   assert.equal((await request('/api/home-content')).status, 401);
   const initialHome = await (await request('/api/home-content', teacherCookie)).json();
   assert.deepEqual(initialHome.libraryLessons, []);
   assert.equal(initialHome.hasClasses, false);
-  assert.equal((await request('/api/library/superhero', teacherCookie)).status, 404);
-  assert.equal((await request('/library/superhero', teacherCookie)).status, 404);
+  assert.equal((await request('/api/library/missing', teacherCookie)).status, 404);
+  assert.equal((await request('/library/missing', teacherCookie)).status, 404);
   const route = `/api/lesson-drafts/${draft.id}/publication`;
   assert.equal((await request(route, null, 'POST', input)).status, 401);
   assert.equal((await request(route, teacherCookie, 'POST', input)).status, 403);

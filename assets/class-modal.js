@@ -352,7 +352,7 @@
       const content = await response.json();
       if (request !== recommendationRequest) return;
       loadingRecommendations = false;
-      allRecommendations = content.lessons.filter(lesson => lesson.is_published && lesson.is_available).map(lesson => ({ ...lesson, coverSrc: lesson.cover }));
+      allRecommendations = content.lessons.filter(lesson => lesson.is_published).map(lesson => ({ ...lesson, coverSrc: lesson.cover }));
       // The lesson picked in the library goes first, so it stays among the visible recommendations.
       allRecommendations.sort((a, b) => (b.id === preferredLessonId) - (a.id === preferredLessonId));
       filterRecommendations();

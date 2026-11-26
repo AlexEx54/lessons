@@ -10,6 +10,7 @@ const { createUser } = require('../lib/user-store.js');
 const { createClassSession } = require('../lib/class-store.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { applyAction, readState, sessionPayload } = require('../lib/class-live-store.js');
+const { addLibraryLesson } = require('./helpers/library.js');
 
 const exercise = {
   type: 'categorySort', id: 'warm-up-sort', title: 'How does -ed sound?', instruction: 'Sort the verbs by the sound of -ed.',
@@ -28,7 +29,7 @@ test('card order and sorted cards persist across reopen; reset clears the cards 
   const teacher = createUser({ email: 'sort@test.local', displayName: 'Teacher', passwordHash: 'unused' }, db);
   const content = syntheticLesson('template-2');
   content.stages[0].content.push(exercise);
-  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
+  addLibraryLesson(db, content);
   const lesson = createClassSession({ className: 'Sounds', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const access = { role: 'teacher', sessionId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };
   const presentation = access => sessionPayload(access, db).lesson.content.stages[0].content.find(item => item.type === 'categorySort').presentation;

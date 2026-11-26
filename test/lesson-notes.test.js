@@ -22,6 +22,7 @@ const { notesSchema } = require('../lib/lesson-notes-editor.js');
 const { EMPTY_NOTES, validateNotes, readDraftNotes, saveDraftNotes } = require('../lib/lesson-notes-schema.js');
 const { readClassNotes, persistUpdate } = require('../lib/lesson-notes-store.js');
 const { createNotesSignaling } = require('../lib/lesson-notes-signaling.js');
+const { addLibraryLesson } = require('./helpers/library.js');
 const content = text => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] });
 const textOf = doc => yDocToProsemirrorJSON(doc, 'notes').content[0].content.map(node => node.text || '').join('');
 function setup(t) {
@@ -30,7 +31,7 @@ function setup(t) {
   const teacher = createUser({ email: `${crypto.randomUUID()}@notes.test`, displayName: 'Teacher', role: 'admin', passwordHash: 'unused' }, db);
   const lesson = syntheticLesson();
   lesson.notes = content('Start');
-  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(lesson));
+  addLibraryLesson(db, lesson);
   const makeClass = () => createClassSession({ className: 'Notes', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   return { db, teacher, makeClass };
 }

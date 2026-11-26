@@ -11,6 +11,7 @@ const { createClassSession } = require('../lib/class-store.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { sentenceBuilderComponent } = require('./helpers/sentence-builder.js');
 const { applyAction, readState, sessionPayload } = require('../lib/class-live-store.js');
+const { addLibraryLesson } = require('./helpers/library.js');
 
 test('sentence builder shares progress, persists completion after reopen and resets without reshuffling', t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sentence-builder-session-'));
@@ -20,7 +21,7 @@ test('sentence builder shares progress, persists completion after reopen and res
   const teacher = createUser({ email: 'builder@test.local', displayName: 'Teacher', passwordHash: 'unused' }, db);
   const content = syntheticLesson('template-2');
   content.stages[7].content.splice(1, 0, sentenceBuilderComponent());
-  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
+  addLibraryLesson(db, content);
   const lesson = createClassSession({ className: 'Grammar', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const access = { role: 'teacher', sessionId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };
   let state = readState(lesson.id, db);

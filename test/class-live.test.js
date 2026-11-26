@@ -15,6 +15,7 @@ const { createClassSession } = require('../lib/class-store.js');
 const { putMedia } = require('./helpers/media.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { applyAction, authorizeSession, joinClass, sessionPayload } = require('../lib/class-live-store.js');
+const { addLibraryLesson } = require('./helpers/library.js');
 
 test('live class: guest authorization, actions, isolation, tab replacement and restart recovery', { timeout: 20000 }, async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'class-live-'));
@@ -44,7 +45,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
   for (const audio of content.stages.find(stage => stage.id === 'listening').content.filter(component => component.type === 'audioPlayer')) {
     audio.audioSrc = `/api/library/superhero/assets/${audioAsset}`;
   }
-  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
+  addLibraryLesson(db, content);
   for (const [name, data] of [[publicAsset, 'image'], [privateAsset, 'image'], [leadAsset, 'image'], [audioAsset, 'audio']]) {
     db.prepare('INSERT INTO library_assets VALUES (?, ?)').run('superhero', name);
     putMedia(databasePath, name, data);

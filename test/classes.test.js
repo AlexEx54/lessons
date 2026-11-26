@@ -12,6 +12,7 @@ const { createSession } = require('../lib/session-store.js');
 const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, hasClassSessionAsset } = require('../lib/class-store.js');
 const { putMedia } = require('./helpers/media.js');
 const { joinClass, classOverview, pickStudent, authorizeSession } = require('../lib/class-live-store.js');
+const { addLibraryLesson } = require('./helpers/library.js');
 function fixture(t, dbPath = ':memory:') {
   const db = openDatabase(dbPath);
   t.after(() => db.close());
@@ -19,7 +20,7 @@ function fixture(t, dbPath = ':memory:') {
   const teacher = user(), other = user();
   const assetName = `${'a'.repeat(64)}.mp3`;
   const content = { meta: { title: 'Published title' }, stages: [{ id: 'intro', title: 'Introduction', content: [{ id: 'audio', type: 'audioPlayer', audioSrc: `/api/library/superhero/assets/${assetName}` }] }] };
-  db.prepare('UPDATE library_lessons SET is_available = 1, revision = 1, content_json = ? WHERE id = ?').run(JSON.stringify(content), 'superhero');
+  addLibraryLesson(db, content);
   const coverName = `${'b'.repeat(64)}.png`;
   for (const [name, data] of [[assetName, 'audio-data'], [coverName, 'cover-data']]) {
     db.prepare('INSERT INTO library_assets VALUES (?, ?)').run('superhero', name);

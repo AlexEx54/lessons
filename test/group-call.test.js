@@ -15,6 +15,7 @@ const { createSession } = require('../lib/session-store.js');
 const { createClassSession } = require('../lib/class-store.js');
 const { joinClass, pickStudent } = require('../lib/class-live-store.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
+const { addLibraryLesson } = require('./helpers/library.js');
 
 const KEY = 'key', SECRET = 'secret-of-at-least-32-characters!';
 const claimsOf = token => JSON.parse(Buffer.from(token.split('.')[1], 'base64url'));
@@ -75,8 +76,7 @@ function setup(t) {
   });
   const teacher = createUser({ email: 'group@test.local', displayName: 'Анна Сергеевна', role: 'teacher', passwordHash: 'unused' }, db);
   const teacherCookie = `teach_session=${createSession(teacher.id, db).token}`;
-  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'")
-    .run(JSON.stringify(syntheticLesson()));
+  addLibraryLesson(db, syntheticLesson());
   const makeSession = (className, isGroup = true) => createClassSession({ className, isGroup, lessonId: 'superhero', expectedRevision: 1,
     requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   // A student of a group who picked their name on this device.

@@ -17,6 +17,7 @@ const { joinClass } = require('../lib/class-live-store.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { createClassLiveSignaling } = require('../lib/class-live-signaling.js');
 const { createNotesSignaling } = require('../lib/lesson-notes-signaling.js');
+const { addLibraryLesson } = require('./helpers/library.js');
 
 test('diagnostics whitelist metadata, bound log volume and retain terminal causes', () => {
   let clock = 1000;
@@ -85,7 +86,7 @@ for (const channel of ['sessions', 'notes']) test(`${channel}: occupied student 
   t.mock.method(console, 'info', (prefix, raw) => { if (prefix === '[class-connection]') logs.push(JSON.parse(raw)); });
   const db = openDatabase(':memory:');
   const teacher = createUser({ email: 'diagnostic@test.example', displayName: 'Teacher', role: 'admin', passwordHash: 'unused' }, db);
-  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(syntheticLesson()));
+  addLibraryLesson(db, syntheticLesson());
   const lesson = createClassSession({ className: 'Diagnostics', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00Z' }, teacher.id, db);
   const teacherCookie = `teach_session=${createSession(teacher.id, db).token}`;
   const guest = () => joinClass({ headers: {} }, lesson.classInvitePath.split('/').at(-1), db, lesson.id).cookie.split(';')[0];

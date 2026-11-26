@@ -15,6 +15,7 @@ const { joinClass } = require('../lib/class-live-store.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { createClassLiveSignaling } = require('../lib/class-live-signaling.js');
 const { createNotesSignaling } = require('../lib/lesson-notes-signaling.js');
+const { addLibraryLesson } = require('./helpers/library.js');
 const source = fs.readFileSync(path.join(__dirname, '../assets/class-socket-liveness.js'), 'utf8');
 
 function browser() {
@@ -122,7 +123,7 @@ test('network and visibility return re-check sockets soon and wake pending recon
 for (const channel of ['sessions', 'notes']) test(`${channel}: server announces and sends the application heartbeat`, { timeout: 10000 }, async t => {
   const db = openDatabase(':memory:');
   const teacher = createUser({ email: `heartbeat-${channel}@test.example`, displayName: 'Teacher', role: 'admin', passwordHash: 'unused' }, db);
-  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(syntheticLesson()));
+  addLibraryLesson(db, syntheticLesson());
   const lesson = createClassSession({ className: 'Heartbeat', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00Z' }, teacher.id, db);
   const cookies = {
     teacher: `teach_session=${createSession(teacher.id, db).token}`,

@@ -8,6 +8,7 @@ const { createClassSession } = require('../lib/class-store.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
 const { applyAction, readState } = require('../lib/class-live-store.js');
 const { collectComponents } = require('../assets/components/component-tree.js');
+const { addLibraryLesson } = require('./helpers/library.js');
 
 test('reset each stage persists cleared component state, preserves other stages/layouts and enforces access', t => {
   const db = openDatabase(':memory:');
@@ -16,7 +17,7 @@ test('reset each stage persists cleared component state, preserves other stages/
   const content = syntheticLesson();
   const row = content.stages.find(stage => stage.id === 'grammar-focus').content.find(item => item.type === 'cardRow');
   row.items[0].studentVisibility = 'controlled';
-  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'").run(JSON.stringify(content));
+  addLibraryLesson(db, content);
   const lesson = createClassSession({ className: 'Reset test', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const access = { role: 'teacher', sessionId: lesson.id, ownerId: teacher.id };
   const exerciseTypes = new Set(['dragWordsInText', 'matchWords', 'dropdownChoice', 'fillInBlanks', 'describeAndGuess', 'multipleChoice', 'checkboxChoice', 'gapFill', 'miniSituation']);

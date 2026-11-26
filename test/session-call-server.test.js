@@ -13,6 +13,7 @@ const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
 const { createClassSession } = require('../lib/class-store.js');
 const { syntheticLesson } = require('./helpers/synthetic-lessons.js');
+const { addLibraryLesson } = require('./helpers/library.js');
 
 test('session call: class access, one student, presence on the lesson socket, end, cancel and clear; not in a group', { timeout: 20000 }, async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'session-call-'));
@@ -28,8 +29,7 @@ test('session call: class access, one student, presence on the lesson socket, en
   });
   const teacher = createUser({ email: 'call@test.local', displayName: 'Анна Сергеевна', role: 'teacher', passwordHash: 'unused' }, db);
   const teacherCookie = `teach_session=${createSession(teacher.id, db).token}`;
-  db.prepare("UPDATE library_lessons SET content_json = ?, is_available = 1, revision = 1 WHERE id = 'superhero'")
-    .run(JSON.stringify(syntheticLesson()));
+  addLibraryLesson(db, syntheticLesson());
   const makeSession = () => createClassSession({ className: 'Маша', lessonId: 'superhero', expectedRevision: 1,
     requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const lesson = makeSession(), otherLesson = makeSession();
