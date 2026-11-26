@@ -63,7 +63,7 @@ test('published lessons and their sessions share one file; the sweep removes onl
   ] }] }, db);
   const cover = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#cc6633' } }).png().toBuffer();
   const publication = await publishLesson(draft.id, admin.id, {
-    expectedUpdatedAt: draft.updatedAt, expectedRevision: 0, title: 'Media', description: 'Media', category: 'Speaking',
+    expectedUpdatedAt: draft.updatedAt, expectedRevision: 0, title: 'Media', description: 'Media', category: 'Speaking', grammarPoint: null, topic: 'Медиа', season: null,
     duration: '45 мин', skills: ['Speaking'], coverUpload: { type: 'image/png', data: cover.toString('base64') },
   }, db, draftAssets, media);
   const lessonFiles = db.prepare('SELECT file_name FROM library_assets WHERE lesson_id = ?').all(publication.id).map(row => row.file_name);

@@ -54,7 +54,7 @@ test('draft notes: ownership, version conflicts, formatting validation and publi
   const media = fs.mkdtempSync(path.join(os.tmpdir(), 'notes-media-'));
   t.after(() => fs.rmSync(media, { recursive: true, force: true }));
   const published = await publishLesson(draft.id, teacher.id, {
-    expectedUpdatedAt: updatedAt, expectedRevision: 0, title: 'Notes', description: 'Notes', category: 'General English', skills: ['Writing'], duration: '45 мин', allowIncompleteImages: true,
+    expectedUpdatedAt: updatedAt, expectedRevision: 0, title: 'Notes', description: 'Notes', category: 'General English', grammarPoint: null, topic: 'Заметки', season: null, skills: ['Writing'], duration: '45 мин', allowIncompleteImages: true,
     coverUpload: { type: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC' },
   }, db, '/unused', media);
   const publishedContent = JSON.parse(db.prepare('SELECT content_json FROM library_lessons WHERE id = ?').get(published.id).content_json);

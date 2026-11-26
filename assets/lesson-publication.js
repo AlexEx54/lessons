@@ -11,6 +11,10 @@
       <label>Название<input name="title" required maxlength="120"></label>
       <label>Краткое описание<textarea name="description" required maxlength="500" rows="3"></textarea></label>
       <p data-profile></p>
+      <label>Грамматика по программе<select name="grammarPoint" required><option value="" disabled>Выберите грамматику</option><option value="none">Без грамматики</option></select>
+        <small class="publication-hint" data-grammar-hint hidden></small></label>
+      <div class="publication-row"><label>Тема<input name="topic" required maxlength="60" placeholder="Путешествия"></label>
+      <label>Сезон<select name="season"><option value="">Не сезонный</option></select></label></div>
       <div class="publication-row"><label>Категория<select name="category"><option>General English</option><option>Speaking</option><option>Grammar</option><option>ОГЭ / ЕГЭ</option></select></label>
       <label>Длительность<input name="duration" required maxlength="40" placeholder="45 мин"></label></div>
       <fieldset><legend>Навыки</legend>${skills.map(skill => `<label class="publication-check"><input type="checkbox" name="skills" value="${skill}">${skill}</label>`).join('')}</fieldset>
@@ -54,6 +58,22 @@
   let busy = false;
   let coverUpload = null;
   let currentCover = null;
+  let program = null;
+  // The program list is static, so it is loaded once per page.
+  async function loadProgram() {
+    if (program) return;
+    const response = await fetch('/assets/lesson-program.json');
+    if (!response.ok) throw new Error('Не удалось загрузить программу уроков.');
+    program = await response.json();
+    const levels = [...new Set(program.grammar.map(point => point.level))];
+    form.elements.grammarPoint.append(...levels.map(level => {
+      const group = document.createElement('optgroup');
+      group.label = level;
+      group.append(...program.grammar.filter(point => point.level === level).map(point => new Option(`${point.title} — ${point.hint}`, point.key)));
+      return group;
+    }));
+    form.elements.season.append(...program.seasons.map(season => new Option(season.label, season.key)));
+  }
   function error(message) { find('[data-error]').textContent = message; find('[data-error]').hidden = !message; }
   function lock(value) {
     busy = value;
@@ -140,6 +160,8 @@
         expectedUpdatedAt: draft.updatedAt,
         title: form.elements.title.value, description: form.elements.description.value,
         category: form.elements.category.value, duration: form.elements.duration.value,
+        grammarPoint: form.elements.grammarPoint.value === 'none' ? null : form.elements.grammarPoint.value,
+        topic: form.elements.topic.value, season: form.elements.season.value || null,
         cover: currentCover, ...(coverUpload ? { coverUpload } : {}),
         skills: [...form.querySelectorAll('[name="skills"]:checked')].map(input => input.value),
         allowIncompleteImages: form.elements.allowIncompleteImages.checked,
@@ -176,6 +198,7 @@
       dialog.showModal(); lock(true);
       try {
         if (options.isDirty?.()) throw new Error('Сохраните изменения в упражнениях перед публикацией.');
+        await loadProgram();
         const response = await fetch(`/api/lesson-drafts/${encodeURIComponent(draftId)}`, { cache: 'no-store' });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error || 'Не удалось загрузить черновик.');
@@ -186,6 +209,13 @@
         form.elements.title.value = pub?.title || meta.title || draft.topic;
         form.elements.description.value = pub?.description || meta.description || '';
         form.elements.category.value = pub?.category || 'General English';
+        // A publication without a topic predates the program fields, so its grammar is still to be chosen.
+        form.elements.grammarPoint.value = pub?.grammar_point ?? (pub?.topic ? 'none' : '');
+        form.elements.topic.value = pub?.topic || '';
+        form.elements.season.value = pub?.season || '';
+        const grammarHint = draft.inputs?.grammarTopic?.trim();
+        find('[data-grammar-hint]').textContent = grammarHint ? `В задании на генерацию: ${grammarHint}` : '';
+        find('[data-grammar-hint]').hidden = !grammarHint;
         form.elements.duration.value = pub?.duration || `${meta.durationMinutes || 45} мин`;
         currentCover = pub?.cover || null;
         if (currentCover) { find('[data-cover]').src = currentCover; find('[data-cover]').hidden = false; find('[data-choose]').textContent = 'Заменить изображение'; }

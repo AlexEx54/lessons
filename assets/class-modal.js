@@ -332,7 +332,7 @@
   function filterRecommendations() {
     if (loadingRecommendations) return;
     const query = lessonSearch.value.trim().toLocaleLowerCase('ru');
-    const filtered = allRecommendations.filter(lesson => `${lesson.title} ${lesson.description} ${lesson.level}`.toLocaleLowerCase('ru').includes(query));
+    const filtered = allRecommendations.filter(lesson => `${lesson.title} ${lesson.description} ${lesson.level} ${lesson.grammar_title ?? ''} ${lesson.topic ?? ''} ${lesson.season_label ?? ''}`.toLocaleLowerCase('ru').includes(query));
     renderRecommendations(showAllLessons || query ? filtered : filtered.slice(0, 4));
     document.getElementById('class-all-lessons').hidden = showAllLessons || Boolean(query) || allRecommendations.length <= 4;
   }

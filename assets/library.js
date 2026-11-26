@@ -156,6 +156,12 @@
     article.querySelector('.lesson-cover').append(button);
   }
 
+  // «Present Simple · Распорядок дня»: what the lesson teaches, for lessons marked up by the program.
+  function programLine(lesson) {
+    const parts = [lesson.grammar_title, lesson.topic].filter(Boolean);
+    return parts.length ? `<p class="lesson-program">${parts.join(' <span>·</span> ')}</p>` : '';
+  }
+
   function lessonCard(source) {
     const lesson = Object.fromEntries(Object.entries(source).map(([key, value]) => [key, typeof value === 'string' ? escapeHtml(value) : value]));
     const article = document.createElement('article');
@@ -164,7 +170,8 @@
       <div class="lesson-cover"><img src="${lesson.cover}" alt="" loading="lazy" decoding="async" /></div>
       <div class="lesson-body">
         <h3>${lesson.title}</h3>
-        <p class="lesson-facts">${lesson.age_label} <span>•</span> ${lesson.level}</p>
+        <p class="lesson-facts">${lesson.age_label} <span>•</span> ${lesson.level}${lesson.season_label ? ` <span>•</span> ${lesson.season_label}` : ''}</p>
+        ${programLine(lesson)}
         <p class="lesson-description">${lesson.description}</p>
         <div class="lesson-skills">${source.skills.map(skillLabel).join('')}</div>
         <p class="lesson-duration"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4.5l2.5 1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>${lesson.duration}</p>
@@ -182,7 +189,7 @@
     return (state.age === 'all' || lesson.age === state.age)
       && (state.level === 'all' || lesson.level === state.level)
       && (state.category === 'all' || lesson.category === state.category)
-      && (!query || `${lesson.title} ${lesson.description} ${lesson.skills.join(' ')}`.toLocaleLowerCase('ru-RU').includes(query));
+      && (!query || `${lesson.title} ${lesson.description} ${lesson.grammar_title ?? ''} ${lesson.topic ?? ''} ${lesson.season_label ?? ''} ${lesson.skills.join(' ')}`.toLocaleLowerCase('ru-RU').includes(query));
   }
 
   function updateListState() {

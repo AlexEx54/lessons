@@ -10,7 +10,6 @@ const { DatabaseSync } = require('node:sqlite');
 const { openDatabase, applyMigrations } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
-const { createClassSession } = require('../lib/class-store.js');
 const { addLibraryLesson } = require('./helpers/library.js');
 const { createLessonDraft, completeLessonDraft, findLessonDraft, deleteLessonDraft } = require('../lib/lesson-draft-store.js');
 const { createLessonImageGeneration, setLessonImageGenerationStatus } = require('../lib/lesson-image-generation-store.js');
@@ -31,7 +30,7 @@ function fixture(t, dbPath = ':memory:') {
   fs.writeFileSync(path.join(dir, created.id, name), 'audio-test-data');
   const content = { meta: { title: 'Travel' }, stages: [{ id: 'listening', content: [{ id: 'audio', type: 'audioPlayer', audioSrc: `/api/lesson-draft-assets/${created.id}/${name}` }] }] };
   const draft = completeLessonDraft(created.id, admin.id, content, db);
-  const input = { expectedUpdatedAt: draft.updatedAt, expectedRevision: 0, title: 'Travel lesson', description: 'Travel and transport', category: 'Speaking', duration: '45 мин', coverUpload: { type: 'image/png', data: fs.readFileSync(path.join(__dirname, '../assets/images/lesson-travel.png')).toString('base64') }, skills: ['Speaking'] };
+  const input = { expectedUpdatedAt: draft.updatedAt, expectedRevision: 0, title: 'Travel lesson', description: 'Travel and transport', category: 'Speaking', grammarPoint: 'will-future', topic: 'Путешествия', season: null, duration: '45 мин', coverUpload: { type: 'image/png', data: fs.readFileSync(path.join(__dirname, '../assets/images/lesson-travel.png')).toString('base64') }, skills: ['Speaking'] };
   return { db, dir, media, admin, other, teacher, draft, input, name };
 }
 
@@ -52,8 +51,12 @@ test('migration 031 removes the seeded preview cards and keeps published lessons
     VALUES ('real', 'Real', '12-14', 'A2', 'General English', 'Published', '["Speaking"]', '45 мин', '/cover.webp', 'new',
       1, '{"meta":{"title":"Real"},"stages":[]}', 1, '2026-11-01', '2026-11-01')`).run();
   db.prepare("INSERT INTO library_assets VALUES ('real', 'file.webp')").run();
-  const session = createClassSession({ className: 'Анна', lessonId: 'real', expectedRevision: 1, requestKey: crypto.randomUUID(),
-    scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
+  // Store code expects the latest schema, so the old rows are written directly.
+  db.prepare("INSERT INTO classes (id, owner_id, name, invite_token, created_at) VALUES ('anna', ?, 'Анна', 'token', '2026-11-01')").run(teacher.id);
+  const session = { id: 'lesson' };
+  db.prepare(`INSERT INTO class_sessions (id, class_id, request_key, request_json, library_lesson_id, library_revision, title, level,
+    duration, cover, content_json, scheduled_at, time_zone, created_at)
+    VALUES ('lesson', 'anna', 'key', '{}', 'real', 1, 'Real', 'A2', '45 мин', '', '{}', '2099-01-01T10:00:00.000Z', 'UTC', '2026-11-01')`).run();
   applyMigrations(db);
   assert.deepEqual(listLibraryLessons(db).map(card => [card.id, card.badge, card.is_published]), [['real', 'new', true]]);
   assert.equal(findLibraryLesson('real', db).content.meta.title, 'Real');
@@ -75,13 +78,17 @@ test('migration 032 lets drafts be for adults and levels C1–C2 and keeps their
     db.prepare('INSERT INTO schema_migrations VALUES (?, ?)').run(name, '2026-11-26');
   }
   const admin = createUser({ email: 'admin@test.local', displayName: 'Admin', role: 'admin', passwordHash: 'unused' }, db);
-  const draft = createLessonDraft({ ownerAdminId: admin.id, topic: 'Travel', template: 'template-1', ageGroup: '15-18', level: 'B2' }, db);
+  // Store code expects the latest schema, so the old rows are written directly.
+  const draft = { id: crypto.randomUUID() };
+  db.prepare(`INSERT INTO lesson_drafts (id, owner_admin_id, topic, template_id, created_at, updated_at, student_age_group, student_level)
+    VALUES (?, ?, 'Travel', 'template-1', '2026-11-01', '2026-11-01', '15-18', 'B2')`).run(draft.id, admin.id);
   createLessonImageGeneration({ draftId: draft.id, total: 2 }, db);
   db.prepare(`INSERT INTO library_lessons (id, source_draft_id, title, age, level, category, description, skills_json, duration, cover,
     content_json, published_at, updated_at)
     VALUES ('travel', ?, 'Travel', '15-18', 'B2', 'General English', 'Published', '[]', '45 мин', '/cover.webp', '{}', '2026-11-01', '2026-11-01')`)
     .run(draft.id);
-  assert.throws(() => createLessonDraft({ ownerAdminId: admin.id, topic: 'Work', template: 'template-1', ageGroup: 'adults', level: 'C1' }, db));
+  assert.throws(() => db.prepare(`INSERT INTO lesson_drafts (id, owner_admin_id, topic, template_id, created_at, updated_at, student_age_group, student_level)
+    VALUES ('adults', ?, 'Work', 'template-1', '2026-11-01', '2026-11-01', 'adults', 'C1')`).run(admin.id));
   applyMigrations(db);
   const kept = findLessonDraft(draft.id, admin.id, db);
   assert.deepEqual([kept.ageGroup, kept.ageLabel, kept.level, kept.imageGeneration.total], ['15-18', '15–18 лет', 'B2', 2]);
@@ -126,6 +133,8 @@ test('publication copies content and files, updates one record, hides and republ
   const { db, dir, media, admin, draft, input, name } = fixture(t);
   const published = await publishLesson(draft.id, admin.id, input, db, dir, media);
   assert.equal(published.is_published, true);
+  assert.deepEqual([published.grammar_point, published.grammar_title, published.topic, published.season, published.season_label],
+    ['will-future', 'will / won\'t', 'Путешествия', null, null]);
   assert.equal(findLessonDraft(draft.id, admin.id, db).status, 'review');
   const first = findLibraryLesson(published.id, db);
   const asset = first.content.stages[0].content[0].audioSrc.split('/').at(-1);
@@ -139,8 +148,9 @@ test('publication copies content and files, updates one record, hides and republ
   assert.equal(findLibraryLesson(published.id, db).content.meta.title, 'Travel lesson');
   assert.equal(readMedia(media, asset).toString(), 'audio-test-data');
   await assert.rejects(() => publishLesson(draft.id, admin.id, input, db, dir, media), { statusCode: 409 });
-  const updated = await publishLesson(draft.id, admin.id, { ...input, expectedRevision: 1, title: 'Updated lesson' }, db, dir, media);
+  const updated = await publishLesson(draft.id, admin.id, { ...input, expectedRevision: 1, title: 'Updated lesson', grammarPoint: null, season: 'summer' }, db, dir, media);
   assert.equal(updated.id, published.id);
+  assert.deepEqual([updated.grammar_title, updated.season, updated.season_label], [null, 'summer', 'Лето']);
   assert.equal(updated.revision, 2);
   assert.equal(listLibraryLessons(db).length, 1);
   const republished = findLibraryLesson(published.id, db);
@@ -194,6 +204,9 @@ test('publication rejects unauthorized users, stale content, missing files and i
   await assert.rejects(() => publishLesson(draft.id, admin.id, { ...input, expectedUpdatedAt: 'old' }, db, dir, media), { statusCode: 409 });
   await assert.rejects(() => publishLesson(draft.id, admin.id, { ...input, coverUpload: undefined, cover: '/../../.env' }, db, dir, media), { statusCode: 400 });
   await assert.rejects(() => publishLesson(draft.id, admin.id, { ...input, skills: [] }, db, dir, media), { statusCode: 400 });
+  for (const invalid of [{ grammarPoint: 'future-simple' }, { grammarPoint: undefined }, { topic: ' ' }, { topic: 'x'.repeat(61) }, { season: 'winter' }]) {
+    await assert.rejects(() => publishLesson(draft.id, admin.id, { ...input, ...invalid }, db, dir, media), { statusCode: 400 });
+  }
   fs.unlinkSync(path.join(dir, draft.id, name));
   await assert.rejects(() => publishLesson(draft.id, admin.id, input, db, dir, media), { statusCode: 409 });
   assert.equal(listLibraryLessons(db).length, 0);

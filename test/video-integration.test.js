@@ -67,7 +67,7 @@ test('video upload, immutable publication, range access and class media signals'
   assert.equal((await request(source, { headers: { Range: 'bytes=0-15', 'If-Range': lastModified } })).status, 206);
   const replaced = await request(source, { headers: { Range: 'bytes=0-15', 'If-Range': 'Thu, 01 Jan 2004 00:00:00 GMT' } });
   assert.equal(replaced.status, 200); assert.deepEqual(Buffer.from(await replaced.arrayBuffer()), bytes);
-  const input = { expectedRevision: 0, expectedUpdatedAt: draft.updatedAt, title: 'Watch lesson', description: 'Video lesson', category: 'Speaking', duration: '10 мин', skills: ['Speaking'], coverUpload: { type: 'image/png', data: fs.readFileSync(path.join(__dirname, '../assets/images/lesson-travel.png')).toString('base64') } };
+  const input = { expectedRevision: 0, expectedUpdatedAt: draft.updatedAt, title: 'Watch lesson', description: 'Video lesson', category: 'Speaking', grammarPoint: null, topic: 'Видео', season: null, duration: '10 мин', skills: ['Speaking'], coverUpload: { type: 'image/png', data: fs.readFileSync(path.join(__dirname, '../assets/images/lesson-travel.png')).toString('base64') } };
   const publication = await publishLesson(draft.id, admin.id, input, db, assets, path.join(directory, 'media'));
   const published = findLibraryLesson(publication.id, db).content.stages[0].content[0].videoSrc;
   const head = await request(published, { method: 'HEAD' });
