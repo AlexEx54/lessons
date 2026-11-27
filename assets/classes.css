@@ -38,6 +38,13 @@
 .class-card__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 12px 14px; border-radius: 12px; background: #faf9ff; }
 .class-card__facts dt { color: var(--muted); font-size: 12px; }
 .class-card__facts dd { margin: 3px 0 0; font-size: 14px; font-weight: 600; }
+.class-card__program { display: grid; justify-items: start; gap: 4px; padding: 12px 14px; border: 1px solid #ece6ff; border-radius: 12px; }
+.class-card__program .plan-mark { margin-bottom: 2px; font-size: 12px; }
+.class-card__program-link { display: inline-flex; align-items: center; gap: 2px; margin: 2px -6px -4px; padding: 4px 6px; border-radius: 7px; color: var(--purple); font-size: 13px; font-weight: 600; white-space: nowrap; transition: background 160ms ease; }
+.class-card__program-link:hover { background: #f7f5ff; }
+.class-card__program-link svg { width: 15px; height: 15px; }
+.class-card__point { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.class-card__point-hint { color: var(--muted); font-size: 13px; line-height: 1.4; }
 .class-card__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .class-card__actions .classes-action--primary { grid-column: 1 / -1; }
 .class-card__history-toggle svg { width: 16px; height: 16px; transition: transform 160ms ease; }
@@ -62,7 +69,19 @@
 .classes-dialog__error { margin-top: 14px; color: #b32949; font-size: 13px; }
 .classes-dialog__error:empty { display: none; }
 .classes-dialog__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+/* The rare action stays apart from Отмена / Сохранить, on the left. */
+.classes-action--danger { margin-right: auto; border-color: transparent; color: #b32949; padding: 0 10px; }
+.classes-action--danger:hover { background: #fff1f3; }
+.classes-action--destructive { border-color: #c4314f; color: #fff; background: #c4314f; }
+.classes-action--destructive:hover { border-color: #a6223f; background: #a6223f; }
+.classes-dialog__text { margin-top: 12px; color: #3d3f66; font-size: 14px; line-height: 1.55; }
+.classes-dialog__text ul { display: grid; gap: 4px; margin: 8px 0 10px; padding-left: 20px; }
+.classes-dialog__text strong { font-weight: 600; }
 
 @media (max-width: 760px) {
   .classes { padding: 18px; }
+}
+@media (max-width: 420px) {
+  .classes-dialog__actions { flex-wrap: wrap; }
+  .classes-action--danger { flex-basis: 100%; justify-content: flex-start; order: 1; }
 }

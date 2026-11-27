@@ -9,7 +9,7 @@ const { spawn } = require('node:child_process');
 const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
-const { listClasses, updateClass, listClassHistory, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, hasClassSessionAsset } = require('../lib/class-store.js');
+const { listClasses, updateClass, deleteClass, listClassHistory, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, hasClassSessionAsset } = require('../lib/class-store.js');
 const { putMedia } = require('./helpers/media.js');
 const { joinClass, classOverview, pickStudent, authorizeSession } = require('../lib/class-live-store.js');
 const { addLibraryLesson } = require('./helpers/library.js');
@@ -118,6 +118,38 @@ test('class history lists held and upcoming sessions with their grammar, counts 
   assert.deepEqual([newcomer.held_count, newcomer.next_session_at], [1, null]);
   assert.equal(listClassHistory(first.class_id, other.id, db), null);
   assert.equal(listClassHistory(crypto.randomUUID(), teacher.id, db), null);
+});
+test('each class with a level and age gets its next grammar point, by the rules of the library', t => {
+  const { db, teacher, plan } = fixture(t);
+  addLibraryLesson(db, { stages: [] }, 'have-got');
+  db.prepare("UPDATE library_lessons SET grammar_point = 'to-be', age = '9-11', level = 'A1' WHERE id = 'superhero'").run();
+  db.prepare("UPDATE library_lessons SET grammar_point = 'have-got', age = '9-11', level = 'A1' WHERE id = 'have-got'").run();
+  const nextPoint = name => listClasses(teacher.id, db).find(item => item.name === name).next_point;
+  // The planned session covers «to be», so the class moves on to the next point that has a lesson.
+  plan({ className: 'Анна', level: 'A1', age: '9-11' });
+  assert.deepEqual(nextPoint('Анна'), { key: 'have-got', title: 'have got / has got', hint: nextPoint('Анна').hint });
+  assert.equal(typeof nextPoint('Анна').hint, 'string');
+  plan({ className: 'Борис', level: 'A2', age: '12-14' });
+  assert.equal(nextPoint('Борис'), null, 'no A2 lessons in the library');
+  const old = plan({ className: 'Старый', level: 'A1', age: '9-11' });
+  db.prepare('UPDATE classes SET level = NULL, age = NULL WHERE id = ?').run(old.class_id);
+  assert.equal(nextPoint('Старый'), null, 'a class without a profile has no program');
+  const edited = updateClass(old.class_id, { name: 'Старый', level: 'A1', age: '9-11' }, teacher.id, db);
+  assert.equal(edited.next_point.key, 'have-got');
+});
+test('deleting a class removes its sessions and media references, and only the owner can do it', t => {
+  const { db, teacher, other, plan } = fixture(t);
+  const first = plan();
+  const cancelled = plan({ className: undefined, classId: first.class_id });
+  updateClassSession(cancelled.id, { status: 'cancelled' }, teacher.id, db);
+  const kept = plan({ className: 'Борис' });
+  assert.equal(deleteClass(first.class_id, other.id, db), null);
+  assert.equal(deleteClass(crypto.randomUUID(), teacher.id, db), null);
+  assert.deepEqual(listClasses(teacher.id, db).map(item => [item.name, item.planned_count]), [['Борис', 1], ['Анна', 1]]);
+  assert.deepEqual(deleteClass(first.class_id, teacher.id, db).sort(), [first.id, cancelled.id].sort());
+  assert.deepEqual(listClasses(teacher.id, db).map(item => item.name), ['Борис']);
+  assert.deepEqual(db.prepare('SELECT DISTINCT session_id FROM class_assets').all().map(row => row.session_id), [kept.id]);
+  assert.equal(deleteClass(first.class_id, teacher.id, db), null);
 });
 test('unavailable or changed lessons, missing assets and invalid input cannot create a session', t => {
   const { db, teacher, input, assetName } = fixture(t);

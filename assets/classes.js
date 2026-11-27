@@ -12,7 +12,12 @@
   const levelChoice = byId('classes-level-choice');
   const ageChoice = byId('classes-age-choice');
   const editError = byId('classes-edit-error');
+  const deleteDialog = byId('classes-delete-dialog');
+  const deleteText = byId('classes-delete-text');
+  const deleteError = byId('classes-delete-error');
+  const deleteConfirm = byId('classes-delete-confirm');
   const SAVE_FAILED = 'Не удалось сохранить класс.';
+  const DELETE_FAILED = 'Не удалось удалить класс.';
   const formats = {
     next: new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
     day: new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long' }),
@@ -20,6 +25,8 @@
   };
   const plural = new Intl.PluralRules('ru');
   const SESSION_WORDS = { one: 'занятие', few: 'занятия', many: 'занятий', other: 'занятия' };
+  const HELD_WORDS = { one: 'проведённое занятие', few: 'проведённых занятия', many: 'проведённых занятий', other: 'проведённого занятия' };
+  const PLANNED_WORDS = { one: 'запланированное занятие', few: 'запланированных занятия', many: 'запланированных занятий', other: 'запланированного занятия' };
   let classes = [];
   let editedId = null;
   let saving = false;
@@ -36,7 +43,8 @@
     node.dataset.action = action;
     return node;
   }
-  const sessionCount = count => `${count} ${SESSION_WORDS[plural.select(count)]}`;
+  const counted = (count, words) => `${count} ${words[plural.select(count)]}`;
+  const sessionCount = count => counted(count, SESSION_WORDS);
   // The year is shown only when it is not the current one.
   function historyDate(value) {
     const date = new Date(value);
@@ -47,6 +55,23 @@
     const row = element('div');
     row.append(element('dt', '', term), element('dd', '', value));
     return row;
+  }
+
+  // Where the class stands in the program, with a way into the library shown for this class.
+  function programBlock(item) {
+    const block = element('div', 'class-card__program');
+    const point = item.next_point;
+    if (point) {
+      block.append(element('span', 'plan-mark plan-mark--next', 'Дальше по программе'),
+        element('p', 'class-card__point', point.title), element('p', 'class-card__point-hint', point.hint));
+    } else {
+      block.append(element('p', 'class-card__point-hint', `Новых тем с уроками на уровне ${item.level} нет`));
+    }
+    const link = element('a', 'class-card__program-link', 'Программа класса');
+    link.href = `/library.html?class=${encodeURIComponent(item.id)}`;
+    link.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>');
+    block.append(link);
+    return block;
   }
 
   function classCard(item) {
@@ -72,6 +97,8 @@
       fact('Следующее', item.next_session_at ? formats.next.format(new Date(item.next_session_at)) : 'не запланировано'),
     );
 
+    const program = item.level && item.age ? programBlock(item) : null;
+
     const history = element('div', 'class-card__history');
     history.id = `class-history-${item.id}`;
     history.hidden = true;
@@ -86,7 +113,7 @@
       toggle,
     );
 
-    card.append(head, profile, facts, actions, history);
+    card.append(...[head, profile, facts, program, actions, history].filter(Boolean));
     return card;
   }
 
@@ -209,10 +236,48 @@
       setSaving(false);
     }
   });
+  // The warning names what goes with the class, so a class with a history is not deleted by a slip.
+  function openDelete(item) {
+    const losses = [
+      item.held_count && `${counted(item.held_count, HELD_WORDS)} с заметками и чатом`,
+      item.planned_count && counted(item.planned_count, PLANNED_WORDS),
+      'постоянная ссылка для учеников',
+    ].filter(Boolean);
+    deleteDialog.querySelector('h3').textContent = `Удалить класс «${item.name}»?`;
+    const list = element('ul');
+    list.append(...losses.map(text => element('li', '', text)));
+    deleteText.replaceChildren(element('p', '', 'Вместе с классом удалятся:'), list, element('p', '', 'Отменить удаление нельзя.'));
+    deleteError.textContent = '';
+    dialog.close();
+    deleteDialog.showModal();
+    deleteDialog.querySelector('[data-close]').focus();
+  }
+
+  async function deleteClass() {
+    const item = classes.find(entry => entry.id === editedId);
+    deleteDialog.querySelectorAll('button').forEach(control => { control.disabled = true; });
+    try {
+      const response = await fetch(`/api/classes/${item.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || DELETE_FAILED);
+      classes = classes.filter(entry => entry.id !== item.id);
+      render();
+      deleteDialog.close();
+      window.AppShell.showToast(`Класс «${item.name}» удалён.`);
+    } catch (failure) {
+      deleteError.textContent = failure instanceof TypeError ? DELETE_FAILED : failure.message;
+    } finally {
+      deleteDialog.querySelectorAll('button').forEach(control => { control.disabled = false; });
+    }
+  }
+
   [levelChoice, ageChoice].forEach(group => Chips.bind(group, () => { editError.textContent = ''; }));
   nameInput.addEventListener('input', () => { editError.textContent = ''; });
   dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
   dialog.addEventListener('cancel', event => { if (saving) event.preventDefault(); });
+  byId('classes-delete').addEventListener('click', () => openDelete(classes.find(item => item.id === editedId)));
+  deleteConfirm.addEventListener('click', deleteClass);
+  deleteDialog.querySelector('[data-close]').addEventListener('click', () => deleteDialog.close());
+  deleteDialog.addEventListener('cancel', event => { if (deleteConfirm.disabled) event.preventDefault(); });
 
   list.addEventListener('click', event => {
     const control = event.target.closest('[data-action]');

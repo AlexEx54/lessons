@@ -42,9 +42,20 @@
       </div>
       <p class="classes-dialog__error" id="classes-edit-error" role="alert"></p>
       <div class="classes-dialog__actions">
+        <button class="classes-action classes-action--danger" id="classes-delete" type="button">Удалить класс</button>
         <button class="classes-action" type="button" data-close>Отмена</button>
         <button class="classes-action classes-action--primary" type="submit">Сохранить</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog class="classes-dialog" id="classes-delete-dialog" aria-labelledby="classes-delete-title" aria-describedby="classes-delete-text">
+    <h3 id="classes-delete-title">Удалить класс?</h3>
+    <div class="classes-dialog__text" id="classes-delete-text"></div>
+    <p class="classes-dialog__error" id="classes-delete-error" role="alert"></p>
+    <div class="classes-dialog__actions">
+      <button class="classes-action" type="button" data-close>Отмена</button>
+      <button class="classes-action classes-action--destructive" id="classes-delete-confirm" type="button">Удалить класс</button>
+    </div>
   </dialog>
 </section>

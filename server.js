@@ -23,7 +23,7 @@ const {
 } = require('./lib/auth.js');
 const { DEFAULT_DB_PATH, getDatabase } = require('./lib/db.js');
 const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, setLibraryLessonProgram, hasLibraryAsset } = require('./lib/library-store.js');
-const { listClasses, updateClass, listClassHistory, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, hasClassSessionAsset } = require('./lib/class-store.js');
+const { listClasses, updateClass, deleteClass, listClassHistory, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, hasClassSessionAsset } = require('./lib/class-store.js');
 const { joinClass, classOverview, pickStudent, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
 const { createClassLiveSignaling } = require('./lib/class-live-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
@@ -1815,6 +1815,16 @@ async function handleRequest(req, res) {
     if (!user) return;
     try { json(res, 200, { class: updateClass(classDetail[1], await readJsonBody(req), user.id, database) }); }
     catch (error) { json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось сохранить класс.' }); }
+    return;
+  }
+  if (req.method === 'DELETE' && classDetail) {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    const sessionIds = deleteClass(classDetail[1], user.id, database);
+    if (!sessionIds) { json(res, 404, { error: 'Класс не найден.' }); return; }
+    sessionIds.forEach(endSessionCall);
+    sessionChat.cleanup();
+    json(res, 200, { deleted: true });
     return;
   }
 
