@@ -13,7 +13,7 @@ const { createSession } = require('../lib/session-store.js');
 const { addLibraryLesson } = require('./helpers/library.js');
 const { createLessonDraft, completeLessonDraft, findLessonDraft, deleteLessonDraft } = require('../lib/lesson-draft-store.js');
 const { createLessonImageGeneration, setLessonImageGenerationStatus } = require('../lib/lesson-image-generation-store.js');
-const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, hasLibraryAsset } = require('../lib/library-store.js');
+const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, setLibraryLessonProgram, hasLibraryAsset } = require('../lib/library-store.js');
 const { mediaPath } = require('../lib/media-store.js');
 const readMedia = (media, name) => fs.readFileSync(mediaPath(media, name));
 
@@ -197,6 +197,24 @@ test('any admin marks any published lesson; the mark survives republication', as
   assert.throws(() => setLibraryLessonBadge(published.id, admin.id, 'new', db), { statusCode: 404 });
 });
 
+test('any admin edits the program fields of a published lesson without a new revision', async t => {
+  const { db, dir, media, admin, other, teacher, draft, input } = fixture(t);
+  const published = await publishLesson(draft.id, admin.id, input, db, dir, media);
+  const edited = setLibraryLessonProgram(published.id, other.id, { grammarPoint: 'first-conditional', topic: ' Космос ', season: 'new-year' }, db);
+  assert.deepEqual([edited.grammar_title, edited.topic, edited.season_label, edited.revision], ['First Conditional', 'Космос', 'Новый год и Рождество', 1]);
+  assert.equal(findLibraryLesson(published.id, db).grammar_point, 'first-conditional');
+  const cleared = setLibraryLessonProgram(published.id, admin.id, { grammarPoint: null, topic: 'Космос', season: null }, db);
+  assert.deepEqual([cleared.grammar_point, cleared.season], [null, null]);
+  assert.throws(() => setLibraryLessonProgram(published.id, teacher.id, { grammarPoint: null, topic: 'Космос', season: null }, db), { statusCode: 403 });
+  for (const invalid of [{ grammarPoint: 'future-simple' }, { grammarPoint: undefined }, { topic: '' }, { topic: 'x'.repeat(61) }, { season: 'winter' }]) {
+    assert.throws(() => setLibraryLessonProgram(published.id, admin.id, { grammarPoint: null, topic: 'Космос', season: null, ...invalid }, db), { statusCode: 400 });
+  }
+  assert.throws(() => setLibraryLessonProgram(published.id, admin.id, null, db), { statusCode: 400 });
+  assert.throws(() => setLibraryLessonProgram('missing', admin.id, { grammarPoint: null, topic: 'Космос', season: null }, db), { statusCode: 404 });
+  unpublishLesson(draft.id, admin.id, 1, db);
+  assert.throws(() => setLibraryLessonProgram(published.id, admin.id, { grammarPoint: null, topic: 'Космос', season: null }, db), { statusCode: 404 });
+});
+
 test('publication rejects unauthorized users, stale content, missing files and invalid metadata atomically', async t => {
   const { db, dir, media, admin, other, teacher, draft, input, name } = fixture(t);
   await assert.rejects(() => publishLesson(draft.id, teacher.id, input, db, dir, media), { statusCode: 403 });
@@ -291,6 +309,14 @@ test('library HTTP routes protect publication, missing and hidden lessons and me
   assert.equal((await request(badgeRoute, otherCookie, 'PUT', { badge: 'popular' })).status, 200);
   assert.deepEqual((await (await request('/api/home-content', teacherCookie)).json()).libraryLessons, []);
   assert.equal((await request(badgeRoute, otherCookie, 'PUT', { badge: 'new' })).status, 200);
+  const programRoute = `/api/library/${publication.id}/program`;
+  const program = { grammarPoint: 'used-to', topic: 'Детство', season: null };
+  assert.equal((await request(programRoute, teacherCookie, 'PUT', program)).status, 403);
+  assert.equal((await request(programRoute, otherCookie, 'PUT', { ...program, topic: '' })).status, 400);
+  const programResponse = await request(programRoute, otherCookie, 'PUT', program);
+  assert.equal(programResponse.status, 200);
+  const edited = (await programResponse.json()).lesson;
+  assert.deepEqual([edited.grammar_title, edited.topic, edited.revision], ['used to', 'Детство', 3]);
   const independentRoute = `/api/library/${publication.id}/publication`;
   assert.equal((await request(independentRoute, teacherCookie, 'DELETE', { expectedRevision: 3 })).status, 403);
   assert.equal((await request(independentRoute, otherCookie, 'DELETE', { expectedRevision: 3 })).status, 404);

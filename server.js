@@ -22,7 +22,7 @@ const {
   yandexStateCookie,
 } = require('./lib/auth.js');
 const { DEFAULT_DB_PATH, getDatabase } = require('./lib/db.js');
-const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, hasLibraryAsset } = require('./lib/library-store.js');
+const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, setLibraryLessonProgram, hasLibraryAsset } = require('./lib/library-store.js');
 const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, hasClassSessionAsset } = require('./lib/class-store.js');
 const { joinClass, classOverview, pickStudent, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
 const { createClassLiveSignaling } = require('./lib/class-live-signaling.js');
@@ -1755,6 +1755,19 @@ async function handleRequest(req, res) {
       json(res, 200, { ok: true });
     } catch (error) {
       json(res, error.statusCode || 400, { error: error.statusCode ? error.message : 'Не удалось изменить отметку урока.' });
+    }
+    return;
+  }
+
+  const libraryProgram = pathname.match(/^\/api\/library\/([a-z0-9-]+)\/program$/i);
+  if (libraryProgram && req.method === 'PUT') {
+    const user = requireAdminAuth(req, res);
+    if (!user) return;
+    try {
+      const lesson = setLibraryLessonProgram(libraryProgram[1], user.id, await readJsonBody(req), database);
+      json(res, 200, { lesson });
+    } catch (error) {
+      json(res, error.statusCode || 400, { error: error.statusCode ? error.message : 'Не удалось изменить урок.' });
     }
     return;
   }

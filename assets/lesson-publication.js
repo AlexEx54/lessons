@@ -1,6 +1,42 @@
 (() => {
   'use strict';
   const skills = ['Vocabulary', 'Speaking', 'Listening', 'Watching', 'Writing', 'Grammar'];
+  // Grammar, topic and season: chosen on publication and edited later from the library card.
+  const PROGRAM_FIELDS = `<label>Грамматика по программе<select name="grammarPoint" required><option value="" disabled>Выберите грамматику</option><option value="none">Без грамматики</option></select>
+        <small class="publication-hint" data-grammar-hint hidden></small></label>
+      <div class="publication-row"><label>Тема<input name="topic" required maxlength="60" placeholder="Путешествия"></label>
+      <label>Сезон<select name="season"><option value="">Не сезонный</option></select></label></div>`;
+  let programRequest = null;
+  // The program list is static, so it is loaded once per page.
+  function loadProgram() {
+    programRequest ??= fetch('/assets/lesson-program.json').then(response => {
+      if (!response.ok) throw new Error('Не удалось загрузить программу уроков.');
+      return response.json();
+    }).catch(error => { programRequest = null; throw error; });
+    return programRequest;
+  }
+  async function fillProgramFields(form, lesson) {
+    const program = await loadProgram();
+    const { grammarPoint, season } = form.elements;
+    if (!grammarPoint.querySelector('optgroup')) {
+      const levels = [...new Set(program.grammar.map(point => point.level))];
+      grammarPoint.append(...levels.map(level => {
+        const group = document.createElement('optgroup');
+        group.label = level;
+        group.append(...program.grammar.filter(point => point.level === level).map(point => new Option(`${point.title} — ${point.hint}`, point.key)));
+        return group;
+      }));
+      season.append(...program.seasons.map(item => new Option(item.label, item.key)));
+    }
+    // A lesson without a topic predates the program fields, so its grammar is still to be chosen.
+    grammarPoint.value = lesson?.grammar_point ?? (lesson?.topic ? 'none' : '');
+    form.elements.topic.value = lesson?.topic || '';
+    season.value = lesson?.season || '';
+  }
+  function programInput(form) {
+    const { grammarPoint, topic, season } = form.elements;
+    return { grammarPoint: grammarPoint.value === 'none' ? null : grammarPoint.value, topic: topic.value, season: season.value || null };
+  }
   const dialog = document.createElement('dialog');
   dialog.className = 'publication-dialog';
   dialog.innerHTML = `<form class="publication-form">
@@ -11,10 +47,7 @@
       <label>Название<input name="title" required maxlength="120"></label>
       <label>Краткое описание<textarea name="description" required maxlength="500" rows="3"></textarea></label>
       <p data-profile></p>
-      <label>Грамматика по программе<select name="grammarPoint" required><option value="" disabled>Выберите грамматику</option><option value="none">Без грамматики</option></select>
-        <small class="publication-hint" data-grammar-hint hidden></small></label>
-      <div class="publication-row"><label>Тема<input name="topic" required maxlength="60" placeholder="Путешествия"></label>
-      <label>Сезон<select name="season"><option value="">Не сезонный</option></select></label></div>
+      ${PROGRAM_FIELDS}
       <div class="publication-row"><label>Категория<select name="category"><option>General English</option><option>Speaking</option><option>Grammar</option><option>ОГЭ / ЕГЭ</option></select></label>
       <label>Длительность<input name="duration" required maxlength="40" placeholder="45 мин"></label></div>
       <fieldset><legend>Навыки</legend>${skills.map(skill => `<label class="publication-check"><input type="checkbox" name="skills" value="${skill}">${skill}</label>`).join('')}</fieldset>
@@ -58,22 +91,6 @@
   let busy = false;
   let coverUpload = null;
   let currentCover = null;
-  let program = null;
-  // The program list is static, so it is loaded once per page.
-  async function loadProgram() {
-    if (program) return;
-    const response = await fetch('/assets/lesson-program.json');
-    if (!response.ok) throw new Error('Не удалось загрузить программу уроков.');
-    program = await response.json();
-    const levels = [...new Set(program.grammar.map(point => point.level))];
-    form.elements.grammarPoint.append(...levels.map(level => {
-      const group = document.createElement('optgroup');
-      group.label = level;
-      group.append(...program.grammar.filter(point => point.level === level).map(point => new Option(`${point.title} — ${point.hint}`, point.key)));
-      return group;
-    }));
-    form.elements.season.append(...program.seasons.map(season => new Option(season.label, season.key)));
-  }
   function error(message) { find('[data-error]').textContent = message; find('[data-error]').hidden = !message; }
   function lock(value) {
     busy = value;
@@ -160,8 +177,7 @@
         expectedUpdatedAt: draft.updatedAt,
         title: form.elements.title.value, description: form.elements.description.value,
         category: form.elements.category.value, duration: form.elements.duration.value,
-        grammarPoint: form.elements.grammarPoint.value === 'none' ? null : form.elements.grammarPoint.value,
-        topic: form.elements.topic.value, season: form.elements.season.value || null,
+        ...programInput(form),
         cover: currentCover, ...(coverUpload ? { coverUpload } : {}),
         skills: [...form.querySelectorAll('[name="skills"]:checked')].map(input => input.value),
         allowIncompleteImages: form.elements.allowIncompleteImages.checked,
@@ -183,7 +199,63 @@
   }
   form.addEventListener('submit', event => { event.preventDefault(); save('POST'); });
   find('[data-unpublish]').addEventListener('click', () => save('DELETE'));
+  // Grammar, topic and season of a published lesson, edited from its library card without a new publication.
+  const programDialog = document.createElement('dialog');
+  programDialog.className = 'publication-dialog publication-dialog--program';
+  programDialog.setAttribute('aria-labelledby', 'program-dialog-title');
+  programDialog.innerHTML = `<form class="publication-form">
+    <div class="publication-heading"><h2 id="program-dialog-title">Грамматика и тема</h2><button type="button" data-close aria-label="Закрыть">×</button></div>
+    <p data-lesson></p>
+    <p data-error role="alert" hidden></p>
+    ${PROGRAM_FIELDS}
+    <div class="publication-actions"><button type="button" data-close>Отмена</button><button type="submit" data-submit>Сохранить</button></div>
+  </form>`;
+  document.body.append(programDialog);
+  const programForm = programDialog.querySelector('form');
+  let programLesson = null;
+  let programSaved = null;
+  let programBusy = false;
+  function programError(message) {
+    const element = programDialog.querySelector('[data-error]');
+    element.textContent = message;
+    element.hidden = !message;
+  }
+  function lockProgram(value) {
+    programBusy = value;
+    programForm.querySelectorAll('button, input, select').forEach(element => { element.disabled = value; });
+  }
+  programDialog.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => { if (!programBusy) programDialog.close(); }));
+  programDialog.addEventListener('cancel', event => { if (programBusy) event.preventDefault(); });
+  programForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (programBusy) return;
+    lockProgram(true); programError('');
+    try {
+      const response = await fetch(`/api/library/${encodeURIComponent(programLesson.id)}/program`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(programInput(programForm)),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Не удалось сохранить урок.');
+      programSaved = payload.lesson;
+      lockProgram(false);
+      programDialog.close();
+    } catch (err) { programError(err.message); lockProgram(false); }
+  });
+
   window.LessonPublication = {
+    // Resolves with the saved lesson card, or null when the window is closed without saving.
+    editProgram(lesson) {
+      if (programDialog.open) return Promise.resolve(null);
+      const opener = document.activeElement;
+      programLesson = lesson; programSaved = null;
+      programForm.reset(); programError('');
+      programDialog.querySelector('[data-lesson]').textContent = `${lesson.title} · ${lesson.age_label} · ${lesson.level}`;
+      programDialog.showModal(); lockProgram(true);
+      fillProgramFields(programForm, lesson)
+        .then(() => { lockProgram(false); programForm.elements.grammarPoint.focus(); })
+        .catch(err => { programError(err.message); lockProgram(false); programForm.elements.grammarPoint.disabled = true; programDialog.querySelector('[data-submit]').disabled = true; });
+      return new Promise(resolve => programDialog.addEventListener('close', () => { opener?.focus(); resolve(programSaved); }, { once: true }));
+    },
     async open(draftId, config = {}) {
       if (dialog.open) return;
       options = config; trigger = document.activeElement; draft = null;
@@ -198,7 +270,6 @@
       dialog.showModal(); lock(true);
       try {
         if (options.isDirty?.()) throw new Error('Сохраните изменения в упражнениях перед публикацией.');
-        await loadProgram();
         const response = await fetch(`/api/lesson-drafts/${encodeURIComponent(draftId)}`, { cache: 'no-store' });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error || 'Не удалось загрузить черновик.');
@@ -209,10 +280,7 @@
         form.elements.title.value = pub?.title || meta.title || draft.topic;
         form.elements.description.value = pub?.description || meta.description || '';
         form.elements.category.value = pub?.category || 'General English';
-        // A publication without a topic predates the program fields, so its grammar is still to be chosen.
-        form.elements.grammarPoint.value = pub?.grammar_point ?? (pub?.topic ? 'none' : '');
-        form.elements.topic.value = pub?.topic || '';
-        form.elements.season.value = pub?.season || '';
+        await fillProgramFields(form, pub);
         const grammarHint = draft.inputs?.grammarTopic?.trim();
         find('[data-grammar-hint]').textContent = grammarHint ? `В задании на генерацию: ${grammarHint}` : '';
         find('[data-grammar-hint]').hidden = !grammarHint;

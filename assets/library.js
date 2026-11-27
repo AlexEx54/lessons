@@ -85,6 +85,17 @@
     } catch (error) { showToast(error.message); }
   }
 
+  async function editProgram(lesson, article) {
+    const saved = await window.LessonPublication.editProgram(lesson);
+    // The menu item that opened the window is hidden by now, so focus goes back to the card's menu button.
+    if (!saved) { article.querySelector('.lesson-menu-button').focus(); return; }
+    for (const key of ['grammar_point', 'grammar_title', 'topic', 'season', 'season_label']) lesson[key] = saved[key];
+    const updated = lessonCard(lesson);
+    article.replaceWith(updated);
+    updated.querySelector('.lesson-menu-button').focus();
+    showToast('Урок обновлён.');
+  }
+
   // One admin menu for all cards: it lives in the top layer, so the card's overflow does not clip it.
   function createLessonMenu() {
     const menu = document.createElement('div');
@@ -117,18 +128,23 @@
     return item;
   }
 
+  function menuSeparator() {
+    const separator = document.createElement('hr');
+    separator.setAttribute('role', 'separator');
+    return separator;
+  }
+
   function lessonMenuItems(lesson, article) {
     const items = BADGE_OPTIONS.map(([badge, label]) => {
       const item = menuItem(label, 'menuitemradio', () => { if (lesson.badge !== badge) changeBadge(lesson, article, badge); });
       item.setAttribute('aria-checked', String(lesson.badge === badge));
       return item;
     });
+    items.push(menuSeparator(), menuItem('Грамматика и тема…', 'menuitem', () => editProgram(lesson, article)));
     if (lesson.can_unpublish) {
-      const separator = document.createElement('hr');
-      separator.setAttribute('role', 'separator');
       const unpublish = menuItem('Снять с публикации', 'menuitem', () => unpublishLesson(lesson, article));
       unpublish.classList.add('lesson-menu__danger');
-      items.push(separator, unpublish);
+      items.push(menuSeparator(), unpublish);
     }
     return items;
   }
