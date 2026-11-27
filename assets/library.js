@@ -21,13 +21,14 @@
     Grammar: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10M7 9h10M7 14h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M5 20h14a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" stroke="currentColor" stroke-width="1.7"/></svg>',
   };
 
-  // Format icons of the program view, keyed by the card's format.
+  // Format icons of the program view, keyed by the card's format: one stroke and size, bigger than the skill icons.
+  const formatIcon = paths => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
   const formatIcons = {
-    reading: skillIcons.Vocabulary,
-    video: skillIcons.Watching,
-    debate: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5.5A1.5 1.5 0 0 1 4.5 4h9A1.5 1.5 0 0 1 15 5.5v5a1.5 1.5 0 0 1-1.5 1.5H8l-3 2.5V12h-.5A1.5 1.5 0 0 1 3 10.5v-5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M18 9h1.5A1.5 1.5 0 0 1 21 10.5v5a1.5 1.5 0 0 1-1.5 1.5H19v2.5L16 17h-5.5A1.5 1.5 0 0 1 9 15.5V15" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
-    situation: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.3" stroke="currentColor" stroke-width="1.7"/></svg>',
-    lesson: skillIcons.Grammar,
+    reading: formatIcon('<path d="M12 6.8C10.2 5.5 7.8 5 4 5v12.6c3.8 0 6.2.5 8 1.9 1.8-1.4 4.2-1.9 8-1.9V5c-3.8 0-6.2.5-8 1.8Z"/><path d="M12 6.8v12.7"/>'),
+    video: formatIcon('<circle cx="12" cy="12" r="9"/><path d="M10.2 8.9v6.2a.5.5 0 0 0 .77.42l4.8-3.1a.5.5 0 0 0 0-.84l-4.8-3.1a.5.5 0 0 0-.77.42Z" fill="currentColor" stroke-width="1"/>'),
+    debate: formatIcon('<path d="M3.5 6.5A2.5 2.5 0 0 1 6 4h7.5A2.5 2.5 0 0 1 16 6.5v3.5a2.5 2.5 0 0 1-2.5 2.5H9l-3.5 3v-3A2.5 2.5 0 0 1 3.5 10V6.5Z"/><path d="M19.5 9.6A2.4 2.4 0 0 1 20.5 11.5V15a2.5 2.5 0 0 1-2 2.45V20l-3-2.5H12a2.5 2.5 0 0 1-2.2-1.3"/>'),
+    situation: formatIcon('<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/>'),
+    lesson: formatIcon('<path d="M14 3.5H7A2 2 0 0 0 5 5.5v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5l-5-5Z"/><path d="M14 3.5v5h5M8.5 13h7M8.5 16.5h4.5"/>'),
   };
   const AGES = ['9-11', '12-14', '15-18', 'adults'];
   const VISIBLE_PILLS = 5;
@@ -204,9 +205,9 @@
   }
 
   // «Дальше по программе», «Проводили 9 ноября»: where the lesson stands for the chosen class.
-  function classMark(lesson, className) {
+  function classMark(lesson, variant = '') {
     const mark = ranking?.marks.get(lesson.id);
-    return mark ? `<span class="${className} ${className}--${mark.state}">${escapeHtml(window.ClassPlan.markText(mark))}</span>` : '';
+    return mark ? `<span class="plan-mark plan-mark--${mark.state} ${variant}">${escapeHtml(window.ClassPlan.markText(mark))}</span>` : '';
   }
 
   function lessonCard(source) {
@@ -214,9 +215,8 @@
     const article = document.createElement('article');
     article.className = 'lesson-card';
     article.innerHTML = `
-      <div class="lesson-cover"><img src="${lesson.cover}" alt="" loading="lazy" decoding="async" /></div>
+      <div class="lesson-cover"><img src="${lesson.cover}" alt="" loading="lazy" decoding="async" />${classMark(source, 'plan-mark--cover')}</div>
       <div class="lesson-body">
-        ${classMark(source, 'lesson-mark')}
         <h3>${lesson.title}</h3>
         <p class="lesson-facts">${lesson.age_label} <span>•</span> ${lesson.level}${lesson.season_label ? ` <span>•</span> ${lesson.season_label}` : ''}</p>
         ${programLine(lesson)}
@@ -300,11 +300,12 @@
     pill.className = 'lesson-pill';
     pill.href = `/library/${encodeURIComponent(lesson.id)}`;
     const format = lesson.format_label ? `role="img" aria-label="${escapeHtml(lesson.format_label)}" title="${escapeHtml(lesson.format_label)}"` : 'aria-hidden="true"';
-    const facts = [lesson.age_label, lesson.season_label].filter(Boolean).map(escapeHtml).join(' · ');
+    const age = lesson.level === level ? escapeHtml(lesson.age_label) : `<b>${escapeHtml(lesson.level)}</b> ${escapeHtml(lesson.age_label)}`;
+    const facts = [isNextLesson(lesson) ? '' : classMark(lesson), age, escapeHtml(lesson.season_label ?? '')].filter(Boolean).join(' · ');
     pill.classList.toggle('lesson-pill--next', isNextLesson(lesson));
     pill.innerHTML = `<span class="lesson-pill__icon" ${format}>${formatIcons[lesson.format] ?? formatIcons.lesson}</span>
       <span class="lesson-pill__text"><span class="lesson-pill__title">${escapeHtml(lesson.title)}</span>
-      <span class="lesson-pill__facts">${isNextLesson(lesson) ? '' : classMark(lesson, 'lesson-pill__mark')}${lesson.level === level ? '' : `<b>${escapeHtml(lesson.level)}</b> `}${facts}</span></span>`;
+      <span class="lesson-pill__facts">${facts}</span></span>`;
     return pill;
   }
 
@@ -335,9 +336,12 @@
   function programRow(row, level) {
     const item = document.createElement('li');
     const isNext = Boolean(row.key) && row.key === ranking?.nextPoint?.key;
-    item.className = ['program-row', !row.number && 'program-row--free', isNext && 'program-row--next'].filter(Boolean).join(' ');
+    const isHeld = Boolean(row.key) && Boolean(ranking?.heldPoints.has(row.key));
+    item.className = ['program-row', !row.number && 'program-row--free', isNext && 'program-row--next', isHeld && 'program-row--held']
+      .filter(Boolean).join(' ');
     item.innerHTML = `<div class="program-row__point"><span class="program-row__number" aria-hidden="true">${row.number ?? ''}</span>
-      <div>${isNext ? '<span class="program-row__next">Дальше</span>' : ''}<h3>${escapeHtml(row.title)}</h3><p>${escapeHtml(row.hint)}</p></div></div>
+      <div>${isNext ? '<span class="program-row__next">Дальше</span>' : ''}<h3>${escapeHtml(row.title)}</h3>
+      <p>${escapeHtml(row.hint)}${isHeld ? '<span class="visually-hidden"> — пройдено</span>' : ''}</p></div></div>
       <div class="program-row__lessons"></div>`;
     const lessons = item.querySelector('.program-row__lessons');
     if (!row.lessons.length) {
@@ -403,6 +407,8 @@
       profileKnown: Boolean(item.level && item.age),
       nextPoint,
       lessons: items.map(entry => entry.lesson),
+      // Grammar points the class has had a held session on, whichever lesson taught them.
+      heldPoints: new Set(history.filter(session => session.held && session.grammar_point).map(session => session.grammar_point)),
       marks: new Map(items.filter(entry => entry.state).map(entry => [entry.lesson.id, entry])),
     };
   }

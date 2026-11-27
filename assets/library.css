@@ -26,7 +26,7 @@
 .library-class select:hover { border-color:#cfc4ff; }
 .library-class select:focus-visible { border-color:var(--purple); outline:none; box-shadow:0 0 0 4px rgba(96,54,247,.12); }
 .library-class-hint { margin-top:10px; color:#62617e; font-size:12px; line-height:1.45; }
-.library-class-hint b,.library-class-hint a { color:#4b20e8; font-weight:750; }
+.library-class-hint b,.library-class-hint a { color:#4b20e8; font-weight:700; }
 .library-class-hint[hidden] { display:none; }
 .filters { display:grid; gap:10px; margin-top:14px; margin-bottom:18px; }
 .filter-row { display:flex; align-items:center; flex-wrap:wrap; gap:8px 10px; }
@@ -44,26 +44,29 @@
 .program-row--next { border-color:#cfc4ff; background:#f8f6ff; box-shadow:0 0 0 3px rgba(93,43,242,.08); }
 .program-row--next .program-row__number { color:#fff; background:var(--purple); }
 .program-row__next { display:inline-block; margin-bottom:4px; padding:3px 7px; border-radius:5px; color:#4b20e8; background:#ece6ff; font-size:10px; font-weight:800; }
+/* A point the class has already had a lesson on: the number keeps its look and gets a check in the corner. */
+.program-row--held .program-row__number { position:relative; }
+.program-row--held .program-row__number::after { content:''; position:absolute; top:-5px; right:-5px; width:14px; height:14px; border-radius:50%; box-shadow:0 0 0 2px #fff;
+  background:center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%236036f7'/%3E%3Cpath d='m4.8 8.3 2.1 2.1 4.3-4.6' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
 .program-row__point { display:flex; align-items:flex-start; gap:10px; }
-.program-row__number { display:grid; place-items:center; flex:0 0 26px; height:26px; border-radius:8px; color:var(--purple); background:var(--soft); font-size:12px; font-weight:800; }
+.program-row__number { display:grid; place-items:center; flex:0 0 26px; height:26px; border-radius:8px; color:var(--purple); background:var(--soft); font-size:12px; font-weight:700; }
 .program-row--free .program-row__number { background:transparent; }
-.program-row h3 { color:var(--ink); font-size:14px; font-weight:750; line-height:1.3; letter-spacing:-.01em; }
-.program-row p { margin-top:2px; color:#7d7b97; font-size:11px; line-height:1.4; }
+.program-row h3 { color:var(--ink); font-size:14px; font-weight:600; line-height:1.3; letter-spacing:-.01em; }
+.program-row p { margin-top:3px; color:#7d7b97; font-size:11px; line-height:1.4; }
 .program-row__lessons { display:flex; flex-wrap:wrap; gap:6px; }
 .lesson-pill { display:inline-flex; align-items:center; gap:8px; max-width:100%; min-height:40px; padding:5px 12px 5px 6px; border:1px solid #e0daf9; border-radius:11px; color:var(--ink); background:#fff; text-decoration:none; transition:.16s ease; }
 .lesson-pill:hover { border-color:#cfc4ff; background:#f8f6ff; transform:translateY(-1px); }
 .lesson-pill__icon { display:grid; place-items:center; flex:0 0 28px; height:28px; border-radius:8px; color:var(--purple); background:var(--soft); }
 .lesson-pill__text { display:grid; min-width:0; }
-.lesson-pill__title { overflow:hidden; font-size:12px; font-weight:750; line-height:1.25; text-overflow:ellipsis; white-space:nowrap; }
-.lesson-pill__facts { color:#7d7b97; font-size:10px; font-weight:600; line-height:1.3; }
-.lesson-pill__facts b { color:#c2410c; font-weight:800; }
+.lesson-pill__title { overflow:hidden; font-size:12px; font-weight:600; line-height:1.25; text-overflow:ellipsis; white-space:nowrap; }
+.lesson-pill__facts { color:#7d7b97; font-size:10px; font-weight:500; line-height:1.4; }
+.lesson-pill__facts b { color:#c2410c; font-weight:700; }
+.lesson-pill__facts .plan-mark { vertical-align:top; }
 .lesson-pill[hidden] { display:none; }
 .lesson-pill--dimmed { opacity:.42; }
 .lesson-pill--dimmed:hover,.lesson-pill--dimmed:focus-visible { opacity:1; }
 .lesson-pill--next { border-color:var(--purple); box-shadow:0 0 0 2px rgba(93,43,242,.12); }
-.lesson-pill__mark { color:#4a4866; font-weight:750; }
-.lesson-pill__mark::after { content:' · '; color:#7d7b97; font-weight:600; }
-.lesson-pill--more { padding:0 14px; border-style:dashed; color:var(--purple); font-size:12px; font-weight:750; }
+.lesson-pill--more { padding:0 14px; border-style:dashed; color:var(--purple); font-size:12px; font-weight:600; }
 .program-row__none { align-self:center; color:#a3a1b8; font-size:12px; font-weight:600; }
 .lesson-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
 .lesson-card { overflow:hidden; display:flex; flex-direction:column; min-width:220px; border:1px solid rgba(79,56,170,.1); border-radius:16px; background:#fff; box-shadow:0 8px 22px rgba(48,34,103,.06); transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease; }
@@ -74,12 +77,10 @@
 .cover-badge { position:absolute; top:10px; right:10px; padding:5px 8px; border-radius:7px; color:#323800; background:var(--lime); font-size:10px; font-weight:800; letter-spacing:.02em; box-shadow:0 3px 8px rgba(0,0,0,.12); }
 .cover-badge--popular { color:#fff; background:#ff2aa2; }
 .lesson-body { display:flex; flex:1; flex-direction:column; padding:14px 12px 12px; }
-.lesson-mark { align-self:flex-start; margin-bottom:8px; padding:4px 8px; border-radius:5px; color:var(--muted); background:#f1f0f6; font-size:10px; font-weight:800; }
-.lesson-mark--next { color:#4b20e8; background:#ece6ff; }
-.lesson-body h3 { margin-bottom:6px; color:var(--ink); font-size:15px; font-weight:750; line-height:1.25; letter-spacing:-.02em; }
-.lesson-facts { color:#6d6b8c; font-size:12px; font-weight:600; }
+.lesson-body h3 { margin-bottom:6px; color:var(--ink); font-size:15px; font-weight:700; line-height:1.25; letter-spacing:-.02em; }
+.lesson-facts { color:#6d6b8c; font-size:12px; font-weight:500; }
 .lesson-facts span { padding:0 6px; color:#b0aec2; }
-.lesson-program { margin-top:6px; color:var(--purple); font-size:12px; font-weight:700; line-height:1.35; }
+.lesson-program { margin-top:6px; color:var(--purple); font-size:12px; font-weight:600; line-height:1.35; }
 .lesson-program span { padding:0 4px; color:#b0aec2; }
 .lesson-description { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; min-height:34px; margin-top:8px; color:#7d7b97; font-size:12px; line-height:1.45; }
 .lesson-skills { display:flex; flex-wrap:wrap; margin-top:12px; gap:8px 12px; color:#6f6d8a; font-size:11px; font-weight:600; }

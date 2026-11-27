@@ -1,0 +1,57 @@
+/* Where a lesson stands for a class (ClassPlan.markText): «Проводили 9 ноября», «Запланировано на 1 декабря», «Дальше по программе».
+   Inline in a line of facts by default; .plan-mark--cover puts it on a cover image. */
+.plan-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.plan-mark::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 1.15em;
+  height: 1.15em;
+  background: center / contain no-repeat;
+}
+
+/* Held is the quiet one: the past should not outshine what comes next. */
+.plan-mark--held {
+  color: #5c5a7a;
+}
+
+.plan-mark--held::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%23e3dbff'/%3E%3Cpath d='m4.8 8.3 2.1 2.1 4.3-4.6' fill='none' stroke='%236036f7' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.plan-mark--planned,
+.plan-mark--next {
+  color: #4b20e8;
+}
+
+.plan-mark--planned::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%235b35e0' stroke-width='1.5' stroke-linecap='round'%3E%3Crect x='2' y='3' width='12' height='11' rx='2.5'/%3E%3Cpath d='M2 7h12M5.5 1.5v3M10.5 1.5v3'/%3E%3C/svg%3E");
+}
+
+.plan-mark--next::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%235b35e0'/%3E%3Cpath d='M4.8 8h6M8.6 5.3 11.3 8l-2.7 2.7' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* Bottom left of a cover, under the level and next to «NEW»; the cover is position: relative. */
+.plan-mark--cover {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 1;
+  max-width: calc(100% - 20px);
+  padding: 5px 8px 5px 6px;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 3px 10px rgba(26, 20, 64, 0.16);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  /* A narrow cover (the phone card) wraps the date rather than cut it. */
+  white-space: normal;
+}

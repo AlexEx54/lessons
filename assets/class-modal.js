@@ -310,15 +310,15 @@
     check.setAttribute('aria-hidden', 'true');
     check.textContent = '✓';
     cover.append(image, level, check);
+    if (lesson.planState) {
+      const mark = document.createElement('span');
+      mark.className = `plan-mark plan-mark--${lesson.planState} plan-mark--cover`;
+      mark.textContent = planMark(lesson);
+      cover.append(mark);
+    }
 
     const body = document.createElement('span');
     body.className = 'recommendation-card__body';
-    if (lesson.planState) {
-      const mark = document.createElement('span');
-      mark.className = `recommendation-card__mark recommendation-card__mark--${lesson.planState}`;
-      mark.textContent = planMark(lesson);
-      body.append(mark);
-    }
     const title = document.createElement('h3');
     title.textContent = lesson.title;
     body.append(title);

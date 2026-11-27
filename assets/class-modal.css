@@ -708,22 +708,6 @@ body.modal-open {
   margin-top: 10px;
 }
 
-.recommendation-card__mark {
-  align-self: flex-start;
-  margin-bottom: 8px;
-  padding: 4px 8px;
-  border-radius: 5px;
-  color: var(--muted);
-  background: #f1f0f6;
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.recommendation-card__mark--next {
-  color: #4b20e8;
-  background: #ece6ff;
-}
-
 .recommendation-card__popular {
   align-self: flex-start;
   margin-top: 10px;

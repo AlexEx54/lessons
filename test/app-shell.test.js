@@ -248,7 +248,7 @@ test('the lesson preview gets the class modal, while live lessons keep the plain
   const scripts = [...preview.matchAll(/<script src="([^"]+)" defer><\/script>/g)].map(match => match[1]);
 
   assert.doesNotMatch(player, /id="class-modal"|class-modal\.(?:css|js)/);
-  assert.match(preview, /href="\/assets\/class-modal\.css" \/>\n<\/head>/);
+  assert.match(preview, /href="\/assets\/class-modal\.css" \/>\n  <link rel="stylesheet" href="\/assets\/class-plan\.css" \/>\n<\/head>/);
   assert.deepEqual(scripts.slice(-6), ['/assets/class-invite.js', '/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-plan.js', '/assets/class-modal.js']);
   assert.equal((preview.match(/id="class-modal"/g) || []).length, 1);
   assert.equal((preview.match(/id="slot-picker"/g) || []).length, 1);
