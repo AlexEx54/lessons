@@ -243,6 +243,7 @@
   });
 
   window.LessonPublication = {
+    loadProgram,
     // Resolves with the saved lesson card, or null when the window is closed without saving.
     editProgram(lesson) {
       if (programDialog.open) return Promise.resolve(null);

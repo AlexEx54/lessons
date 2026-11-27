@@ -21,7 +21,22 @@
     Grammar: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10M7 9h10M7 14h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M5 20h14a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" stroke="currentColor" stroke-width="1.7"/></svg>',
   };
 
-  const state = { age: 'all', level: 'all', category: 'all', query: '' };
+  // Format icons of the program view, keyed by the card's format.
+  const formatIcons = {
+    reading: skillIcons.Vocabulary,
+    video: skillIcons.Watching,
+    debate: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5.5A1.5 1.5 0 0 1 4.5 4h9A1.5 1.5 0 0 1 15 5.5v5a1.5 1.5 0 0 1-1.5 1.5H8l-3 2.5V12h-.5A1.5 1.5 0 0 1 3 10.5v-5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M18 9h1.5A1.5 1.5 0 0 1 21 10.5v5a1.5 1.5 0 0 1-1.5 1.5H19v2.5L16 17h-5.5A1.5 1.5 0 0 1 9 15.5V15" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
+    situation: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.3" stroke="currentColor" stroke-width="1.7"/></svg>',
+    lesson: skillIcons.Grammar,
+  };
+  const AGES = ['9-11', '12-14', '15-18', 'adults'];
+
+  // view: «По программе» or «Все уроки»; tab: the level open in the program view, never 'all'.
+  const state = { view: 'program', tab: null, age: 'all', level: 'all', category: 'all', query: '' };
+  let program = null;
+  let grammarPoints = new Map();
+  const programList = document.getElementById('program');
+  const levelChips = [...document.querySelectorAll('[data-filter="level"] .chip')];
   const grid = document.getElementById('lesson-grid');
   const empty = document.getElementById('empty-state');
   const showMore = document.getElementById('show-more');
@@ -200,10 +215,10 @@
     return article;
   }
 
+  // Age, category and search; the level is a filter of the list and a tab of the program view.
   function matchesFilters(lesson) {
     const query = state.query.toLocaleLowerCase('ru-RU');
     return (state.age === 'all' || lesson.age === state.age)
-      && (state.level === 'all' || lesson.level === state.level)
       && (state.category === 'all' || lesson.category === state.category)
       && (!query || `${lesson.title} ${lesson.description} ${lesson.grammar_title ?? ''} ${lesson.topic ?? ''} ${lesson.season_label ?? ''} ${lesson.skills.join(' ')}`.toLocaleLowerCase('ru-RU').includes(query));
   }
@@ -233,18 +248,102 @@
 
   // Full rebuild — only when the lesson set or filters change.
   function resetList() {
-    filtered = libraryLessons.filter(matchesFilters);
+    filtered = libraryLessons.filter(lesson => (state.level === 'all' || lesson.level === state.level) && matchesFilters(lesson));
     shown = 0;
     grid.replaceChildren();
     grid.hidden = false; // A hidden grid has no tracks to measure.
     appendPage();
   }
 
+  // A lesson sits under its grammar point's level; a lesson without grammar sits under its own level.
+  function programLevel(lesson) {
+    return grammarPoints.get(lesson.grammar_point)?.level ?? lesson.level;
+  }
+
+  function byLevelAgeTitle(a, b) {
+    return a.level.localeCompare(b.level) || AGES.indexOf(a.age) - AGES.indexOf(b.age) || a.title.localeCompare(b.title, 'en');
+  }
+
+  // Grammar rows of one level in program order, then the lessons of that level without grammar.
+  function programRows(level) {
+    const rows = program.grammar.filter(point => point.level === level).map((point, index) => ({
+      number: index + 1, title: point.title, hint: point.hint,
+      lessons: libraryLessons.filter(lesson => lesson.grammar_point === point.key),
+    }));
+    rows.push({ number: null, title: 'Без грамматики', hint: 'уроки на тему, без отдельной грамматики',
+      lessons: libraryLessons.filter(lesson => !grammarPoints.has(lesson.grammar_point) && lesson.level === level) });
+    return rows;
+  }
+
+  // «Family · 12–14 лет · B1 · Хэллоуин»: the level is shown only when it differs from the grammar point's.
+  function lessonPill(lesson, level) {
+    const pill = document.createElement('a');
+    pill.className = 'lesson-pill';
+    pill.href = `/library/${encodeURIComponent(lesson.id)}`;
+    const format = lesson.format_label ? `role="img" aria-label="${escapeHtml(lesson.format_label)}" title="${escapeHtml(lesson.format_label)}"` : 'aria-hidden="true"';
+    const facts = [lesson.age_label, lesson.season_label].filter(Boolean).map(escapeHtml).join(' · ');
+    pill.innerHTML = `<span class="lesson-pill__icon" ${format}>${formatIcons[lesson.format] ?? formatIcons.lesson}</span>
+      <span class="lesson-pill__text"><span class="lesson-pill__title">${escapeHtml(lesson.title)}</span>
+      <span class="lesson-pill__facts">${lesson.level === level ? '' : `<b>${escapeHtml(lesson.level)}</b> `}${facts}</span></span>`;
+    return pill;
+  }
+
+  function programRow(row, level) {
+    const item = document.createElement('li');
+    item.className = row.number ? 'program-row' : 'program-row program-row--free';
+    item.innerHTML = `<div class="program-row__point"><span class="program-row__number" aria-hidden="true">${row.number ?? ''}</span>
+      <div><h3>${escapeHtml(row.title)}</h3><p>${escapeHtml(row.hint)}</p></div></div><div class="program-row__lessons"></div>`;
+    item.querySelector('.program-row__lessons').append(...row.lessons.map(lesson => lessonPill(lesson, level)));
+    return item;
+  }
+
+  function renderProgram() {
+    const rows = programRows(state.tab)
+      .map(row => ({ ...row, lessons: row.lessons.filter(matchesFilters).sort(byLevelAgeTitle) }))
+      .filter(row => row.lessons.length);
+    programList.replaceChildren(...rows.map(row => programRow(row, state.tab)));
+    programList.hidden = rows.length === 0;
+    const filtersOn = state.age !== 'all' || state.category !== 'all' || state.query;
+    setEmptyText(filtersOn ? null : `На уровне ${state.tab} пока нет уроков`);
+    empty.hidden = rows.length > 0;
+  }
+
+  // An empty level is not a search miss, so it gets its own text instead of the hint about filters.
+  const emptyTexts = [empty.querySelector('h3').textContent, empty.querySelector('p').textContent];
+  function setEmptyText(title) {
+    empty.querySelector('h3').textContent = title ?? emptyTexts[0];
+    empty.querySelector('p').textContent = title ? 'Откройте другой уровень или «Все уроки».' : emptyTexts[1];
+  }
+
+  function render() {
+    const isProgram = state.view === 'program';
+    document.querySelectorAll('#library-views [data-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === state.view)));
+    const level = isProgram ? state.tab : state.level;
+    levelChips.forEach(chip => chip.classList.toggle('chip--active', chip.dataset.value === level));
+    programList.hidden = !isProgram;
+    if (!isProgram) { setEmptyText(null); resetList(); return; }
+    grid.hidden = true;
+    showMore.hidden = true;
+    renderProgram();
+  }
+
+  document.getElementById('library-views').addEventListener('click', event => {
+    const button = event.target.closest('[data-view]');
+    if (!button || button.dataset.view === state.view) return;
+    state.view = button.dataset.view;
+    render();
+  });
+
   document.getElementById('filters').addEventListener('click', event => {
     const button = event.target.closest('.chip');
     if (!button) return;
     const group = button.closest('[data-filter]');
     const filter = group.dataset.filter;
+    if (filter === 'level' && state.view === 'program') {
+      state.tab = button.dataset.value;
+      render();
+      return;
+    }
     const isActive = button.classList.contains('chip--active');
     group.querySelectorAll('.chip').forEach(chip => chip.classList.remove('chip--active'));
     if (isActive) {
@@ -253,11 +352,11 @@
       button.classList.add('chip--active');
       state[filter] = button.dataset.value;
     }
-    resetList();
+    render();
   });
   document.getElementById('lesson-search').addEventListener('input', event => {
     state.query = event.target.value.trim();
-    resetList();
+    render();
   });
   showMore.addEventListener('click', appendPage);
 
@@ -283,13 +382,18 @@
     document.getElementById('library-error').hidden = true;
     empty.hidden = true;
     grid.hidden = true;
+    programList.hidden = true;
     showMore.hidden = true;
     try {
-      const response = await fetch('/api/library', { cache: 'no-store' });
+      const [response, programData] = await Promise.all([fetch('/api/library', { cache: 'no-store' }), window.LessonPublication.loadProgram()]);
       const payload = await response.json();
       if (!response.ok || !Array.isArray(payload.lessons)) throw new Error('Не удалось загрузить библиотеку.');
       libraryLessons = payload.lessons;
-      resetList();
+      program = programData;
+      grammarPoints = new Map(program.grammar.map(point => [point.key, point]));
+      // The program view opens on the first level that has lessons.
+      state.tab ??= levelChips.map(chip => chip.dataset.value).find(level => libraryLessons.some(lesson => programLevel(lesson) === level)) ?? levelChips[0].dataset.value;
+      render();
     } catch (_error) {
       document.getElementById('library-error').hidden = false;
     } finally {

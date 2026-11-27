@@ -6,6 +6,11 @@
             <label class="search"><span class="search-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.9"/><path d="M16.2 16.2 20 20" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></span><span class="visually-hidden">Поиск уроков</span><input id="lesson-search" type="search" placeholder="Найти урок" /></label>
           </div>
 
+          <div class="library-views" id="library-views" role="group" aria-label="Вид библиотеки">
+            <button type="button" data-view="program" aria-pressed="true">По программе</button>
+            <button type="button" data-view="all" aria-pressed="false">Все уроки</button>
+          </div>
+
           <div class="filters" id="filters" aria-label="Фильтры уроков">
             <div class="filter-row">
               <div class="filter-group" data-filter="age">
@@ -33,6 +38,7 @@
 
           <p id="library-loading" role="status">Загружаем библиотеку…</p>
           <div id="library-error" role="alert" hidden>Не удалось загрузить библиотеку. <button id="library-retry" type="button">Повторить</button></div>
+          <ol class="program" id="program" hidden></ol>
           <div class="lesson-grid" id="lesson-grid"></div>
           <div class="empty-state" id="empty-state" hidden><span>🔎</span><h3>Уроки не найдены</h3><p>Попробуйте изменить фильтры или поисковый запрос.</p></div>
           <button class="show-more" id="show-more" type="button" hidden>Показать ещё <span aria-hidden="true">↓</span></button>
