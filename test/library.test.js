@@ -215,6 +215,24 @@ test('any admin edits the program fields of a published lesson without a new rev
   assert.throws(() => setLibraryLessonProgram(published.id, admin.id, { grammarPoint: null, topic: 'Космос', season: null }, db), { statusCode: 404 });
 });
 
+test('library cards name the lesson format after its signature stage', t => {
+  const db = openDatabase(':memory:');
+  t.after(() => db.close());
+  const stages = ids => ({ stages: ids.map(id => ({ id, content: [] })) });
+  addLibraryLesson(db, stages(['warm-up', 'reading', 'listening']), 'reading');
+  addLibraryLesson(db, stages(['warm-up', 'watch-and-interact']), 'video');
+  addLibraryLesson(db, stages(['group-chat', 'debate', 'create']), 'debate');
+  addLibraryLesson(db, stages(['practice', 'mission']), 'situation');
+  addLibraryLesson(db, stages(['warm-up', 'wrap-up']), 'plain');
+  addLibraryLesson(db, {}, 'empty');
+  const formats = Object.fromEntries(listLibraryLessons(db).map(lesson => [lesson.id, [lesson.format, lesson.format_label]]));
+  assert.deepEqual(formats, {
+    reading: ['reading', 'Чтение и аудио'], video: ['video', 'Видео'], debate: ['debate', 'Дебаты'],
+    situation: ['situation', 'Ситуация'], plain: [null, null], empty: [null, null],
+  });
+  assert.equal(findLibraryLesson('video', db).format, 'video');
+});
+
 test('publication rejects unauthorized users, stale content, missing files and invalid metadata atomically', async t => {
   const { db, dir, media, admin, other, teacher, draft, input, name } = fixture(t);
   await assert.rejects(() => publishLesson(draft.id, teacher.id, input, db, dir, media), { statusCode: 403 });
