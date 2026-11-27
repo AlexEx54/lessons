@@ -122,7 +122,7 @@ test('schedule loads its scripts in order and shares the class modal and slot pi
   });
   const scripts = [...html.matchAll(/<script src="([^"]+)" defer><\/script>/g)].map(match => match[1]);
 
-  assert.deepEqual(scripts.slice(-8), ['/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js', '/assets/video-call-presence.js', '/assets/notifications.js', '/assets/support-chat.js', '/assets/schedule.js']);
+  assert.deepEqual(scripts.slice(-9), ['/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-plan.js', '/assets/class-modal.js', '/assets/video-call-presence.js', '/assets/notifications.js', '/assets/support-chat.js', '/assets/schedule.js']);
   assert.match(html, /href="\/assets\/class-modal\.css"/);
   assert.match(html, /href="\/assets\/week-grid\.css"[\s\S]*href="\/assets\/schedule\.css"/);
   assert.equal((html.match(/id="class-modal"/g) || []).length, 1);
@@ -249,7 +249,7 @@ test('the lesson preview gets the class modal, while live lessons keep the plain
 
   assert.doesNotMatch(player, /id="class-modal"|class-modal\.(?:css|js)/);
   assert.match(preview, /href="\/assets\/class-modal\.css" \/>\n<\/head>/);
-  assert.deepEqual(scripts.slice(-5), ['/assets/class-invite.js', '/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-modal.js']);
+  assert.deepEqual(scripts.slice(-6), ['/assets/class-invite.js', '/assets/schedule-calendar.js', '/assets/week-grid.js', '/assets/slot-picker.js', '/assets/class-plan.js', '/assets/class-modal.js']);
   assert.equal((preview.match(/id="class-modal"/g) || []).length, 1);
   assert.equal((preview.match(/id="slot-picker"/g) || []).length, 1);
   assert.match(preview, /id="slot-picker"[\s\S]*src="\/assets\/class-invite\.js"[\s\S]*<\/body>/);

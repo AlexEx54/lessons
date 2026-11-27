@@ -25,6 +25,8 @@
   const classProgress = document.getElementById('class-progress');
   const recommendationTrack = document.getElementById('recommendation-track');
   const recommendationStatus = document.getElementById('recommendation-status');
+  const lessonPickerHint = document.getElementById('lesson-picker-hint');
+  const defaultPickerHint = lessonPickerHint.textContent;
   const completionLink = document.getElementById('class-completion-link');
   const completionLesson = document.getElementById('class-completion-lesson');
   const copyClassLinkButton = document.getElementById('copy-class-link-button');
@@ -52,6 +54,8 @@
   let showAllLessons = false;
   let recommendationRequest = 0;
   let loadingRecommendations = false;
+  let classesLoading = Promise.resolve();
+  let programRequest = null;
   let savingClass = false;
   let createdSession = null;
   let requestKey = null;
@@ -215,7 +219,7 @@
     lessonSearch.value = '';
     showAllLessons = false;
     setClassStep(classId ? 2 : 1);
-    loadClasses();
+    classesLoading = loadClasses();
     if (classId) loadRecommendations().then(focusLessonSearch);
   }
 
@@ -278,6 +282,12 @@
     }, 2200);
   }
 
+  const markDate = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long' });
+  function planMark({ planState, planAt }) {
+    if (planState === 'next') return 'Дальше по программе';
+    return `${planState === 'held' ? 'Проводили' : 'Запланировано на'} ${markDate.format(new Date(planAt))}`;
+  }
+
   function createRecommendationCard(lesson) {
     const card = document.createElement('button');
     card.className = 'recommendation-card';
@@ -285,7 +295,7 @@
     card.dataset.lessonId = lesson.id;
     card.setAttribute('role', 'radio');
     card.setAttribute('aria-checked', String(lesson.id === selectedRecommendationId));
-    card.setAttribute('aria-label', `${lesson.title}, уровень ${lesson.level}`);
+    card.setAttribute('aria-label', [lesson.title, `уровень ${lesson.level}`, lesson.planState && planMark(lesson)].filter(Boolean).join(', '));
 
     const cover = document.createElement('span');
     cover.className = 'recommendation-card__cover';
@@ -307,13 +317,20 @@
 
     const body = document.createElement('span');
     body.className = 'recommendation-card__body';
+    if (lesson.planState) {
+      const mark = document.createElement('span');
+      mark.className = `recommendation-card__mark recommendation-card__mark--${lesson.planState}`;
+      mark.textContent = planMark(lesson);
+      body.append(mark);
+    }
     const title = document.createElement('h3');
     title.textContent = lesson.title;
     body.append(title);
-    if (lesson.subtitle) {
+    const program = [lesson.grammar_title, lesson.age_label].filter(Boolean).join(' · ');
+    if (program) {
       const subtitle = document.createElement('span');
       subtitle.className = 'recommendation-card__subtitle';
-      subtitle.textContent = lesson.subtitle;
+      subtitle.textContent = program;
       body.append(subtitle);
     }
     if (lesson.description) {
@@ -361,24 +378,65 @@
     document.getElementById('class-all-lessons').hidden = showAllLessons || Boolean(query) || allRecommendations.length <= 4;
   }
 
+  async function fetchJson(url) {
+    const response = await fetch(url, { cache: 'no-store', headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error();
+    return response.json();
+  }
+
+  function loadProgram() {
+    programRequest ??= fetchJson('/assets/lesson-program.json').catch(error => { programRequest = null; throw error; });
+    return programRequest;
+  }
+
+  // The class the lessons are picked for: a new class has its level and age, an existing one also its sessions.
+  // Classes created before levels and ages existed have neither.
+  async function loadPlannedClass() {
+    if (classMode === 'new') {
+      const level = Chips.value(levelChoice), age = Chips.value(ageChoice);
+      const ageLabel = ageChoice.querySelector('[aria-checked="true"]').textContent;
+      return { profile: { level, age }, label: `${level} · ${ageLabel}`, history: [] };
+    }
+    await classesLoading;
+    const { sessions } = await fetchJson(`/api/classes/${selectedClassId}/sessions`);
+    const item = selectedClass();
+    const known = Boolean(item?.level && item?.age);
+    return { profile: known ? { level: item.level, age: item.age } : null, label: known ? `${item.level} · ${item.age_label}` : null, history: sessions };
+  }
+
+  // Says what the order is based on, or asks for the level and age of a class that has none.
+  function showPickerHint(label) {
+    if (label) {
+      lessonPickerHint.textContent = `Подобрали по программе для ${label}.`;
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = '/classes';
+    link.textContent = 'Укажите их';
+    lessonPickerHint.replaceChildren('У класса не указаны уровень и возраст. ', link, ', и уроки подберутся по программе.');
+  }
+
   async function loadRecommendations() {
     const request = ++recommendationRequest;
     loadingRecommendations = true;
     recommendationLessons = [];
     recommendationTrack.replaceChildren();
+    lessonPickerHint.textContent = defaultPickerHint;
     document.getElementById('class-all-lessons').hidden = true;
     document.getElementById('class-retry-lessons').hidden = true;
     recommendationStatus.textContent = 'Загружаем рекомендации…';
     attachLessonButton.disabled = true;
     try {
-      const response = await fetch('/api/library', { cache: 'no-store', headers: { Accept: 'application/json' } });
-      if (!response.ok) throw new Error();
-      const content = await response.json();
+      const [library, program, plannedClass] = await Promise.all([fetchJson('/api/library'), loadProgram(), loadPlannedClass()]);
       if (request !== recommendationRequest) return;
       loadingRecommendations = false;
-      allRecommendations = content.lessons.filter(lesson => lesson.is_published).map(lesson => ({ ...lesson, coverSrc: lesson.cover }));
+      const { items } = window.ClassPlan.rank({
+        lessons: library.lessons.filter(lesson => lesson.is_published), grammar: program.grammar, profile: plannedClass.profile, history: plannedClass.history,
+      });
+      allRecommendations = items.map(({ lesson, state, at }) => ({ ...lesson, coverSrc: lesson.cover, planState: state, planAt: at }));
       // The lesson picked in the library goes first, so it stays among the visible recommendations.
       allRecommendations.sort((a, b) => (b.id === preferredLessonId) - (a.id === preferredLessonId));
+      showPickerHint(plannedClass.label);
       filterRecommendations();
     } catch {
       if (request !== recommendationRequest) return;
@@ -459,7 +517,7 @@
   });
   profileChoices.forEach(group => Chips.bind(group, () => { classError.textContent = ''; }));
   classSearch.addEventListener('input', renderClassList);
-  classListRetry.addEventListener('click', loadClasses);
+  classListRetry.addEventListener('click', () => { classesLoading = loadClasses(); });
   classModeTabs.addEventListener('click', event => {
     const tab = event.target.closest('[data-mode]');
     if (tab) setClassMode(tab.dataset.mode);
