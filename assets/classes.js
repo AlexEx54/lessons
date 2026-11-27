@@ -6,6 +6,9 @@
   const retry = byId('classes-retry');
   const empty = byId('classes-empty');
   const list = byId('classes-list');
+  const tools = byId('classes-tools');
+  const search = byId('classes-search');
+  const noMatch = byId('classes-no-match');
   const dialog = byId('classes-edit-dialog');
   const form = dialog.querySelector('form');
   const nameInput = byId('classes-edit-name');
@@ -154,9 +157,25 @@
     if (open) showHistory(panel, card.dataset.classId);
   }
 
+  // «е» and «ё» are one letter for the search: «Семён» is found by «семен».
+  const searchKey = text => text.toLocaleLowerCase('ru').replaceAll('ё', 'е');
+
+  // Hides the cards instead of rebuilding them, so an open history stays open while the teacher types.
+  function applySearch() {
+    const query = search.value.trim();
+    const key = searchKey(query);
+    const matching = new Set(classes.filter(item => searchKey(item.name).includes(key)).map(item => item.id));
+    list.querySelectorAll('.class-card').forEach(card => { card.hidden = !matching.has(card.dataset.classId); });
+    list.hidden = !matching.size;
+    noMatch.hidden = !classes.length || matching.size > 0;
+    noMatch.textContent = `Классов по запросу «${query}» не нашлось.`;
+  }
+
   function render() {
     empty.hidden = classes.length > 0;
+    tools.hidden = !classes.length;
     list.replaceChildren(...classes.map(classCard));
+    applySearch();
   }
 
   // The server owns the order (as in the «Новое занятие» window), so a planned session is followed by a fresh load.
@@ -225,6 +244,7 @@
       const saved = await saveClass();
       classes = classes.map(item => (item.id === saved.id ? saved : item));
       list.querySelector(`[data-class-id="${saved.id}"]`).replaceWith(classCard(saved));
+      applySearch();
       dialog.close();
       window.AppShell.showToast('Класс сохранён.');
     } catch (failure) {
@@ -286,6 +306,7 @@
     if (control.dataset.action === 'edit') openEdit(item);
     if (control.dataset.action === 'history') toggleHistory(card, control);
   });
+  search.addEventListener('input', applySearch);
   byId('classes-create').addEventListener('click', () => planSession(null));
   retry.addEventListener('click', load);
   load();

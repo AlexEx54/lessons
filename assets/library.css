@@ -4,22 +4,7 @@
 .library-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
 .library-heading h2 { margin-bottom:4px; color:var(--purple); font-size:28px; letter-spacing:-.04em; }
 .library-heading p { color:var(--muted); font-size:12px; }
-.search { display:flex; align-items:center; width:220px; height:42px; padding:0 14px; gap:10px; border:1px solid var(--line); border-radius:12px; color:#8a88a4; background:#faf9ff; box-shadow:0 0 0 0 rgba(96,54,247,0); transition:border-color .16s ease,box-shadow .16s ease,background .16s ease; cursor:text; }
-.search:hover { border-color:#cfc4ff; background:#fff; }
-.search:focus-within { border-color:var(--purple); background:#fff; box-shadow:0 0 0 4px rgba(96,54,247,.12); color:var(--purple); }
-.search-icon { display:inline-flex; flex:0 0 auto; color:inherit; }
-.search-icon svg { display:block; }
-.search input { min-width:0; width:100%; border:0; outline:0; color:var(--ink); background:transparent; font:inherit; font-size:13px; }
-.search input::placeholder { color:#9a98b2; }
-.search input:focus,
-.search input:focus-visible { outline:none; box-shadow:none; }
-.search input::-webkit-search-decoration,
-.search input::-webkit-search-cancel-button { -webkit-appearance:none; appearance:none; }
 .library-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:10px 16px; margin-top:18px; }
-.library-views { display:inline-flex; padding:3px; gap:2px; border-radius:12px; background:#f1eefb; }
-.library-views button { min-height:32px; padding:0 14px; border-radius:9px; color:#62617e; font-size:12px; font-weight:700; transition:.16s ease; }
-.library-views button:hover { color:var(--purple); }
-.library-views button[aria-pressed="true"] { color:var(--purple); background:#fff; box-shadow:0 2px 8px rgba(48,34,103,.1); }
 .library-class { display:inline-flex; align-items:center; gap:8px; color:#62617e; font-size:12px; font-weight:700; }
 .library-class[hidden] { display:none; }
 .library-class select { min-width:0; max-width:280px; min-height:38px; padding:0 34px 0 12px; border:1px solid var(--line); border-radius:10px; color:var(--ink); background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='m6 9 6 6 6-6' stroke='%236036f7' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center; font:inherit; font-size:12px; font-weight:700; text-overflow:ellipsis; appearance:none; cursor:pointer; transition:border-color .16s ease,box-shadow .16s ease; }

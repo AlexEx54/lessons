@@ -144,7 +144,9 @@ test('deleting a class removes its sessions and media references, and only the o
   const kept = plan({ className: 'Борис' });
   assert.equal(deleteClass(first.class_id, other.id, db), null);
   assert.equal(deleteClass(crypto.randomUUID(), teacher.id, db), null);
-  assert.deepEqual(listClasses(teacher.id, db).map(item => [item.name, item.planned_count]), [['Борис', 1], ['Анна', 1]]);
+  // Both classes may be created within one millisecond, so their order is not checked here.
+  const plannedCounts = Object.fromEntries(listClasses(teacher.id, db).map(item => [item.name, item.planned_count]));
+  assert.deepEqual(plannedCounts, { 'Анна': 1, 'Борис': 1 });
   assert.deepEqual(deleteClass(first.class_id, teacher.id, db).sort(), [first.id, cancelled.id].sort());
   assert.deepEqual(listClasses(teacher.id, db).map(item => item.name), ['Борис']);
   assert.deepEqual(db.prepare('SELECT DISTINCT session_id FROM class_assets').all().map(row => row.session_id), [kept.id]);

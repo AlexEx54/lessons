@@ -765,6 +765,103 @@ p { margin: 0; }
   border: 0;
 }
 
+/* Page search field: <label class="search"> with .search-icon, a visually hidden name and the input. */
+.search {
+  display: flex;
+  align-items: center;
+  width: 220px;
+  height: 42px;
+  padding: 0 14px;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: #8a88a4;
+  background: #faf9ff;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+  cursor: text;
+}
+
+.search:hover {
+  border-color: #cfc4ff;
+  background: #fff;
+}
+
+.search:focus-within {
+  border-color: var(--purple);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(96, 54, 247, 0.12);
+  color: var(--purple);
+}
+
+.search-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: inherit;
+}
+
+.search-icon svg {
+  display: block;
+}
+
+.search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+}
+
+.search input::placeholder {
+  color: #9a98b2;
+}
+
+.search input:focus,
+.search input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.search input::-webkit-search-decoration,
+.search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Segmented switch between views of one page; the chosen button has aria-pressed="true". */
+.view-switch {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 12px;
+  background: #f1eefb;
+}
+
+.view-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 9px;
+  color: #62617e;
+  font-size: 12px;
+  font-weight: 700;
+  transition: 0.16s ease;
+}
+
+.view-switch button:hover {
+  color: var(--purple);
+}
+
+.view-switch button[aria-pressed="true"] {
+  color: var(--purple);
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(48, 34, 103, 0.1);
+}
+
 @media (max-width: 1180px) {
   .app-shell {
     grid-template-columns: 224px minmax(0, 1fr);

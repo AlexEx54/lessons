@@ -1,7 +1,12 @@
 <section class="classes" aria-labelledby="classes-title">
   <header class="classes-heading">
-    <h2 id="classes-title">Классы</h2>
-    <p>Уровень и возраст каждого класса помогают подобрать ему уроки</p>
+    <div>
+      <h2 id="classes-title">Классы</h2>
+      <p>Уровень и возраст каждого класса помогают подобрать ему уроки</p>
+    </div>
+    <div class="classes-tools" id="classes-tools" hidden>
+      <label class="search"><span class="search-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="M16.2 16.2 20 20" /></svg></span><span class="visually-hidden">Поиск классов</span><input id="classes-search" type="search" placeholder="Найти класс" autocomplete="off" /></label>
+    </div>
   </header>
 
   <p id="classes-status" role="status">Загружаем классы…</p>
@@ -13,6 +18,7 @@
   </div>
 
   <div class="classes-list" id="classes-list"></div>
+  <p class="classes-no-match" id="classes-no-match" hidden></p>
 
   <dialog class="classes-dialog" id="classes-edit-dialog" aria-labelledby="classes-edit-title">
     <form method="dialog" novalidate>
