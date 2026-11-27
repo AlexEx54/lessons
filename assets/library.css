@@ -45,6 +45,11 @@
 .lesson-pill__title { overflow:hidden; font-size:12px; font-weight:750; line-height:1.25; text-overflow:ellipsis; white-space:nowrap; }
 .lesson-pill__facts { color:#7d7b97; font-size:10px; font-weight:600; line-height:1.3; }
 .lesson-pill__facts b { color:#c2410c; font-weight:800; }
+.lesson-pill[hidden] { display:none; }
+.lesson-pill--dimmed { opacity:.42; }
+.lesson-pill--dimmed:hover,.lesson-pill--dimmed:focus-visible { opacity:1; }
+.lesson-pill--more { padding:0 14px; border-style:dashed; color:var(--purple); font-size:12px; font-weight:750; }
+.program-row__none { align-self:center; color:#a3a1b8; font-size:12px; font-weight:600; }
 .lesson-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
 .lesson-card { overflow:hidden; display:flex; flex-direction:column; min-width:220px; border:1px solid rgba(79,56,170,.1); border-radius:16px; background:#fff; box-shadow:0 8px 22px rgba(48,34,103,.06); transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease; }
 .lesson-card:hover { transform:translateY(-3px); border-color:#d6ccff; box-shadow:0 14px 28px rgba(48,34,103,.12); }

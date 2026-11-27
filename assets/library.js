@@ -30,6 +30,8 @@
     lesson: skillIcons.Grammar,
   };
   const AGES = ['9-11', '12-14', '15-18', 'adults'];
+  const VISIBLE_PILLS = 5;
+  const VIEW_STORAGE_KEY = 'easyclass.libraryView';
 
   // view: «По программе» or «Все уроки»; tab: the level open in the program view, never 'all'.
   const state = { view: 'program', tab: null, age: 'all', level: 'all', category: 'all', query: '' };
@@ -288,23 +290,49 @@
     return pill;
   }
 
+  // Pills beyond the first ones wait behind «Ещё N»; it opens only its own row, until the next render.
+  function morePills(hiddenPills) {
+    hiddenPills.forEach(pill => { pill.hidden = true; });
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'lesson-pill lesson-pill--more';
+    button.textContent = `Ещё ${hiddenPills.length}`;
+    button.addEventListener('click', () => {
+      hiddenPills.forEach(pill => { pill.hidden = false; });
+      hiddenPills[0].focus();
+      button.remove();
+    });
+    return button;
+  }
+
+  // Filters dim the lessons that miss them instead of hiding them, so rows stay put; the matching ones go first.
   function programRow(row, level) {
     const item = document.createElement('li');
     item.className = row.number ? 'program-row' : 'program-row program-row--free';
     item.innerHTML = `<div class="program-row__point"><span class="program-row__number" aria-hidden="true">${row.number ?? ''}</span>
       <div><h3>${escapeHtml(row.title)}</h3><p>${escapeHtml(row.hint)}</p></div></div><div class="program-row__lessons"></div>`;
-    item.querySelector('.program-row__lessons').append(...row.lessons.map(lesson => lessonPill(lesson, level)));
+    const lessons = item.querySelector('.program-row__lessons');
+    if (!row.lessons.length) {
+      lessons.innerHTML = '<span class="program-row__none">нет уроков</span>';
+      return item;
+    }
+    const matching = new Set(row.lessons.filter(matchesFilters));
+    const pills = row.lessons.sort((a, b) => matching.has(b) - matching.has(a) || byLevelAgeTitle(a, b)).map(lesson => {
+      const pill = lessonPill(lesson, level);
+      pill.classList.toggle('lesson-pill--dimmed', !matching.has(lesson));
+      return pill;
+    });
+    lessons.append(...pills);
+    if (pills.length > VISIBLE_PILLS) lessons.append(morePills(pills.slice(VISIBLE_PILLS)));
     return item;
   }
 
+  // Admins see every grammar point of the level, so the gaps of the library show; teachers see points with lessons.
   function renderProgram() {
-    const rows = programRows(state.tab)
-      .map(row => ({ ...row, lessons: row.lessons.filter(matchesFilters).sort(byLevelAgeTitle) }))
-      .filter(row => row.lessons.length);
+    const rows = programRows(state.tab).filter(row => row.lessons.length || (isAdmin && row.number));
     programList.replaceChildren(...rows.map(row => programRow(row, state.tab)));
     programList.hidden = rows.length === 0;
-    const filtersOn = state.age !== 'all' || state.category !== 'all' || state.query;
-    setEmptyText(filtersOn ? null : `На уровне ${state.tab} пока нет уроков`);
+    setEmptyText(`На уровне ${state.tab} пока нет уроков`);
     empty.hidden = rows.length > 0;
   }
 
@@ -315,11 +343,34 @@
     empty.querySelector('p').textContent = title ? 'Откройте другой уровень или «Все уроки».' : emptyTexts[1];
   }
 
+  // The view and the program tab survive a reload; the filters do not.
+  function restoreView() {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(VIEW_STORAGE_KEY));
+      if (saved?.view === 'program' || saved?.view === 'all') state.view = saved.view;
+      if (levelChips.some(chip => chip.dataset.value === saved?.tab)) state.tab = saved.tab;
+    } catch (_error) {
+      // Storage is off or holds a broken value: the page opens with the defaults.
+    }
+  }
+
+  function saveView() {
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({ view: state.view, tab: state.tab }));
+    } catch (_error) {
+      // The choice still works until the page is reloaded.
+    }
+  }
+
+  function markControls() {
+    document.querySelectorAll('#library-views [data-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === state.view)));
+    const level = state.view === 'program' ? state.tab : state.level;
+    levelChips.forEach(chip => chip.classList.toggle('chip--active', chip.dataset.value === level));
+  }
+
   function render() {
     const isProgram = state.view === 'program';
-    document.querySelectorAll('#library-views [data-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === state.view)));
-    const level = isProgram ? state.tab : state.level;
-    levelChips.forEach(chip => chip.classList.toggle('chip--active', chip.dataset.value === level));
+    markControls();
     programList.hidden = !isProgram;
     if (!isProgram) { setEmptyText(null); resetList(); return; }
     grid.hidden = true;
@@ -331,6 +382,7 @@
     const button = event.target.closest('[data-view]');
     if (!button || button.dataset.view === state.view) return;
     state.view = button.dataset.view;
+    saveView();
     render();
   });
 
@@ -341,6 +393,7 @@
     const filter = group.dataset.filter;
     if (filter === 'level' && state.view === 'program') {
       state.tab = button.dataset.value;
+      saveView();
       render();
       return;
     }
@@ -401,5 +454,7 @@
     }
   }
   document.getElementById('library-retry').addEventListener('click', loadLibrary);
+  restoreView();
+  markControls();
   loadLibrary();
 })();
