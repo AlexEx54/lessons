@@ -51,27 +51,30 @@
     return (date.getFullYear() === new Date().getFullYear() ? formats.day : formats.dayOfYear).format(date);
   }
 
-  function fact(term, value) {
-    const row = element('div');
-    row.append(element('dt', '', term), element('dd', '', value));
-    return row;
+  const CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>';
+
+  // One quiet line: «Проведено 12 занятий · следующее 3 декабря в 18:00».
+  function summary(item) {
+    const parts = [
+      item.held_count && `проведено ${sessionCount(item.held_count)}`,
+      item.next_session_at && `следующее ${formats.next.format(new Date(item.next_session_at))}`,
+    ].filter(Boolean);
+    const text = parts.length ? parts.join(' · ') : 'занятий пока не было';
+    return element('p', 'class-card__summary', text.charAt(0).toLocaleUpperCase('ru') + text.slice(1));
   }
 
-  // Where the class stands in the program, with a way into the library shown for this class.
-  function programBlock(item) {
-    const block = element('div', 'class-card__program');
-    const point = item.next_point;
-    if (point) {
-      block.append(element('span', 'plan-mark plan-mark--next', 'Дальше по программе'),
-        element('p', 'class-card__point', point.title), element('p', 'class-card__point-hint', point.hint));
-    } else {
-      block.append(element('p', 'class-card__point-hint', `Новых тем с уроками на уровне ${item.level} нет`));
-    }
-    const link = element('a', 'class-card__program-link', 'Программа класса');
+  // Where the class stands in the program; the whole row leads to the library shown for this class.
+  function programLink(item) {
+    const link = element('a', 'class-card__program');
     link.href = `/library.html?class=${encodeURIComponent(item.id)}`;
-    link.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>');
-    block.append(link);
-    return block;
+    link.title = 'Программа класса';
+    const text = element('span', 'class-card__program-text');
+    const point = item.next_point;
+    if (point) text.append(element('span', 'plan-mark plan-mark--next', 'Дальше по программе'), element('span', 'class-card__point', point.title));
+    else text.append(element('span', 'class-card__point-none', `Новых тем с уроками на уровне ${item.level} нет`));
+    link.append(text);
+    link.insertAdjacentHTML('beforeend', CHEVRON);
+    return link;
   }
 
   function classCard(item) {
@@ -82,38 +85,33 @@
     const avatar = element('span', 'class-card__avatar', item.name.trim().charAt(0).toLocaleUpperCase('ru'));
     avatar.setAttribute('aria-hidden', 'true');
     const title = element('div', 'class-card__title');
-    title.append(element('h3', '', item.name));
-    if (item.isGroup) title.append(element('span', 'class-card__badge', 'Группа'));
-    head.append(avatar, title);
-
+    const name = element('div', 'class-card__name');
+    name.append(element('h3', '', item.name));
+    if (item.isGroup) name.append(element('span', 'class-card__badge', 'Группа'));
     // Classes created before levels and ages existed ask the teacher to fill them in.
     const profile = item.level && item.age
       ? element('p', 'class-card__profile', `${item.level} · ${item.age_label}`)
       : button('class-card__set-profile', 'Указать уровень и возраст', 'edit');
+    title.append(name, profile);
+    const edit = button('class-card__edit', '', 'edit');
+    edit.setAttribute('aria-label', `Изменить класс «${item.name}»`);
+    edit.title = 'Изменить';
+    edit.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-4-4L4 16v4Z" /><path d="m13.5 6.5 4 4" /></svg>';
+    head.append(avatar, title, edit);
 
-    const facts = element('dl', 'class-card__facts');
-    facts.append(
-      fact('Проведено', item.held_count ? sessionCount(item.held_count) : 'пока нет'),
-      fact('Следующее', item.next_session_at ? formats.next.format(new Date(item.next_session_at)) : 'не запланировано'),
-    );
-
-    const program = item.level && item.age ? programBlock(item) : null;
+    const program = item.level && item.age ? programLink(item) : null;
 
     const history = element('div', 'class-card__history');
     history.id = `class-history-${item.id}`;
     history.hidden = true;
-    const toggle = button('classes-action class-card__history-toggle', 'История', 'history');
+    const toggle = button('classes-action classes-action--quiet class-card__history-toggle', 'История', 'history');
     toggle.setAttribute('aria-expanded', 'false');
     toggle.setAttribute('aria-controls', history.id);
     toggle.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>');
     const actions = element('div', 'class-card__actions');
-    actions.append(
-      button('classes-action classes-action--primary', 'Запланировать занятие', 'plan'),
-      button('classes-action', 'Изменить', 'edit'),
-      toggle,
-    );
+    actions.append(button('classes-action classes-action--soft', 'Запланировать занятие', 'plan'), toggle);
 
-    card.append(...[head, profile, facts, program, actions, history].filter(Boolean));
+    card.append(...[head, summary(item), program, actions, history].filter(Boolean));
     return card;
   }
 

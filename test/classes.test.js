@@ -127,8 +127,7 @@ test('each class with a level and age gets its next grammar point, by the rules 
   const nextPoint = name => listClasses(teacher.id, db).find(item => item.name === name).next_point;
   // The planned session covers «to be», so the class moves on to the next point that has a lesson.
   plan({ className: 'Анна', level: 'A1', age: '9-11' });
-  assert.deepEqual(nextPoint('Анна'), { key: 'have-got', title: 'have got / has got', hint: nextPoint('Анна').hint });
-  assert.equal(typeof nextPoint('Анна').hint, 'string');
+  assert.deepEqual(nextPoint('Анна'), { key: 'have-got', title: 'have got / has got' });
   plan({ className: 'Борис', level: 'A2', age: '12-14' });
   assert.equal(nextPoint('Борис'), null, 'no A2 lessons in the library');
   const old = plan({ className: 'Старый', level: 'A1', age: '9-11' });

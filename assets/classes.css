@@ -21,32 +21,38 @@
 .classes-action:disabled { opacity: 0.6; cursor: default; }
 .classes-action--primary { border-color: var(--purple); color: #fff; background: var(--purple); }
 .classes-action--primary:hover { border-color: var(--purple-dark); background: var(--purple-dark); }
+/* A card action repeated on every card: tinted, so a page of classes is not a column of filled buttons. */
+.classes-action--soft { border-color: transparent; background: var(--purple-soft); }
+.classes-action--soft:hover { background: #e4dcff; }
+.classes-action--quiet { padding: 0 8px; border-color: transparent; color: var(--muted); }
+.classes-action--quiet:hover { color: var(--purple); }
 
 .classes-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); align-items: start; gap: 16px; margin-top: 24px; }
 .classes-list:empty { display: none; }
-.class-card { display: grid; gap: 14px; min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 18px; }
+.class-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 18px; }
 .class-card__head { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .class-card__avatar { display: grid; flex: 0 0 auto; place-items: center; width: 42px; height: 42px; border-radius: 50%; color: var(--purple); background: var(--purple-soft); font-size: 17px; font-weight: 800; }
-.class-card__title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
-.class-card__title h3 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.class-card__title { display: grid; flex: 1; justify-items: start; gap: 2px; min-width: 0; }
+.class-card__name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
+.class-card__name h3 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; overflow-wrap: anywhere; }
 .class-card__badge { padding: 3px 9px; border-radius: 999px; color: var(--purple); background: var(--purple-soft); font-size: 12px; font-weight: 700; }
-.class-card__profile,
-.class-card__set-profile { justify-self: start; padding: 6px 11px; border-radius: 8px; font-size: 13px; font-weight: 700; }
-.class-card__profile { color: #3d3f66; background: #f4f1ff; }
-.class-card__set-profile { border: 1px dashed #c8b9fb; color: var(--purple); transition: background 160ms ease; }
-.class-card__set-profile:hover { background: #f7f5ff; }
-.class-card__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 12px 14px; border-radius: 12px; background: #faf9ff; }
-.class-card__facts dt { color: var(--muted); font-size: 12px; }
-.class-card__facts dd { margin: 3px 0 0; font-size: 14px; font-weight: 600; }
-.class-card__program { display: grid; justify-items: start; gap: 4px; padding: 12px 14px; border: 1px solid #ece6ff; border-radius: 12px; }
-.class-card__program .plan-mark { margin-bottom: 2px; font-size: 12px; }
-.class-card__program-link { display: inline-flex; align-items: center; gap: 2px; margin: 2px -6px -4px; padding: 4px 6px; border-radius: 7px; color: var(--purple); font-size: 13px; font-weight: 600; white-space: nowrap; transition: background 160ms ease; }
-.class-card__program-link:hover { background: #f7f5ff; }
-.class-card__program-link svg { width: 15px; height: 15px; }
+.class-card__profile { color: var(--muted); font-size: 13px; font-weight: 500; }
+.class-card__set-profile { margin: 0 -6px; padding: 2px 6px; border-radius: 6px; color: var(--purple); font-size: 13px; font-weight: 600; transition: background 160ms ease; }
+.class-card__set-profile:hover,
+.class-card__edit:hover { background: #f7f5ff; }
+.class-card__edit { display: grid; flex: 0 0 auto; place-items: center; align-self: flex-start; width: 34px; height: 34px; margin: -4px -6px 0 0; border-radius: 9px; color: var(--muted); transition: background 160ms ease, color 160ms ease; }
+.class-card__edit:hover { color: var(--purple); }
+.class-card__summary { color: var(--muted); font-size: 13px; line-height: 1.45; }
+.class-card__program { display: flex; align-items: center; gap: 10px; margin: 0 -8px; padding: 12px 8px 10px; border-top: 1px solid var(--grid-line); border-radius: 0 0 10px 10px; transition: background 160ms ease; }
+.class-card__program:hover { background: #f9f7ff; }
+.class-card__program > svg { color: var(--purple); }
+.class-card__program-text { display: grid; flex: 1; justify-items: start; gap: 3px; min-width: 0; }
+.class-card__program .plan-mark { font-size: 12px; }
 .class-card__point { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
-.class-card__point-hint { color: var(--muted); font-size: 13px; line-height: 1.4; }
-.class-card__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.class-card__actions .classes-action--primary { grid-column: 1 / -1; }
+.class-card__point-none { color: var(--muted); font-size: 13px; line-height: 1.4; }
+/* Wraps only on the narrowest phones, where «История» goes under the button. */
+.class-card__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.class-card__actions .classes-action--soft { flex: 1; }
 .class-card__history-toggle svg { width: 16px; height: 16px; transition: transform 160ms ease; }
 .class-card__history-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 
@@ -80,6 +86,7 @@
 
 @media (max-width: 760px) {
   .classes { padding: 18px; }
+  .class-card { padding: 16px; }
 }
 @media (max-width: 420px) {
   .classes-dialog__actions { flex-wrap: wrap; }
