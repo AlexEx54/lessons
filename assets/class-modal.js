@@ -2,6 +2,7 @@
   'use strict';
 
   const Calendar = window.ScheduleCalendar;
+  const Chips = window.ChoiceChips;
   const classModal = document.getElementById('class-modal');
   const classDialog = classModal.querySelector('.class-dialog');
   const classNameInput = document.getElementById('class-name-input');
@@ -58,28 +59,13 @@
   document.getElementById('class-time-zone').textContent = `Часовой пояс: ${classTimeZone}`;
 
   const selectedClass = () => classes.find(item => item.id === selectedClassId);
-  const choiceValue = group => group.querySelector('[aria-checked="true"]')?.dataset.value ?? null;
-
-  // The level and age chips work as radio groups: one tab stop each, arrows move the choice.
-  function pickChoice(group, value, shouldFocus = false) {
-    const options = [...group.querySelectorAll('[role="radio"]')];
-    const current = options.find(option => option.dataset.value === value);
-    group.removeAttribute('aria-invalid');
-    options.forEach(option => {
-      option.setAttribute('aria-checked', String(option === current));
-      option.tabIndex = option === (current ?? options[0]) ? 0 : -1;
-    });
-    if (shouldFocus) current?.focus();
-  }
 
   // Both are required for a new class; every missing one is marked and the first gets focus.
   function checkProfile() {
-    const missing = profileChoices.filter(group => !choiceValue(group));
+    const missing = Chips.markMissing(profileChoices);
     if (!missing.length) return true;
-    missing.forEach(group => group.setAttribute('aria-invalid', 'true'));
     classError.textContent = missing.length > 1 ? 'Выберите уровень и возраст класса.'
       : missing[0] === levelChoice ? 'Выберите уровень класса.' : 'Выберите возраст класса.';
-    missing[0].querySelector('[tabindex="0"]').focus();
     return false;
   }
 
@@ -224,7 +210,7 @@
     classError.textContent = '';
     classNameInput.value = classNameInput.defaultValue;
     classGroupInput.checked = false;
-    profileChoices.forEach(group => pickChoice(group, null));
+    profileChoices.forEach(group => Chips.pick(group, null));
     classTimeInput.value = time || Calendar.toLocalInputValue(Calendar.nextFullHour());
     lessonSearch.value = '';
     showAllLessons = false;
@@ -428,7 +414,7 @@
     }
     const scheduledAt = time.toISOString();
     const target = classMode === 'new'
-      ? { className: classNameInput.value.trim(), ...(classGroupInput.checked ? { isGroup: true } : {}), level: choiceValue(levelChoice), age: choiceValue(ageChoice) }
+      ? { className: classNameInput.value.trim(), ...(classGroupInput.checked ? { isGroup: true } : {}), level: Chips.value(levelChoice), age: Chips.value(ageChoice) }
       : { classId: selectedClassId };
     const input = { ...target, lessonId: lesson.id, expectedRevision: lesson.revision, scheduledAt, timeZone: classTimeZone };
     const payload = JSON.stringify(input);
@@ -471,23 +457,7 @@
     classError.textContent = '';
     updateClassLink();
   });
-  profileChoices.forEach(group => {
-    group.addEventListener('click', event => {
-      const option = event.target.closest('[role="radio"]');
-      if (!option) return;
-      classError.textContent = '';
-      pickChoice(group, option.dataset.value);
-    });
-    group.addEventListener('keydown', event => {
-      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
-      const options = [...group.querySelectorAll('[role="radio"]')];
-      const step = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1;
-      const index = (options.indexOf(document.activeElement) + step + options.length) % options.length;
-      event.preventDefault();
-      classError.textContent = '';
-      pickChoice(group, options[index].dataset.value, true);
-    });
-  });
+  profileChoices.forEach(group => Chips.bind(group, () => { classError.textContent = ''; }));
   classSearch.addEventListener('input', renderClassList);
   classListRetry.addEventListener('click', loadClasses);
   classModeTabs.addEventListener('click', event => {

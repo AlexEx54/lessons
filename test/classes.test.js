@@ -235,6 +235,7 @@ test('session API creates once, renders schedule and teacher lesson, protects al
   assert.ok(ready);
   const request = (route, auth = cookie, method = 'GET', body) => fetch(base + route, { method, redirect: 'manual', headers: { ...(auth ? { Cookie: auth } : {}), 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
   assert.equal((await request('/schedule', null)).status, 302);
+  assert.equal((await request('/classes', null)).headers.get('location'), '/login?next=%2Fclasses');
   assert.equal((await request('/api/sessions', null)).status, 401);
   assert.equal((await request('/api/sessions', null, 'POST', input)).status, 401);
   assert.equal((await request('/api/classes', null)).status, 401);
@@ -264,6 +265,7 @@ test('session API creates once, renders schedule and teacher lesson, protects al
   assert.equal((await request(`${classPath}/sessions`, otherCookie)).status, 404);
   assert.deepEqual((await (await request(`${classPath}/sessions`)).json()).sessions.map(item => item.id), [nextSession.id, session.id]);
   assert.match(await (await request('/schedule')).text(), /id="schedule-grid"/);
+  assert.match(await (await request('/classes')).text(), /id="classes-list"/);
   assert.equal((await request(session.path)).status, 200);
   assert.equal((await request(session.path, null)).status, 302);
   assert.equal((await request(session.path, otherCookie)).status, 404);

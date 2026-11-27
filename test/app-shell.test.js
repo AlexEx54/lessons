@@ -131,6 +131,22 @@ test('schedule loads its scripts in order and shares the class modal and slot pi
   assert.deepEqual(activeNavigationItems(html), ['/schedule']);
 });
 
+test('classes page sits after schedule in the sidebar and shares the level and age chips with the class modal', async () => {
+  const html = await renderAppPage('classes', {
+    user: { displayName: 'Анна', email: 'anna@example.com', role: 'teacher' },
+  });
+  const scripts = [...html.matchAll(/<script src="([^"]+)" defer><\/script>/g)].map(match => match[1]);
+  const navigation = [...html.matchAll(/<a class="nav-item[^"]*" href="([^"]+)"/g)].map(match => match[1]);
+
+  assert.match(html, /<title>Классы — EasyClass<\/title>/);
+  assert.deepEqual(navigation, ['/app', '/library.html', '/schedule', '/classes', '/video-calls', '/settings']);
+  assert.deepEqual(activeNavigationItems(html), ['/classes']);
+  assert.ok(scripts.indexOf('/assets/choice-chips.js') < scripts.indexOf('/assets/class-modal.js'));
+  assert.equal(scripts.at(-1), '/assets/classes.js');
+  assert.match(html, /id="classes-level-choice" role="radiogroup"/);
+  assert.match(html, /id="classes-age-choice" role="radiogroup"/);
+});
+
 test('guest does not see create lesson', async () => {
   const html = await renderAppPage('library');
   assert.doesNotMatch(html, /data-open-new-lesson-modal/);

@@ -1,0 +1,50 @@
+<section class="classes" aria-labelledby="classes-title">
+  <header class="classes-heading">
+    <h2 id="classes-title">Классы</h2>
+    <p>Уровень и возраст каждого класса помогают подобрать ему уроки</p>
+  </header>
+
+  <p id="classes-status" role="status">Загружаем классы…</p>
+  <button class="classes-action" id="classes-retry" type="button" hidden>Попробовать ещё раз</button>
+
+  <div class="classes-empty" id="classes-empty" hidden>
+    <p>Классов пока нет. Запланируйте первое занятие — класс появится здесь.</p>
+    <button class="classes-action classes-action--primary" id="classes-create" type="button">Запланировать занятие</button>
+  </div>
+
+  <div class="classes-list" id="classes-list"></div>
+
+  <dialog class="classes-dialog" id="classes-edit-dialog" aria-labelledby="classes-edit-title">
+    <form method="dialog" novalidate>
+      <h3 id="classes-edit-title">Изменить класс</h3>
+      <label class="classes-field">Название
+        <input id="classes-edit-name" name="name" type="text" maxlength="80" autocomplete="off" required />
+      </label>
+      <div class="class-choice">
+        <span class="class-choice__label" id="classes-level-label">Уровень</span>
+        <div class="class-choice__options" id="classes-level-choice" role="radiogroup" aria-labelledby="classes-level-label" aria-required="true">
+          <button type="button" role="radio" aria-checked="false" data-value="A1">A1</button>
+          <button type="button" role="radio" aria-checked="false" data-value="A2">A2</button>
+          <button type="button" role="radio" aria-checked="false" data-value="B1">B1</button>
+          <button type="button" role="radio" aria-checked="false" data-value="B2">B2</button>
+          <button type="button" role="radio" aria-checked="false" data-value="C1">C1</button>
+          <button type="button" role="radio" aria-checked="false" data-value="C2">C2</button>
+        </div>
+      </div>
+      <div class="class-choice">
+        <span class="class-choice__label" id="classes-age-label">Возраст</span>
+        <div class="class-choice__options" id="classes-age-choice" role="radiogroup" aria-labelledby="classes-age-label" aria-required="true">
+          <button type="button" role="radio" aria-checked="false" data-value="9-11">9–11 лет</button>
+          <button type="button" role="radio" aria-checked="false" data-value="12-14">12–14 лет</button>
+          <button type="button" role="radio" aria-checked="false" data-value="15-18">15–18 лет</button>
+          <button type="button" role="radio" aria-checked="false" data-value="adults">Взрослые</button>
+        </div>
+      </div>
+      <p class="classes-dialog__error" id="classes-edit-error" role="alert"></p>
+      <div class="classes-dialog__actions">
+        <button class="classes-action" type="button" data-close>Отмена</button>
+        <button class="classes-action classes-action--primary" type="submit">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
+</section>

@@ -1795,6 +1795,13 @@ async function handleRequest(req, res) {
     return;
   }
 
+  if (req.method === 'GET' && pathname === '/classes') {
+    const user = getAuthenticatedUser(req, database);
+    if (!user) { redirect(res, loginRedirect(pathname)); return; }
+    await serveAppPage('classes', res, { user });
+    return;
+  }
+
   if (req.method === 'GET' && pathname === '/api/classes') {
     const user = requireTeacherAuth(req, res);
     if (!user) return;
