@@ -6,10 +6,16 @@
             <label class="search"><span class="search-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.9"/><path d="M16.2 16.2 20 20" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></span><span class="visually-hidden">Поиск уроков</span><input id="lesson-search" type="search" placeholder="Найти урок" /></label>
           </div>
 
-          <div class="library-views" id="library-views" role="group" aria-label="Вид библиотеки">
-            <button type="button" data-view="program" aria-pressed="true">По программе</button>
-            <button type="button" data-view="all" aria-pressed="false">Все уроки</button>
+          <div class="library-toolbar">
+            <div class="library-views" id="library-views" role="group" aria-label="Вид библиотеки">
+              <button type="button" data-view="program" aria-pressed="true">По программе</button>
+              <button type="button" data-view="all" aria-pressed="false">Все уроки</button>
+            </div>
+            <label class="library-class" id="library-class" hidden>Для класса
+              <select id="library-class-select"><option value="">Не выбран</option></select>
+            </label>
           </div>
+          <p class="library-class-hint" id="library-class-hint" hidden></p>
 
           <div class="filters" id="filters" aria-label="Фильтры уроков">
             <div class="filter-row">

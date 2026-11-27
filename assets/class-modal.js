@@ -282,11 +282,7 @@
     }, 2200);
   }
 
-  const markDate = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long' });
-  function planMark({ planState, planAt }) {
-    if (planState === 'next') return 'Дальше по программе';
-    return `${planState === 'held' ? 'Проводили' : 'Запланировано на'} ${markDate.format(new Date(planAt))}`;
-  }
+  const planMark = lesson => window.ClassPlan.markText({ state: lesson.planState, at: lesson.planAt });
 
   function createRecommendationCard(lesson) {
     const card = document.createElement('button');

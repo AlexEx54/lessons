@@ -42,6 +42,14 @@
   const grid = document.getElementById('lesson-grid');
   const empty = document.getElementById('empty-state');
   const showMore = document.getElementById('show-more');
+  const classPicker = document.getElementById('library-class');
+  const classSelect = document.getElementById('library-class-select');
+  const classHint = document.getElementById('library-class-hint');
+  let classes = [];
+  // The class chosen in «Для класса» with its sessions, and what ClassPlan makes of them for the current render.
+  let chosenClass = null;
+  let ranking = null;
+  let classRequest = 0;
 
   function showToast(message) {
     window.AppShell.showToast(message);
@@ -195,6 +203,12 @@
     return parts.length ? `<p class="lesson-program">${parts.join(' <span>·</span> ')}</p>` : '';
   }
 
+  // «Дальше по программе», «Проводили 9 ноября»: where the lesson stands for the chosen class.
+  function classMark(lesson, className) {
+    const mark = ranking?.marks.get(lesson.id);
+    return mark ? `<span class="${className} ${className}--${mark.state}">${escapeHtml(window.ClassPlan.markText(mark))}</span>` : '';
+  }
+
   function lessonCard(source) {
     const lesson = Object.fromEntries(Object.entries(source).map(([key, value]) => [key, typeof value === 'string' ? escapeHtml(value) : value]));
     const article = document.createElement('article');
@@ -202,6 +216,7 @@
     article.innerHTML = `
       <div class="lesson-cover"><img src="${lesson.cover}" alt="" loading="lazy" decoding="async" /></div>
       <div class="lesson-body">
+        ${classMark(source, 'lesson-mark')}
         <h3>${lesson.title}</h3>
         <p class="lesson-facts">${lesson.age_label} <span>•</span> ${lesson.level}${lesson.season_label ? ` <span>•</span> ${lesson.season_label}` : ''}</p>
         ${programLine(lesson)}
@@ -212,7 +227,9 @@
       </div>`;
     renderBadge(article, source.badge);
     article.querySelector('[data-action="preview"]').addEventListener('click', () => { window.location.href = `/library/${encodeURIComponent(source.id)}`; });
-    article.querySelector('[data-action="schedule"]').addEventListener('click', () => window.ClassModal.open({ lessonId: source.id }));
+    article.querySelector('[data-action="schedule"]').addEventListener('click', () => window.ClassModal.open({
+      lessonId: source.id, classId: chosenClass?.item.id ?? null, onCreated: refreshClasses,
+    }));
     if (isAdmin) addLessonMenuButton(source, article);
     return article;
   }
@@ -248,9 +265,9 @@
     updateListState();
   }
 
-  // Full rebuild — only when the lesson set or filters change.
+  // Full rebuild — only when the lesson set or filters change. A chosen class puts its lessons in the program order.
   function resetList() {
-    filtered = libraryLessons.filter(lesson => (state.level === 'all' || lesson.level === state.level) && matchesFilters(lesson));
+    filtered = (ranking?.lessons ?? libraryLessons).filter(lesson => (state.level === 'all' || lesson.level === state.level) && matchesFilters(lesson));
     shown = 0;
     grid.replaceChildren();
     grid.hidden = false; // A hidden grid has no tracks to measure.
@@ -269,7 +286,7 @@
   // Grammar rows of one level in program order, then the lessons of that level without grammar.
   function programRows(level) {
     const rows = program.grammar.filter(point => point.level === level).map((point, index) => ({
-      number: index + 1, title: point.title, hint: point.hint,
+      key: point.key, number: index + 1, title: point.title, hint: point.hint,
       lessons: libraryLessons.filter(lesson => lesson.grammar_point === point.key),
     }));
     rows.push({ number: null, title: 'Без грамматики', hint: 'уроки на тему, без отдельной грамматики',
@@ -284,9 +301,10 @@
     pill.href = `/library/${encodeURIComponent(lesson.id)}`;
     const format = lesson.format_label ? `role="img" aria-label="${escapeHtml(lesson.format_label)}" title="${escapeHtml(lesson.format_label)}"` : 'aria-hidden="true"';
     const facts = [lesson.age_label, lesson.season_label].filter(Boolean).map(escapeHtml).join(' · ');
+    pill.classList.toggle('lesson-pill--next', isNextLesson(lesson));
     pill.innerHTML = `<span class="lesson-pill__icon" ${format}>${formatIcons[lesson.format] ?? formatIcons.lesson}</span>
       <span class="lesson-pill__text"><span class="lesson-pill__title">${escapeHtml(lesson.title)}</span>
-      <span class="lesson-pill__facts">${lesson.level === level ? '' : `<b>${escapeHtml(lesson.level)}</b> `}${facts}</span></span>`;
+      <span class="lesson-pill__facts">${isNextLesson(lesson) ? '' : classMark(lesson, 'lesson-pill__mark')}${lesson.level === level ? '' : `<b>${escapeHtml(lesson.level)}</b> `}${facts}</span></span>`;
     return pill;
   }
 
@@ -305,19 +323,29 @@
     return button;
   }
 
+  const isNextLesson = lesson => ranking?.marks.get(lesson.id)?.state === 'next';
+
+  // A class with a level and age dims the lessons for other ages, except the ones it took or takes next.
+  function fitsClass(lesson) {
+    const age = ranking?.profileKnown && chosenClass.item.age;
+    return !age || lesson.age === age || ranking.marks.has(lesson.id);
+  }
+
   // Filters dim the lessons that miss them instead of hiding them, so rows stay put; the matching ones go first.
   function programRow(row, level) {
     const item = document.createElement('li');
-    item.className = row.number ? 'program-row' : 'program-row program-row--free';
+    const isNext = Boolean(row.key) && row.key === ranking?.nextPoint?.key;
+    item.className = ['program-row', !row.number && 'program-row--free', isNext && 'program-row--next'].filter(Boolean).join(' ');
     item.innerHTML = `<div class="program-row__point"><span class="program-row__number" aria-hidden="true">${row.number ?? ''}</span>
-      <div><h3>${escapeHtml(row.title)}</h3><p>${escapeHtml(row.hint)}</p></div></div><div class="program-row__lessons"></div>`;
+      <div>${isNext ? '<span class="program-row__next">Дальше</span>' : ''}<h3>${escapeHtml(row.title)}</h3><p>${escapeHtml(row.hint)}</p></div></div>
+      <div class="program-row__lessons"></div>`;
     const lessons = item.querySelector('.program-row__lessons');
     if (!row.lessons.length) {
       lessons.innerHTML = '<span class="program-row__none">нет уроков</span>';
       return item;
     }
-    const matching = new Set(row.lessons.filter(matchesFilters));
-    const pills = row.lessons.sort((a, b) => matching.has(b) - matching.has(a) || byLevelAgeTitle(a, b)).map(lesson => {
+    const matching = new Set(row.lessons.filter(lesson => matchesFilters(lesson) && fitsClass(lesson)));
+    const pills = row.lessons.sort((a, b) => matching.has(b) - matching.has(a) || isNextLesson(b) - isNextLesson(a) || byLevelAgeTitle(a, b)).map(lesson => {
       const pill = lessonPill(lesson, level);
       pill.classList.toggle('lesson-pill--dimmed', !matching.has(lesson));
       return pill;
@@ -368,8 +396,35 @@
     levelChips.forEach(chip => chip.classList.toggle('chip--active', chip.dataset.value === level));
   }
 
+  function rankForClass() {
+    const { item, history } = chosenClass;
+    const { nextPoint, items } = window.ClassPlan.rank({ lessons: libraryLessons, grammar: program.grammar, profile: item, history });
+    return {
+      profileKnown: Boolean(item.level && item.age),
+      nextPoint,
+      lessons: items.map(entry => entry.lesson),
+      marks: new Map(items.filter(entry => entry.state).map(entry => [entry.lesson.id, entry])),
+    };
+  }
+
+  function renderClassHint() {
+    classHint.hidden = !chosenClass;
+    if (!chosenClass) return;
+    const { item } = chosenClass;
+    if (!ranking.profileKnown) {
+      classHint.innerHTML = 'У класса не указаны уровень и возраст. <a href="/classes">Укажите их</a>, и уроки подберутся по программе.';
+      return;
+    }
+    const next = ranking.nextPoint
+      ? `Дальше по программе: <b>${escapeHtml(ranking.nextPoint.title)}</b>.`
+      : `На уровне ${escapeHtml(item.level)} не осталось уроков на новые темы.`;
+    classHint.innerHTML = `Программа для ${escapeHtml(item.level)} · ${escapeHtml(item.age_label)}. ${next}`;
+  }
+
   function render() {
     const isProgram = state.view === 'program';
+    ranking = chosenClass ? rankForClass() : null;
+    renderClassHint();
     markControls();
     programList.hidden = !isProgram;
     if (!isProgram) { setEmptyText(null); resetList(); return; }
@@ -430,6 +485,64 @@
     quickList.append(card);
   });
 
+  async function fetchJson(url) {
+    const response = await fetch(url, { cache: 'no-store' });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Запрос не выполнен.');
+    return payload;
+  }
+
+  // Only teachers have classes; without any the picker stays hidden.
+  async function loadClasses() {
+    try {
+      classes = (await fetchJson('/api/classes')).classes;
+    } catch (_error) {
+      classes = [];
+    }
+    const label = item => (item.level && item.age ? `${item.name} · ${item.level} · ${item.age_label}` : item.name);
+    classSelect.replaceChildren(new Option('Не выбран', ''), ...classes.map(item => new Option(label(item), item.id)));
+    classSelect.value = chosenClass?.item.id ?? '';
+    classPicker.hidden = classes.length === 0;
+  }
+
+  // The class lives in ?class=, so the «Классы» page can link to its program and a reload keeps it.
+  function writeClassToUrl(id) {
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set('class', id);
+    else url.searchParams.delete('class');
+    window.history.replaceState(null, '', url);
+  }
+
+  // reveal: the teacher picked the class, so the program opens on its level and shows the next point.
+  async function chooseClass(id, { reveal = false } = {}) {
+    const request = ++classRequest;
+    const item = classes.find(entry => entry.id === id) ?? null;
+    classSelect.value = item?.id ?? '';
+    writeClassToUrl(item?.id);
+    let history = null;
+    if (item) {
+      try {
+        history = (await fetchJson(`/api/classes/${encodeURIComponent(item.id)}/sessions`)).sessions;
+      } catch (_error) {
+        if (request === classRequest) { showToast('Не удалось загрузить занятия класса.'); chooseClass(null); }
+        return;
+      }
+    }
+    if (request !== classRequest) return;
+    chosenClass = item && { item, history };
+    if (reveal && item?.level && item.age) state.tab = item.level;
+    render();
+    if (reveal) programList.querySelector('.program-row--next')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  // A new session may add a class or plan a lesson for the chosen one.
+  async function refreshClasses() {
+    await loadClasses();
+    await chooseClass(chosenClass?.item.id ?? null);
+  }
+
+  classSelect.addEventListener('change', () => chooseClass(classSelect.value || null, { reveal: true }));
+
   async function loadLibrary() {
     document.getElementById('library-loading').hidden = false;
     document.getElementById('library-error').hidden = true;
@@ -438,15 +551,16 @@
     programList.hidden = true;
     showMore.hidden = true;
     try {
-      const [response, programData] = await Promise.all([fetch('/api/library', { cache: 'no-store' }), window.LessonPublication.loadProgram()]);
-      const payload = await response.json();
-      if (!response.ok || !Array.isArray(payload.lessons)) throw new Error('Не удалось загрузить библиотеку.');
+      const [payload, programData] = await Promise.all([fetchJson('/api/library'), window.LessonPublication.loadProgram(), loadClasses()]);
+      if (!Array.isArray(payload.lessons)) throw new Error('Не удалось загрузить библиотеку.');
       libraryLessons = payload.lessons;
       program = programData;
       grammarPoints = new Map(program.grammar.map(point => [point.key, point]));
       // The program view opens on the first level that has lessons.
       state.tab ??= levelChips.map(chip => chip.dataset.value).find(level => libraryLessons.some(lesson => programLevel(lesson) === level)) ?? levelChips[0].dataset.value;
-      render();
+      const classId = new URLSearchParams(window.location.search).get('class');
+      if (classId) await chooseClass(classId, { reveal: true });
+      else render();
     } catch (_error) {
       document.getElementById('library-error').hidden = false;
     } finally {

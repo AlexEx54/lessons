@@ -77,7 +77,14 @@
     return { nextPoint, items };
   }
 
-  const api = { rank };
+  // «Дальше по программе», «Проводили 9 ноября» or «Запланировано на 1 декабря»: one wording on every page.
+  const markDate = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long' });
+  function markText({ state, at }) {
+    if (state === 'next') return 'Дальше по программе';
+    return `${state === 'held' ? 'Проводили' : 'Запланировано на'} ${markDate.format(new Date(at))}`;
+  }
+
+  const api = { rank, markText };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.ClassPlan = api;
 })(typeof window !== 'undefined' ? window : globalThis);

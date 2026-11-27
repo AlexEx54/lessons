@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { rank } = require('../assets/class-plan.js');
+const { rank, markText } = require('../assets/class-plan.js');
 
 const grammar = [
   { key: 'to-be', level: 'A1' },
@@ -103,4 +103,10 @@ test('a lesson on a point of another level belongs to the point level', () => {
   // An A1 point taught with an A2 lesson is not an A2 lesson for the program.
   const result = rank({ lessons: [lesson('to-be-a2', 'to-be', '12-14', 'A2'), lesson('a2-past', 'past-simple')], grammar, profile: a2Teens, history: [] });
   assert.deepEqual(ids(result), ['a2-past', 'to-be-a2']);
+});
+
+test('the marks read the same on every page', () => {
+  assert.equal(markText({ state: 'next', at: null }), 'Дальше по программе');
+  assert.equal(markText({ state: 'held', at: '2026-11-09T12:00:00.000Z' }), 'Проводили 9 ноября');
+  assert.equal(markText({ state: 'planned', at: '2026-12-01T12:00:00.000Z' }), 'Запланировано на 1 декабря');
 });
