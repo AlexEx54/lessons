@@ -9,7 +9,7 @@ const { spawn } = require('node:child_process');
 const { openDatabase } = require('../lib/db.js');
 const { createUser } = require('../lib/user-store.js');
 const { createSession } = require('../lib/session-store.js');
-const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, hasClassSessionAsset } = require('../lib/class-store.js');
+const { listClasses, updateClass, listClassHistory, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, hasClassSessionAsset } = require('../lib/class-store.js');
 const { putMedia } = require('./helpers/media.js');
 const { joinClass, classOverview, pickStudent, authorizeSession } = require('../lib/class-live-store.js');
 const { addLibraryLesson } = require('./helpers/library.js');
@@ -75,6 +75,49 @@ test('sessions join an existing class and keep its permanent link', t => {
   assert.throws(() => plan({ className: undefined, classId: first.class_id }, other.id), { statusCode: 404 });
   assert.throws(() => plan({ className: undefined, classId: 'not-a-class' }), { statusCode: 400 });
   assert.equal(db.prepare('SELECT count(*) n FROM classes').get().n, 2);
+});
+test('a class keeps its level and age, edited only by its owner together with the name', t => {
+  const { db, teacher, other, plan } = fixture(t);
+  const { class_id: id } = plan();
+  assert.deepEqual(['level', 'age', 'age_label'].map(key => listClasses(teacher.id, db)[0][key]), [null, null, null]);
+  const edited = updateClass(id, { name: '  Анна К.  ', level: 'A2', age: '12-14' }, teacher.id, db);
+  assert.deepEqual([edited.name, edited.level, edited.age, edited.age_label, edited.isGroup], ['Анна К.', 'A2', '12-14', '12–14 лет', false]);
+  assert.equal(updateClass(id, { name: 'Анна', level: 'C2', age: 'adults' }, teacher.id, db).age_label, 'Взрослые');
+  for (const body of [null, [], { level: 'A2', age: '12-14' }, { name: ' ', level: 'A2', age: '12-14' }, { name: 'x'.repeat(81), level: 'A2', age: '12-14' },
+    { name: 'Анна', age: '12-14' }, { name: 'Анна', level: 'a2', age: '12-14' }, { name: 'Анна', level: 'A2' }, { name: 'Анна', level: 'A2', age: '19-25' }]) {
+    assert.throws(() => updateClass(id, body, teacher.id, db), { statusCode: 400 });
+  }
+  assert.throws(() => updateClass(id, { name: 'Чужой', level: 'A1', age: '9-11' }, other.id, db), { statusCode: 404 });
+  assert.deepEqual({ ...db.prepare('SELECT name, level, age FROM classes WHERE id = ?').get(id) }, { name: 'Анна', level: 'C2', age: 'adults' });
+});
+test('class history lists held and upcoming sessions with their grammar, counts held ones and finds the next one', t => {
+  const { db, teacher, other, plan } = fixture(t);
+  db.prepare("UPDATE library_lessons SET grammar_point = 'to-be' WHERE id = 'superhero'").run();
+  const first = plan();
+  const at = (session, scheduledAt) => db.prepare('UPDATE class_sessions SET scheduled_at = ? WHERE id = ?').run(scheduledAt, session.id);
+  const sameClass = scheduledAt => plan({ className: undefined, classId: first.class_id, scheduledAt });
+  at(first, '2026-09-01T10:00:00.000Z');
+  const second = sameClass('2099-01-02T10:00:00.000Z');
+  at(second, '2026-09-08T10:00:00.000Z');
+  const later = sameClass('2099-02-01T10:00:00.000Z');
+  const next = sameClass('2099-01-15T10:00:00.000Z');
+  updateClassSession(sameClass('2099-01-10T10:00:00.000Z').id, { status: 'cancelled' }, teacher.id, db);
+  // A session made from a lesson that later left the library keeps its place without a grammar point.
+  db.prepare('UPDATE class_sessions SET library_lesson_id = NULL WHERE id = ?').run(second.id);
+  const history = listClassHistory(first.class_id, teacher.id, db);
+  assert.deepEqual(history.map(item => [item.id, item.held, item.grammar_title]), [
+    [later.id, false, 'to be: am / is / are'], [next.id, false, 'to be: am / is / are'], [second.id, true, null], [first.id, true, 'to be: am / is / are']]);
+  assert.deepEqual(Object.keys(history[0]).sort(), ['grammar_point', 'grammar_title', 'held', 'id', 'level', 'library_lesson_id', 'path', 'scheduled_at', 'title']);
+  assert.equal(history[0].path, `/sessions/${later.id}`);
+  const [anna] = listClasses(teacher.id, db);
+  assert.deepEqual([anna.held_count, anna.next_session_at], [2, '2099-01-15T10:00:00.000Z']);
+  const fresh = plan({ className: 'Новый' });
+  at(fresh, '2026-09-02T10:00:00.000Z');
+  updateClassSession(plan({ className: undefined, classId: fresh.class_id }).id, { status: 'cancelled' }, teacher.id, db);
+  const newcomer = listClasses(teacher.id, db).find(item => item.id === fresh.class_id);
+  assert.deepEqual([newcomer.held_count, newcomer.next_session_at], [1, null]);
+  assert.equal(listClassHistory(first.class_id, other.id, db), null);
+  assert.equal(listClassHistory(crypto.randomUUID(), teacher.id, db), null);
 });
 test('unavailable or changed lessons, missing assets and invalid input cannot create a session', t => {
   const { db, teacher, input, assetName } = fixture(t);
@@ -209,6 +252,17 @@ test('session API creates once, renders schedule and teacher lesson, protects al
   assert.equal((await (await request('/api/home-content')).json()).hasClasses, true);
   assert.equal((await (await request('/api/sessions', otherCookie)).json()).sessions.length, 0);
   assert.equal((await (await request('/api/classes', otherCookie)).json()).classes.length, 0);
+  const classPath = `/api/classes/${session.class_id}`;
+  const profile = { name: 'Анна', level: 'B1', age: '15-18' };
+  assert.equal((await request(classPath, null, 'PATCH', profile)).status, 401);
+  assert.equal((await request(classPath, otherCookie, 'PATCH', profile)).status, 404);
+  assert.equal((await request(classPath, cookie, 'PATCH', { ...profile, age: 'teens' })).status, 400);
+  const edited = await request(classPath, cookie, 'PATCH', profile);
+  assert.equal(edited.status, 200);
+  assert.deepEqual((({ level, age, age_label }) => ({ level, age, age_label }))((await edited.json()).class), { level: 'B1', age: '15-18', age_label: '15–18 лет' });
+  assert.equal((await request(`${classPath}/sessions`, null)).status, 401);
+  assert.equal((await request(`${classPath}/sessions`, otherCookie)).status, 404);
+  assert.deepEqual((await (await request(`${classPath}/sessions`)).json()).sessions.map(item => item.id), [nextSession.id, session.id]);
   assert.match(await (await request('/schedule')).text(), /id="schedule-grid"/);
   assert.equal((await request(session.path)).status, 200);
   assert.equal((await request(session.path, null)).status, 302);

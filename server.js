@@ -23,7 +23,7 @@ const {
 } = require('./lib/auth.js');
 const { DEFAULT_DB_PATH, getDatabase } = require('./lib/db.js');
 const { listLibraryLessons, listNewLibraryLessons, findLibraryLesson, publishLesson, unpublishLesson, unpublishLibraryLesson, setLibraryLessonBadge, setLibraryLessonProgram, hasLibraryAsset } = require('./lib/library-store.js');
-const { listClasses, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, hasClassSessionAsset } = require('./lib/class-store.js');
+const { listClasses, updateClass, listClassHistory, createClassSession, updateClassSession, clearClassSessions, findClassSession, listClassSessions, hasClassSessionAsset } = require('./lib/class-store.js');
 const { joinClass, classOverview, pickStudent, authorizeSession, sessionPayload, guestCanReadAsset } = require('./lib/class-live-store.js');
 const { createClassLiveSignaling } = require('./lib/class-live-signaling.js');
 const { hashPassword, verifyPassword } = require('./lib/password.js');
@@ -1799,6 +1799,25 @@ async function handleRequest(req, res) {
     const user = requireTeacherAuth(req, res);
     if (!user) return;
     json(res, 200, { classes: listClasses(user.id, database) });
+    return;
+  }
+
+  const classDetail = pathname.match(/^\/api\/classes\/([a-f0-9-]{36})$/i);
+  if (req.method === 'PATCH' && classDetail) {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    try { json(res, 200, { class: updateClass(classDetail[1], await readJsonBody(req), user.id, database) }); }
+    catch (error) { json(res, error.statusCode || 500, { error: error.statusCode ? error.message : 'Не удалось сохранить класс.' }); }
+    return;
+  }
+
+  const classHistory = pathname.match(/^\/api\/classes\/([a-f0-9-]{36})\/sessions$/i);
+  if (req.method === 'GET' && classHistory) {
+    const user = requireTeacherAuth(req, res);
+    if (!user) return;
+    const sessions = listClassHistory(classHistory[1], user.id, database);
+    if (sessions) json(res, 200, { sessions });
+    else json(res, 404, { error: 'Класс не найден.' });
     return;
   }
 
