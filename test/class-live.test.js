@@ -50,7 +50,7 @@ test('live class: guest authorization, actions, isolation, tab replacement and r
     db.prepare('INSERT INTO library_assets VALUES (?, ?)').run('superhero', name);
     putMedia(databasePath, name, data);
   }
-  const makeClass = () => createClassSession({ className: 'Live test', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
+  const makeClass = () => createClassSession({ level: 'A2', age: '12-14', className: 'Live test', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const lesson = makeClass(), otherLesson = makeClass();
   const probe = require('node:net').createServer();
   await new Promise(resolve => probe.listen(0, '127.0.0.1', resolve));

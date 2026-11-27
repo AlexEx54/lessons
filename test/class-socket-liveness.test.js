@@ -124,7 +124,7 @@ for (const channel of ['sessions', 'notes']) test(`${channel}: server announces 
   const db = openDatabase(':memory:');
   const teacher = createUser({ email: `heartbeat-${channel}@test.example`, displayName: 'Teacher', role: 'admin', passwordHash: 'unused' }, db);
   addLibraryLesson(db, syntheticLesson());
-  const lesson = createClassSession({ className: 'Heartbeat', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00Z' }, teacher.id, db);
+  const lesson = createClassSession({ level: 'A2', age: '12-14', className: 'Heartbeat', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00Z' }, teacher.id, db);
   const cookies = {
     teacher: `teach_session=${createSession(teacher.id, db).token}`,
     student: joinClass({ headers: {} }, lesson.classInvitePath.split('/').at(-1), db, lesson.id).cookie.split(';')[0],

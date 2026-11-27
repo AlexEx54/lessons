@@ -27,7 +27,7 @@ function fixture(t, dbPath = ':memory:') {
     if (dbPath !== ':memory:') putMedia(dbPath, name, data);
   }
   db.prepare('UPDATE library_lessons SET cover = ? WHERE id = ?').run(`/api/library/superhero/assets/${coverName}`, 'superhero');
-  const input = { className: 'Анна', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z', timeZone: 'Asia/Almaty' };
+  const input = { className: 'Анна', level: 'A2', age: '12-14', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z', timeZone: 'Asia/Almaty' };
   const plan = (patch, ownerId = teacher.id) => createClassSession({ ...input, requestKey: crypto.randomUUID(), ...patch }, ownerId, db);
   return { db, teacher, other, input, plan, assetName };
 }
@@ -79,9 +79,9 @@ test('sessions join an existing class and keep its permanent link', t => {
 test('a class keeps its level and age, edited only by its owner together with the name', t => {
   const { db, teacher, other, plan } = fixture(t);
   const { class_id: id } = plan();
-  assert.deepEqual(['level', 'age', 'age_label'].map(key => listClasses(teacher.id, db)[0][key]), [null, null, null]);
-  const edited = updateClass(id, { name: '  Анна К.  ', level: 'A2', age: '12-14' }, teacher.id, db);
-  assert.deepEqual([edited.name, edited.level, edited.age, edited.age_label, edited.isGroup], ['Анна К.', 'A2', '12-14', '12–14 лет', false]);
+  assert.deepEqual(['level', 'age', 'age_label'].map(key => listClasses(teacher.id, db)[0][key]), ['A2', '12-14', '12–14 лет']);
+  const edited = updateClass(id, { name: '  Анна К.  ', level: 'B1', age: '15-18' }, teacher.id, db);
+  assert.deepEqual([edited.name, edited.level, edited.age, edited.age_label, edited.isGroup], ['Анна К.', 'B1', '15-18', '15–18 лет', false]);
   assert.equal(updateClass(id, { name: 'Анна', level: 'C2', age: 'adults' }, teacher.id, db).age_label, 'Взрослые');
   for (const body of [null, [], { level: 'A2', age: '12-14' }, { name: ' ', level: 'A2', age: '12-14' }, { name: 'x'.repeat(81), level: 'A2', age: '12-14' },
     { name: 'Анна', age: '12-14' }, { name: 'Анна', level: 'a2', age: '12-14' }, { name: 'Анна', level: 'A2' }, { name: 'Анна', level: 'A2', age: '19-25' }]) {
@@ -121,7 +121,7 @@ test('class history lists held and upcoming sessions with their grammar, counts 
 });
 test('unavailable or changed lessons, missing assets and invalid input cannot create a session', t => {
   const { db, teacher, input, assetName } = fixture(t);
-  for (const patch of [{ className: '' }, { className: 'a'.repeat(81) }, { timeZone: 'Invalid' }, { scheduledAt: undefined }, { scheduledAt: '' }, { scheduledAt: 'yesterday' }, { scheduledAt: '2000-01-01T00:00:00Z' }]) {
+  for (const patch of [{ className: '' }, { className: 'a'.repeat(81) }, { level: undefined }, { level: 'D1' }, { age: undefined }, { age: 'kids' }, { timeZone: 'Invalid' }, { scheduledAt: undefined }, { scheduledAt: '' }, { scheduledAt: 'yesterday' }, { scheduledAt: '2000-01-01T00:00:00Z' }]) {
     assert.throws(() => createClassSession({ ...input, ...patch }, teacher.id, db), { statusCode: 400 });
   }
   for (const patch of [{ lessonId: 'animals' }, { expectedRevision: 0 }, { lessonId: 'missing' }]) {

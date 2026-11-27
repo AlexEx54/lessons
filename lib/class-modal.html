@@ -45,6 +45,26 @@
               <span class="visually-hidden">Название класса</span>
               <input id="class-name-input" type="text" value="Новый класс" autocomplete="off" maxlength="80" />
             </label>
+            <div class="class-choice">
+              <span class="class-choice__label" id="class-level-label">Уровень</span>
+              <div class="class-choice__options" id="class-level-choice" role="radiogroup" aria-labelledby="class-level-label" aria-required="true">
+                <button type="button" role="radio" aria-checked="false" data-value="A1">A1</button>
+                <button type="button" role="radio" aria-checked="false" data-value="A2">A2</button>
+                <button type="button" role="radio" aria-checked="false" data-value="B1">B1</button>
+                <button type="button" role="radio" aria-checked="false" data-value="B2">B2</button>
+                <button type="button" role="radio" aria-checked="false" data-value="C1">C1</button>
+                <button type="button" role="radio" aria-checked="false" data-value="C2">C2</button>
+              </div>
+            </div>
+            <div class="class-choice">
+              <span class="class-choice__label" id="class-age-label">Возраст</span>
+              <div class="class-choice__options" id="class-age-choice" role="radiogroup" aria-labelledby="class-age-label" aria-required="true">
+                <button type="button" role="radio" aria-checked="false" data-value="9-11">9–11 лет</button>
+                <button type="button" role="radio" aria-checked="false" data-value="12-14">12–14 лет</button>
+                <button type="button" role="radio" aria-checked="false" data-value="15-18">15–18 лет</button>
+                <button type="button" role="radio" aria-checked="false" data-value="adults">Взрослые</button>
+              </div>
+            </div>
             <label class="class-group-field">
               <input id="class-group-input" type="checkbox" />
               <span><strong>Группа</strong> до 8 учеников, каждый входит под своим именем</span>

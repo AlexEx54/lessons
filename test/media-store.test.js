@@ -69,7 +69,7 @@ test('published lessons and their sessions share one file; the sweep removes onl
   const lessonFiles = db.prepare('SELECT file_name FROM library_assets WHERE lesson_id = ?').all(publication.id).map(row => row.file_name);
   assert.equal(lessonFiles.length, 2);
   assert.ok(lessonFiles.every(name => name.endsWith('.webp')));
-  const session = () => createClassSession({ className: 'Media', lessonId: publication.id, expectedRevision: 1,
+  const session = () => createClassSession({ level: 'A2', age: '12-14', className: 'Media', lessonId: publication.id, expectedRevision: 1,
     requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, admin.id, db);
   const first = session();
   session();

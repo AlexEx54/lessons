@@ -32,7 +32,7 @@ function setup(t) {
   const lesson = syntheticLesson();
   lesson.notes = content('Start');
   addLibraryLesson(db, lesson);
-  const makeClass = () => createClassSession({ className: 'Notes', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
+  const makeClass = () => createClassSession({ level: 'A2', age: '12-14', className: 'Notes', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   return { db, teacher, makeClass };
 }
 
@@ -59,7 +59,7 @@ test('draft notes: ownership, version conflicts, formatting validation and publi
   }, db, '/unused', media);
   const publishedContent = JSON.parse(db.prepare('SELECT content_json FROM library_lessons WHERE id = ?').get(published.id).content_json);
   assert.deepEqual(publishedContent.notes, formatted);
-  const session = createClassSession({ className: 'Snapshot', lessonId: published.id, expectedRevision: published.revision, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
+  const session = createClassSession({ level: 'A2', age: '12-14', className: 'Snapshot', lessonId: published.id, expectedRevision: published.revision, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   saveDraftNotes(draft.id, teacher.id, { version: 1, content: content('Changed later') }, db);
   const doc = readClassNotes(session.id, db);
   assert.equal(textOf(doc), 'Prepared vocabulary');

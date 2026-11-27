@@ -6,6 +6,9 @@
   const classDialog = classModal.querySelector('.class-dialog');
   const classNameInput = document.getElementById('class-name-input');
   const classGroupInput = document.getElementById('class-group-input');
+  const levelChoice = document.getElementById('class-level-choice');
+  const ageChoice = document.getElementById('class-age-choice');
+  const profileChoices = [levelChoice, ageChoice];
   const classLinkPreview = document.getElementById('class-link-preview');
   const classLinkValue = document.getElementById('class-link-value');
   const classListStatus = document.getElementById('class-list-status');
@@ -55,6 +58,30 @@
   document.getElementById('class-time-zone').textContent = `Часовой пояс: ${classTimeZone}`;
 
   const selectedClass = () => classes.find(item => item.id === selectedClassId);
+  const choiceValue = group => group.querySelector('[aria-checked="true"]')?.dataset.value ?? null;
+
+  // The level and age chips work as radio groups: one tab stop each, arrows move the choice.
+  function pickChoice(group, value, shouldFocus = false) {
+    const options = [...group.querySelectorAll('[role="radio"]')];
+    const current = options.find(option => option.dataset.value === value);
+    group.removeAttribute('aria-invalid');
+    options.forEach(option => {
+      option.setAttribute('aria-checked', String(option === current));
+      option.tabIndex = option === (current ?? options[0]) ? 0 : -1;
+    });
+    if (shouldFocus) current?.focus();
+  }
+
+  // Both are required for a new class; every missing one is marked and the first gets focus.
+  function checkProfile() {
+    const missing = profileChoices.filter(group => !choiceValue(group));
+    if (!missing.length) return true;
+    missing.forEach(group => group.setAttribute('aria-invalid', 'true'));
+    classError.textContent = missing.length > 1 ? 'Выберите уровень и возраст класса.'
+      : missing[0] === levelChoice ? 'Выберите уровень класса.' : 'Выберите возраст класса.';
+    missing[0].querySelector('[tabindex="0"]').focus();
+    return false;
+  }
 
   function updateClassLink() {
     const link = classMode === 'new'
@@ -99,10 +126,20 @@
     avatar.className = 'class-option__avatar';
     avatar.setAttribute('aria-hidden', 'true');
     avatar.textContent = item.name.trim().charAt(0).toLocaleUpperCase('ru');
+    const text = document.createElement('span');
+    text.className = 'class-option__text';
     const name = document.createElement('span');
     name.className = 'class-option__name';
     name.textContent = item.name;
-    option.append(avatar, name);
+    text.append(name);
+    // Classes created before levels and ages existed show only the name until the teacher fills them in.
+    if (item.level && item.age) {
+      const profile = document.createElement('span');
+      profile.className = 'class-option__profile';
+      profile.textContent = `${item.level} · ${item.age_label}`;
+      text.append(profile);
+    }
+    option.append(avatar, text);
     if (item.isGroup) {
       const badge = document.createElement('span');
       badge.className = 'class-option__badge';
@@ -187,6 +224,7 @@
     classError.textContent = '';
     classNameInput.value = classNameInput.defaultValue;
     classGroupInput.checked = false;
+    profileChoices.forEach(group => pickChoice(group, null));
     classTimeInput.value = time || Calendar.toLocalInputValue(Calendar.nextFullHour());
     lessonSearch.value = '';
     showAllLessons = false;
@@ -390,7 +428,7 @@
     }
     const scheduledAt = time.toISOString();
     const target = classMode === 'new'
-      ? { className: classNameInput.value.trim(), ...(classGroupInput.checked ? { isGroup: true } : {}) }
+      ? { className: classNameInput.value.trim(), ...(classGroupInput.checked ? { isGroup: true } : {}), level: choiceValue(levelChoice), age: choiceValue(ageChoice) }
       : { classId: selectedClassId };
     const input = { ...target, lessonId: lesson.id, expectedRevision: lesson.revision, scheduledAt, timeZone: classTimeZone };
     const payload = JSON.stringify(input);
@@ -433,6 +471,23 @@
     classError.textContent = '';
     updateClassLink();
   });
+  profileChoices.forEach(group => {
+    group.addEventListener('click', event => {
+      const option = event.target.closest('[role="radio"]');
+      if (!option) return;
+      classError.textContent = '';
+      pickChoice(group, option.dataset.value);
+    });
+    group.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+      const options = [...group.querySelectorAll('[role="radio"]')];
+      const step = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1;
+      const index = (options.indexOf(document.activeElement) + step + options.length) % options.length;
+      event.preventDefault();
+      classError.textContent = '';
+      pickChoice(group, options[index].dataset.value, true);
+    });
+  });
   classSearch.addEventListener('input', renderClassList);
   classListRetry.addEventListener('click', loadClasses);
   classModeTabs.addEventListener('click', event => {
@@ -466,6 +521,7 @@
       classNameInput.focus();
       return;
     }
+    if (classMode === 'new' && !checkProfile()) return;
     if (classMode === 'existing' && !selectedClass()) {
       classError.textContent = 'Выберите класс.';
       focusClassStep();

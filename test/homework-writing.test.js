@@ -423,7 +423,7 @@ test('any stage with content opens in a session, and the homework there is saved
   const homework = normalizeHomeworkWriting(component());
   content.stages.push({ id: 'homework', number: content.stages.length + 1, title: 'Homework', icon: 'pencil', content: [homework] });
   addLibraryLesson(db, content);
-  const session = createClassSession({ className: 'Homework', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
+  const session = createClassSession({ level: 'A2', age: '12-14', className: 'Homework', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const teacherAccess = { role: 'teacher', sessionId: session.id, ownerId: teacher.id };
   const studentAccess = { ...teacherAccess, role: 'student' };
   const act = (access, action) => applyAction(access, { stageId: 'homework', componentId: homework.id, ...action }, db);

@@ -22,7 +22,7 @@ async function fixture(t, createSignaling, content = syntheticLesson()) {
   const db = openDatabase(':memory:');
   const teacher = createUser({ email: 'group@test.example', displayName: 'Teacher', role: 'teacher', passwordHash: 'unused' }, db);
   addLibraryLesson(db, content);
-  const lesson = createClassSession({ className: 'Группа B1', isGroup: true, lessonId: 'superhero', expectedRevision: 1,
+  const lesson = createClassSession({ level: 'A2', age: '12-14', className: 'Группа B1', isGroup: true, lessonId: 'superhero', expectedRevision: 1,
     requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00Z' }, teacher.id, db);
   const token = lesson.classInvitePath.split('/').at(-1);
   const teacherCookie = `teach_session=${createSession(teacher.id, db).token}`;

@@ -20,7 +20,7 @@ test('matching selection, order and pairs persist across reopen and stage change
   const teacher = createUser({ email: 'matching@test.local', displayName: 'Teacher', passwordHash: 'unused' }, db);
   const content = syntheticLesson('template-2');
   addLibraryLesson(db, content);
-  const lesson = createClassSession({ className: 'Grammar', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
+  const lesson = createClassSession({ level: 'A2', age: '12-14', className: 'Grammar', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const access = { role: 'teacher', sessionId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };
   let state = readState(lesson.id, db);
   const select = stageId => { state = applyAction(access, { type: 'select-stage', stageId }, db); };

@@ -30,10 +30,10 @@ test('session call: class access, one student, presence on the lesson socket, en
   const teacher = createUser({ email: 'call@test.local', displayName: 'Анна Сергеевна', role: 'teacher', passwordHash: 'unused' }, db);
   const teacherCookie = `teach_session=${createSession(teacher.id, db).token}`;
   addLibraryLesson(db, syntheticLesson());
-  const makeSession = () => createClassSession({ className: 'Маша', lessonId: 'superhero', expectedRevision: 1,
+  const makeSession = () => createClassSession({ level: 'A2', age: '12-14', className: 'Маша', lessonId: 'superhero', expectedRevision: 1,
     requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const lesson = makeSession(), otherLesson = makeSession();
-  const groupLesson = createClassSession({ className: 'Группа B1', isGroup: true, lessonId: 'superhero', expectedRevision: 1,
+  const groupLesson = createClassSession({ level: 'A2', age: '12-14', className: 'Группа B1', isGroup: true, lessonId: 'superhero', expectedRevision: 1,
     requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
 
   const probe = require('node:net').createServer();

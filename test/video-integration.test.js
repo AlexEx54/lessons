@@ -73,7 +73,7 @@ test('video upload, immutable publication, range access and class media signals'
   const head = await request(published, { method: 'HEAD' });
   assert.equal(head.headers.get('content-length'), String(bytes.length));
   assert.equal(head.headers.get('cache-control'), 'private, max-age=31536000, immutable');
-  const classroom = createClassSession({ className: 'Video class', lessonId: publication.id, expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, admin.id, db);
+  const classroom = createClassSession({ level: 'A2', age: '12-14', className: 'Video class', lessonId: publication.id, expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, admin.id, db);
   assert.deepEqual(classroom.content.stages[0].content[0].questions, [question]);
   const classSource = classroom.content.stages[0].content[0].videoSrc;
   const joined = await request(classroom.sessionInvitePath, { redirect: 'manual' }, '');

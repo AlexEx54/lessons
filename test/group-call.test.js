@@ -77,7 +77,7 @@ function setup(t) {
   const teacher = createUser({ email: 'group@test.local', displayName: 'Анна Сергеевна', role: 'teacher', passwordHash: 'unused' }, db);
   const teacherCookie = `teach_session=${createSession(teacher.id, db).token}`;
   addLibraryLesson(db, syntheticLesson());
-  const makeSession = (className, isGroup = true) => createClassSession({ className, isGroup, lessonId: 'superhero', expectedRevision: 1,
+  const makeSession = (className, isGroup = true) => createClassSession({ level: 'A2', age: '12-14', className, isGroup, lessonId: 'superhero', expectedRevision: 1,
     requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   // A student of a group who picked their name on this device.
   const student = (lesson, name) => {

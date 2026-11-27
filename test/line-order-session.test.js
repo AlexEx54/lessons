@@ -29,7 +29,7 @@ test('line order and locked lines persist across reopen; reset clears the progre
   const content = syntheticLesson('template-2');
   content.stages[0].content.push(exercise);
   addLibraryLesson(db, content);
-  const lesson = createClassSession({ className: 'Stories', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
+  const lesson = createClassSession({ level: 'A2', age: '12-14', className: 'Stories', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const access = { role: 'teacher', sessionId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };
   const presentation = access => sessionPayload(access, db).lesson.content.stages[0].content.find(item => item.type === 'lineOrder').presentation;
   const task = presentation(student);

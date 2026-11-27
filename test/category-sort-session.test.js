@@ -30,7 +30,7 @@ test('card order and sorted cards persist across reopen; reset clears the cards 
   const content = syntheticLesson('template-2');
   content.stages[0].content.push(exercise);
   addLibraryLesson(db, content);
-  const lesson = createClassSession({ className: 'Sounds', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
+  const lesson = createClassSession({ level: 'A2', age: '12-14', className: 'Sounds', lessonId: 'superhero', expectedRevision: 1, requestKey: crypto.randomUUID(), scheduledAt: '2099-01-01T10:00:00.000Z' }, teacher.id, db);
   const access = { role: 'teacher', sessionId: lesson.id, ownerId: teacher.id }, student = { ...access, role: 'student' };
   const presentation = access => sessionPayload(access, db).lesson.content.stages[0].content.find(item => item.type === 'categorySort').presentation;
   const task = presentation(student);
