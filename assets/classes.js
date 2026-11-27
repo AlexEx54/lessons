@@ -9,6 +9,8 @@
   const tools = byId('classes-tools');
   const search = byId('classes-search');
   const noMatch = byId('classes-no-match');
+  const viewSwitch = byId('classes-view');
+  const VIEW_STORAGE_KEY = 'classes-view';
   const dialog = byId('classes-edit-dialog');
   const form = dialog.querySelector('form');
   const nameInput = byId('classes-edit-name');
@@ -112,7 +114,13 @@
     toggle.setAttribute('aria-controls', history.id);
     toggle.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>');
     const actions = element('div', 'class-card__actions');
-    actions.append(button('classes-action classes-action--soft', 'Запланировать занятие', 'plan'), toggle);
+    // A phone row says only «Запланировать», so «История» fits beside it. One label span keeps the words
+    // a single flex item of the button.
+    const plan = button('classes-action classes-action--soft', '', 'plan');
+    const planLabel = element('span', '', 'Запланировать');
+    planLabel.append(element('span', 'class-card__plan-object', ' занятие'));
+    plan.append(planLabel);
+    actions.append(plan, toggle);
 
     card.append(...[head, summary(item), program, actions, history].filter(Boolean));
     return card;
@@ -306,8 +314,25 @@
     if (control.dataset.action === 'edit') openEdit(item);
     if (control.dataset.action === 'history') toggleHistory(card, control);
   });
+  // Tiles and rows share the card markup; the list class alone switches the layout.
+  function showView(view) {
+    list.classList.toggle('classes-list--rows', view === 'rows');
+    viewSwitch.querySelectorAll('[data-view]').forEach(control => control.setAttribute('aria-pressed', String(control.dataset.view === view)));
+  }
+  // Storage may be unavailable (private mode, blocked site data); the page then starts with tiles.
+  function savedView() {
+    try { return window.localStorage.getItem(VIEW_STORAGE_KEY) === 'rows' ? 'rows' : 'tiles'; } catch { return 'tiles'; }
+  }
+
   search.addEventListener('input', applySearch);
+  viewSwitch.addEventListener('click', event => {
+    const control = event.target.closest('[data-view]');
+    if (!control) return;
+    showView(control.dataset.view);
+    try { window.localStorage.setItem(VIEW_STORAGE_KEY, control.dataset.view); } catch { /* the choice lasts until the page is reloaded */ }
+  });
   byId('classes-create').addEventListener('click', () => planSession(null));
   retry.addEventListener('click', load);
+  showView(savedView());
   load();
 })();
