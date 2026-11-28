@@ -17,6 +17,7 @@ const MARKUP = new Map([
   ['8208aa03-c2f9-4922-8c09-46d995a996ea', ['have-got', 'Одежда и внешность', null]],
   ['65acf990-9c16-4aa4-a3f2-110504e13a12', ['there-is-are', 'Любимые места', null]],
   ['09c11e1c-6d6b-4d9c-9e61-619fed8cc65e', ['prepositions-place', 'Комната и мебель', null]],
+  ['00cffdea-8697-47ab-a28b-6d1dea7e65e1', ['prepositions-place', 'Как спросить дорогу', null]],
   ['3cc4fb69-d2bc-4fac-8914-357811a203a4', ['present-simple', 'Распорядок дня', null]],
   ['ea580c11-9574-4101-b74c-e6d346e49207', ['adverbs-frequency', 'Школа и друзья', null]],
   ['782376ba-29af-412b-b134-db5b69efbfa6', ['prepositions-time', 'Даты и праздники', null]],
